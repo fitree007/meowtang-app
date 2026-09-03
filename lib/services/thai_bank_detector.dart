@@ -1,0 +1,419 @@
+import 'package:flutter/material.dart';
+import '../models/transaction_item.dart';
+import '../models/account_item.dart';
+
+class ThaiBankInfo {
+  final String code;
+  final String nameTh;
+  final String nameEn;
+  final String shortName;
+  final Color brandColor;
+  final IconData icon;
+  final List<String> keywords;
+
+  const ThaiBankInfo({
+    required this.code,
+    required this.nameTh,
+    required this.nameEn,
+    String? shortName,
+    String? shortNameTh,
+    String? shortNameEn,
+    Color? brandColor,
+    Color? primaryColor,
+    Color? secondaryColor,
+    IconData? icon,
+    List<String>? keywords,
+  })  : shortName = shortName ?? shortNameTh ?? shortNameEn ?? code,
+        brandColor = brandColor ?? primaryColor ?? const Color(0xFF64748B),
+        icon = icon ?? Icons.account_balance,
+        keywords = keywords ?? const [];
+
+  Color get primaryColor => brandColor;
+  Color get secondaryColor => brandColor;
+  String get shortNameTh => shortName;
+  String get shortNameEn => shortName;
+}
+
+typedef ThaiBankMeta = ThaiBankInfo;
+
+class ThaiBankDetector {
+  static ThaiBankInfo getBank(String code) => getBankByCode(code);
+
+  static const List<ThaiBankInfo> supportedBanks = [
+    ThaiBankInfo(
+      code: 'KBANK',
+      nameTh: 'ธนาคารกสิกรไทย',
+      nameEn: 'Kasikornbank (K PLUS)',
+      shortName: 'KBank',
+      brandColor: Color(0xFF138F2D),
+      icon: Icons.account_balance,
+      keywords: ['กสิกร', 'kbank', 'k plus', 'kplus', 'kasikorn', '004'],
+    ),
+    ThaiBankInfo(
+      code: 'MAKE',
+      nameTh: 'MAKE by KBank',
+      nameEn: 'MAKE by KBank',
+      shortName: 'MAKE',
+      brandColor: Color(0xFF10B981),
+      icon: Icons.cloud_done_rounded,
+      keywords: ['make by kbank', 'make kbank', 'cloud pocket'],
+    ),
+    ThaiBankInfo(
+      code: 'SCB',
+      nameTh: 'ธนาคารไทยพาณิชย์',
+      nameEn: 'Siam Commercial Bank (SCB EASY)',
+      shortName: 'SCB',
+      brandColor: Color(0xFF4E2E7F),
+      icon: Icons.account_balance,
+      keywords: ['ไทยพาณิชย์', 'scb', 'scb easy', '014'],
+    ),
+    ThaiBankInfo(
+      code: 'BBL',
+      nameTh: 'ธนาคารกรุงเทพ',
+      nameEn: 'Bangkok Bank (Bualuang)',
+      shortName: 'BBL',
+      brandColor: Color(0xFF1E4598),
+      icon: Icons.account_balance,
+      keywords: ['กรุงเทพ', 'bbl', 'bualuang', '002'],
+    ),
+    ThaiBankInfo(
+      code: 'KTB',
+      nameTh: 'ธนาคารกรุงไทย',
+      nameEn: 'Krungthai Bank (NEXT)',
+      shortName: 'KTB',
+      brandColor: Color(0xFF00A6E6),
+      icon: Icons.account_balance,
+      keywords: ['กรุงไทย', 'ktb', 'krungthai', 'next', '006'],
+    ),
+    ThaiBankInfo(
+      code: 'TTB',
+      nameTh: 'ธนาคารทหารไทยธนชาต',
+      nameEn: 'TMBThanachart (ttb touch)',
+      shortName: 'ttb',
+      brandColor: Color(0xFF002D63),
+      icon: Icons.account_balance,
+      keywords: ['ทหารไทยธนชาต', 'ttb', 'tmb', 'thanachart', '011'],
+    ),
+    ThaiBankInfo(
+      code: 'BAY',
+      nameTh: 'ธนาคารกรุงศรีอยุธยา',
+      nameEn: 'Bank of Ayudhya (Krungsri KMA)',
+      shortName: 'Krungsri',
+      brandColor: Color(0xFFFDB913),
+      icon: Icons.account_balance,
+      keywords: ['กรุงศรี', 'bay', 'krungsri', 'kma', '025'],
+    ),
+    ThaiBankInfo(
+      code: 'KEPT',
+      nameTh: 'Kept by Krungsri',
+      nameEn: 'Kept by Krungsri',
+      shortName: 'Kept',
+      brandColor: Color(0xFF5B45FF),
+      icon: Icons.savings_rounded,
+      keywords: ['kept', 'kept by krungsri'],
+    ),
+    ThaiBankInfo(
+      code: 'GSB',
+      nameTh: 'ธนาคารออมสิน',
+      nameEn: 'Government Savings Bank (MyMo)',
+      shortName: 'GSB',
+      brandColor: Color(0xFFEB198B),
+      icon: Icons.account_balance,
+      keywords: ['ออมสิน', 'gsb', 'mymo', '030'],
+    ),
+    ThaiBankInfo(
+      code: 'UOB',
+      nameTh: 'ธนาคารยูโอบี',
+      nameEn: 'United Overseas Bank (UOB TMRW)',
+      shortName: 'UOB',
+      brandColor: Color(0xFF003882),
+      icon: Icons.account_balance,
+      keywords: ['ยูโอบี', 'uob', 'tmrw', '024'],
+    ),
+    ThaiBankInfo(
+      code: 'CIMB',
+      nameTh: 'ธนาคารซีไอเอ็มบีไทย',
+      nameEn: 'CIMB Thai Bank',
+      shortName: 'CIMB',
+      brandColor: Color(0xFF7E1417),
+      icon: Icons.account_balance,
+      keywords: ['ซีไอเอ็มบี', 'cimb', 'cimb thai', '022'],
+    ),
+    ThaiBankInfo(
+      code: 'KKP',
+      nameTh: 'ธนาคารเกียรตินาคินภัทร',
+      nameEn: 'Kiatnakin Phatra (KKP MOBILE)',
+      shortName: 'KKP',
+      brandColor: Color(0xFF223652),
+      icon: Icons.account_balance,
+      keywords: ['เกียรตินาคินภัทร', 'เกียรตินาคิน', 'kkp', 'kiatnakin', '069'],
+    ),
+    ThaiBankInfo(
+      code: 'DIME',
+      nameTh: 'Dime! by KKP',
+      nameEn: 'Dime! by KKP',
+      shortName: 'Dime!',
+      brandColor: Color(0xFF00D18F),
+      icon: Icons.monetization_on_rounded,
+      keywords: ['dime', 'dime!'],
+    ),
+    ThaiBankInfo(
+      code: 'GHB',
+      nameTh: 'ธนาคารอาคารสงเคราะห์',
+      nameEn: 'Government Housing Bank (GHB ALL GEN)',
+      shortName: 'GHB (ธอส.)',
+      brandColor: Color(0xFFF37021),
+      icon: Icons.home_work_rounded,
+      keywords: ['อาคารสงเคราะห์', 'ธอส', 'ghb', 'ghb all', '033'],
+    ),
+    ThaiBankInfo(
+      code: 'TISCO',
+      nameTh: 'ธนาคารทิสโก้',
+      nameEn: 'TISCO Bank (TISCO My Wealth)',
+      shortName: 'TISCO',
+      brandColor: Color(0xFF004B93),
+      icon: Icons.account_balance,
+      keywords: ['ทิสโก้', 'tisco', 'my wealth', '067'],
+    ),
+    ThaiBankInfo(
+      code: 'LHBANK',
+      nameTh: 'ธนาคารแลนด์ แอนด์ เฮ้าส์',
+      nameEn: 'LH Bank (LHB You)',
+      shortName: 'LH Bank',
+      brandColor: Color(0xFF6D6E71),
+      icon: Icons.account_balance,
+      keywords: ['แลนด์ แอนด์ เฮ้าส์', 'lh bank', 'lhb', 'lhb you', '073'],
+    ),
+    ThaiBankInfo(
+      code: 'IBANK',
+      nameTh: 'ธนาคารอิสลามแห่งประเทศไทย',
+      nameEn: 'Islamic Bank of Thailand (iBank)',
+      shortName: 'iBank',
+      brandColor: Color(0xFF006F3D),
+      icon: Icons.account_balance,
+      keywords: ['อิสลามแห่งประเทศไทย', 'ibank', 'islamic bank', '066'],
+    ),
+    ThaiBankInfo(
+      code: 'BAAC',
+      nameTh: 'ธ.ก.ส. (เพื่อการเกษตรและสหกรณ์)',
+      nameEn: 'BAAC (A-Mobile Plus)',
+      shortName: 'BAAC (ธ.ก.ส.)',
+      brandColor: Color(0xFF006F3D),
+      icon: Icons.agriculture_rounded,
+      keywords: ['เพื่อการเกษตรและสหกรณ์', 'ธกส', 'baac', 'a-mobile', '034'],
+    ),
+    ThaiBankInfo(
+      code: 'PAOTANG',
+      nameTh: 'เป๋าตัง (PaoTang / ถุงเงิน)',
+      nameEn: 'PaoTang (G-Wallet)',
+      shortName: 'เป๋าตัง',
+      brandColor: Color(0xFF00A6E6),
+      icon: Icons.wallet,
+      keywords: ['เป๋าตัง', 'paotang', 'g-wallet', 'ถุงเงิน'],
+    ),
+    ThaiBankInfo(
+      code: 'TRUEMONEY',
+      nameTh: 'ทรูมันนี่ วอลเล็ท',
+      nameEn: 'TrueMoney Wallet',
+      shortName: 'TrueMoney',
+      brandColor: Color(0xFFFF5000),
+      icon: Icons.wallet,
+      keywords: ['ทรูมันนี่', 'truemoney', 'true money'],
+    ),
+    ThaiBankInfo(
+      code: 'PROMPTPAY',
+      nameTh: 'พร้อมเพย์',
+      nameEn: 'PromptPay QR',
+      shortName: 'PromptPay',
+      brandColor: Color(0xFF003D79),
+      icon: Icons.qr_code_scanner,
+      keywords: ['พร้อมเพย์', 'promptpay'],
+    ),
+    ThaiBankInfo(
+      code: 'CASH',
+      nameTh: 'เงินสด / บัญชีอื่นๆ',
+      nameEn: 'Cash / Other Accounts',
+      shortName: 'Cash',
+      brandColor: Color(0xFF10B981),
+      icon: Icons.payments,
+      keywords: ['เงินสด', 'cash'],
+    ),
+  ];
+
+  static ThaiBankInfo getBankByCode(String code) {
+    final clean = code.toUpperCase().trim();
+    return supportedBanks.firstWhere(
+      (b) => b.code == clean || b.shortName.toUpperCase() == clean,
+      orElse: () => const ThaiBankInfo(
+        code: 'OTHER',
+        nameTh: 'บัญชีอื่นๆ',
+        nameEn: 'Other Account',
+        shortName: 'Other',
+        brandColor: Color(0xFF64748B),
+        icon: Icons.account_balance_wallet,
+      ),
+    );
+  }
+
+  /// Detects bank from a transaction given its account, image path, QR payload, and directional OCR text
+  static String detectBankCode(TransactionItem tx, List<AccountItem> accounts) {
+    // Layer 1: Check matching registered account's bankCode
+    final matchedAcc = accounts.firstWhere(
+      (a) => a.id == tx.accountId,
+      orElse: () => AccountItem(
+        id: '',
+        name: '',
+        bankCode: 'CASH',
+        accountNumber: '',
+        colorValue: 0,
+      ),
+    );
+
+    if (matchedAcc.id.isNotEmpty && matchedAcc.bankCode.isNotEmpty && matchedAcc.bankCode != 'CASH') {
+      final code = matchedAcc.bankCode.toUpperCase();
+      if (supportedBanks.any((b) => b.code == code)) {
+        return code;
+      }
+    }
+
+    // Layer 2: Check Album / File Path (100% accurate for slips saved from specific banking apps)
+    if (tx.slipImageUrl != null && tx.slipImageUrl!.isNotEmpty) {
+      final pathLower = tx.slipImageUrl!.toLowerCase();
+      if (pathLower.contains('k plus') || pathLower.contains('kplus') || pathLower.contains('kbank') || pathLower.contains('kasikorn')) {
+        return 'KBANK';
+      }
+      if (pathLower.contains('scb easy') || pathLower.contains('scb') || pathLower.contains('ไทยพาณิชย์')) {
+        return 'SCB';
+      }
+      if (pathLower.contains('ibank') || pathLower.contains('อิสลาม') || pathLower.contains('islamic')) {
+        return 'IBANK';
+      }
+      if (pathLower.contains('paotang') || pathLower.contains('เป๋าตัง') || pathLower.contains('gwallet') || pathLower.contains('g-wallet') || pathLower.contains('ไทยช่วยไทย') || pathLower.contains('ถุงเงิน') || pathLower.contains('tungngern')) {
+        if (pathLower.contains('ibank') || pathLower.contains('อิสลาม')) {
+          return 'IBANK';
+        }
+        return 'PAOTANG';
+      }
+      if (pathLower.contains('krungthai next') || pathLower.contains('krungthai') || pathLower.contains('ktb')) {
+        return 'KTB';
+      }
+      if (pathLower.contains('bualuang') || pathLower.contains('bangkok bank') || pathLower.contains('bbl')) {
+        return 'BBL';
+      }
+      if (pathLower.contains('ttb touch') || pathLower.contains('ttb') || pathLower.contains('tmb') || pathLower.contains('thanachart')) {
+        return 'TTB';
+      }
+      if (pathLower.contains('kma') || pathLower.contains('krungsri') || pathLower.contains('bay')) {
+        return 'BAY';
+      }
+      if (pathLower.contains('mymo') || pathLower.contains('gsb') || pathLower.contains('ออมสิน')) {
+        return 'GSB';
+      }
+      if (pathLower.contains('a-mobile') || pathLower.contains('baac') || pathLower.contains('ธกส')) {
+        return 'BAAC';
+      }
+      if (pathLower.contains('truemoney') || pathLower.contains('true money') || pathLower.contains('ทรูมันนี่')) {
+        return 'TRUEMONEY';
+      }
+      if (pathLower.contains('uob tmrw') || pathLower.contains('uob') || pathLower.contains('ยูโอบี')) {
+        return 'UOB';
+      }
+      if (pathLower.contains('cimb') || pathLower.contains('ซีไอเอ็มบี')) {
+        return 'CIMB';
+      }
+      if (pathLower.contains('dime') || pathLower.contains('kkp') || pathLower.contains('เกียรตินาคิน')) {
+        return 'KKP';
+      }
+      if (pathLower.contains('lhb you') || pathLower.contains('lh bank') || pathLower.contains('lhbank')) {
+        return 'LHBANK';
+      }
+    }
+
+    // Layer 3: Check Directional OCR Text (Prioritize Sender/Top Header over Receiver)
+    final rawText = tx.rawOcrText ?? '';
+    if (rawText.isNotEmpty) {
+      final lines = rawText.split('\n').map((l) => l.trim().toLowerCase()).where((l) => l.isNotEmpty).toList();
+
+      // Check first 3 lines (Header/App Branding area)
+      final topLines = lines.take(3).join(' ');
+      final topBank = _detectBankFromTextSnippet(topLines);
+      if (topBank != null) return topBank;
+
+      // Check "จาก / From / ผู้โอน" section
+      for (int i = 0; i < lines.length; i++) {
+        final line = lines[i];
+        if (line.startsWith('จาก') || line.startsWith('ผู้โอน') || line.startsWith('from')) {
+          final senderSnippet = lines.skip(i).take(3).join(' ');
+          final sBank = _detectBankFromTextSnippet(senderSnippet);
+          if (sBank != null) return sBank;
+          break;
+        }
+      }
+    }
+
+    // Layer 4: General keyword & note/title search
+    final fullText = '${tx.rawOcrText ?? ""} ${tx.note ?? ""} ${tx.title}'.toLowerCase();
+    final generalBank = _detectBankFromTextSnippet(fullText);
+    if (generalBank != null) return generalBank;
+
+    // Default to Cash or Other
+    return 'CASH';
+  }
+
+  static String? _detectBankFromTextSnippet(String text) {
+    if (text.contains('k plus') || text.contains('kplus') || text.contains('kbank') || text.contains('กสิกรไทย') || text.contains('กสิกร') || text.contains('kasikorn')) {
+      return 'KBANK';
+    }
+    if (text.contains('scb easy') || text.contains('scb') || text.contains('ไทยพาณิชย์') || text.contains('แม่มณี') || text.contains('siam commercial')) {
+      return 'SCB';
+    }
+    if (text.contains('ibank') || text.contains('อิสลามแห่งประเทศไทย') || text.contains('อิสลาม') || text.contains('islamic bank')) {
+      return 'IBANK';
+    }
+    if (text.contains('ไทยช่วยไทย') || text.contains('คนละครึ่ง') || text.contains('เราชนะ') || text.contains('สวัสดิการแห่งรัฐ') || text.contains('เป๋าตัง') || text.contains('paotang') || text.contains('g-wallet') || text.contains('gwallet')) {
+      return 'PAOTANG';
+    }
+    if (text.contains('krungthai next') || text.contains('krungthai') || text.contains('ktb') || text.contains('กรุงไทย')) {
+      return 'KTB';
+    }
+    if (text.contains('bualuang') || text.contains('bangkok bank') || text.contains('กรุงเทพ') || text.contains('bbl') || text.contains('โมบายแบงก์กิ้ง')) {
+      return 'BBL';
+    }
+    if (text.contains('ttb touch') || text.contains('ttb') || text.contains('ทหารไทยธนชาต') || text.contains('ทหารไทย') || text.contains('ธนชาต') || text.contains('thanachart') || text.contains('ทีทีบี')) {
+      return 'TTB';
+    }
+    if (text.contains('kma') || text.contains('krungsri') || text.contains('กรุงศรีอยุธยา') || text.contains('กรุงศรี') || text.contains('bay') || text.contains('ayudhya')) {
+      return 'BAY';
+    }
+    if (text.contains('mymo') || text.contains('gsb') || text.contains('ออมสิน') || text.contains('government savings')) {
+      return 'GSB';
+    }
+    if (text.contains('a-mobile') || text.contains('baac') || text.contains('ธ.ก.ส.') || text.contains('ธกส') || text.contains('เพื่อการเกษตรและสหกรณ์')) {
+      return 'BAAC';
+    }
+    if (text.contains('truemoney') || text.contains('true money') || text.contains('ทรูมันนี่') || text.contains('tmn')) {
+      return 'TRUEMONEY';
+    }
+    if (text.contains('uob tmrw') || text.contains('uob') || text.contains('ยูโอบี')) {
+      return 'UOB';
+    }
+    if (text.contains('cimb') || text.contains('ซีไอเอ็มบี')) {
+      return 'CIMB';
+    }
+    if (text.contains('dime!') || text.contains('dime') || text.contains('kkp') || text.contains('เกียรตินาคิน')) {
+      return 'KKP';
+    }
+    if (text.contains('lhb you') || text.contains('lh bank') || text.contains('lhbank') || text.contains('แลนด์ แอนด์ เฮ้าส์')) {
+      return 'LHBANK';
+    }
+    if (text.contains('promptpay') || text.contains('พร้อมเพย์')) {
+      return 'PROMPTPAY';
+    }
+    return null;
+  }
+
+  static ThaiBankInfo detectBankFromText(String text) {
+    final code = _detectBankFromTextSnippet(text.toLowerCase()) ?? 'OTHER';
+    return getBankByCode(code);
+  }
+}
