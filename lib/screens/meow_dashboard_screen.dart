@@ -2274,74 +2274,77 @@ void _handleMascotPetting() {
                        ],
 
                         // Stamped Date & Time & Minimalist Swipe Micro-Hints (Swipe Right: Edit | Date/Time | Delete :Swipe Left)
-                        Padding(
-                         padding: const EdgeInsets.only(top: 6),
-                         child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                           // Left: Swipe Right to Edit
-                           Row(
-                            mainAxisSize: MainAxisSize.min,
+                        () {
+                          final swipeHintColor = (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)).withValues(alpha: 0.50);
+                          return Container(
+                           margin: const EdgeInsets.only(top: 6, left: -8, right: -8),
+                           child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                             SwipeActionGlyph(
-                              direction: SwipeActionGlyphDirection.right,
-                              width: 17,
-                              height: 11,
-                              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                             // Left: Swipe Right to Edit (Flush to bottom-left edge)
+                             Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                               SwipeActionGlyph(
+                                direction: SwipeActionGlyphDirection.right,
+                                width: 15,
+                                height: 9.5,
+                                color: swipeHintColor,
+                               ),
+                               const SizedBox(width: 3),
+                               Text(
+                                widget.controller.isEnglish ? 'Edit' : 'แก้ไข',
+                                style: TextStyle(
+                                 color: swipeHintColor,
+                                 fontSize: 8.5,
+                                 fontWeight: FontWeight.w500,
+                                ),
+                               ),
+                              ],
                              ),
-                             const SizedBox(width: 4),
-                             Text(
-                              widget.controller.isEnglish ? 'Edit' : 'แก้ไข',
-                              style: TextStyle(
-                               color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                               fontSize: 10,
-                               fontWeight: FontWeight.w500,
-                              ),
-                             ),
-                            ],
-                           ),
 
-                           // Center: Date & Time
-                           Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                             const Icon(Icons.calendar_today_rounded, size: 9.5, color: MeowTheme.mustardYellowDark),
-                             const SizedBox(width: 3.5),
-                             Text(
-                              '${tx.date.day} ${_formatThaiMonthShort(tx.date.month)} ${widget.controller.isEnglish ? tx.date.year : tx.date.year + 543} • ${_formatTime(tx.date)}${widget.controller.isEnglish ? "" : " น."}',
-                              style: TextStyle(
-                               color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                               fontSize: 9.5,
-                               fontWeight: FontWeight.w500,
-                              ),
+                             // Center: Date & Time
+                             Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                               const Icon(Icons.calendar_today_rounded, size: 9.5, color: MeowTheme.mustardYellowDark),
+                               const SizedBox(width: 3.5),
+                               Text(
+                                '${tx.date.day} ${_formatThaiMonthShort(tx.date.month)} ${widget.controller.isEnglish ? tx.date.year : tx.date.year + 543} • ${_formatTime(tx.date)}${widget.controller.isEnglish ? "" : " น."}',
+                                style: TextStyle(
+                                 color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                 fontSize: 9.5,
+                                 fontWeight: FontWeight.w500,
+                                ),
+                               ),
+                              ],
                              ),
-                            ],
-                           ),
 
-                           // Right: Swipe Left to Delete
-                           Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                             Text(
-                              widget.controller.isEnglish ? 'Delete' : 'ลบ',
-                              style: TextStyle(
-                               color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                               fontSize: 10,
-                               fontWeight: FontWeight.w500,
-                              ),
-                             ),
-                             const SizedBox(width: 4),
-                             SwipeActionGlyph(
-                              direction: SwipeActionGlyphDirection.left,
-                              width: 17,
-                              height: 11,
-                              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                             // Right: Swipe Left to Delete (Flush to bottom-right edge)
+                             Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                               Text(
+                                widget.controller.isEnglish ? 'Delete' : 'ลบ',
+                                style: TextStyle(
+                                 color: swipeHintColor,
+                                 fontSize: 8.5,
+                                 fontWeight: FontWeight.w500,
+                                ),
+                               ),
+                               const SizedBox(width: 3),
+                               SwipeActionGlyph(
+                                direction: SwipeActionGlyphDirection.left,
+                                width: 15,
+                                height: 9.5,
+                                color: swipeHintColor,
+                               ),
+                              ],
                              ),
                             ],
                            ),
-                          ],
-                         ),
-                        ),
+                          );
+                        }(),
                       ],
                     ),
                    ),
@@ -3131,8 +3134,8 @@ class SwipeActionGlyph extends StatelessWidget {
   const SwipeActionGlyph({
     super.key,
     required this.direction,
-    this.width = 17.0,
-    this.height = 11.0,
+    this.width = 15.0,
+    this.height = 9.5,
     required this.color,
   });
 
@@ -3166,7 +3169,7 @@ class _SwipeGlyphPainter extends CustomPainter {
       ..color = color
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.4;
+      ..strokeWidth = 1.3;
 
     final fillPaint = Paint()
       ..color = color
@@ -3174,20 +3177,20 @@ class _SwipeGlyphPainter extends CustomPainter {
 
     // Arrowhead specifications: centered on bottom shaft (yCenter)
     final yCenter = h * 0.78;
-    final arrowHeadWidth = 5.2;
-    final halfArrowHeight = 3.6;
+    final arrowHeadWidth = 4.8;
+    final halfArrowHeight = 3.2;
     final shaftRight = w - arrowHeadWidth + 0.6;
 
     // 1. Top line (shortest, ~38% width)
     final y1 = h * 0.16;
-    canvas.drawLine(Offset(0.7, y1), Offset(w * 0.38, y1), linePaint);
+    canvas.drawLine(Offset(0.65, y1), Offset(w * 0.38, y1), linePaint);
 
     // 2. Middle line (medium, ~58% width)
     final y2 = h * 0.47;
-    canvas.drawLine(Offset(0.7, y2), Offset(w * 0.58, y2), linePaint);
+    canvas.drawLine(Offset(0.65, y2), Offset(w * 0.58, y2), linePaint);
 
     // 3. Bottom shaft line (longest, feeds cleanly into the arrowhead triangle)
-    canvas.drawLine(Offset(0.7, yCenter), Offset(shaftRight, yCenter), linePaint);
+    canvas.drawLine(Offset(0.65, yCenter), Offset(shaftRight, yCenter), linePaint);
 
     // 4. Solid triangle arrowhead
     final path = Path()
