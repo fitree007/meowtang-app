@@ -6,14 +6,13 @@ import Vision
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
-  private var imagePickerDelegate: ImagePickerDelegate?
-
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    if let controller = window?.rootViewController as? FlutterViewController {
-      setupNativeChannel(messenger: controller.binaryMessenger, controller: controller)
+    let registrar = self.registrar(forPlugin: "NativeBridgePlugin")
+    if let reg = registrar {
+      NativeBridgePlugin.register(with: reg)
     }
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
@@ -21,158 +20,250 @@ import Vision
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+    let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "NativeBridgePlugin")
+    NativeBridgePlugin.register(with: registrar)
+  }
+}
+
+public class NativeBridgePlugin: NSObject, FlutterPlugin, UIImagePickerControllerDelegate, UINavigationControllerDelegate, PHPickerViewControllerDelegate {
+  private static var instance: NativeBridgePlugin?
+  private var imagePickerResult: FlutterResult?
+
+  public static func register(with registrar: FlutterPluginRegistrar) {
+    let channel = FlutterMethodChannel(name: "com.afitree.rizqi/native", binaryMessenger: registrar.messenger())
+    let plugin = NativeBridgePlugin()
+    instance = plugin
+    registrar.addMethodCallDelegate(plugin, channel: channel)
   }
 
-  private func setupNativeChannel(messenger: FlutterBinaryMessenger, controller: FlutterViewController) {
-    let nativeChannel = FlutterMethodChannel(name: "com.afitree.rizqi/native", binaryMessenger: messenger)
+  public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+    switch call.method {
+    case "checkAppPermissions":
+      checkPermissions(result: result)
 
-    nativeChannel.setMethodCallHandler({ [weak self, weak controller] (call: FlutterMethodCall, result: @escaping FlutterResult) -> Void in
-      guard let self = self else { return }
-      let targetController = controller ?? self.window?.rootViewController
+    case "requestAppPermissions":
+      requestPermissions(result: result)
 
-      switch call.method {
-      case "checkAppPermissions":
-        let status = PHPhotoLibrary.authorizationStatus()
-        let isGranted: Bool
-        if #available(iOS 14, *) {
-          isGranted = (status == .authorized || status == .limited)
-        } else {
-          isGranted = (status == .authorized)
-        }
-        result(["allGranted": isGranted, "storageGranted": isGranted])
+    case "pickImage":
+      self.pickImage(result: result)
 
-      case "requestAppPermissions":
-        if #available(iOS 14, *) {
-          PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
-            DispatchQueue.main.async {
-              let isGranted = (status == .authorized || status == .limited)
-              result(["allGranted": isGranted, "storageGranted": isGranted])
-            }
-          }
-        } else {
-          PHPhotoLibrary.requestAuthorization { status in
-            DispatchQueue.main.async {
-              let isGranted = (status == .authorized)
-              result(["allGranted": isGranted, "storageGranted": isGranted])
-            }
-          }
-        }
+    case "scanBankSlips":
+      let args = call.arguments as? [String: Any]
+      let daysLimit = args?["daysLimit"] as? Int ?? 60
+      self.scanBankSlipsFromAlbum(daysLimit: daysLimit, result: result)
 
-      case "pickImage":
-        guard let vc = targetController else {
-          result(nil)
-          return
-        }
-        self.pickImageFromGallery(controller: vc, result: result)
-
-      case "scanBankSlips":
-        let args = call.arguments as? [String: Any]
-        let daysLimit = args?["daysLimit"] as? Int ?? 60
-        self.scanBankSlipsFromAlbum(daysLimit: daysLimit, result: result)
-
-      case "processSlipImage":
-        let args = call.arguments as? [String: Any]
-        guard let filePath = args?["filePath"] as? String else {
-          result(["error": "Missing filePath", "qrPayload": "", "ocrText": ""])
-          return
-        }
-        self.processSlipImage(filePath: filePath, result: result)
-
-      case "shareFile":
-        let args = call.arguments as? [String: Any]
-        let filePath = args?["filePath"] as? String ?? ""
-        if let vc = targetController {
-          self.shareFile(filePath: filePath, controller: vc, result: result)
-        } else {
-          result(false)
-        }
-
-      case "startMediaObserver", "startBackgroundService", "stopMediaObserver":
-        // Background continuous daemon is restricted by iOS Sandbox, return true gracefully
-        result(true)
-
-      case "isNotificationListenerGranted":
-        result(false)
-
-      default:
-        result(FlutterMethodNotImplemented)
+    case "processSlipImage":
+      let args = call.arguments as? [String: Any]
+      guard let filePath = args?["filePath"] as? String else {
+        result(["error": "Missing filePath", "qrPayload": "", "ocrText": ""])
+        return
       }
-    })
+      self.processSlipImage(filePath: filePath, result: result)
+
+    case "shareFile":
+      let args = call.arguments as? [String: Any]
+      let filePath = args?["filePath"] as? String ?? ""
+      self.shareFile(filePath: filePath, result: result)
+
+    case "startMediaObserver", "startBackgroundService", "stopMediaObserver":
+      result(true)
+
+    case "isNotificationListenerGranted":
+      result(false)
+
+    default:
+      result(FlutterMethodNotImplemented)
+    }
+  }
+
+  // MARK: - Permissions
+  private func checkPermissions(result: @escaping FlutterResult) {
+    let status = PHPhotoLibrary.authorizationStatus()
+    let isGranted: Bool
+    if #available(iOS 14, *) {
+      isGranted = (status == .authorized || status == .limited)
+    } else {
+      isGranted = (status == .authorized)
+    }
+    result(["allGranted": isGranted, "storageGranted": isGranted])
+  }
+
+  private func requestPermissions(result: @escaping FlutterResult) {
+    if #available(iOS 14, *) {
+      PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
+        DispatchQueue.main.async {
+          let isGranted = (status == .authorized || status == .limited)
+          result(["allGranted": isGranted, "storageGranted": isGranted])
+        }
+      }
+    } else {
+      PHPhotoLibrary.requestAuthorization { status in
+        DispatchQueue.main.async {
+          let isGranted = (status == .authorized)
+          result(["allGranted": isGranted, "storageGranted": isGranted])
+        }
+      }
+    }
   }
 
   // MARK: - Pick Image from Photo Library
-  private func pickImageFromGallery(controller: UIViewController, result: @escaping FlutterResult) {
-    let picker = UIImagePickerController()
-    picker.sourceType = .photoLibrary
-    picker.allowsEditing = false
-
-    let delegate = ImagePickerDelegate { [weak self] path in
-      self?.imagePickerDelegate = nil
-      result(path)
+  private func pickImage(result: @escaping FlutterResult) {
+    guard let topVC = getTopViewController() else {
+      result(nil)
+      return
     }
-    self.imagePickerDelegate = delegate
-    picker.delegate = delegate
-    controller.present(picker, animated: true, completion: nil)
+
+    self.imagePickerResult = result
+
+    if #available(iOS 14, *) {
+      var config = PHPickerConfiguration(photoLibrary: .shared())
+      config.filter = .images
+      config.selectionLimit = 1
+      let picker = PHPickerViewController(configuration: config)
+      picker.delegate = self
+      topVC.present(picker, animated: true, completion: nil)
+    } else {
+      let picker = UIImagePickerController()
+      picker.sourceType = .photoLibrary
+      picker.allowsEditing = false
+      picker.delegate = self
+      topVC.present(picker, animated: true, completion: nil)
+    }
+  }
+
+  // PHPickerViewControllerDelegate (iOS 14+)
+  @available(iOS 14, *)
+  public func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+    picker.dismiss(animated: true, completion: nil)
+    guard let provider = results.first?.itemProvider, provider.canLoadObject(ofClass: UIImage.self) else {
+      self.imagePickerResult?(nil)
+      self.imagePickerResult = nil
+      return
+    }
+
+    provider.loadObject(ofClass: UIImage.self) { [weak self] image, _ in
+      guard let self = self, let uiImage = image as? UIImage, let data = uiImage.jpegData(compressionQuality: 0.92) else {
+        DispatchQueue.main.async {
+          self?.imagePickerResult?(nil)
+          self?.imagePickerResult = nil
+        }
+        return
+      }
+
+      let cacheDir = FileManager.default.temporaryDirectory.appendingPathComponent("ios_picked_slips")
+      try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
+      let fileUrl = cacheDir.appendingPathComponent("picked_slip_\(UUID().uuidString).jpg")
+      try? data.write(to: fileUrl)
+
+      DispatchQueue.main.async {
+        self.imagePickerResult?(fileUrl.path)
+        self.imagePickerResult = nil
+      }
+    }
+  }
+
+  // UIImagePickerControllerDelegate (Fallback)
+  public func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+    picker.dismiss(animated: true, completion: nil)
+    guard let image = info[.originalImage] as? UIImage, let data = image.jpegData(compressionQuality: 0.92) else {
+      self.imagePickerResult?(nil)
+      self.imagePickerResult = nil
+      return
+    }
+
+    let cacheDir = FileManager.default.temporaryDirectory.appendingPathComponent("ios_picked_slips")
+    try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
+    let fileUrl = cacheDir.appendingPathComponent("picked_slip_\(UUID().uuidString).jpg")
+    try? data.write(to: fileUrl)
+
+    self.imagePickerResult?(fileUrl.path)
+    self.imagePickerResult = nil
+  }
+
+  public func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+    picker.dismiss(animated: true, completion: nil)
+    self.imagePickerResult?(nil)
+    self.imagePickerResult = nil
   }
 
   // MARK: - Scan Bank Slips From iOS Photo Album
   private func scanBankSlipsFromAlbum(daysLimit: Int, result: @escaping FlutterResult) {
-    let status = PHPhotoLibrary.authorizationStatus()
-    let isAuthorized: Bool
-    if #available(iOS 14, *) {
-      isAuthorized = (status == .authorized || status == .limited)
-    } else {
-      isAuthorized = (status == .authorized)
-    }
+    let performScan = { [weak self] in
+      guard let self = self else { return }
+      DispatchQueue.global(qos: .userInitiated).async {
+        let fetchOptions = PHFetchOptions()
+        if daysLimit > 0 {
+          let cutoffDate = Calendar.current.date(byAdding: .day, value: -daysLimit, to: Date()) ?? Date()
+          fetchOptions.predicate = NSPredicate(format: "mediaType = %d AND creationDate >= %@", PHAssetMediaType.image.rawValue, cutoffDate as NSDate)
+        } else {
+          // Unlimited historical scan for Creator Edition
+          fetchOptions.predicate = NSPredicate(format: "mediaType = %d", PHAssetMediaType.image.rawValue)
+        }
+        fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
 
-    guard isAuthorized else {
-      result([])
-      return
-    }
+        let assets = PHAsset.fetchAssets(with: fetchOptions)
+        var results: [[String: Any]] = []
+        let imageManager = PHImageManager.default()
+        let requestOptions = PHImageRequestOptions()
+        requestOptions.isSynchronous = true
+        requestOptions.deliveryMode = .highQualityFormat
+        requestOptions.isNetworkAccessAllowed = true
 
-    DispatchQueue.global(qos: .userInitiated).async {
-      let fetchOptions = PHFetchOptions()
-      let cutoffDate = Calendar.current.date(byAdding: .day, value: -daysLimit, to: Date()) ?? Date()
-      fetchOptions.predicate = NSPredicate(format: "mediaType = %d AND creationDate >= %@", PHAssetMediaType.image.rawValue, cutoffDate as NSDate)
-      fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+        let cacheDir = FileManager.default.temporaryDirectory.appendingPathComponent("ios_slip_cache")
+        try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
 
-      let assets = PHAsset.fetchAssets(with: fetchOptions)
-      var results: [[String: Any]] = []
-      let imageManager = PHImageManager.default()
-      let requestOptions = PHImageRequestOptions()
-      requestOptions.isSynchronous = true
-      requestOptions.deliveryMode = .highQualityFormat
-      requestOptions.isNetworkAccessAllowed = true
+        let total = min(assets.count, 500)
+        let dateFormatter = ISO8601DateFormatter()
 
-      let cacheDir = FileManager.default.temporaryDirectory.appendingPathComponent("ios_slip_cache")
-      try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
+        for i in 0..<total {
+          let asset = assets.object(at: i)
+          let assetDate = asset.creationDate ?? Date()
+          let filename = PHAssetResource.assetResources(for: asset).first?.originalFilename ?? "ios_slip_\(i).jpg"
 
-      let total = min(assets.count, 200)
-      let dateFormatter = ISO8601DateFormatter()
+          imageManager.requestImageDataAndOrientation(for: asset, options: requestOptions) { data, _, _, _ in
+            guard let data = data else { return }
+            let safeId = asset.localIdentifier.replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "\\", with: "_")
+            let targetUrl = cacheDir.appendingPathComponent("\(safeId).jpg")
+            try? data.write(to: targetUrl)
 
-      for i in 0..<total {
-        let asset = assets.object(at: i)
-        let assetDate = asset.creationDate ?? Date()
-        let filename = PHAssetResource.assetResources(for: asset).first?.originalFilename ?? "ios_slip_\(i).jpg"
+            results.append([
+              "path": targetUrl.path,
+              "name": filename,
+              "date": dateFormatter.string(from: assetDate),
+              "bankName": "ธนาคารไทย"
+            ])
+          }
+        }
 
-        imageManager.requestImageDataAndOrientation(for: asset, options: requestOptions) { data, _, _, _ in
-          guard let data = data else { return }
-          let safeId = asset.localIdentifier.replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "\\", with: "_")
-          let targetUrl = cacheDir.appendingPathComponent("\(safeId).jpg")
-          try? data.write(to: targetUrl)
-
-          results.append([
-            "path": targetUrl.path,
-            "name": filename,
-            "date": dateFormatter.string(from: assetDate),
-            "bankName": "ธนาคารไทย"
-          ])
+        DispatchQueue.main.async {
+          result(results)
         }
       }
+    }
 
-      DispatchQueue.main.async {
-        result(results)
+    let status = PHPhotoLibrary.authorizationStatus()
+    if status == .notDetermined {
+      if #available(iOS 14, *) {
+        PHPhotoLibrary.requestAuthorization(for: .readWrite) { newStatus in
+          if newStatus == .authorized || newStatus == .limited {
+            performScan()
+          } else {
+            DispatchQueue.main.async { result([]) }
+          }
+        }
+      } else {
+        PHPhotoLibrary.requestAuthorization { newStatus in
+          if newStatus == .authorized {
+            performScan()
+          } else {
+            DispatchQueue.main.async { result([]) }
+          }
+        }
       }
+    } else if status == .authorized || (status.rawValue == 4 /* limited */) {
+      performScan()
+    } else {
+      result([])
     }
   }
 
@@ -190,7 +281,7 @@ import Vision
 
     // 1. QR Code Barcode detection
     group.enter()
-    let barcodeRequest = VNDetectBarcodesRequest { request, error in
+    let barcodeRequest = VNDetectBarcodesRequest { request, _ in
       defer { group.leave() }
       if let observations = request.results as? [VNBarcodeObservation] {
         for obs in observations {
@@ -205,7 +296,7 @@ import Vision
 
     // 2. Offline Text Recognition (OCR)
     group.enter()
-    let textRequest = VNRecognizeTextRequest { request, error in
+    let textRequest = VNRecognizeTextRequest { request, _ in
       defer { group.leave() }
       if let observations = request.results as? [VNRecognizedTextObservation] {
         var lines: [String] = []
@@ -238,41 +329,47 @@ import Vision
   }
 
   // MARK: - Share File
-  private func shareFile(filePath: String, controller: UIViewController, result: @escaping FlutterResult) {
+  private func shareFile(filePath: String, result: @escaping FlutterResult) {
+    guard let topVC = getTopViewController() else {
+      result(false)
+      return
+    }
     let fileUrl = URL(fileURLWithPath: filePath)
     let activityVC = UIActivityViewController(activityItems: [fileUrl], applicationActivities: nil)
     if let popover = activityVC.popoverPresentationController {
-      popover.sourceView = controller.view
-      popover.sourceRect = CGRect(x: controller.view.bounds.midX, y: controller.view.bounds.midY, width: 0, height: 0)
+      popover.sourceView = topVC.view
+      popover.sourceRect = CGRect(x: topVC.view.bounds.midX, y: topVC.view.bounds.midY, width: 0, height: 0)
       popover.permittedArrowDirections = []
     }
-    controller.present(activityVC, animated: true) {
+    topVC.present(activityVC, animated: true) {
       result(true)
     }
   }
-}
 
-// MARK: - ImagePickerDelegate
-class ImagePickerDelegate: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
-  private let completion: (String?) -> Void
-
-  init(completion: @escaping (String?) -> Void) {
-    self.completion = completion
-  }
-
-  func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
-    picker.dismiss(animated: true, completion: nil)
-    if let image = info[.originalImage] as? UIImage, let data = image.jpegData(compressionQuality: 0.9) {
-      let tempFile = FileManager.default.temporaryDirectory.appendingPathComponent("picked_slip_\(UUID().uuidString).jpg")
-      try? data.write(to: tempFile)
-      completion(tempFile.path)
-    } else {
-      completion(nil)
+  // MARK: - Top View Controller Resolver
+  private func getTopViewController() -> UIViewController? {
+    let scenes = UIApplication.shared.connectedScenes.compactMap {  as? UIWindowScene }
+    for scene in scenes {
+      if let root = scene.windows.first(where: { .isKeyWindow })?.rootViewController ?? scene.windows.first?.rootViewController {
+        return findTop(root)
+      }
     }
+    if let root = UIApplication.shared.windows.first?.rootViewController {
+      return findTop(root)
+    }
+    return nil
   }
 
-  func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
-    picker.dismiss(animated: true, completion: nil)
-    completion(nil)
+  private func findTop(_ vc: UIViewController) -> UIViewController {
+    if let presented = vc.presentedViewController {
+      return findTop(presented)
+    }
+    if let nav = vc as? UINavigationController, let visible = nav.visibleViewController {
+      return findTop(visible)
+    }
+    if let tab = vc as? UITabBarController, let selected = tab.selectedViewController {
+      return findTop(selected)
+    }
+    return vc
   }
 }

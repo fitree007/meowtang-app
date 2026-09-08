@@ -719,6 +719,7 @@ class _MeowEntryScreenState extends State<MeowEntryScreen> {
       return;
     }
 
+    await NativeBridgeService.requestAppPermissions();
     final path = await NativeGalleryService.pickImageFromGallery();
     if (path != null && path.isNotEmpty) {
       final savedPath = await SlipStorageService.persistSlipImage(path);

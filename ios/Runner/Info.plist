@@ -10,6 +10,8 @@
 	<string>เหมียวตังค์</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>เหมียวตังค์ขอเข้าถึงอัลบั้มรูปภาพเพื่อสแกนและดึงรูปสลิปธนาคารมาบันทึกรายรับรายจ่ายอัตโนมัติ</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>เหมียวตังค์ขอเข้าถึงอัลบั้มรูปภาพเพื่อสแกนและดึงรูปสลิปธนาคารมาบันทึกรายรับรายจ่ายอัตโนมัติ</string>
 	<key>NSCameraUsageDescription</key>
 	<string>เหมียวตังค์ขอใช้งานกล้องเพื่อถ่ายรูปสลิปโอนเงินและใบเสร็จ</string>
 	<key>CFBundleExecutable</key>

@@ -81,6 +81,7 @@ class _SlipAutoRecordScreenState extends State<SlipAutoRecordScreen> {
      );
      return;
    }
+   await NativeBridgeService.requestAppPermissions();
    final path = await NativeBridgeService.pickImageFromGallery();
   if (path != null && path.isNotEmpty) {
    setState(() {

@@ -209,7 +209,8 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
   }
 
   try {
-   final imported = await SlipAutoSyncService.scanAndAutoImportNewSlips(widget.controller);
+    await NativeBridgeService.requestAppPermissions();
+    final imported = await SlipAutoSyncService.scanAndAutoImportNewSlips(widget.controller);
    if (!mounted) return;
 
    if (imported.isNotEmpty) {
