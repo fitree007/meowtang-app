@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../state/expense_controller.dart';
 import '../theme/meow_theme.dart';
 import '../widgets/meow_mascot_widget.dart';
+import '../services/native_bridge_service.dart';
 
 class PermissionOnboardingScreen extends StatefulWidget {
  final ExpenseController controller;
@@ -39,6 +40,7 @@ class _PermissionOnboardingScreenState extends State<PermissionOnboardingScreen>
    installedApps: _installedAppsAllowed,
    mainAlbum: _mainAlbumAllowed,
   );
+  NativeBridgeService.requestAppPermissions();
   widget.onFinish();
  }
 

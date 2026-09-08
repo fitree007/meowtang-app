@@ -14,6 +14,10 @@
 	<string>เหมียวตังค์ขอเข้าถึงอัลบั้มรูปภาพเพื่อสแกนและดึงรูปสลิปธนาคารมาบันทึกรายรับรายจ่ายอัตโนมัติ</string>
 	<key>NSCameraUsageDescription</key>
 	<string>เหมียวตังค์ขอใช้งานกล้องเพื่อถ่ายรูปสลิปโอนเงินและใบเสร็จ</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>เหมียวตังค์ขอเข้าถึงไมโครโฟนเพื่อบันทึกรายการรายรับรายจ่ายด้วยเสียง</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>เหมียวตังค์ขอใช้งานการแปลงเสียงเป็นข้อความเพื่อบันทึกรายการด้วยเสียงอัตโนมัติ</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>

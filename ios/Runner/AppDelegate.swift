@@ -3,6 +3,8 @@ import UIKit
 import Photos
 import PhotosUI
 import Vision
+import AVFoundation
+import Speech
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
@@ -10,10 +12,6 @@ import Vision
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    if let registrar = self.registrar(forPlugin: "NativeBridgePlugin") {
-      NativeBridgePlugin.register(with: registrar)
-    }
-
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
@@ -79,33 +77,73 @@ public class NativeBridgePlugin: NSObject, FlutterPlugin, UIImagePickerControlle
     }
   }
 
-  // MARK: - Permissions
+  // MARK: - Permissions (Photos, Camera, Microphone)
   private func checkPermissions(result: @escaping FlutterResult) {
-    let status = PHPhotoLibrary.authorizationStatus()
-    let isGranted: Bool
+    let photoStatus = PHPhotoLibrary.authorizationStatus()
+    let photoGranted: Bool
     if #available(iOS 14, *) {
-      isGranted = (status == .authorized || status == .limited)
+      photoGranted = (photoStatus == .authorized || photoStatus == .limited)
     } else {
-      isGranted = (status == .authorized)
+      photoGranted = (photoStatus == .authorized)
     }
-    result(["allGranted": isGranted, "storageGranted": isGranted])
+
+    let cameraStatus = AVCaptureDevice.authorizationStatus(for: .video)
+    let cameraGranted = (cameraStatus == .authorized)
+
+    let micStatus = AVAudioSession.sharedInstance().recordPermission
+    let micGranted = (micStatus == .granted)
+
+    let isAllGranted = photoGranted && cameraGranted
+    result([
+      "allGranted": isAllGranted,
+      "storageGranted": photoGranted,
+      "cameraGranted": cameraGranted,
+      "audioGranted": micGranted
+    ])
   }
 
   private func requestPermissions(result: @escaping FlutterResult) {
+    let group = DispatchGroup()
+    var photoGranted = false
+    var cameraGranted = false
+    var micGranted = false
+
+    // 1. Photo Library
+    group.enter()
     if #available(iOS 14, *) {
       PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
-        DispatchQueue.main.async {
-          let isGranted = (status == .authorized || status == .limited)
-          result(["allGranted": isGranted, "storageGranted": isGranted])
-        }
+        photoGranted = (status == .authorized || status == .limited)
+        group.leave()
       }
     } else {
       PHPhotoLibrary.requestAuthorization { status in
-        DispatchQueue.main.async {
-          let isGranted = (status == .authorized)
-          result(["allGranted": isGranted, "storageGranted": isGranted])
-        }
+        photoGranted = (status == .authorized)
+        group.leave()
       }
+    }
+
+    // 2. Camera
+    group.enter()
+    AVCaptureDevice.requestAccess(for: .video) { granted in
+      cameraGranted = granted
+      group.leave()
+    }
+
+    // 3. Microphone
+    group.enter()
+    AVAudioSession.sharedInstance().requestRecordPermission { granted in
+      micGranted = granted
+      group.leave()
+    }
+
+    group.notify(queue: .main) {
+      let isAllGranted = photoGranted && cameraGranted
+      result([
+        "allGranted": isAllGranted,
+        "storageGranted": photoGranted,
+        "cameraGranted": cameraGranted,
+        "audioGranted": micGranted
+      ])
     }
   }
 

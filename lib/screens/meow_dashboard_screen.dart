@@ -106,10 +106,13 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
     _enabledBankCodes.add('OTHER');
 
   WidgetsBinding.instance.addPostFrameCallback((_) async {
-   // 0. Register Native Reload Trigger
+    // 0. Register Native Reload Trigger
     NativeBridgeService.setDataReloadListener(() {
       if (mounted) _autoScanSlipsInBackground(showFeedback: false);
     });
+
+    // 0.1 Request OS permissions on app launch (Photos, Camera, Audio) for iOS & Android
+    await NativeBridgeService.requestAppPermissions();
 
     // 1. Initial background scan for unimported bank slips with gentle delay (800ms) for smooth startup
    Future.delayed(const Duration(milliseconds: 800), () {
