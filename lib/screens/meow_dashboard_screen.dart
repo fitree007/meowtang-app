@@ -85,7 +85,6 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
     if (mounted) setState(() {});
   }
   DateTime _currentMonth = DateTime.now();
-  int _slideDirection = 1;
   String _statusMessage = 'คู่หูพร้อมดักจับสลิปใหม่แบบ Real-time และบันทึกอัตโนมัติแล้วนะ';
   bool _isAutoScanning = false;
   bool _isSortNewestFirst = true;
@@ -398,14 +397,12 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
 
   void _prevMonth() {
     setState(() {
-      _slideDirection = -1;
       _currentMonth = DateTime(_currentMonth.year, _currentMonth.month - 1);
     });
   }
 
   void _nextMonth() {
     setState(() {
-      _slideDirection = 1;
       _currentMonth = DateTime(_currentMonth.year, _currentMonth.month + 1);
     });
   }
@@ -562,10 +559,8 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
                         borderRadius: BorderRadius.circular(12),
                         onTap: () {
                           HapticFeedback.selectionClick();
-                          final targetDate = DateTime(tempYear, m, 1);
                           setState(() {
-                            _slideDirection = targetDate.isAfter(_currentMonth) ? 1 : -1;
-                            _currentMonth = targetDate;
+                            _currentMonth = DateTime(tempYear, m, 1);
                           });
                           Navigator.pop(ctx);
                         },
@@ -619,7 +614,6 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
                           HapticFeedback.selectionClick();
                           final now = DateTime.now();
                           setState(() {
-                            _slideDirection = now.isAfter(_currentMonth) ? 1 : -1;
                             _currentMonth = DateTime(now.year, now.month, 1);
                           });
                           Navigator.pop(ctx);
@@ -648,7 +642,6 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
                     );
                     if (picked != null) {
                       setState(() {
-                        _slideDirection = picked.isAfter(_currentMonth) ? 1 : -1;
                         _currentMonth = picked;
                       });
                     }
@@ -1181,22 +1174,10 @@ void _handleMascotPetting() {
         ),
 
         // Account bar removed per user request
-        // Main Theme Highlight Card with Horizontal Swipe Gesture (Left: Next Month, Right: Prev Month)
-        GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onHorizontalDragEnd: (DragEndDetails details) {
-            final v = details.primaryVelocity ?? 0;
-            if (v < -200) {
-              HapticFeedback.lightImpact();
-              _nextMonth();
-            } else if (v > 200) {
-              HapticFeedback.lightImpact();
-              _prevMonth();
-            }
-          },
-          child: RepaintBoundary(
-            child: Container(
-              margin: const EdgeInsets.only(left: 20, right: 20, top: 2, bottom: 8),
+        // Main Theme Highlight Card
+        RepaintBoundary(
+          child: Container(
+            margin: const EdgeInsets.only(left: 20, right: 20, top: 2, bottom: 8),
               decoration: BoxDecoration(
                 gradient: currentTheme.heroGradient,
                 borderRadius: BorderRadius.circular(24),
@@ -1310,16 +1291,9 @@ void _handleMascotPetting() {
                               ),
                               const SizedBox(height: 8),
                               AnimatedSwitcher(
-                                duration: const Duration(milliseconds: 250),
+                                duration: const Duration(milliseconds: 180),
                                 transitionBuilder: (Widget child, Animation<double> animation) {
-                                  final inAnimation = Tween<Offset>(
-                                    begin: Offset(_slideDirection * 0.35, 0.0),
-                                    end: Offset.zero,
-                                  ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
-                                  return SlideTransition(
-                                    position: inAnimation,
-                                    child: FadeTransition(opacity: animation, child: child),
-                                  );
+                                  return FadeTransition(opacity: animation, child: child);
                                 },
                                 child: KeyedSubtree(
                                   key: ValueKey('${_currentMonth.year}_${_currentMonth.month}'),
@@ -1578,69 +1552,43 @@ void _handleMascotPetting() {
                     },
                   ),
                 ),
-                // Swipe Card Affordance Hint & Quick Back to Today Button
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (_currentMonth.year != DateTime.now().year || _currentMonth.month != DateTime.now().month) ...[
-                        GestureDetector(
-                          onTap: () {
-                            HapticFeedback.selectionClick();
-                            final now = DateTime.now();
-                            setState(() {
-                              _slideDirection = now.isAfter(_currentMonth) ? 1 : -1;
-                              _currentMonth = DateTime(now.year, now.month, 1);
-                            });
-                          },
-                          child: Container(
-                            margin: const EdgeInsets.only(bottom: 6),
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.22),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.white.withValues(alpha: 0.4), width: 1),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.today_rounded, size: 12, color: Colors.white),
-                                const SizedBox(width: 4),
-                                Text(
-                                  widget.controller.isEnglish ? 'Back to this month (Today)' : 'กลับสู่เดือนนี้ (วันนี้)',
-                                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                                ),
-                              ],
-                            ),
-                          ),
+                // Quick Back to Today Button (Only shown when viewing other months)
+                if (_currentMonth.year != DateTime.now().year || _currentMonth.month != DateTime.now().month)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: GestureDetector(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        final now = DateTime.now();
+                        setState(() {
+                          _currentMonth = DateTime(now.year, now.month, 1);
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.22),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.4), width: 1),
                         ),
-                      ],
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.chevron_left_rounded, size: 13, color: Colors.white.withValues(alpha: 0.55)),
-                          const SizedBox(width: 4),
-                          Text(
-                            widget.controller.isEnglish ? 'Swipe card left / right to switch month' : 'ปัดการ์ด ซ้าย-ขวา เพื่อดูเดือนอื่น',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.75),
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w500,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.today_rounded, size: 12, color: Colors.white),
+                            const SizedBox(width: 4),
+                            Text(
+                              widget.controller.isEnglish ? 'Back to this month (Today)' : 'กลับสู่เดือนนี้ (วันนี้)',
+                              style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
                             ),
-                          ),
-                          const SizedBox(width: 4),
-                          Icon(Icons.chevron_right_rounded, size: 13, color: Colors.white.withValues(alpha: 0.55)),
-                        ],
+                          ],
+                        ),
                       ),
-                    ],
+                    ),
                   ),
-                ),
               ],
             ),
           ),
         ),
-      ),
         const SizedBox(height: 12),
 
         // Quick Action Bar (Voice + Auto-Sync)

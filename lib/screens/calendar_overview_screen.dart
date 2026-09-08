@@ -503,22 +503,10 @@ class _CalendarOverviewScreenState extends State<CalendarOverviewScreen> {
                     ),
                   ),
 
-                  // 2. Monthly Financial Summary Cards with Horizontal Swipe Gesture (ปัดการ์ด ซ้าย-ขวา เพื่อดูเดือนอื่น)
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onHorizontalDragEnd: (details) {
-                      final v = details.primaryVelocity ?? 0;
-                      if (v < -200) {
-                        HapticFeedback.lightImpact();
-                        _nextMonth();
-                      } else if (v > 200) {
-                        HapticFeedback.lightImpact();
-                        _previousMonth();
-                      }
-                    },
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
+                  // 2. Monthly Financial Summary Cards
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                         Container(
                           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -829,7 +817,6 @@ class _CalendarOverviewScreenState extends State<CalendarOverviewScreen> {
                   ),
                 ],
               ),
-            ),
 
                   const SizedBox(height: 10),
 
