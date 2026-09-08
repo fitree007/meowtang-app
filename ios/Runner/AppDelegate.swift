@@ -1,4 +1,4 @@
-﻿import Flutter
+import Flutter
 import UIKit
 import Photos
 import PhotosUI
@@ -10,9 +10,8 @@ import Vision
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    let registrar = self.registrar(forPlugin: "NativeBridgePlugin")
-    if let reg = registrar {
-      NativeBridgePlugin.register(with: reg)
+    if let registrar = self.registrar(forPlugin: "NativeBridgePlugin") {
+      NativeBridgePlugin.register(with: registrar)
     }
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
@@ -20,16 +19,20 @@ import Vision
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
-    let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "NativeBridgePlugin")
-    NativeBridgePlugin.register(with: registrar)
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "NativeBridgePlugin") {
+      NativeBridgePlugin.register(with: registrar)
+    }
   }
 }
 
-public class NativeBridgePlugin: NSObject, FlutterPlugin, UIImagePickerControllerDelegate, UINavigationControllerDelegate, PHPickerViewControllerDelegate {
+public class NativeBridgePlugin: NSObject, FlutterPlugin, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
   private static var instance: NativeBridgePlugin?
+  private static var isRegistered = false
   private var imagePickerResult: FlutterResult?
 
   public static func register(with registrar: FlutterPluginRegistrar) {
+    guard !isRegistered else { return }
+    isRegistered = true
     let channel = FlutterMethodChannel(name: "com.afitree.rizqi/native", binaryMessenger: registrar.messenger())
     let plugin = NativeBridgePlugin()
     instance = plugin
@@ -116,7 +119,7 @@ public class NativeBridgePlugin: NSObject, FlutterPlugin, UIImagePickerControlle
     self.imagePickerResult = result
 
     if #available(iOS 14, *) {
-      var config = PHPickerConfiguration(photoLibrary: .shared())
+      var config = PHPickerConfiguration()
       config.filter = .images
       config.selectionLimit = 1
       let picker = PHPickerViewController(configuration: config)
@@ -131,38 +134,7 @@ public class NativeBridgePlugin: NSObject, FlutterPlugin, UIImagePickerControlle
     }
   }
 
-  // PHPickerViewControllerDelegate (iOS 14+)
-  @available(iOS 14, *)
-  public func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
-    picker.dismiss(animated: true, completion: nil)
-    guard let provider = results.first?.itemProvider, provider.canLoadObject(ofClass: UIImage.self) else {
-      self.imagePickerResult?(nil)
-      self.imagePickerResult = nil
-      return
-    }
-
-    provider.loadObject(ofClass: UIImage.self) { [weak self] image, _ in
-      guard let self = self, let uiImage = image as? UIImage, let data = uiImage.jpegData(compressionQuality: 0.92) else {
-        DispatchQueue.main.async {
-          self?.imagePickerResult?(nil)
-          self?.imagePickerResult = nil
-        }
-        return
-      }
-
-      let cacheDir = FileManager.default.temporaryDirectory.appendingPathComponent("ios_picked_slips")
-      try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
-      let fileUrl = cacheDir.appendingPathComponent("picked_slip_\(UUID().uuidString).jpg")
-      try? data.write(to: fileUrl)
-
-      DispatchQueue.main.async {
-        self.imagePickerResult?(fileUrl.path)
-        self.imagePickerResult = nil
-      }
-    }
-  }
-
-  // UIImagePickerControllerDelegate (Fallback)
+  // MARK: - UIImagePickerControllerDelegate (Fallback for iOS < 14)
   public func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
     picker.dismiss(animated: true, completion: nil)
     guard let image = info[.originalImage] as? UIImage, let data = image.jpegData(compressionQuality: 0.92) else {
@@ -220,18 +192,34 @@ public class NativeBridgePlugin: NSObject, FlutterPlugin, UIImagePickerControlle
           let assetDate = asset.creationDate ?? Date()
           let filename = PHAssetResource.assetResources(for: asset).first?.originalFilename ?? "ios_slip_\(i).jpg"
 
-          imageManager.requestImageDataAndOrientation(for: asset, options: requestOptions) { data, _, _, _ in
-            guard let data = data else { return }
-            let safeId = asset.localIdentifier.replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "\\", with: "_")
-            let targetUrl = cacheDir.appendingPathComponent("\(safeId).jpg")
-            try? data.write(to: targetUrl)
+          if #available(iOS 13.0, *) {
+            imageManager.requestImageDataAndOrientation(for: asset, options: requestOptions) { data, _, _, _ in
+              guard let data = data else { return }
+              let safeId = asset.localIdentifier.replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "\\", with: "_")
+              let targetUrl = cacheDir.appendingPathComponent("\(safeId).jpg")
+              try? data.write(to: targetUrl)
 
-            results.append([
-              "path": targetUrl.path,
-              "name": filename,
-              "date": dateFormatter.string(from: assetDate),
-              "bankName": "ธนาคารไทย"
-            ])
+              results.append([
+                "path": targetUrl.path,
+                "name": filename,
+                "date": dateFormatter.string(from: assetDate),
+                "bankName": "ธนาคารไทย"
+              ])
+            }
+          } else {
+            imageManager.requestImageData(for: asset, options: requestOptions) { data, _, _, _ in
+              guard let data = data else { return }
+              let safeId = asset.localIdentifier.replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "\\", with: "_")
+              let targetUrl = cacheDir.appendingPathComponent("\(safeId).jpg")
+              try? data.write(to: targetUrl)
+
+              results.append([
+                "path": targetUrl.path,
+                "name": filename,
+                "date": dateFormatter.string(from: assetDate),
+                "bankName": "ธนาคารไทย"
+              ])
+            }
           }
         }
 
@@ -295,35 +283,48 @@ public class NativeBridgePlugin: NSObject, FlutterPlugin, UIImagePickerControlle
     barcodeRequest.symbologies = [.qr]
 
     // 2. Offline Text Recognition (OCR)
-    group.enter()
-    let textRequest = VNRecognizeTextRequest { request, _ in
-      defer { group.leave() }
-      if let observations = request.results as? [VNRecognizedTextObservation] {
-        var lines: [String] = []
-        for obs in observations {
-          if let topCandidate = obs.topCandidates(1).first {
-            lines.append(topCandidate.string)
+    if #available(iOS 13.0, *) {
+      group.enter()
+      let textRequest = VNRecognizeTextRequest { request, _ in
+        defer { group.leave() }
+        if let observations = request.results as? [VNRecognizedTextObservation] {
+          var lines: [String] = []
+          for obs in observations {
+            if let topCandidate = obs.topCandidates(1).first {
+              lines.append(topCandidate.string)
+            }
           }
+          ocrText = lines.joined(separator: "\n")
         }
-        ocrText = lines.joined(separator: "\n")
       }
-    }
-    textRequest.recognitionLevel = .accurate
-    textRequest.usesLanguageCorrection = false
-    if #available(iOS 16.0, *) {
-      textRequest.recognitionLanguages = ["th-TH", "en-US"]
-    } else {
-      textRequest.recognitionLanguages = ["en-US"]
-    }
+      textRequest.recognitionLevel = .accurate
+      textRequest.usesLanguageCorrection = false
+      if #available(iOS 16.0, *) {
+        textRequest.recognitionLanguages = ["th-TH", "en-US"]
+      } else {
+        textRequest.recognitionLanguages = ["en-US"]
+      }
 
-    let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
-    DispatchQueue.global(qos: .userInitiated).async {
-      try? handler.perform([barcodeRequest, textRequest])
-      group.notify(queue: .main) {
-        result([
-          "qrPayload": qrPayload,
-          "ocrText": ocrText
-        ])
+      let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+      DispatchQueue.global(qos: .userInitiated).async {
+        try? handler.perform([barcodeRequest, textRequest])
+        group.notify(queue: .main) {
+          result([
+            "qrPayload": qrPayload,
+            "ocrText": ocrText
+          ])
+        }
+      }
+    } else {
+      let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+      DispatchQueue.global(qos: .userInitiated).async {
+        try? handler.perform([barcodeRequest])
+        group.notify(queue: .main) {
+          result([
+            "qrPayload": qrPayload,
+            "ocrText": ""
+          ])
+        }
       }
     }
   }
@@ -348,14 +349,20 @@ public class NativeBridgePlugin: NSObject, FlutterPlugin, UIImagePickerControlle
 
   // MARK: - Top View Controller Resolver
   private func getTopViewController() -> UIViewController? {
-    let scenes = UIApplication.shared.connectedScenes.compactMap {  as? UIWindowScene }
-    for scene in scenes {
-      if let root = scene.windows.first(where: { .isKeyWindow })?.rootViewController ?? scene.windows.first?.rootViewController {
-        return findTop(root)
+    if #available(iOS 13.0, *) {
+      let scenes = UIApplication.shared.connectedScenes.compactMap { scene in scene as? UIWindowScene }
+      for scene in scenes {
+        if let window = scene.windows.first(where: { win in win.isKeyWindow }) ?? scene.windows.first {
+          if let root = window.rootViewController {
+            return findTop(root)
+          }
+        }
       }
     }
-    if let root = UIApplication.shared.windows.first?.rootViewController {
-      return findTop(root)
+    if let window = UIApplication.shared.windows.first(where: { win in win.isKeyWindow }) ?? UIApplication.shared.windows.first {
+      if let root = window.rootViewController {
+        return findTop(root)
+      }
     }
     return nil
   }
@@ -371,5 +378,38 @@ public class NativeBridgePlugin: NSObject, FlutterPlugin, UIImagePickerControlle
       return findTop(selected)
     }
     return vc
+  }
+}
+
+// MARK: - PHPickerViewControllerDelegate (iOS 14+)
+@available(iOS 14, *)
+extension NativeBridgePlugin: PHPickerViewControllerDelegate {
+  public func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+    picker.dismiss(animated: true, completion: nil)
+    guard let provider = results.first?.itemProvider, provider.canLoadObject(ofClass: UIImage.self) else {
+      self.imagePickerResult?(nil)
+      self.imagePickerResult = nil
+      return
+    }
+
+    provider.loadObject(ofClass: UIImage.self) { [weak self] image, _ in
+      guard let self = self, let uiImage = image as? UIImage, let data = uiImage.jpegData(compressionQuality: 0.92) else {
+        DispatchQueue.main.async {
+          self?.imagePickerResult?(nil)
+          self?.imagePickerResult = nil
+        }
+        return
+      }
+
+      let cacheDir = FileManager.default.temporaryDirectory.appendingPathComponent("ios_picked_slips")
+      try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
+      let fileUrl = cacheDir.appendingPathComponent("picked_slip_\(UUID().uuidString).jpg")
+      try? data.write(to: fileUrl)
+
+      DispatchQueue.main.async {
+        self.imagePickerResult?(fileUrl.path)
+        self.imagePickerResult = nil
+      }
+    }
   }
 }
