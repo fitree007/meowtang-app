@@ -593,25 +593,23 @@ class SlipAutoSyncService {
       }
     }
 
-    // 6. Detect Income vs Expense for Bank Slip
-    final lowerCombined = '$rawOcrText $name $bankName ${extractedMemo ?? ""}'.toLowerCase();
-    final incomeKeywords = [
-      'เงินเข้า', 'เงินโอนเข้า', 'โอนเงินเข้า', 'เงินเข้าบัญชี', 'ได้รับเงิน', 'รับเงิน',
-      'รับโอน', 'โอนเข้า', 'ยอดเงินเข้า', 'เงินฝาก', 'ฝากเงิน', 'รับชำระ', 'รับเงินเดือน',
-      'เงินเดือน', 'salary', 'deposit', 'incoming', 'transfer in', 'receive transfer',
-      'cr', 'credit', 'โอนให้คุณ', 'ได้รับยอดเงิน', 'เงินเข้าสำเร็จ', 'พร้อมเพย์เงินเข้า',
-      'รับโอนเงินสำเร็จ', 'เงินปันผล', 'รายรับ', 'เงินช่วยเหลือ', 'ไทยช่วยไทย', 'สวัสดิการ',
-      'คนละครึ่ง', 'เราชนะ'
-    ];
-
-    final bool isIncome = (ocrParsed != null && ocrParsed.suggestedType == TransactionType.income) ||
-        incomeKeywords.any((kw) => lowerCombined.contains(kw));
-
-    // ตรวจจับการโอนเงินให้ตัวเอง: หากผู้โอนกับผู้รับซ้ำกัน ปรับเป็นโอนเงิน (transfer)
+    // 6. Detect Income vs Expense vs Transfer for Bank Slip using unified engine
     final bool isSelf = (ocrParsed != null && ocrParsed.isSelfTransfer) ||
         OcrEngineService.isSelfTransfer(senderName, receiverName, rawText: rawOcrText);
 
-    final txType = isSelf ? TransactionType.transfer : (isIncome ? TransactionType.income : TransactionType.expense);
+    final TransactionType txType = (ocrParsed != null && ocrParsed.suggestedType != TransactionType.expense)
+        ? ocrParsed.suggestedType
+        : OcrEngineService.detectSlipTransactionType(
+            rawText: rawOcrText,
+            fileName: name,
+            filePath: path,
+            memo: extractedMemo,
+            senderName: senderName,
+            receiverName: receiverName,
+            isSelf: isSelf,
+          );
+    final bool isIncome = txType == TransactionType.income;
+    final lowerCombined = '$rawOcrText $name $bankName ${extractedMemo ?? ""}'.toLowerCase();
 
     final customRulesRaw = controller.storage.getKeywordRules();
     final customRules = customRulesRaw.map((r) => KeywordRule.fromJson(r)).toList();

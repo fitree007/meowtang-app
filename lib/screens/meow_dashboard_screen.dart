@@ -405,25 +405,232 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
   setState(() {
    _currentMonth = DateTime(_currentMonth.year, _currentMonth.month + 1);
   });
- }
 
- Future<void> _showMonthPickerModal() async {
-  HapticFeedback.selectionClick();
-  final picked = await MeowWheelDatePicker.showWheelMonthYearPicker(
-   context: context,
-   initialDate: _currentMonth,
-   firstDate: DateTime(2020),
-   lastDate: DateTime(2040),
-   isEnglish: widget.controller.isEnglish,
-   isDarkMode: widget.controller.isDarkMode,
-   title: widget.controller.isEnglish ? 'Select Month & Year' : 'เลือกเดือนและปี',
-  );
-  if (picked != null) {
-   setState(() {
-    _currentMonth = picked;
-   });
+  Future<void> _showMonthPickerModal() async {
+    HapticFeedback.selectionClick();
+    final currentTheme = widget.controller.currentTheme;
+    int tempYear = _currentMonth.year;
+    int tempMonth = _currentMonth.month;
+    final isEng = widget.controller.isEnglish;
+
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (modalCtx, setModalState) {
+          const shortMonths = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+          const fullMonths = [
+            'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+            'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+          ];
+
+          return Container(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            decoration: BoxDecoration(
+              color: currentTheme.cardBackground,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+              border: Border.all(color: currentTheme.borderColor),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.25),
+                  blurRadius: 20,
+                  offset: const Offset(0, -4),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Drag handle
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: currentTheme.textSecondaryColor.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Title and Quick Jump to Today
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      isEng ? 'Select Month & Year' : 'เลือกเดือนและปี',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 17,
+                        color: currentTheme.textColor,
+                      ),
+                    ),
+                    TextButton.icon(
+                      style: TextButton.styleFrom(
+                        backgroundColor: currentTheme.primaryColor.withValues(alpha: 0.12),
+                        foregroundColor: currentTheme.primaryColor,
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      icon: const Icon(Icons.today_rounded, size: 16),
+                      label: Text(
+                        isEng ? 'This Month' : 'เดือนนี้ (วันนี้)',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                      onPressed: () {
+                        HapticFeedback.selectionClick();
+                        final now = DateTime.now();
+                        setState(() {
+                          _currentMonth = DateTime(now.year, now.month, 1);
+                        });
+                        Navigator.pop(ctx);
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+
+                // Year Switcher Header
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: currentTheme.surfaceBackground,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: currentTheme.borderColor.withValues(alpha: 0.5)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      IconButton(
+                        icon: Icon(Icons.arrow_back_ios_new_rounded, size: 16, color: currentTheme.textColor),
+                        onPressed: () {
+                          HapticFeedback.selectionClick();
+                          setModalState(() => tempYear--);
+                        },
+                      ),
+                      Row(
+                        children: [
+                          Icon(Icons.calendar_month_rounded, size: 18, color: currentTheme.primaryColor),
+                          const SizedBox(width: 8),
+                          Text(
+                            isEng ? '$tempYear' : 'พ.ศ. ${tempYear + 543} ($tempYear)',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: currentTheme.textColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.arrow_forward_ios_rounded, size: 16, color: currentTheme.textColor),
+                        onPressed: () {
+                          HapticFeedback.selectionClick();
+                          setModalState(() => tempYear++);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // 12 Months Grid (4x3)
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    childAspectRatio: 2.2,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                  ),
+                  itemCount: 12,
+                  itemBuilder: (context, idx) {
+                    final m = idx + 1;
+                    final isSel = tempMonth == m && tempYear == _currentMonth.year;
+                    final isThisMonth = m == DateTime.now().month && tempYear == DateTime.now().year;
+
+                    return Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          setState(() {
+                            _currentMonth = DateTime(tempYear, m, 1);
+                          });
+                          Navigator.pop(ctx);
+                        },
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: isSel
+                                ? currentTheme.primaryColor
+                                : (isThisMonth
+                                    ? currentTheme.primaryColor.withValues(alpha: 0.15)
+                                    : currentTheme.surfaceBackground),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isSel
+                                  ? currentTheme.primaryColor
+                                  : (isThisMonth ? currentTheme.primaryColor : currentTheme.borderColor),
+                              width: isSel || isThisMonth ? 1.5 : 1.0,
+                            ),
+                          ),
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  isEng ? shortMonths[idx] : fullMonths[idx],
+                                  style: TextStyle(
+                                    fontWeight: isSel || isThisMonth ? FontWeight.bold : FontWeight.w600,
+                                    fontSize: 13,
+                                    color: isSel
+                                        ? Colors.white
+                                        : (isThisMonth ? currentTheme.primaryColor : currentTheme.textColor),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 14),
+
+                // Wheel Picker Option Link
+                TextButton.icon(
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    final picked = await MeowWheelDatePicker.showWheelMonthYearPicker(
+                      context: context,
+                      initialDate: _currentMonth,
+                      isEnglish: isEng,
+                      isDarkMode: currentTheme.isDark,
+                    );
+                    if (picked != null) {
+                      setState(() {
+                        _currentMonth = picked;
+                      });
+                    }
+                  },
+                  icon: Icon(Icons.swap_vert_rounded, size: 16, color: currentTheme.primaryColor),
+                  label: Text(
+                    isEng ? 'Use Scroll Wheel Picker' : 'เลือกด้วยวงล้อเลื่อน (Wheel Picker)',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: currentTheme.primaryColor),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
   }
- }
 
  Future<void> _pickCustomDate() async {
   _showMonthPickerModal();
@@ -939,99 +1146,164 @@ void _handleMascotPetting() {
         ),
 
         // Account bar removed per user request
-        // Main Theme Highlight Card
-        RepaintBoundary(
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-            decoration: BoxDecoration(
-              gradient: currentTheme.heroGradient,
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: currentTheme.primaryColor.withValues(alpha: 0.3),
-                  blurRadius: 16,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(left: 20, right: 16, top: 16, bottom: 16),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Left: Month and Expense Info
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Month Selector (Prev, Current Month Picker, Next)
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                GestureDetector(
-                                  onTap: () {
-                                    HapticFeedback.selectionClick();
-                                    _prevMonth();
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.all(4),
+        // Main Theme Highlight Card with Horizontal Swipe Gesture (Left: Next Month, Right: Prev Month)
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onHorizontalDragEnd: (DragEndDetails details) {
+            final v = details.primaryVelocity ?? 0;
+            if (v < -200) {
+              HapticFeedback.lightImpact();
+              _nextMonth();
+            } else if (v > 200) {
+              HapticFeedback.lightImpact();
+              _prevMonth();
+            }
+          },
+          child: RepaintBoundary(
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+              decoration: BoxDecoration(
+                gradient: currentTheme.heroGradient,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: currentTheme.primaryColor.withValues(alpha: 0.3),
+                    blurRadius: 16,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(left: 20, right: 16, top: 16, bottom: 16),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Left: Month and Expense Info
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Modern Glassmorphic Month Bar (with Tactile Nav Buttons, Today quick-badge)
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
                                     decoration: BoxDecoration(
-                                      color: Colors.black.withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: const Icon(Icons.chevron_left, color: Colors.white, size: 18),
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                GestureDetector(
-                                  onTap: () {
-                                    HapticFeedback.selectionClick();
-                                    _showMonthPickerModal();
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(8),
+                                      color: Colors.black.withValues(alpha: 0.16),
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(color: Colors.white.withValues(alpha: 0.22), width: 1),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withValues(alpha: 0.08),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
                                     ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        const Icon(Icons.calendar_month_rounded, size: 14, color: Colors.white),
-                                        const SizedBox(width: 5),
-                                        Text(
-                                          _formatMonthYear(_currentMonth),
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.bold,
+                                        // Previous Month Button
+                                        Material(
+                                          color: Colors.transparent,
+                                          child: InkWell(
+                                            borderRadius: const BorderRadius.horizontal(left: Radius.circular(13)),
+                                            onTap: () {
+                                              HapticFeedback.lightImpact();
+                                              _prevMonth();
+                                            },
+                                            child: const Padding(
+                                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                              child: Icon(Icons.chevron_left_rounded, color: Colors.white, size: 22),
+                                            ),
                                           ),
                                         ),
-                                        const SizedBox(width: 4),
-                                        const Icon(Icons.arrow_drop_down, size: 16, color: Colors.white),
+                                        Container(width: 1, height: 16, color: Colors.white.withValues(alpha: 0.2)),
+                                        // Month & Year Picker Button
+                                        Material(
+                                          color: Colors.transparent,
+                                          child: InkWell(
+                                            onTap: () {
+                                              HapticFeedback.selectionClick();
+                                              _showMonthPickerModal();
+                                            },
+                                            child: Padding(
+                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  const Icon(Icons.calendar_month_rounded, size: 15, color: Colors.white),
+                                                  const SizedBox(width: 6),
+                                                  Text(
+                                                    _formatMonthYear(_currentMonth),
+                                                    style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 14,
+                                                      fontWeight: FontWeight.w800,
+                                                      letterSpacing: -0.2,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Colors.white),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        Container(width: 1, height: 16, color: Colors.white.withValues(alpha: 0.2)),
+                                        // Next Month Button
+                                        Material(
+                                          color: Colors.transparent,
+                                          child: InkWell(
+                                            borderRadius: const BorderRadius.horizontal(right: Radius.circular(13)),
+                                            onTap: () {
+                                              HapticFeedback.lightImpact();
+                                              _nextMonth();
+                                            },
+                                            child: const Padding(
+                                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                              child: Icon(Icons.chevron_right_rounded, color: Colors.white, size: 22),
+                                            ),
+                                          ),
+                                        ),
                                       ],
                                     ),
                                   ),
-                                ),
-                                const SizedBox(width: 6),
-                                GestureDetector(
-                                  onTap: () {
-                                    HapticFeedback.selectionClick();
-                                    _nextMonth();
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.all(4),
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(8),
+                                  if (_currentMonth.year != DateTime.now().year || _currentMonth.month != DateTime.now().month) ...[
+                                    const SizedBox(width: 6),
+                                    GestureDetector(
+                                      onTap: () {
+                                        HapticFeedback.selectionClick();
+                                        final now = DateTime.now();
+                                        setState(() {
+                                          _currentMonth = DateTime(now.year, now.month, 1);
+                                        });
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withValues(alpha: 0.22),
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(color: Colors.white.withValues(alpha: 0.4), width: 1),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(Icons.today_rounded, size: 13, color: Colors.white),
+                                            const SizedBox(width: 3),
+                                            Text(
+                                              widget.controller.isEnglish ? 'Today' : 'วันนี้',
+                                              style: const TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.bold),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
                                     ),
-                                    child: const Icon(Icons.chevron_right, color: Colors.white, size: 18),
-                                  ),
-                                ),
-                              ],
-                            ),
+                                  ],
+                                ],
+                              ),
                             const SizedBox(height: 10),
                             Row(
                               mainAxisSize: MainAxisSize.min,
@@ -1280,10 +1552,32 @@ void _handleMascotPetting() {
                     },
                   ),
                 ),
+                // Swipe Card Affordance Hint
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.chevron_left_rounded, size: 13, color: Colors.white.withValues(alpha: 0.55)),
+                      const SizedBox(width: 4),
+                      Text(
+                        widget.controller.isEnglish ? 'Swipe card left / right to switch month' : 'ปัดการ์ด ซ้าย-ขวา เพื่อดูเดือนอื่น',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.75),
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(Icons.chevron_right_rounded, size: 13, color: Colors.white.withValues(alpha: 0.55)),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
         ),
+      ),
         const SizedBox(height: 12),
 
         // Quick Action Bar (Voice + Auto-Sync)

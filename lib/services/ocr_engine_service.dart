@@ -556,19 +556,15 @@ class OcrEngineService {
     }
 
     // 7. Transaction Type & Category Classification (Auto-detect Income vs Expense)
-    final lower = cleanText.toLowerCase();
-    TransactionType suggestedType = TransactionType.expense;
-    final incomeKeywords = [
-      'เงินเข้า', 'เงินโอนเข้า', 'โอนเงินเข้า', 'เงินเข้าบัญชี', 'ได้รับเงิน', 'รับเงิน',
-      'รับโอน', 'โอนเข้า', 'ยอดเงินเข้า', 'เงินฝาก', 'ฝากเงิน', 'รับชำระ', 'รับเงินเดือน',
-      'เงินเดือน', 'salary', 'deposit', 'incoming', 'transfer in', 'receive transfer',
-      'cr', 'credit', 'โอนให้คุณ', 'ได้รับยอดเงิน', 'เงินเข้าสำเร็จ', 'พร้อมเพย์เงินเข้า',
-      'รับโอนเงินสำเร็จ', 'เงินปันผล', 'รายรับ'
-    ];
-
-    if (incomeKeywords.any((kw) => lower.contains(kw))) {
-      suggestedType = TransactionType.income;
-    }
+    final TransactionType suggestedType = detectSlipTransactionType(
+      rawText: cleanText,
+      fileName: fileName,
+      filePath: filePath,
+      memo: memo,
+      senderName: senderName,
+      receiverName: receiverName,
+      isSelf: isSelf,
+    );
 
     final fallbackIncome = categories.firstWhere(
       (c) => c.type == CategoryType.income && (c.name.contains('รายได้') || c.name.contains('โอน') || c.name.contains('ริซกี') || c.name.contains('เงินเดือน')),
@@ -679,6 +675,140 @@ class OcrEngineService {
     }
 
     return false;
+  }
+
+  /// Accurate classification of Bank Slip Transaction Type (Income vs Expense vs Transfer).
+  /// Overrides misleading OCR text like "ผู้รับเงิน" or "โอนเข้าบัญชี" which are part of standard expense slips.
+  static TransactionType detectSlipTransactionType({
+    required String rawText,
+    String? fileName,
+    String? filePath,
+    String? memo,
+    String? senderName,
+    String? receiverName,
+    bool isSelf = false,
+  }) {
+    // 1. Self-Transfer Detection
+    final bool isSelfCheck = isSelf ||
+        (senderName != null &&
+            receiverName != null &&
+            senderName.isNotEmpty &&
+            receiverName.isNotEmpty &&
+            isSelfTransfer(senderName, receiverName, rawText: rawText));
+    if (isSelfCheck) return TransactionType.transfer;
+
+    final lowerText = rawText.toLowerCase();
+    final lowerFileName = (fileName ?? '').toLowerCase();
+    final lowerMemo = (memo ?? '').toLowerCase();
+
+    // 2. Explicit Income Memo (e.g. user or sender wrote "เงินเดือน", "โบนัส", "รายได้")
+    final incomeMemoKeywords = [
+      'เงินเดือน', 'salary', 'รายรับ', 'รายได้', 'เงินปันผล', 'dividend',
+      'โบนัส', 'bonus', 'รับจ้าง', 'ค่าจ้าง', 'ริซกี'
+    ];
+    if (lowerMemo.isNotEmpty && incomeMemoKeywords.any((kw) => lowerMemo.contains(kw))) {
+      return TransactionType.income;
+    }
+
+    // 3. Direct Inbound / Receipt / Income signals printed on the slip
+    final directInboundKeywords = [
+      'ท่านได้รับเงินโอน',
+      'คุณได้รับเงินโอน',
+      'ได้รับเงินโอน',
+      'ได้รับเงินจาก',
+      'ได้รับยอดเงิน',
+      'โอนเงินให้คุณ',
+      'โอนให้คุณ',
+      'เงินเข้าบัญชีของคุณ',
+      'มีเงินโอนเข้า',
+      'เงินเดือน',
+      'salary',
+      'เงินปันผล',
+      'dividend',
+      'คืนเงิน',
+      'refund',
+      'ดอกเบี้ยรับ',
+      'cashback',
+      'เครดิตเงินคืน',
+    ];
+    if (directInboundKeywords.any((kw) => lowerText.contains(kw))) {
+      return TransactionType.income;
+    }
+
+    // 4. Expense / Outgoing Transfer Signals (Standard Thai Bank payment & transfer receipts)
+    final expenseKeywords = [
+      'โอนเงินสำเร็จ',
+      'ชำระเงินสำเร็จ',
+      'ทำรายการสำเร็จ',
+      'รายการสำเร็จ',
+      'โอนสำเร็จ',
+      'ชำระค่าสินค้า',
+      'จ่ายบิลสำเร็จ',
+      'จ่ายบิล',
+      'สแกนจ่ายสำเร็จ',
+      'สแกนจ่าย',
+      'หักบัญชี',
+      'หักเงิน',
+      'โอนออก',
+      'เติมเงินสำเร็จ',
+      'เติมเงิน',
+      'ถอนเงินสำเร็จ',
+      'ถอนเงิน',
+      'ชำระเงิน',
+      'successful transfer',
+      'transfer successful',
+      'payment successful',
+      'bill payment',
+      'scan to pay',
+      'paid',
+      'debit',
+    ];
+    if (expenseKeywords.any((kw) => lowerText.contains(kw))) {
+      return TransactionType.expense;
+    }
+
+    // 5. Clean text by removing receiver-side label substrings before generic check
+    // "ผู้รับเงิน", "ผู้รับโอน", "โอนเข้าบัญชี" are standard on outgoing slips
+    final sanitizedText = lowerText
+        .replaceAll('ผู้รับเงิน', '')
+        .replaceAll('บัญชีผู้รับเงิน', '')
+        .replaceAll('ข้อมูลผู้รับเงิน', '')
+        .replaceAll('ชื่อผู้รับเงิน', '')
+        .replaceAll('ผู้รับโอน', '')
+        .replaceAll('บัญชีผู้รับโอน', '')
+        .replaceAll('ไปยัง', '')
+        .replaceAll('โอนเข้าบัญชี', '')
+        .replaceAll('โอนเข้าพร้อมเพย์', '')
+        .replaceAll('โอนเข้า', '')
+        .replaceAll('บัญชีเงินฝากออมทรัพย์', '')
+        .replaceAll('เงินฝากออมทรัพย์', '')
+        .replaceAll('บัญชีเงินฝาก', '')
+        .replaceAll('เงินฝากกระแสรายวัน', '');
+
+    final genericIncomeKeywords = [
+      'เงินเข้าบัญชี',
+      'เงินเข้า',
+      'ยอดเงินเข้า',
+      'เงินฝากสำเร็จ',
+      'ฝากเงินสำเร็จ',
+      'deposit successful',
+      'incoming transfer',
+      'receive transfer',
+    ];
+    if (genericIncomeKeywords.any((kw) => sanitizedText.contains(kw))) {
+      return TransactionType.income;
+    }
+
+    // 6. Word-boundary credit check (avoid matching inside "screenshot", "ocr", "TXNCR...", etc.)
+    final hasStandaloneCredit = RegExp(r'\b(cr|credit)\b', caseSensitive: false).hasMatch(sanitizedText) &&
+        !lowerFileName.contains('screenshot') &&
+        !lowerText.contains('screenshot');
+    if (hasStandaloneCredit) {
+      return TransactionType.income;
+    }
+
+    // 7. Default for slips is Expense
+    return TransactionType.expense;
   }
 
   static String _normalizePersonName(String name) {
