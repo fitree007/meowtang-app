@@ -85,6 +85,7 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
     if (mounted) setState(() {});
   }
   DateTime _currentMonth = DateTime.now();
+  int _slideDirection = 1;
   String _statusMessage = 'คู่หูพร้อมดักจับสลิปใหม่แบบ Real-time และบันทึกอัตโนมัติแล้วนะ';
   bool _isAutoScanning = false;
   bool _isSortNewestFirst = true;
@@ -395,16 +396,18 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
   return '${months[d.month - 1]} $thaiYear';
  }
 
- void _prevMonth() {
-  setState(() {
-   _currentMonth = DateTime(_currentMonth.year, _currentMonth.month - 1);
-  });
- }
+  void _prevMonth() {
+    setState(() {
+      _slideDirection = -1;
+      _currentMonth = DateTime(_currentMonth.year, _currentMonth.month - 1);
+    });
+  }
 
   void _nextMonth() {
-   setState(() {
-    _currentMonth = DateTime(_currentMonth.year, _currentMonth.month + 1);
-   });
+    setState(() {
+      _slideDirection = 1;
+      _currentMonth = DateTime(_currentMonth.year, _currentMonth.month + 1);
+    });
   }
 
   Future<void> _showMonthPickerModal() async {
@@ -559,8 +562,10 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
                         borderRadius: BorderRadius.circular(12),
                         onTap: () {
                           HapticFeedback.selectionClick();
+                          final targetDate = DateTime(tempYear, m, 1);
                           setState(() {
-                            _currentMonth = DateTime(tempYear, m, 1);
+                            _slideDirection = targetDate.isAfter(_currentMonth) ? 1 : -1;
+                            _currentMonth = targetDate;
                           });
                           Navigator.pop(ctx);
                         },
@@ -601,7 +606,35 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
                     );
                   },
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
+
+                // Quick jump to current month (Today) button
+                if (_currentMonth.year != DateTime.now().year || _currentMonth.month != DateTime.now().month)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          HapticFeedback.selectionClick();
+                          final now = DateTime.now();
+                          setState(() {
+                            _slideDirection = now.isAfter(_currentMonth) ? 1 : -1;
+                            _currentMonth = DateTime(now.year, now.month, 1);
+                          });
+                          Navigator.pop(ctx);
+                        },
+                        icon: const Icon(Icons.today_rounded, size: 16),
+                        label: Text(isEng ? 'Jump to Current Month (Today)' : 'กลับสู่เดือนปัจจุบัน (วันนี้)'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: currentTheme.primaryColor,
+                          side: BorderSide(color: currentTheme.primaryColor.withValues(alpha: 0.5)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                        ),
+                      ),
+                    ),
+                  ),
 
                 // Wheel Picker Option Link
                 TextButton.icon(
@@ -615,6 +648,7 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
                     );
                     if (picked != null) {
                       setState(() {
+                        _slideDirection = picked.isAfter(_currentMonth) ? 1 : -1;
                         _currentMonth = picked;
                       });
                     }
@@ -1031,10 +1065,10 @@ void _handleMascotPetting() {
         Container(
          color: bgColor,
          padding: EdgeInsets.only(
-          top: MediaQuery.of(context).padding.top + 12,
+          top: MediaQuery.of(context).padding.top + 6,
           left: 20,
           right: 20,
-          bottom: 12,
+          bottom: 4,
          ),
          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1162,7 +1196,7 @@ void _handleMascotPetting() {
           },
           child: RepaintBoundary(
             child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+              margin: const EdgeInsets.only(left: 20, right: 20, top: 2, bottom: 8),
               decoration: BoxDecoration(
                 gradient: currentTheme.heroGradient,
                 borderRadius: BorderRadius.circular(24),
@@ -1272,128 +1306,119 @@ void _handleMascotPetting() {
                                       ],
                                     ),
                                   ),
-                                  if (_currentMonth.year != DateTime.now().year || _currentMonth.month != DateTime.now().month) ...[
-                                    const SizedBox(width: 6),
-                                    GestureDetector(
-                                      onTap: () {
-                                        HapticFeedback.selectionClick();
-                                        final now = DateTime.now();
-                                        setState(() {
-                                          _currentMonth = DateTime(now.year, now.month, 1);
-                                        });
-                                      },
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 250),
+                                transitionBuilder: (Widget child, Animation<double> animation) {
+                                  final inAnimation = Tween<Offset>(
+                                    begin: Offset(_slideDirection * 0.35, 0.0),
+                                    end: Offset.zero,
+                                  ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
+                                  return SlideTransition(
+                                    position: inAnimation,
+                                    child: FadeTransition(opacity: animation, child: child),
+                                  );
+                                },
+                                child: KeyedSubtree(
+                                  key: ValueKey('${_currentMonth.year}_${_currentMonth.month}'),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            widget.controller.tr('this_month_expense'),
+                                            style: TextStyle(
+                                              color: (currentTheme.primaryColor.computeLuminance() > 0.55) ? Colors.black54 : Colors.white70,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          if (_monthlyIncome > 0 && (_monthlyIncome - _monthlyExpense) <= 0) ...[
+                                            const SizedBox(width: 6),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFEF4444).withValues(alpha: 0.25),
+                                                borderRadius: BorderRadius.circular(6),
+                                                border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.5)),
+                                              ),
+                                              child: const Text(
+                                                'รายรับหมดแล้ว 🚨',
+                                                style: TextStyle(color: Color(0xFFEF4444), fontSize: 10, fontWeight: FontWeight.bold),
+                                              ),
+                                            ),
+                                          ] else if (_monthlyIncome > 0 && ((_monthlyIncome - _monthlyExpense) <= _monthlyIncome * 0.20 || (_monthlyIncome - _monthlyExpense) < 500)) ...[
+                                            const SizedBox(width: 6),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFF59E0B).withValues(alpha: 0.25),
+                                                borderRadius: BorderRadius.circular(6),
+                                                border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.5)),
+                                              ),
+                                              child: const Text(
+                                                'รายรับใกล้หมด ⚠️',
+                                                style: TextStyle(color: Color(0xFFFDE047), fontSize: 10, fontWeight: FontWeight.bold),
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                      const SizedBox(height: 2),
+                                      FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        alignment: Alignment.centerLeft,
+                                        child: Text(
+                                          '${CurrencyFormat.format(_monthlyExpense)} ฿',
+                                          style: TextStyle(
+                                            color: _monthlyExpenseTextColor,
+                                            fontSize: 28,
+                                            fontWeight: FontWeight.w900,
+                                            letterSpacing: -0.5,
+                                            shadows: [
+                                              BoxShadow(
+                                                color: Colors.black.withValues(alpha: 0.18),
+                                                blurRadius: 4,
+                                                offset: const Offset(0, 1),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 3),
+                                      // Small compact monthly income pill
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                         decoration: BoxDecoration(
-                                          color: Colors.white.withValues(alpha: 0.22),
-                                          borderRadius: BorderRadius.circular(12),
-                                          border: Border.all(color: Colors.white.withValues(alpha: 0.4), width: 1),
+                                          color: Colors.black.withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 0.7),
                                         ),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            const Icon(Icons.today_rounded, size: 13, color: Colors.white),
+                                            const Icon(Icons.arrow_downward, color: Color(0xFF34D399), size: 10),
                                             const SizedBox(width: 3),
                                             Text(
-                                              widget.controller.isEnglish ? 'Today' : 'วันนี้',
-                                              style: const TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.bold),
+                                              '${widget.controller.isEnglish ? "Income" : "รายรับเดือนนี้"}: ฿${CurrencyFormat.format(_monthlyIncome)}',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 10.5,
+                                                fontWeight: FontWeight.w600,
+                                              ),
                                             ),
                                           ],
                                         ),
                                       ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            const SizedBox(height: 10),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  widget.controller.tr('this_month_expense'),
-                                  style: TextStyle(
-                                    color: (currentTheme.primaryColor.computeLuminance() > 0.55) ? Colors.black54 : Colors.white70,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
+                                    ],
                                   ),
                                 ),
-                                if (_monthlyIncome > 0 && (_monthlyIncome - _monthlyExpense) <= 0) ...[
-                                  const SizedBox(width: 6),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFEF4444).withValues(alpha: 0.25),
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.5)),
-                                    ),
-                                    child: const Text(
-                                      'รายรับหมดแล้ว 🚨',
-                                      style: TextStyle(color: Color(0xFFEF4444), fontSize: 10, fontWeight: FontWeight.bold),
-                                    ),
-                                  ),
-                                ] else if (_monthlyIncome > 0 && ((_monthlyIncome - _monthlyExpense) <= _monthlyIncome * 0.20 || (_monthlyIncome - _monthlyExpense) < 500)) ...[
-                                  const SizedBox(width: 6),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF59E0B).withValues(alpha: 0.25),
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.5)),
-                                    ),
-                                    child: const Text(
-                                      'รายรับใกล้หมด ⚠️',
-                                      style: TextStyle(color: Color(0xFFFDE047), fontSize: 10, fontWeight: FontWeight.bold),
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                            const SizedBox(height: 2),
-                            FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                '${CurrencyFormat.format(_monthlyExpense)} ฿',
-                                style: TextStyle(
-                                  color: _monthlyExpenseTextColor,
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: -0.5,
-                                  shadows: [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.18),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 1),
-                                    ),
-                                  ],
-                                ),
                               ),
-                            ),
-                            const SizedBox(height: 3),
-                            // Small compact monthly income pill
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 0.7),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.arrow_downward, color: Color(0xFF34D399), size: 10),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    '${widget.controller.isEnglish ? "Income" : "รายรับเดือนนี้"}: ฿${CurrencyFormat.format(_monthlyIncome)}',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10.5,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
                             const SizedBox(height: 11),
                             // Action Pill Buttons Row (Analytics + Calendar side-by-side)
                             FittedBox(
@@ -1553,24 +1578,61 @@ void _handleMascotPetting() {
                     },
                   ),
                 ),
-                // Swipe Card Affordance Hint
+                // Swipe Card Affordance Hint & Quick Back to Today Button
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.chevron_left_rounded, size: 13, color: Colors.white.withValues(alpha: 0.55)),
-                      const SizedBox(width: 4),
-                      Text(
-                        widget.controller.isEnglish ? 'Swipe card left / right to switch month' : 'ปัดการ์ด ซ้าย-ขวา เพื่อดูเดือนอื่น',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.75),
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w500,
+                      if (_currentMonth.year != DateTime.now().year || _currentMonth.month != DateTime.now().month) ...[
+                        GestureDetector(
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            final now = DateTime.now();
+                            setState(() {
+                              _slideDirection = now.isAfter(_currentMonth) ? 1 : -1;
+                              _currentMonth = DateTime(now.year, now.month, 1);
+                            });
+                          },
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.22),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.4), width: 1),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.today_rounded, size: 12, color: Colors.white),
+                                const SizedBox(width: 4),
+                                Text(
+                                  widget.controller.isEnglish ? 'Back to this month (Today)' : 'กลับสู่เดือนนี้ (วันนี้)',
+                                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
+                      ],
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.chevron_left_rounded, size: 13, color: Colors.white.withValues(alpha: 0.55)),
+                          const SizedBox(width: 4),
+                          Text(
+                            widget.controller.isEnglish ? 'Swipe card left / right to switch month' : 'ปัดการ์ด ซ้าย-ขวา เพื่อดูเดือนอื่น',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.75),
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(Icons.chevron_right_rounded, size: 13, color: Colors.white.withValues(alpha: 0.55)),
+                        ],
                       ),
-                      const SizedBox(width: 4),
-                      Icon(Icons.chevron_right_rounded, size: 13, color: Colors.white.withValues(alpha: 0.55)),
                     ],
                   ),
                 ),
@@ -2287,49 +2349,70 @@ void _handleMascotPetting() {
                         ),
                        ],
 
-                       // Stamped Date & Time on Each Item (Neat Bottom Row)
-                       Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: Row(
-                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                         children: [
-                          // Explicit Date with Year
-                          Row(
-                           mainAxisSize: MainAxisSize.min,
-                           children: [
-                            const Icon(Icons.calendar_today_rounded, size: 10, color: MeowTheme.mustardYellowDark),
-                            const SizedBox(width: 3),
-                            Text(
-                             '${tx.date.day} ${_formatThaiMonthShort(tx.date.month)} ${tx.date.year + 543}',
-                             style: TextStyle(
-                              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.w600,
+                        // Stamped Date & Time & Minimalist Swipe Micro-Hints (Edit → | Date/Time | ← Delete)
+                        Padding(
+                         padding: const EdgeInsets.only(top: 6),
+                         child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                           // Swipe Right to Edit micro-hint
+                           Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                             Icon(Icons.arrow_forward_rounded, size: 9, color: currentTheme.primaryColor.withValues(alpha: 0.7)),
+                             const SizedBox(width: 2),
+                             Icon(Icons.edit_rounded, size: 9.5, color: currentTheme.primaryColor.withValues(alpha: 0.75)),
+                             const SizedBox(width: 2),
+                             Text(
+                              widget.controller.isEnglish ? 'Edit' : 'แก้ไข',
+                              style: TextStyle(
+                               color: currentTheme.primaryColor.withValues(alpha: 0.85),
+                               fontSize: 9.5,
+                               fontWeight: FontWeight.w600,
+                              ),
                              ),
-                            ),
-                           ],
-                          ),
+                            ],
+                           ),
 
-                          // Exact Time
-                          Row(
-                           mainAxisSize: MainAxisSize.min,
-                           children: [
-                            const Icon(Icons.access_time_rounded, size: 10, color: MeowTheme.textLightMuted),
-                            const SizedBox(width: 2),
-                            Text(
-                             '${_formatTime(tx.date)} น.',
-                             style: const TextStyle(
-                              color: MeowTheme.textLightMuted,
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.w500,
+                           // Center: Date & Time
+                           Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                             const Icon(Icons.calendar_today_rounded, size: 9.5, color: MeowTheme.mustardYellowDark),
+                             const SizedBox(width: 3),
+                             Text(
+                              '${tx.date.day} ${_formatThaiMonthShort(tx.date.month)} ${widget.controller.isEnglish ? tx.date.year : tx.date.year + 543} • ${_formatTime(tx.date)}${widget.controller.isEnglish ? "" : " น."}',
+                              style: TextStyle(
+                               color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                               fontSize: 9.5,
+                               fontWeight: FontWeight.w500,
+                              ),
                              ),
-                            ),
-                           ],
-                          ),
-                         ],
+                            ],
+                           ),
+
+                           // Swipe Left to Delete micro-hint
+                           Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                             Text(
+                              widget.controller.isEnglish ? 'Delete' : 'ลบ',
+                              style: TextStyle(
+                               color: const Color(0xFFEF4444).withValues(alpha: 0.85),
+                               fontSize: 9.5,
+                               fontWeight: FontWeight.w600,
+                              ),
+                             ),
+                             const SizedBox(width: 2),
+                             Icon(Icons.delete_outline_rounded, size: 9.5, color: const Color(0xFFEF4444).withValues(alpha: 0.75)),
+                             const SizedBox(width: 2),
+                             Icon(Icons.arrow_back_rounded, size: 9, color: const Color(0xFFEF4444).withValues(alpha: 0.7)),
+                            ],
+                           ),
+                          ],
+                         ),
                         ),
-                       ),
-                     ],
+                      ],
                     ),
                    ),
                   ),
