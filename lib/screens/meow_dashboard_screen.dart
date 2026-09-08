@@ -401,10 +401,11 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
   });
  }
 
- void _nextMonth() {
-  setState(() {
-   _currentMonth = DateTime(_currentMonth.year, _currentMonth.month + 1);
-  });
+  void _nextMonth() {
+   setState(() {
+    _currentMonth = DateTime(_currentMonth.year, _currentMonth.month + 1);
+   });
+  }
 
   Future<void> _showMonthPickerModal() async {
     HapticFeedback.selectionClick();
