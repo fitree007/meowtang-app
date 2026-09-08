@@ -11,6 +11,7 @@ import 'duplicate_slip_checker.dart';
 import 'slip_storage_service.dart';
 import 'easyocr_tesseract_fusion_service.dart';
 import 'thai_bank_detector.dart';
+import '../config/app_config.dart';
 
 class SlipAutoSyncService {
   static bool _isListenerStarted = false;
@@ -135,9 +136,11 @@ class SlipAutoSyncService {
       await controller.storage.addImportedSlipIdentifiers(existingSlips);
     }
 
+    final isCreator = AppConfig.isCreatorEdition;
     final now = DateTime.now();
     final startOfPreviousMonth = getStartOfPreviousMonth(now);
-    final daysToScan = now.difference(startOfPreviousMonth).inDays + 2;
+    // In Creator Edition: scan ALL historical slips on device without cutoff (daysLimit = 0)
+    final daysToScan = isCreator ? 0 : (now.difference(startOfPreviousMonth).inDays + 2);
 
     final slipFiles = await NativeBridgeService.scanBankSlips(daysLimit: daysToScan);
     final allSlips = List<Map<String, dynamic>>.from(slipFiles);
@@ -160,8 +163,8 @@ class SlipAutoSyncService {
               final ext = path.split('.').last.toLowerCase();
               if (['jpg', 'jpeg', 'png', 'webp'].contains(ext)) {
                 final stat = entity.statSync();
-                // Filter: strictly current month and previous month only
-                if (stat.modified.isBefore(startOfPreviousMonth)) {
+                // Filter: strictly current month and previous month only (unless Creator Edition)
+                if (!isCreator && stat.modified.isBefore(startOfPreviousMonth)) {
                   continue;
                 }
                 if (stat.size > 1024) {
@@ -211,8 +214,8 @@ class SlipAutoSyncService {
       final timestamp = slip['dateAdded'] as num? ?? DateTime.now().millisecondsSinceEpoch;
       final slipDate = DateTime.fromMillisecondsSinceEpoch(timestamp.toInt());
 
-      // Filter: strictly current month and previous month only
-      if (slipDate.isBefore(startOfPreviousMonth)) {
+      // Filter: strictly current month and previous month only (unless Creator Edition)
+      if (!isCreator && slipDate.isBefore(startOfPreviousMonth)) {
         continue;
       }
 
@@ -240,8 +243,8 @@ class SlipAutoSyncService {
           continue;
         }
 
-        // Monthly quota check: only enforced for ongoing scans, NOT during initial device scan
-        if (!isInitialScan && !controller.canImportMoreSlips) {
+        // Monthly quota check: only enforced for ongoing scans in PlayStore edition, NOT for Creator Edition or initial scan
+        if (!isCreator && !isInitialScan && !controller.canImportMoreSlips) {
           break; // Monthly quota limit reached
         }
 
@@ -254,8 +257,8 @@ class SlipAutoSyncService {
         );
 
         if (item != null) {
-          // If extracted transaction date is before previous month, discard it
-          if (item.date.isBefore(startOfPreviousMonth)) {
+          // If extracted transaction date is before previous month, discard it (unless Creator Edition)
+          if (!isCreator && item.date.isBefore(startOfPreviousMonth)) {
             if (key.isNotEmpty) _processedKeys.add(key);
             continue;
           }

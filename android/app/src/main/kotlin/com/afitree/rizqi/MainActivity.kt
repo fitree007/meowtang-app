@@ -979,10 +979,12 @@ class MainActivity : FlutterActivity() {
             )
         }
 
-        val effectiveDays = if (daysLimit > 0) daysLimit else 365
-        val cutoffTimestamp = (System.currentTimeMillis() / 1000) - (effectiveDays * 24L * 60L * 60L)
-        val selection = "${MediaStore.Images.Media.DATE_ADDED} >= ?"
-        val selectionArgs = arrayOf(cutoffTimestamp.toString())
+        val (selection, selectionArgs) = if (daysLimit > 0) {
+            val cutoffTimestamp = (System.currentTimeMillis() / 1000) - (daysLimit * 24L * 60L * 60L)
+            Pair("${MediaStore.Images.Media.DATE_ADDED} >= ?", arrayOf(cutoffTimestamp.toString()))
+        } else {
+            Pair(null, null)
+        }
         val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
 
         try {

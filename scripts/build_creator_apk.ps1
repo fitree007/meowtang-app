@@ -6,7 +6,7 @@ if (-not (Test-Path $distDir)) {
     New-Item -ItemType Directory -Force -Path $distDir | Out-Null
 }
 
-$targetApk = Join-Path $distDir "MeowTang-Creator-v1.41.2.apk"
+$targetApk = Join-Path $distDir "MeowTang-Creator-v1.41.3.apk"
 
 Write-Host "=== Building MeowTang CREATOR Edition (Full Unlimited VIP) ===" -ForegroundColor Green
 Write-Host "Source directory: $sourceDir"
