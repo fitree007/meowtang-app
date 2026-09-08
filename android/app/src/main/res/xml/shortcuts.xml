@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="quick_voice"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_voice_short"
+        android:shortcutLongLabel="@string/shortcut_voice_long">
+        <intent
+            android:action="com.example.crocodile.crocodile_game.ACTION_QUICK_VOICE"
+            android:targetPackage="com.example.crocodile.crocodile_game"
+            android:targetClass="com.example.crocodile.crocodile_game.MainActivity" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="quick_scan"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_scan_short"
+        android:shortcutLongLabel="@string/shortcut_scan_long">
+        <intent
+            android:action="com.example.crocodile.crocodile_game.ACTION_QUICK_SCAN"
+            android:targetPackage="com.example.crocodile.crocodile_game"
+            android:targetClass="com.example.crocodile.crocodile_game.MainActivity" />
+    </shortcut>
+</shortcuts>

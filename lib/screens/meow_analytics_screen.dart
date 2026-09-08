@@ -411,44 +411,16 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> with SingleTi
       children: [
        // Top Bar Header
        Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-         Row(
-          children: [
-           const Icon(Icons.analytics_rounded, color: Colors.white, size: 24),
-           const SizedBox(width: 8),
-           Text(
-            isEn ? 'Financial Analytics' : 'สรุปวิเคราะห์การเงิน',
-            style: const TextStyle(
-             color: Colors.white,
-             fontSize: 18,
-             fontWeight: FontWeight.bold,
-            ),
-           ),
-          ],
-         ),
-         Row(
-          children: [
-           IconButton(
-            icon: const Icon(Icons.account_balance_wallet_outlined, color: Colors.white),
-            tooltip: isEn ? 'Budget Planning' : 'วางแผนการเงิน & งบประมาณ',
-            onPressed: () {
-             Navigator.push(context, MaterialPageRoute(builder: (_) => BudgetManagementScreen(controller: widget.controller)));
-            },
-           ),
-           IconButton(
-            icon: const Icon(Icons.track_changes_rounded, color: Colors.white),
-            tooltip: isEn ? 'Saving Goals' : 'เป้าหมายการออมเงิน',
-            onPressed: () {
-             Navigator.push(context, MaterialPageRoute(builder: (_) => SavingGoalsScreen(controller: widget.controller)));
-            },
-           ),
-           IconButton(
-            icon: const Icon(Icons.file_download_outlined, color: Colors.white),
-            tooltip: isEn ? 'Export Statement' : 'ส่งออกรายงาน',
-            onPressed: _showExportOptionsModal,
-           ),
-          ],
+         const Icon(Icons.analytics_rounded, color: Colors.white, size: 24),
+         const SizedBox(width: 8),
+         Text(
+          isEn ? 'Financial Analytics' : 'สรุปวิเคราะห์การเงิน',
+          style: const TextStyle(
+           color: Colors.white,
+           fontSize: 18,
+           fontWeight: FontWeight.bold,
+          ),
          ),
         ],
        ),

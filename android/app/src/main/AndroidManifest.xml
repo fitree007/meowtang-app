@@ -1,0 +1,142 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <application
+        android:label="เหมียวตังค์"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"
+              />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.afitree.rizqi.ACTION_QUICK_VOICE"/>
+                <action android:name="com.afitree.rizqi.ACTION_QUICK_SCAN"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+            </intent-filter>
+        </activity>
+
+        <!-- Transparent Voice Record Activity (Pop-up dialog without opening main app) -->
+        <activity
+            android:name=".VoiceRecordActivity"
+            android:exported="true"
+            android:theme="@style/Theme.TransparentVoice"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:windowSoftInputMode="stateAlwaysHidden" />
+
+        <!-- App Widget Provider (Circular Mic Quick Voice Recorder) -->
+        <receiver
+            android:name=".RizqiVoiceWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_voice_info" />
+        </receiver>
+
+        <!-- Foreground Service for Background Slip Detection -->
+        <service
+            android:name=".SlipDetectionService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <!-- Notification Listener Service to Auto-Capture Income from Bank Notifications -->
+        <service
+            android:name=".BankNotificationListenerService"
+            android:label="บันทึกริซกี: อ่านแจ้งเตือนเงินเข้าอัตโนมัติ"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <!-- BootReceiver for Auto-Start on Reboot -->
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
+
+        <!-- FileProvider for CSV and Slip Sharing -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="com.afitree.rizqi.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+    </application>
+
+    <queries>
+        <!-- Package queries for 16 major Thai banking apps & digital wallets -->
+        <package android:name="com.kasikorn.retail.mbanking.wap" />
+        <package android:name="com.kbank.make" />
+        <package android:name="com.scb.phone" />
+        <package android:name="ktbcs.netbank" />
+        <package android:name="com.bbl.mPlus" />
+        <package android:name="th.co.cimbthai.moo" />
+        <package android:name="com.uob.mrt.th" />
+        <package android:name="com.ttbbank.oneapp" />
+        <package android:name="com.gsb.mymo" />
+        <package android:name="com.krungsri.kma" />
+        <package android:name="co.th.krungsri.kept" />
+        <package android:name="co.dime.app" />
+        <package android:name="com.kkp.mobile" />
+        <package android:name="com.ghb.mobile" />
+        <package android:name="th.co.ghb.ghball" />
+        <package android:name="com.tisco.mobile" />
+        <package android:name="com.tisco.mywealth" />
+        <package android:name="th.co.lhbank.mobile" />
+        <package android:name="com.lhb.you" />
+        <package android:name="com.ibank.mbanking" />
+        <package android:name="com.baac.baacapp" />
+        <package android:name="th.co.truemoney.wallet" />
+
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
+</manifest>

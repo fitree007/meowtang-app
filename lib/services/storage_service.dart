@@ -4,6 +4,7 @@ import '../models/transaction_item.dart';
 import '../models/account_item.dart';
 import '../models/category_item.dart';
 import '../models/saving_goal_item.dart';
+import '../config/app_config.dart';
 
 class StorageService {
   static const String _keyTransactions = 'rizqi_transactions_v2';
@@ -40,6 +41,16 @@ class StorageService {
   static const String _keySeasonalEffects = 'rizqi_seasonal_effects_enabled_v1';
   static const String _keySavedTags = 'rizqi_saved_hashtags_v1';
   static const String _keyDeletedSlips = 'rizqi_deleted_slips_blacklist_v1';
+  static const String _keyImportedSlips = 'rizqi_imported_slips_registry_v1';
+  static const String _keyIsPremium = 'meow_is_premium_v1';
+  static const String _keyPremiumTier = 'meow_premium_tier_v1';
+  static const String _keyPremiumExpiry = 'meow_premium_expiry_v1';
+  static const String _keyPurchasedThemes = 'meow_purchased_themes_v1';
+  static const String _keyPurchasedIcons = 'meow_purchased_icons_v1';
+  static const String _keySlipQuotaMonth = 'meow_slip_quota_month_v1';
+  static const String _keySlipQuotaCount = 'meow_slip_quota_count_v1';
+  static const String _keyWelcomeBonusSlips = 'meow_welcome_bonus_slips_v1';
+  static const String _keyInitialDeviceScanCompleted = 'meow_initial_device_scan_completed_v2';
 
   late SharedPreferences _prefs;
 
@@ -413,6 +424,15 @@ class StorageService {
         isDefault: true,
       ),
       AccountItem(
+        id: 'acc_ibank',
+        name: 'ธนาคารอิสลาม (iBank)',
+        bankCode: 'IBANK',
+        accountNumber: 'xxx-x-xxxxx-x',
+        balance: 0.00,
+        colorValue: 0xFF108A44,
+        type: AccountType.bank,
+      ),
+      AccountItem(
         id: 'acc_kbank',
         name: 'กสิกรไทย (KBank)',
         bankCode: 'KBANK',
@@ -438,6 +458,51 @@ class StorageService {
         balance: 0.00,
         colorValue: 0xFF00A6E6,
         type: AccountType.bank,
+      ),
+      AccountItem(
+        id: 'acc_bbl',
+        name: 'กรุงเทพ (BBL)',
+        bankCode: 'BBL',
+        accountNumber: 'xxx-x-xxxxx-x',
+        balance: 0.00,
+        colorValue: 0xFF1E3A8A,
+        type: AccountType.bank,
+      ),
+      AccountItem(
+        id: 'acc_gsb',
+        name: 'ออมสิน (GSB)',
+        bankCode: 'GSB',
+        accountNumber: 'xxx-x-xxxxx-x',
+        balance: 0.00,
+        colorValue: 0xFFEB198B,
+        type: AccountType.bank,
+      ),
+      AccountItem(
+        id: 'acc_bay',
+        name: 'กรุงศรี (BAY)',
+        bankCode: 'BAY',
+        accountNumber: 'xxx-x-xxxxx-x',
+        balance: 0.00,
+        colorValue: 0xFFFEC400,
+        type: AccountType.bank,
+      ),
+      AccountItem(
+        id: 'acc_ttb',
+        name: 'ทีทีบี (ttb)',
+        bankCode: 'TTB',
+        accountNumber: 'xxx-x-xxxxx-x',
+        balance: 0.00,
+        colorValue: 0xFF002D63,
+        type: AccountType.bank,
+      ),
+      AccountItem(
+        id: 'acc_paotang',
+        name: 'เป๋าตัง (PaoTang)',
+        bankCode: 'PAOTANG',
+        accountNumber: 'xxx-x-xxxxx-x',
+        balance: 0.00,
+        colorValue: 0xFF009EE0,
+        type: AccountType.eWallet,
       ),
       AccountItem(
         id: 'acc_truemoney',
@@ -919,4 +984,151 @@ class StorageService {
   Future<void> clearDeletedSlips() async {
     await _prefs.remove(_keyDeletedSlips);
   }
+
+  // IMPORTED SLIPS REGISTRY / PERSISTENT SCANNED SLIPS
+  List<String> getImportedSlipIdentifiers() {
+    return _prefs.getStringList(_keyImportedSlips) ?? [];
+  }
+
+  Future<void> addImportedSlipIdentifiers(Iterable<String> identifiers) async {
+    final current = getImportedSlipIdentifiers().toSet();
+    for (final id in identifiers) {
+      final clean = id.trim().toLowerCase();
+      if (clean.isNotEmpty) {
+        current.add(clean);
+      }
+    }
+    await _prefs.setStringList(_keyImportedSlips, current.toList());
+  }
+
+  Future<void> removeImportedSlipIdentifiers(Iterable<String> identifiers) async {
+    final current = getImportedSlipIdentifiers().toSet();
+    for (final id in identifiers) {
+      final clean = id.trim().toLowerCase();
+      if (clean.isNotEmpty) {
+        current.remove(clean);
+      }
+    }
+    await _prefs.setStringList(_keyImportedSlips, current.toList());
+  }
+
+  Future<void> clearImportedSlips() async {
+    await _prefs.remove(_keyImportedSlips);
+  }
+
+  // ==========================================
+  // MONETIZATION & PREMIUM SUBSCRIPTION STORAGE
+  // ==========================================
+
+  bool isPremium() {
+    final isPrem = _prefs.getBool(_keyIsPremium) ?? false;
+    if (!isPrem) return false;
+
+    // Check expiry if set (for monthly/yearly subscriptions)
+    final expiryStr = _prefs.getString(_keyPremiumExpiry);
+    if (expiryStr != null && expiryStr.isNotEmpty) {
+      final expiry = DateTime.tryParse(expiryStr);
+      if (expiry != null && DateTime.now().isAfter(expiry)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  Future<void> setPremium(bool val, {String tier = 'lifetime', DateTime? expiry}) async {
+    await _prefs.setBool(_keyIsPremium, val);
+    await _prefs.setString(_keyPremiumTier, tier);
+    if (expiry != null) {
+      await _prefs.setString(_keyPremiumExpiry, expiry.toIso8601String());
+    } else {
+      await _prefs.remove(_keyPremiumExpiry);
+    }
+  }
+
+  String getPremiumTier() {
+    return _prefs.getString(_keyPremiumTier) ?? 'none';
+  }
+
+  DateTime? getPremiumExpiry() {
+    final str = _prefs.getString(_keyPremiumExpiry);
+    if (str == null || str.isEmpty) return null;
+    return DateTime.tryParse(str);
+  }
+
+  // PURCHASED THEMES (29 THB each)
+  List<String> getPurchasedThemes() {
+    return _prefs.getStringList(_keyPurchasedThemes) ?? [];
+  }
+
+  Future<void> addPurchasedTheme(String themeId) async {
+    final list = getPurchasedThemes().toSet();
+    list.add(themeId);
+    await _prefs.setStringList(_keyPurchasedThemes, list.toList());
+  }
+
+  // PURCHASED ICONS / ACCESSORIES (10 THB each)
+  List<String> getPurchasedIcons() {
+    return _prefs.getStringList(_keyPurchasedIcons) ?? [];
+  }
+
+  Future<void> addPurchasedIcon(String iconId) async {
+    final list = getPurchasedIcons().toSet();
+    list.add(iconId);
+    await _prefs.setStringList(_keyPurchasedIcons, list.toList());
+  }
+
+  // MONTHLY SLIP QUOTA (15 slips/month for Free users)
+  int getSlipQuotaCountForMonth(String monthKey) {
+    final count = _prefs.getInt('${_keySlipQuotaCount}_$monthKey');
+    if (count != null) return count;
+    // Fallback for legacy single-key storage
+    final savedMonth = _prefs.getString(_keySlipQuotaMonth);
+    if (savedMonth == monthKey) {
+      return _prefs.getInt(_keySlipQuotaCount) ?? 0;
+    }
+    return 0;
+  }
+
+  Future<int> incrementSlipQuotaCount(String monthKey) async {
+    final current = getSlipQuotaCountForMonth(monthKey);
+    final updated = current + 1;
+    await _prefs.setInt('${_keySlipQuotaCount}_$monthKey', updated);
+    // Also update legacy keys for backward compatibility
+    await _prefs.setString(_keySlipQuotaMonth, monthKey);
+    await _prefs.setInt(_keySlipQuotaCount, updated);
+    return updated;
+  }
+
+  Future<void> resetSlipQuotaCount(String monthKey) async {
+    await _prefs.setInt('${_keySlipQuotaCount}_$monthKey', 0);
+    await _prefs.setString(_keySlipQuotaMonth, monthKey);
+    await _prefs.setInt(_keySlipQuotaCount, 0);
+  }
+
+  // WELCOME BONUS SLIPS (100 free slips for first-time install)
+  int getWelcomeBonusSlipsRemaining() {
+    return _prefs.getInt(_keyWelcomeBonusSlips) ?? AppConfig.welcomeBonusSlips;
+  }
+
+  Future<int> deductWelcomeBonusSlip() async {
+    final current = getWelcomeBonusSlipsRemaining();
+    if (current <= 0) return 0;
+    final updated = current - 1;
+    await _prefs.setInt(_keyWelcomeBonusSlips, updated);
+    return updated;
+  }
+
+  Future<void> setWelcomeBonusSlips(int count) async {
+    await _prefs.setInt(_keyWelcomeBonusSlips, count);
+  }
+
+  // INITIAL DEVICE SLIP SCAN
+  bool isInitialDeviceScanCompleted() {
+    return _prefs.getBool(_keyInitialDeviceScanCompleted) ?? false;
+  }
+
+  Future<void> setInitialDeviceScanCompleted(bool completed) async {
+    await _prefs.setBool(_keyInitialDeviceScanCompleted, completed);
+  }
 }
+

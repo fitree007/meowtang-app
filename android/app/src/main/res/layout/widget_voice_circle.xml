@@ -1,0 +1,29 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_voice_container"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- Square App-Icon-Sized Button (Centered in cell, exactly matching app icon size ~60dp x 60dp) -->
+    <FrameLayout
+        android:id="@+id/btn_widget_mic"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:layout_gravity="center"
+        android:background="@drawable/widget_voice_app_icon_bg"
+        android:clickable="true"
+        android:focusable="true">
+
+        <!-- Centered Voice Mic Icon -->
+        <ImageView
+            android:id="@+id/iv_widget_mic"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_gravity="center"
+            android:padding="13dp"
+            android:adjustViewBounds="true"
+            android:scaleType="fitCenter"
+            android:contentDescription="พูดบันทึกเสียง"
+            android:src="@drawable/ic_widget_mic_modern" />
+    </FrameLayout>
+</FrameLayout>

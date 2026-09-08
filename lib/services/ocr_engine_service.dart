@@ -4,6 +4,7 @@ import '../models/category_item.dart';
 import '../models/slip_extract_result.dart';
 import 'category_matcher_service.dart';
 import 'easyocr_tesseract_fusion_service.dart';
+import 'qr_slip_parser_service.dart';
 
 class MockSlipTemplate {
   final String id;
@@ -395,14 +396,61 @@ class OcrEngineService {
     }
   }
 
-  SlipExtractResult parseSlipText(String rawText, List<CategoryItem> categories, {String? defaultBankCode, String? fileName, String? filePath}) {
+  SlipExtractResult parseSlipText(String rawText, List<CategoryItem> categories, {String? defaultBankCode, String? fileName, String? filePath, String? qrPayload}) {
     final normalizedText = EasyOcrTesseractFusionService.normalizeOcrText(rawText.replaceAll('\r', ''));
     final cleanText = normalizedText;
     final lines = cleanText.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
 
     final cleanCombined = '$cleanText $fileName $filePath'.toLowerCase();
-    final bool isIBank = cleanCombined.contains('ibank') || cleanCombined.contains('อิสลาม');
-    final bool isPaotangGov = (cleanCombined.contains('เป๋าตัง') ||
+
+    // Check QR payload for senderBankCode first (e.g. 066 for iBank, 006 for Krungthai)
+    QrSlipResult? qrSlipInfo;
+    if (qrPayload != null && qrPayload.trim().isNotEmpty) {
+      qrSlipInfo = QrSlipParserService.parseQrCodePayload(qrPayload);
+    }
+
+    final String? qrSenderCode = qrSlipInfo?.senderBankCode;
+    final bool qrIndicatesOtherBank = qrSenderCode != null && qrSenderCode.isNotEmpty && qrSenderCode != '066';
+
+    final bool isKBank = (qrSenderCode == '004') ||
+        cleanCombined.contains('k plus') ||
+        cleanCombined.contains('kplus') ||
+        cleanCombined.contains('kbank') ||
+        cleanCombined.contains('kasikorn') ||
+        (filePath != null && (filePath.toLowerCase().contains('k plus') || filePath.toLowerCase().contains('kplus') || filePath.toLowerCase().contains('kbank')));
+
+    // Krungthai explicit signatures (Ref ID starting with N006, bank code 006, or Krungthai without Islamic mentions)
+    final bool isKrungthai = (qrSenderCode == '006') ||
+        (qrPayload != null && qrPayload.contains('N006')) ||
+        cleanCombined.contains('n006') ||
+        (filePath != null && filePath.toLowerCase().contains('krungthai')) ||
+        (cleanCombined.contains('กรุงไทย') && !cleanCombined.contains('ไอแบงก์') && !cleanCombined.contains('ธนาคารอิสลาม'));
+
+    final bool isSCB = (qrSenderCode == '014') ||
+        cleanCombined.contains('scb easy') ||
+        cleanCombined.contains('scb') ||
+        (filePath != null && filePath.toLowerCase().contains('scb')) ||
+        (cleanCombined.contains('ไทยพาณิชย์') && !cleanCombined.contains('ไอแบงก์') && !cleanCombined.contains('ธนาคารอิสลาม'));
+
+    final bool isIBank = !qrIndicatesOtherBank &&
+        !isKBank &&
+        !isKrungthai &&
+        !isSCB &&
+        ((qrSenderCode == '066') ||
+            (qrPayload != null && (qrPayload.toLowerCase().contains('0103066') || qrPayload.toLowerCase().contains('ibank') || qrPayload.toLowerCase().contains('islamic bank'))) ||
+            cleanCombined.contains('ibank') ||
+            cleanCombined.contains('ไอแบงก์') ||
+            cleanCombined.contains('ไอแบงค์') ||
+            cleanCombined.contains('ธนาคารอิสลาม') ||
+            cleanCombined.contains('อิสลามแห่งประเทศไทย'));
+
+    final bool hasQr = qrPayload != null && qrPayload.trim().isNotEmpty;
+    final bool isPaotangGov = !hasQr &&
+        !isIBank &&
+        !isKBank &&
+        !isKrungthai &&
+        !isSCB &&
+        (cleanCombined.contains('เป๋าตัง') ||
             cleanCombined.contains('paotang') ||
             cleanCombined.contains('g-wallet') ||
             cleanCombined.contains('gwallet') ||
@@ -410,8 +458,7 @@ class OcrEngineService {
             cleanCombined.contains('คนละครึ่ง') ||
             cleanCombined.contains('เราชนะ') ||
             cleanCombined.contains('สวัสดิการ') ||
-            (filePath != null && (filePath.toLowerCase().contains('paotang') || filePath.contains('เป๋าตัง')))) &&
-        !isIBank;
+            (filePath != null && (filePath.toLowerCase().contains('paotang') || filePath.contains('เป๋าตัง'))));
 
     // 1. Amount Extraction
     double amount = 0.0;
@@ -477,10 +524,12 @@ class OcrEngineService {
       }
     }
 
-    if (isPaotangGov && amount <= 0) {
+    if (amount <= 0 && !isIBank) {
       if (memo == null || memo.isEmpty) {
-        memo = 'สลิปไม่มี QR Code (แตะเพื่อระบุยอดเงิน)';
+        memo = 'โปรดระบุยอด';
       }
+    } else if (amount > 0 && memo != null && (memo.contains('สลิปไม่มี QR Code') || memo.contains('โปรดระบุยอด') || memo.contains('แตะเพื่อระบุยอด'))) {
+      memo = null;
     }
 
     // 5. Sender & Receiver Extraction
@@ -491,8 +540,20 @@ class OcrEngineService {
     final bool isSelf = isSelfTransfer(senderName, receiverName, rawText: cleanText);
 
     // 6. Detect Bank Name with Multi-Layer Directional & Album Fuzzy Matching
-    senderBank = defaultBankCode ??
-        EasyOcrTesseractFusionService.detectBankName(cleanText, filePath: filePath ?? fileName);
+    if (qrSlipInfo?.senderBank != null) {
+      senderBank = qrSlipInfo!.senderBank!;
+    } else if (isKBank) {
+      senderBank = 'กสิกรไทย (K PLUS)';
+    } else if (isSCB) {
+      senderBank = 'ไทยพาณิชย์ (SCB EASY)';
+    } else if (isKrungthai) {
+      senderBank = 'กรุงไทย (Krungthai NEXT)';
+    } else if (isIBank) {
+      senderBank = 'ธนาคารอิสลามแห่งประเทศไทย';
+    } else {
+      senderBank = defaultBankCode ??
+          EasyOcrTesseractFusionService.detectBankName(cleanText, filePath: filePath ?? fileName);
+    }
 
     // 7. Transaction Type & Category Classification (Auto-detect Income vs Expense)
     final lower = cleanText.toLowerCase();

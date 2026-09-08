@@ -10,6 +10,7 @@ import 'qr_slip_parser_service.dart';
 import 'duplicate_slip_checker.dart';
 import 'slip_storage_service.dart';
 import 'easyocr_tesseract_fusion_service.dart';
+import 'thai_bank_detector.dart';
 
 class SlipAutoSyncService {
   static bool _isListenerStarted = false;
@@ -43,15 +44,20 @@ class SlipAutoSyncService {
       }
 
       try {
-        // 1. Initial Duplicate Check against existing database & deleted slips registry
+        // 1. Initial Duplicate Check against existing database & deleted slips registry & imported registry
         final isDup = DuplicateSlipChecker.isDuplicate(
           existingTransactions: controller.allTransactions,
           deletedSlipIdentifiers: controller.storage.getDeletedSlips(),
+          importedSlipIdentifiers: controller.storage.getImportedSlipIdentifiers(),
           filePath: path,
           fileName: name,
         );
         if (isDup) {
           if (key.isNotEmpty) _processedKeys.add(key);
+          return;
+        }
+
+        if (!controller.canImportMoreSlips) {
           return;
         }
 
@@ -64,9 +70,20 @@ class SlipAutoSyncService {
         );
 
         if (item != null) {
-          await controller.addTransaction(item);
+          final added = await controller.addTransaction(item);
+          if (added) {
+            await controller.recordSlipImported(slipDate: item.date);
+            await controller.storage.addImportedSlipIdentifiers([
+              path.toLowerCase(),
+              name.trim().toLowerCase(),
+              DuplicateSlipChecker.extractBasename(name),
+              DuplicateSlipChecker.extractBasename(path),
+              if (item.slipImageUrl != null) DuplicateSlipChecker.extractBasename(item.slipImageUrl),
+              if (item.slipRefId != null && !item.slipRefId!.startsWith('SLIP-') && !item.slipRefId!.startsWith('NO-QR-')) item.slipRefId!.toLowerCase(),
+            ]);
+            onNewTransactionCreated?.call(item);
+          }
           if (key.isNotEmpty) _processedKeys.add(key);
-          onNewTransactionCreated?.call(item);
         }
       } finally {
         if (key.isNotEmpty) _inFlightKeys.remove(key);
@@ -74,14 +91,55 @@ class SlipAutoSyncService {
     });
   }
 
-  /// Scans device storage for new bank slips and imports any unimported slips (up to 1 full year)
+  /// Returns the start of the previous calendar month (00:00:00 of the 1st day of month - 1)
+  static DateTime getStartOfPreviousMonth([DateTime? baseDate]) {
+    final now = baseDate ?? DateTime.now();
+    return DateTime(now.year, now.month - 1, 1, 0, 0, 0);
+  }
+
+  /// Checks whether a date falls within the current month or previous month
+  static bool isWithinCurrentOrPreviousMonth(DateTime date, [DateTime? baseDate]) {
+    final start = getStartOfPreviousMonth(baseDate);
+    return !date.isBefore(start);
+  }
+
+  /// Scans device storage for new bank slips and imports unimported slips from CURRENT & PREVIOUS month only.
+  /// On initial import, existing device slips do NOT consume monthly quota, keeping it clean at 0/15!
   static Future<List<TransactionItem>> scanAndAutoImportNewSlips(ExpenseController controller) async {
     _processedKeys.clear();
     _inFlightKeys.clear();
     // 0. Auto-clean existing duplicates in database if any exist
     await deduplicateExistingTransactions(controller);
 
-    final slipFiles = await NativeBridgeService.scanBankSlips(daysLimit: 365);
+    // 0.1. Seed persistent registry with any existing transactions
+    final existingSlips = <String>[];
+    for (final tx in controller.allTransactions) {
+      if (tx.slipImageUrl != null && tx.slipImageUrl!.isNotEmpty) {
+        existingSlips.add(tx.slipImageUrl!.toLowerCase());
+        final bName = DuplicateSlipChecker.extractBasename(tx.slipImageUrl);
+        if (bName.isNotEmpty) {
+          existingSlips.add(bName);
+          if (bName.startsWith('slip_')) {
+            final parts = bName.split('_');
+            if (parts.length >= 3) {
+              existingSlips.add(parts.sublist(2).join('_'));
+            }
+          }
+        }
+      }
+      if (tx.slipRefId != null && tx.slipRefId!.isNotEmpty && !tx.slipRefId!.startsWith('SLIP-') && !tx.slipRefId!.startsWith('NO-QR-')) {
+        existingSlips.add(tx.slipRefId!.toLowerCase());
+      }
+    }
+    if (existingSlips.isNotEmpty) {
+      await controller.storage.addImportedSlipIdentifiers(existingSlips);
+    }
+
+    final now = DateTime.now();
+    final startOfPreviousMonth = getStartOfPreviousMonth(now);
+    final daysToScan = now.difference(startOfPreviousMonth).inDays + 2;
+
+    final slipFiles = await NativeBridgeService.scanBankSlips(daysLimit: daysToScan);
     final allSlips = List<Map<String, dynamic>>.from(slipFiles);
 
     // Direct Physical Folder scan for PaoTang & other slip directories to guarantee 100% detection
@@ -102,6 +160,10 @@ class SlipAutoSyncService {
               final ext = path.split('.').last.toLowerCase();
               if (['jpg', 'jpeg', 'png', 'webp'].contains(ext)) {
                 final stat = entity.statSync();
+                // Filter: strictly current month and previous month only
+                if (stat.modified.isBefore(startOfPreviousMonth)) {
+                  continue;
+                }
                 if (stat.size > 1024) {
                   final name = path.split(RegExp(r'[\/\\]')).last;
                   final baseName = DuplicateSlipChecker.extractBasename(name);
@@ -139,6 +201,7 @@ class SlipAutoSyncService {
 
     if (allSlips.isEmpty) return [];
 
+    final isInitialScan = !controller.storage.isInitialDeviceScanCompleted();
     final importedSlips = <TransactionItem>[];
 
     for (final slip in allSlips) {
@@ -147,6 +210,11 @@ class SlipAutoSyncService {
       final bankName = slip['bankName'] as String? ?? 'ธนาคารไทย';
       final timestamp = slip['dateAdded'] as num? ?? DateTime.now().millisecondsSinceEpoch;
       final slipDate = DateTime.fromMillisecondsSinceEpoch(timestamp.toInt());
+
+      // Filter: strictly current month and previous month only
+      if (slipDate.isBefore(startOfPreviousMonth)) {
+        continue;
+      }
 
       if (path.isEmpty && name.isEmpty) continue;
 
@@ -163,12 +231,18 @@ class SlipAutoSyncService {
         final isDup = DuplicateSlipChecker.isDuplicate(
           existingTransactions: controller.allTransactions,
           deletedSlipIdentifiers: controller.storage.getDeletedSlips(),
+          importedSlipIdentifiers: controller.storage.getImportedSlipIdentifiers(),
           filePath: path,
           fileName: name,
         );
         if (isDup) {
           if (key.isNotEmpty) _processedKeys.add(key);
           continue;
+        }
+
+        // Monthly quota check: only enforced for ongoing scans, NOT during initial device scan
+        if (!isInitialScan && !controller.canImportMoreSlips) {
+          break; // Monthly quota limit reached
         }
 
         final item = await _createTransactionFromSlip(
@@ -180,8 +254,28 @@ class SlipAutoSyncService {
         );
 
         if (item != null) {
-          await controller.addTransaction(item);
-          importedSlips.add(item);
+          // If extracted transaction date is before previous month, discard it
+          if (item.date.isBefore(startOfPreviousMonth)) {
+            if (key.isNotEmpty) _processedKeys.add(key);
+            continue;
+          }
+
+          final added = await controller.addTransaction(item);
+          if (added) {
+            importedSlips.add(item);
+            await controller.recordSlipImported(
+              slipDate: item.date,
+              isInitialImport: isInitialScan,
+            );
+            await controller.storage.addImportedSlipIdentifiers([
+              path.toLowerCase(),
+              name.trim().toLowerCase(),
+              DuplicateSlipChecker.extractBasename(name),
+              DuplicateSlipChecker.extractBasename(path),
+              if (item.slipImageUrl != null) DuplicateSlipChecker.extractBasename(item.slipImageUrl),
+              if (item.slipRefId != null && !item.slipRefId!.startsWith('SLIP-') && !item.slipRefId!.startsWith('NO-QR-')) item.slipRefId!.toLowerCase(),
+            ]);
+          }
           if (key.isNotEmpty) _processedKeys.add(key);
         }
         // Yield to event loop to keep UI rendering in real-time
@@ -189,6 +283,10 @@ class SlipAutoSyncService {
       } finally {
         if (key.isNotEmpty) _inFlightKeys.remove(key);
       }
+    }
+
+    if (isInitialScan) {
+      await controller.storage.setInitialDeviceScanCompleted(true);
     }
 
     return importedSlips;
@@ -317,7 +415,51 @@ class SlipAutoSyncService {
     }
 
     final cleanCombined = '$rawOcrText $name $bankName $path'.toLowerCase();
-    final bool isIBank = cleanCombined.contains('ibank') || cleanCombined.contains('อิสลาม');
+
+    // Check QR code payload first for sending bank code (066 = Islamic Bank of Thailand, 006 = Krungthai, 004 = KBank)
+    QrSlipResult? qrSlipParsed;
+    if (qrPayload.trim().isNotEmpty) {
+      qrSlipParsed = QrSlipParserService.parseQrCodePayload(qrPayload);
+    }
+
+    final String? qrSenderCode = qrSlipParsed?.senderBankCode;
+    final bool qrIndicatesOtherBank = qrSenderCode != null && qrSenderCode.isNotEmpty && qrSenderCode != '066';
+
+    final bool isKBank = (qrSenderCode == '004') ||
+        cleanCombined.contains('k plus') ||
+        cleanCombined.contains('kplus') ||
+        cleanCombined.contains('kbank') ||
+        cleanCombined.contains('kasikorn') ||
+        path.toLowerCase().contains('k plus') ||
+        path.toLowerCase().contains('kplus') ||
+        path.toLowerCase().contains('kbank');
+
+    // Krungthai explicit signatures (Ref ID starting with N006, bank code 006, or Krungthai without Islamic mentions)
+    final bool isKrungthai = (qrSenderCode == '006') ||
+        qrPayload.contains('N006') ||
+        cleanCombined.contains('n006') ||
+        path.toLowerCase().contains('krungthai') ||
+        (cleanCombined.contains('กรุงไทย') && !cleanCombined.contains('ไอแบงก์') && !cleanCombined.contains('ธนาคารอิสลาม'));
+
+    final bool isSCB = (qrSenderCode == '014') ||
+        cleanCombined.contains('scb easy') ||
+        cleanCombined.contains('scb') ||
+        path.toLowerCase().contains('scb') ||
+        (cleanCombined.contains('ไทยพาณิชย์') && !cleanCombined.contains('ไอแบงก์') && !cleanCombined.contains('ธนาคารอิสลาม'));
+
+    final bool isIBank = !qrIndicatesOtherBank &&
+        !isKBank &&
+        !isKrungthai &&
+        !isSCB &&
+        ((qrSlipParsed != null && (qrSlipParsed.senderBankCode == '066' || (qrSlipParsed.senderBank != null && qrSlipParsed.senderBank!.contains('อิสลาม')))) ||
+            qrPayload.toLowerCase().contains('0103066') ||
+            qrPayload.toLowerCase().contains('ibank') ||
+            cleanCombined.contains('ibank') ||
+            cleanCombined.contains('ไอแบงก์') ||
+            cleanCombined.contains('ไอแบงค์') ||
+            cleanCombined.contains('ธนาคารอิสลาม') ||
+            cleanCombined.contains('อิสลามแห่งประเทศไทย'));
+
     final bool isPaotangGovNoQr = (cleanCombined.contains('เป๋าตัง') ||
             cleanCombined.contains('paotang') ||
             cleanCombined.contains('g-wallet') ||
@@ -329,6 +471,9 @@ class SlipAutoSyncService {
             path.toLowerCase().contains('paotang') ||
             path.contains('เป๋าตัง')) &&
         !isIBank &&
+        !isKBank &&
+        !isKrungthai &&
+        !isSCB &&
         qrPayload.isEmpty;
 
     // 3. Extract Amount & Identifiers
@@ -399,6 +544,8 @@ class SlipAutoSyncService {
     // 3.5. Secondary Duplicate Check with extracted amount, date, refId
     final isPostDup = DuplicateSlipChecker.isDuplicate(
       existingTransactions: controller.allTransactions,
+      deletedSlipIdentifiers: controller.storage.getDeletedSlips(),
+      importedSlipIdentifiers: controller.storage.getImportedSlipIdentifiers(),
       filePath: path,
       fileName: name,
       refId: refId,
@@ -407,6 +554,13 @@ class SlipAutoSyncService {
       bankName: bankName,
     );
     if (isPostDup) {
+      await controller.storage.addImportedSlipIdentifiers([
+        path.toLowerCase(),
+        name.trim().toLowerCase(),
+        DuplicateSlipChecker.extractBasename(name),
+        DuplicateSlipChecker.extractBasename(path),
+        if (refId.isNotEmpty && !refId.startsWith('SLIP-') && !refId.startsWith('NO-QR-')) refId.toLowerCase(),
+      ]);
       return null;
     }
 
@@ -494,16 +648,20 @@ class SlipAutoSyncService {
 
     // 7. Format Title to show Who transferred to Whom or Income Notification
     String cleanBank = bankName;
-    if (cleanBank.contains('กสิกร')) {
+    if (isKBank || (qrSenderCode == '004') || cleanBank.contains('กสิกร')) {
       cleanBank = 'กสิกรไทย';
-    } else if (cleanBank.contains('ไทยพาณิชย์')) {
+      bankName = 'กสิกรไทย (K PLUS)';
+    } else if (isSCB || (qrSenderCode == '014') || cleanBank.contains('ไทยพาณิชย์')) {
       cleanBank = 'ไทยพาณิชย์';
-    } else if (cleanBank.contains('กรุงไทย')) {
+      bankName = 'ไทยพาณิชย์ (SCB EASY)';
+    } else if (isKrungthai || (qrSenderCode == '006') || cleanBank.contains('กรุงไทย')) {
       cleanBank = 'กรุงไทย';
-    } else if (cleanBank.contains('กรุงเทพ')) {
-      cleanBank = 'กรุงเทพ';
-    } else if (cleanBank.contains('อิสลาม') || cleanBank.contains('ibank') || cleanBank.contains('iBank') || isIBank) {
+      bankName = 'กรุงไทย (Krungthai NEXT)';
+    } else if (isIBank || (qrSenderCode == '066') || cleanBank.contains('ธนาคารอิสลาม') || cleanBank.contains('ibank') || cleanBank.contains('ไอแบงก์')) {
       cleanBank = 'ธนาคารอิสลามแห่งประเทศไทย';
+      bankName = 'ธนาคารอิสลามแห่งประเทศไทย';
+    } else if (cleanBank.contains('กรุงเทพ') || (qrSenderCode == '002')) {
+      cleanBank = 'กรุงเทพ';
     } else if (cleanBank.contains('ไทยช่วยไทย')) {
       cleanBank = 'ไทยช่วยไทย (เป๋าตัง)';
     } else if (cleanBank.contains('เป๋าตัง') || cleanBank.contains('paotang')) {
@@ -522,29 +680,23 @@ class SlipAutoSyncService {
         title = 'เงินช่วยเหลือ (สวัสดิการแห่งรัฐ)';
       } else if (senderName != 'ไม่ระบุผู้โอน' && senderName.isNotEmpty) {
         title = 'รับเงินโอนจาก $senderName';
-      } else if (isIBank || cleanBank.contains('อิสลาม')) {
+      } else if (isIBank || cleanBank == 'ธนาคารอิสลามแห่งประเทศไทย') {
         title = 'รับเงินโอน (ธนาคารอิสลาม)';
       } else {
         title = 'เงินเข้าบัญชี ($cleanBank)';
       }
     } else {
-      if (isIBank || cleanBank.contains('อิสลาม')) {
-        title = 'โอนเงินผ่านธนาคารอิสลาม';
-        cleanBank = 'ธนาคารอิสลามแห่งประเทศไทย';
-      } else if (senderName != 'ไม่ระบุผู้โอน' && receiverName != 'ไม่ระบุผู้รับ') {
+      if (senderName != 'ไม่ระบุผู้โอน' && receiverName != 'ไม่ระบุผู้รับ') {
         title = '$senderName โอนให้ $receiverName';
       } else if (receiverName != 'ไม่ระบุผู้รับ') {
         title = 'โอนให้ $receiverName';
       } else if (senderName != 'ไม่ระบุผู้โอน') {
         title = '$senderName โอนเงิน ($cleanBank)';
+      } else if (isIBank || cleanBank == 'ธนาคารอิสลามแห่งประเทศไทย') {
+        title = 'โอนเงินผ่านธนาคารอิสลาม';
       } else {
         title = 'โอนเงินผ่าน$cleanBank';
       }
-    }
-
-    if (isIBank || cleanBank.contains('อิสลาม')) {
-      title = isIncome ? 'รับเงินโอน (ธนาคารอิสลาม)' : 'โอนเงินผ่านธนาคารอิสลาม';
-      cleanBank = 'ธนาคารอิสลามแห่งประเทศไทย';
     }
 
     final cleanSender = (senderName != 'ไม่ระบุผู้โอน' && senderName.trim().isNotEmpty) ? senderName.trim() : null;
@@ -559,12 +711,18 @@ class SlipAutoSyncService {
       if (extractedMemo.isEmpty) extractedMemo = null;
     }
 
-    // Only add fallback note for no-QR slips when no actual memo was printed on the slip
-    if (!hasQrCode && extractedMemo == null) {
-      extractedMemo = 'สลิปไม่มี QR Code (แตะเพื่อระบุยอดเงิน)';
+    // When detectedAmount is 0 (or <= 0), set memo to 'โปรดระบุยอด' as requested by the user
+    if (detectedAmount <= 0.0) {
+      extractedMemo = 'โปรดระบุยอด';
+    } else if (extractedMemo != null && (extractedMemo.contains('สลิปไม่มี QR Code') || extractedMemo.contains('แตะเพื่อระบุยอด') || extractedMemo.contains('โปรดระบุยอด'))) {
+      extractedMemo = null;
     }
 
     final persistentSlipPath = await SlipStorageService.persistSlipImage(path);
+
+    // Auto-link slip directly to the corresponding bank account (e.g. IBANK, KBank, SCB, KTB)
+    final targetBankCode = isIBank ? 'IBANK' : (isKrungthai ? 'KTB' : ThaiBankDetector.detectCodeFromBankName(cleanBank));
+    final targetAccount = controller.getOrCreateAccountForBank(targetBankCode, bankName: cleanBank);
 
     return TransactionItem(
       id: 'tx_auto_${DateTime.now().millisecondsSinceEpoch}',
@@ -572,7 +730,7 @@ class SlipAutoSyncService {
       amount: detectedAmount,
       type: txType,
       date: txDate,
-      accountId: controller.accounts.isNotEmpty ? controller.accounts.first.id : 'acc_cash',
+      accountId: targetAccount.id,
       categoryId: matchedCat.id,
       categoryName: matchedCat.name,
       note: (extractedMemo != null && extractedMemo.trim().isNotEmpty) ? extractedMemo.trim() : null,

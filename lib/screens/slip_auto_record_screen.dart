@@ -12,7 +12,9 @@ import '../services/qr_slip_parser_service.dart';
 import '../services/duplicate_slip_checker.dart';
 import '../services/easyocr_tesseract_fusion_service.dart';
 import '../services/slip_storage_service.dart';
+import '../services/thai_bank_detector.dart';
 import '../widgets/meow_wheel_date_picker.dart';
+import '../widgets/meow_paywall_modal.dart';
 
 class SlipAutoRecordScreen extends StatefulWidget {
  final ExpenseController controller;
@@ -66,7 +68,20 @@ class _SlipAutoRecordScreenState extends State<SlipAutoRecordScreen> {
  }
 
  Future<void> _pickSlipFromGallery() async {
-  final path = await NativeBridgeService.pickImageFromGallery();
+   if (!widget.controller.canImportMoreSlips) {
+     final monthlyUsed = widget.controller.currentMonthSlipCount;
+     final monthlyMax = widget.controller.maxFreeSlipsPerMonth;
+     final isEn = widget.controller.isEnglish;
+     MeowPaywallModal.show(
+       context,
+       controller: widget.controller,
+       reason: isEn
+           ? 'Monthly slip quota reached ($monthlyUsed/$monthlyMax slips). Reset to 0/$monthlyMax on 1st of every month. Upgrade to VIP for unlimited slips!'
+           : 'โควต้าสลิปฟรีเดือนนี้ครบแล้ว ($monthlyUsed/$monthlyMax สลิป) รีเซ็ตเป็น 0/$monthlyMax ทุกวันที่ 1 ปลดล็อค VIP เพื่อใช้งานไม่จำกัด 👑',
+     );
+     return;
+   }
+   final path = await NativeBridgeService.pickImageFromGallery();
   if (path != null && path.isNotEmpty) {
    setState(() {
     _imagePath = path;
@@ -278,18 +293,22 @@ class _SlipAutoRecordScreenState extends State<SlipAutoRecordScreen> {
     }
   }
 
-  if (isPaotangGovNoQr && detectedAmount <= 0) {
-    title = 'สลิปเป๋าตัง (กรุณากรอกยอดเงิน)';
-    memo = '[ไม่มี QR Code - กรุณากรอกยอดเงิน]';
+  if (detectedAmount <= 0) {
+    memo = 'โปรดระบุยอด';
   }
 
   final bool isSelf = ocrParsed.isSelfTransfer ||
     OcrEngineService.isSelfTransfer(senderName, receiverName, rawText: rawOcrText);
 
+  // Auto-select the bank account corresponding to the slip's bank
+  final targetBankCode = isIBank ? 'IBANK' : ThaiBankDetector.detectCodeFromBankName(bankName);
+  final targetAccount = widget.controller.getOrCreateAccountForBank(targetBankCode, bankName: bankName);
+
   if (mounted) {
    setState(() {
     _isAnalyzing = false;
     _detectedBank = bankName;
+    _selectedAccountId = targetAccount.id;
     _isSelfTransfer = isSelf;
     _type = targetType;
     _amountCtrl.text = detectedAmount > 0 ? detectedAmount.toStringAsFixed(2) : '';
@@ -323,6 +342,20 @@ class _SlipAutoRecordScreenState extends State<SlipAutoRecordScreen> {
       ? await SlipStorageService.persistSlipImage(_imagePath!)
       : _imagePath;
 
+  if (!widget.controller.canImportMoreSlips) {
+     final monthlyUsed = widget.controller.currentMonthSlipCount;
+     final monthlyMax = widget.controller.maxFreeSlipsPerMonth;
+     final isEn = widget.controller.isEnglish;
+     MeowPaywallModal.show(
+       context,
+       controller: widget.controller,
+       reason: isEn
+           ? 'Monthly slip quota reached ($monthlyUsed/$monthlyMax slips). Reset to 0/$monthlyMax on 1st of every month. Upgrade to VIP for unlimited slips!'
+           : 'โควต้าสลิปฟรีเดือนนี้ครบแล้ว ($monthlyUsed/$monthlyMax สลิป) รีเซ็ตเป็น 0/$monthlyMax ทุกวันที่ 1 ปลดล็อค VIP เพื่อใช้งานไม่จำกัด 👑',
+     );
+     return;
+   }
+
   final item = TransactionItem(
    id: 'tx_slip_${DateTime.now().millisecondsSinceEpoch}',
    title: title,
@@ -341,6 +374,7 @@ class _SlipAutoRecordScreenState extends State<SlipAutoRecordScreen> {
   );
 
   widget.controller.addTransaction(item);
+  await widget.controller.recordSlipImported(slipDate: item.date);
 
   ScaffoldMessenger.of(context).showSnackBar(
    SnackBar(

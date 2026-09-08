@@ -1,5 +1,6 @@
 import '../widgets/bank_badge.dart';
 import 'app_features_showcase_screen.dart';
+import '../widgets/meow_paywall_modal.dart';
 import 'dart:io';
 import 'dart:async';
 import 'dart:ui';
@@ -72,16 +73,16 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
     setState(() {});
   }
 
-  void _undoBatchDelete() {
+  Future<void> _undoBatchDelete() async {
     HapticFeedback.selectionClick();
     _undoTimer?.cancel();
     _undoTimer = null;
     final itemsToRestore = List<TransactionItem>.from(_pendingDeletedItems);
     _pendingDeletedItems.clear();
     for (final tx in itemsToRestore) {
-      widget.controller.restoreTransaction(tx);
+      await widget.controller.restoreTransaction(tx);
     }
-    setState(() {});
+    if (mounted) setState(() {});
   }
   DateTime _currentMonth = DateTime.now();
   String _statusMessage = 'คู่หูพร้อมดักจับสลิปใหม่แบบ Real-time และบันทึกอัตโนมัติแล้วนะ';
@@ -855,10 +856,66 @@ void _handleMascotPetting() {
               ],
              ),
              Row(
-              children: [
-               // App Guide Button (คู่มือและวิธีใช้งานแอพ)
-               IconButton(
-                icon: Icon(Icons.help_outline_rounded, color: currentTheme.primaryColor, size: 24),
+               children: [
+                // Quota capsule for free users (0/15)
+                if (!widget.controller.isPremium)
+                  Builder(
+                    builder: (context) {
+                      final monthlyUsed = widget.controller.currentMonthSlipCount;
+                      final monthlyMax = widget.controller.maxFreeSlipsPerMonth;
+                      final isLimitReached = monthlyUsed >= monthlyMax;
+
+                      final labelText = '$monthlyUsed/$monthlyMax';
+                      final reasonText = 'โควต้าสลิปฟรีเดือนนี้: $monthlyUsed/$monthlyMax สลิป (รีเซ็ตเป็น 0/$monthlyMax ทุกวันที่ 1) ปลดล็อค VIP เพื่อสแกนไม่จำกัด 👑';
+
+                      return InkWell(
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          MeowPaywallModal.show(
+                            context,
+                            controller: widget.controller,
+                            reason: reasonText,
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          margin: const EdgeInsets.only(right: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: (isLimitReached ? Colors.redAccent : Colors.blueGrey).withValues(alpha: isDark ? 0.22 : 0.14),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: (isLimitReached ? Colors.redAccent : Colors.blueGrey).withValues(alpha: 0.4),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.receipt_long_rounded,
+                                color: isLimitReached ? Colors.redAccent : Colors.blueGrey,
+                                size: 13,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                labelText,
+                                style: TextStyle(
+                                  color: isLimitReached ? Colors.redAccent : (isDark ? Colors.white70 : Colors.black87),
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+
+                // App Guide Button (คู่มือและวิธีใช้งานแอพ)
+                IconButton(
+                 icon: Icon(Icons.help_outline_rounded, color: currentTheme.primaryColor, size: 24),
                 tooltip: widget.controller.isEnglish ? 'User Guide' : 'คู่มือและวิธีใช้งานแอพ',
                 onPressed: () {
                  Navigator.push(
@@ -1035,7 +1092,32 @@ void _handleMascotPetting() {
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 3),
+                            // Small compact monthly income pill
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 0.7),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.arrow_downward, color: Color(0xFF34D399), size: 10),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    '${widget.controller.isEnglish ? "Income" : "รายรับเดือนนี้"}: ฿${CurrencyFormat.format(_monthlyIncome)}',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 11),
                             // Action Pill Buttons Row (Analytics + Calendar side-by-side)
                             FittedBox(
                               fit: BoxFit.scaleDown,
@@ -1139,49 +1221,59 @@ void _handleMascotPetting() {
                     color: Colors.white.withValues(alpha: 0.18),
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Row(
-                          children: [
-                            const Icon(Icons.arrow_downward, color: Color(0xFF34D399), size: 13),
-                            const SizedBox(width: 3),
-                            Expanded(
-                              child: FittedBox(
-                                fit: BoxFit.scaleDown,
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  '${widget.controller.isEnglish ? "Yearly Income" : "รายรับต่อปี"}: ฿${CurrencyFormat.format(widget.controller.totalIncomeThisYear)}',
-                                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                  child: Builder(
+                    builder: (context) {
+                      final selectedYear = _currentMonth.year;
+                      final yearlyIncome = widget.controller.getYearlyIncome(selectedYear);
+                      final yearlyExpense = widget.controller.getYearlyExpense(selectedYear);
+                      final isEn = widget.controller.isEnglish;
+                      final yearLabel = isEn ? '$selectedYear' : 'ปี ${selectedYear + 543}';
+
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Row(
+                              children: [
+                                const Icon(Icons.arrow_downward, color: Color(0xFF34D399), size: 13),
+                                const SizedBox(width: 3),
+                                Expanded(
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      '${isEn ? "Yearly Income" : "รายรับ"}($yearLabel): ฿${CurrencyFormat.format(yearlyIncome)}',
+                                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                                    ),
+                                  ),
                                 ),
-                              ),
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
-                      Container(width: 1, height: 14, color: Colors.white.withValues(alpha: 0.3)),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            const Icon(Icons.arrow_upward, color: Color(0xFFFCA5A5), size: 13),
-                            const SizedBox(width: 3),
-                            Expanded(
-                              child: FittedBox(
-                                fit: BoxFit.scaleDown,
-                                alignment: Alignment.centerRight,
-                                child: Text(
-                                  '${widget.controller.isEnglish ? "Yearly Expense" : "รายจ่ายต่อปี"}: ฿${CurrencyFormat.format(widget.controller.totalExpenseThisYear)}',
-                                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                          ),
+                          Container(width: 1, height: 14, color: Colors.white.withValues(alpha: 0.3)),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                const Icon(Icons.arrow_upward, color: Color(0xFFFCA5A5), size: 13),
+                                const SizedBox(width: 3),
+                                Expanded(
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.centerRight,
+                                    child: Text(
+                                      '${isEn ? "Yearly Expense" : "รายจ่าย"}($yearLabel): ฿${CurrencyFormat.format(yearlyExpense)}',
+                                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                                    ),
+                                  ),
                                 ),
-                              ),
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
-                    ],
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 ),
               ],

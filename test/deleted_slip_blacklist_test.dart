@@ -100,5 +100,43 @@ void main() {
       expect(controller.allTransactions.length, 1);
       expect(storage.getDeletedSlips().contains('paotang_01.jpg'), isFalse);
     });
+
+    test('4. Imported slip registry prevents duplicate slip from re-importing', () async {
+      await storage.addImportedSlipIdentifiers([
+        '/storage/emulated/0/pictures/paotang/slip_12.jpg',
+        'slip_12.jpg',
+      ]);
+
+      final isDup = DuplicateSlipChecker.isDuplicate(
+        existingTransactions: [],
+        importedSlipIdentifiers: storage.getImportedSlipIdentifiers(),
+        filePath: '/storage/emulated/0/Pictures/PaoTang/slip_12.jpg',
+        fileName: 'slip_12.jpg',
+      );
+      expect(isDup, isTrue, reason: 'Must be blocked by imported slip registry');
+    });
+
+    test('5. Thai filename matches successfully even when stored with slip_HASH_ prefix', () async {
+      final tx = TransactionItem(
+        id: 'tx_thai_name',
+        title: 'โอนเงิน กสิกรไทย',
+        amount: 300.0,
+        type: TransactionType.expense,
+        date: DateTime(2026, 8, 31, 14, 30),
+        accountId: 'acc_kbank',
+        categoryId: 'cat_food',
+        categoryName: 'อาหาร',
+        slipImageUrl: '/data/user/0/com.afitree.rizqi/files/saved_slips/slip_123456_สลิป_โอนเงิน.jpg',
+        slipRefId: 'SLIP-12345',
+        bankName: 'KBANK',
+      );
+
+      final isDup = DuplicateSlipChecker.isDuplicate(
+        existingTransactions: [tx],
+        filePath: '/storage/emulated/0/DCIM/Camera/สลิป_โอนเงิน.jpg',
+        fileName: 'สลิป_โอนเงิน.jpg',
+      );
+      expect(isDup, isTrue, reason: 'Must match Thai filename despite prefix');
+    });
   });
 }

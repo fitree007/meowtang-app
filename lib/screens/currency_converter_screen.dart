@@ -239,9 +239,13 @@ class _CurrencyConverterScreenState extends State<CurrencyConverterScreen> {
         title: Row(
           children: [
             const Text('💱 ', style: TextStyle(fontSize: 18)),
-            Text(
-              isEn ? 'Live Currency Converter' : 'แปลงค่าเงิน & ตลาดอัตราแลกเปลี่ยน',
-              style: TextStyle(color: textPrimary, fontSize: 16.5, fontWeight: FontWeight.bold),
+            Expanded(
+              child: Text(
+                isEn ? 'Live Currency Converter' : 'แปลงค่าเงิน & ตลาดอัตราแลกเปลี่ยน',
+                style: TextStyle(color: textPrimary, fontSize: 16.5, fontWeight: FontWeight.bold),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
         ),

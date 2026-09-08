@@ -1,4 +1,9 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ai_expense_tracker/screens/goal_calculator_screen.dart';
+import 'package:ai_expense_tracker/state/expense_controller.dart';
+import 'package:ai_expense_tracker/services/storage_service.dart';
 
 void main() {
   group('Goal Savings Calculation tests', () {
@@ -29,6 +34,25 @@ void main() {
       final neededDaily = remaining / totalDays;
 
       expect(neededDaily, closeTo(273.97, 0.01));
+    });
+
+    testWidgets('GoalCalculatorScreen renders title and frequency tabs correctly', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final storage = StorageService();
+      await storage.init();
+      final controller = ExpenseController(storage);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: GoalCalculatorScreen(controller: controller),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('คำนวณเวลาเก็บออมอัจฉริยะ 🧮'), findsOneWidget);
+      expect(find.text('ออมรายวัน'), findsOneWidget);
+      expect(find.text('ออมรายเดือน'), findsOneWidget);
+      expect(find.text('ออมรายปี'), findsOneWidget);
     });
   });
 }

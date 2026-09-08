@@ -5,6 +5,8 @@ import '../theme/meow_theme.dart';
 import '../widgets/meow_mascot_widget.dart';
 import '../widgets/tactile_button.dart';
 import '../widgets/custom_photo_avatar_dialog.dart';
+import '../widgets/meow_paywall_modal.dart';
+import '../config/app_config.dart';
 
 class MascotOnboardingScreen extends StatefulWidget {
   final ExpenseController controller;
@@ -53,6 +55,136 @@ class _MascotOnboardingScreenState extends State<MascotOnboardingScreen> with Si
       onSaved: (path) {
         setState(() {});
       },
+    );
+  }
+
+  void _showLockedIconOptions(MascotInfo character) {
+    HapticFeedback.selectionClick();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.black26,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  MeowMascotWidget(size: 44, mascotId: character.id, isHeadOnly: true),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          character.name,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                        Text(
+                          character.subtitle,
+                          style: const TextStyle(color: Colors.black54, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              TactileButton(
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  await widget.controller.purchaseIcon(character.id);
+                  setState(() => _selectedMascotId = character.id);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        backgroundColor: const Color(0xFF059669),
+                        content: Text('ปลดล็อคไอคอน "${character.name}" สำเร็จ! ใช้งานได้ตลอดชีพ 🎉'),
+                      ),
+                    );
+                  }
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: MeowTheme.actionBlue.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: MeowTheme.actionBlue.withValues(alpha: 0.4)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.shopping_bag_rounded, color: MeowTheme.actionBlue, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'ซื้อเฉพาะไอคอนนี้ ฿${AppConfig.iconPriceThb}',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                      ),
+                      Text(
+                        '฿${AppConfig.iconPriceThb}',
+                        style: const TextStyle(color: MeowTheme.actionBlue, fontWeight: FontWeight.bold, fontSize: 15),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              TactileButton(
+                onTap: () {
+                  Navigator.pop(ctx);
+                  MeowPaywallModal.show(
+                    context,
+                    controller: widget.controller,
+                    reason: 'สมัคร VIP เพื่อปลดล็อคทุกไอคอนและทุกธีมฟรี 👑',
+                  );
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFBBF24), Color(0xFFF59E0B)],
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
+                    children: const [
+                      Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 20),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'อัปเกรด VIP (ปลดล็อคครบทุกไอคอนฟรี!)',
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                      ),
+                      Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 14),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -384,9 +516,14 @@ class _MascotOnboardingScreenState extends State<MascotOnboardingScreen> with Si
                       itemBuilder: (context, index) {
                         final character = MascotCatalog.characters[index];
                         final isSelected = !isCustomPhoto && _selectedMascotId == character.id;
+                        final isUnlocked = widget.controller.isMascotUnlocked(character.id);
 
                         return TactileButton(
                           onTap: () {
+                            if (!isUnlocked) {
+                              _showLockedIconOptions(character);
+                              return;
+                            }
                             HapticFeedback.selectionClick();
                             widget.controller.setCustomAvatarEnabled(false);
                             setState(() {
@@ -419,11 +556,29 @@ class _MascotOnboardingScreenState extends State<MascotOnboardingScreen> with Si
                                 SizedBox(
                                   width: 42,
                                   height: 42,
-                                  child: MeowMascotWidget(
-                                    size: 42,
-                                    mascotId: character.id,
-                                    isHeadOnly: true,
-                                    animate: isSelected,
+                                  child: Stack(
+                                    clipBehavior: Clip.none,
+                                    children: [
+                                      MeowMascotWidget(
+                                        size: 42,
+                                        mascotId: character.id,
+                                        isHeadOnly: true,
+                                        animate: isSelected,
+                                      ),
+                                      if (!isUnlocked)
+                                        Positioned(
+                                          top: -2,
+                                          right: -2,
+                                          child: Container(
+                                            padding: const EdgeInsets.all(2),
+                                            decoration: const BoxDecoration(
+                                              color: Colors.amber,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(Icons.lock_rounded, size: 10, color: Colors.black87),
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                 ),
                                 const SizedBox(height: 4),

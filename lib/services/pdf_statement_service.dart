@@ -97,6 +97,30 @@ class PdfStatementService {
         theme: thaiTheme,
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        footer: (pw.Context context) {
+          return pw.Container(
+            margin: const pw.EdgeInsets.only(top: 8),
+            child: pw.Column(
+              children: [
+                pw.Divider(color: PdfColors.grey300, height: 1),
+                pw.SizedBox(height: 4),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text(
+                      'เหมียวตังค์ (MeowTang) - บันทึกรายรับรายจ่าย วางแผนงบประมาณ & สแกนสลิปอัจฉริยะ',
+                      style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey600),
+                    ),
+                    pw.Text(
+                      'หน้า ${context.pageNumber} / ${context.pagesCount}',
+                      style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey600),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
         build: (pw.Context context) {
           return [
             // 1. Header Section
@@ -360,24 +384,6 @@ class PdfStatementService {
                   5: pw.Alignment.centerRight,
                 },
               ),
-
-            pw.SizedBox(height: 14),
-
-            // 5. Footer
-            pw.Divider(color: PdfColors.grey300),
-            pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text(
-                  'เหมียวตังค์ (MeowTang) - บันทึกรายรับรายจ่าย วางแผนงบประมาณ & สแกนสลิปอัจฉริยะ',
-                  style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey600),
-                ),
-                pw.Text(
-                  'หน้า ${context.pageNumber} / ${context.pagesCount}',
-                  style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey600),
-                ),
-              ],
-            ),
           ];
         },
       ),

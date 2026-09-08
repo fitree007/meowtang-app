@@ -4,11 +4,15 @@ import '../models/project_budget.dart';
 class BudgetProgressBar extends StatelessWidget {
   final ProjectBudget project;
   final bool showDetails;
+  final Color? textColor;
+  final Color? subTextColor;
 
   const BudgetProgressBar({
     super.key,
     required this.project,
     this.showDetails = true,
+    this.textColor,
+    this.subTextColor,
   });
 
   Color get barColor {
@@ -23,6 +27,10 @@ class BudgetProgressBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryText = textColor ?? (isDark ? Colors.white : const Color(0xFF0F172A));
+    final secondaryText = subTextColor ?? (isDark ? Colors.white.withValues(alpha: 0.65) : const Color(0xFF64748B));
+
     final percent = (project.spentAmount / (project.budgetCap > 0 ? project.budgetCap : 1.0)).clamp(0.0, 1.0);
     final percentText = (project.spentAmount / (project.budgetCap > 0 ? project.budgetCap : 1.0) * 100).toStringAsFixed(1);
 
@@ -33,33 +41,47 @@ class BudgetProgressBar extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 10,
-                    height: 10,
-                    decoration: BoxDecoration(
-                      color: project.color,
-                      shape: BoxShape.circle,
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: project.color,
+                        shape: BoxShape.circle,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    project.name,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        project.name,
+                        style: TextStyle(
+                          color: primaryText,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-              Text(
-                '$percentText%',
-                style: TextStyle(
-                  color: barColor,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: barColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '$percentText%',
+                  style: TextStyle(
+                    color: barColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
                 ),
               ),
             ],
@@ -74,7 +96,7 @@ class BudgetProgressBar extends StatelessWidget {
               height: 10,
               width: double.infinity,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.08),
+                color: isDark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFE2E8F0),
                 borderRadius: BorderRadius.circular(5),
               ),
             ),
@@ -87,7 +109,7 @@ class BudgetProgressBar extends StatelessWidget {
                   borderRadius: BorderRadius.circular(5),
                   boxShadow: [
                     BoxShadow(
-                      color: barColor.withOpacity(0.4),
+                      color: barColor.withValues(alpha: 0.35),
                       blurRadius: 6,
                     ),
                   ],
@@ -100,18 +122,27 @@ class BudgetProgressBar extends StatelessWidget {
         if (showDetails) ...[
           const SizedBox(height: 6),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'ใช้ไป ฿${project.spentAmount.toStringAsFixed(0)}',
-                style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 12),
+              Expanded(
+                child: Text(
+                  'ใช้ไป ฿${project.spentAmount.toStringAsFixed(0)}',
+                  style: TextStyle(color: secondaryText, fontSize: 11.5),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              Text(
-                'คงเหลือ ฿${project.remainingBudget.clamp(0.0, double.infinity).toStringAsFixed(0)} / เพดาน ฿${project.budgetCap.toStringAsFixed(0)}',
-                style: TextStyle(
-                  color: project.isOverBudget ? const Color(0xFFEF4444) : Colors.white.withOpacity(0.6),
-                  fontSize: 12,
-                  fontWeight: project.isOverBudget ? FontWeight.bold : FontWeight.normal,
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  'คงเหลือ ฿${project.remainingBudget.clamp(0.0, double.infinity).toStringAsFixed(0)}',
+                  textAlign: TextAlign.end,
+                  style: TextStyle(
+                    color: project.isOverBudget ? const Color(0xFFEF4444) : secondaryText,
+                    fontSize: 11.5,
+                    fontWeight: project.isOverBudget ? FontWeight.bold : FontWeight.normal,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],

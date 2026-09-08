@@ -27,9 +27,13 @@ class _CalendarOverviewScreenState extends State<CalendarOverviewScreen> {
   DateTime _selectedDate = DateTime.now();
 
   // Batch delete & undo countdown state (3.5s)
-  final List<TransactionItem> _pendingDeletedItems = [];
+  // Batch delete & undo countdown state (3.5s) - Zero Lag with ValueNotifier
+  final ValueNotifier<List<TransactionItem>> _pendingDeletedNotifier = ValueNotifier<List<TransactionItem>>([]);
+  final ValueNotifier<double> _undoCountdownNotifier = ValueNotifier<double>(3.5);
   Timer? _undoTimer;
-  double _undoCountdown = 3.5;
+
+  List<TransactionItem> get _pendingDeletedItems => _pendingDeletedNotifier.value;
+  double get _undoCountdown => _undoCountdownNotifier.value;
 
   @override
   void dispose() {
@@ -89,36 +93,39 @@ class _CalendarOverviewScreenState extends State<CalendarOverviewScreen> {
   void _handleTransactionDismissed(TransactionItem tx) {
     HapticFeedback.mediumImpact();
     widget.controller.deleteTransaction(tx.id);
-    _pendingDeletedItems.add(tx);
-    _undoCountdown = 3.5;
+    _pendingDeletedNotifier.value = [..._pendingDeletedNotifier.value, tx];
+    _undoCountdownNotifier.value = 3.5;
     _undoTimer?.cancel();
-    _undoTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
+    _undoTimer = Timer.periodic(const Duration(milliseconds: 200), (timer) {
       if (!mounted) {
         timer.cancel();
         return;
       }
-      setState(() {
-        _undoCountdown = (_undoCountdown - 0.1);
-        if (_undoCountdown <= 0.05) {
-          timer.cancel();
-          _undoTimer = null;
-          _pendingDeletedItems.clear();
-        }
-      });
+      final nextVal = _undoCountdownNotifier.value - 0.2;
+      if (nextVal <= 0.05) {
+        timer.cancel();
+        _undoTimer = null;
+        _pendingDeletedNotifier.value = [];
+        _undoCountdownNotifier.value = 3.5;
+      } else {
+        _undoCountdownNotifier.value = nextVal;
+      }
     });
-    setState(() {});
   }
 
-  void _undoBatchDelete() {
+  void _undoBatchDelete() async {
     HapticFeedback.selectionClick();
     _undoTimer?.cancel();
     _undoTimer = null;
-    final itemsToRestore = List<TransactionItem>.from(_pendingDeletedItems);
-    _pendingDeletedItems.clear();
+    final itemsToRestore = List<TransactionItem>.from(_pendingDeletedNotifier.value);
+    _pendingDeletedNotifier.value = [];
+    _undoCountdownNotifier.value = 3.5;
     for (final tx in itemsToRestore) {
-      widget.controller.restoreTransaction(tx);
+      await widget.controller.restoreTransaction(tx);
     }
-    setState(() {});
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> _showMonthPicker() async {
@@ -1170,123 +1177,138 @@ class _CalendarOverviewScreenState extends State<CalendarOverviewScreen> {
               ),
             ),
 
-            // 6. Floating 3.5-Second Live Countdown Undo Banner (Matching MeowDashboard)
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeOutCubic,
-              left: 16,
-              right: 16,
-              bottom: _pendingDeletedItems.isNotEmpty ? 20 : -120,
-              child: AnimatedOpacity(
-                duration: const Duration(milliseconds: 200),
-                opacity: _pendingDeletedItems.isNotEmpty ? 1.0 : 0.0,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1E293B),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: MeowTheme.mustardYellow.withValues(alpha: 0.4),
-                      width: 1.5,
+            // 6. Lightweight Zero-Lag Floating Countdown Undo Banner (Matching MeowDashboard)
+            ValueListenableBuilder<List<TransactionItem>>(
+              valueListenable: _pendingDeletedNotifier,
+              builder: (context, pendingList, _) {
+                final isVisible = pendingList.isNotEmpty;
+                final isEng = widget.controller.isEnglish;
+                return AnimatedPositioned(
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeOutCubic,
+                  bottom: isVisible ? 20 : -120,
+                  left: 16,
+                  right: 16,
+                  child: RepaintBoundary(
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 200),
+                      opacity: isVisible ? 1.0 : 0.0,
+                      child: isVisible
+                          ? Material(
+                              color: Colors.transparent,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF1E293B),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: MeowTheme.mustardYellow.withOpacity(0.4),
+                                    width: 1.0,
+                                  ),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Color(0x66000000),
+                                      blurRadius: 10,
+                                      offset: Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: ValueListenableBuilder<double>(
+                                  valueListenable: _undoCountdownNotifier,
+                                  builder: (context, countdown, _) {
+                                    final itemTitle = pendingList.length > 1
+                                        ? (isEng
+                                            ? 'Deleted ${pendingList.length} transactions'
+                                            : 'ลบแล้ว ${pendingList.length} รายการ')
+                                        : 'ลบ "${pendingList.last.title}"';
+
+                                    return Row(
+                                      children: [
+                                        // Clean Minimal Countdown Indicator
+                                        Container(
+                                          width: 32,
+                                          height: 32,
+                                          alignment: Alignment.center,
+                                          decoration: BoxDecoration(
+                                            color: MeowTheme.mustardYellow.withOpacity(0.15),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: Text(
+                                            countdown.toStringAsFixed(1),
+                                            style: const TextStyle(
+                                              color: MeowTheme.mustardYellow,
+                                              fontSize: 11.5,
+                                              fontWeight: FontWeight.w900,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                itemTitle,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                isEng
+                                                    ? 'Undo available (${countdown.toStringAsFixed(1)}s)'
+                                                    : 'กดยกเลิกได้ใน ${countdown.toStringAsFixed(1)} วิ...',
+                                                style: const TextStyle(
+                                                  color: Color(0xFF94A3B8),
+                                                  fontSize: 11,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        InkWell(
+                                          onTap: _undoBatchDelete,
+                                          borderRadius: BorderRadius.circular(10),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6.5),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFF59E0B),
+                                              borderRadius: BorderRadius.circular(10),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const Icon(Icons.undo_rounded, color: Color(0xFF0F172A), size: 15),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  isEng ? 'Undo' : 'เลิกทำ',
+                                                  style: const TextStyle(
+                                                    color: Color(0xFF0F172A),
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w900,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                ),
+                              ),
+                            )
+                          : const SizedBox.shrink(),
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.35),
-                        blurRadius: 14,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
                   ),
-                  child: Row(
-                    children: [
-                      // Countdown Ring & Number (3.5s)
-                      Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          SizedBox(
-                            width: 32,
-                            height: 32,
-                            child: CircularProgressIndicator(
-                              value: (_undoCountdown / 3.5).clamp(0.0, 1.0),
-                              strokeWidth: 3.0,
-                              backgroundColor: Colors.white12,
-                              valueColor: const AlwaysStoppedAnimation<Color>(MeowTheme.mustardYellow),
-                            ),
-                          ),
-                          Text(
-                            _undoCountdown.toStringAsFixed(1),
-                            style: const TextStyle(
-                              color: MeowTheme.mustardYellow,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(width: 12),
-
-                      // Information label
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              _pendingDeletedItems.length > 1
-                                  ? (isEng
-                                      ? 'Deleted ${_pendingDeletedItems.length} transactions'
-                                      : 'ลบแล้ว ${_pendingDeletedItems.length} รายการ')
-                                  : (_pendingDeletedItems.isNotEmpty
-                                      ? 'ลบ "${_pendingDeletedItems.last.title}"'
-                                      : 'ลบรายการแล้ว'),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              isEng
-                                  ? 'Undo available (${_undoCountdown.toStringAsFixed(1)}s)'
-                                  : 'กดยกเลิกได้ใน ${_undoCountdown.toStringAsFixed(1)} วินาที...',
-                              style: const TextStyle(
-                                color: Color(0xFF94A3B8),
-                                fontSize: 11,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-
-                      // Tactile Undo Button
-                      InkWell(
-                        onTap: _undoBatchDelete,
-                        borderRadius: BorderRadius.circular(10),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: MeowTheme.mustardYellow.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: MeowTheme.mustardYellow, width: 1.2),
-                          ),
-                          child: Text(
-                            isEng ? 'UNDO' : 'เลิกทำ',
-                            style: const TextStyle(
-                              color: MeowTheme.mustardYellow,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12.5,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+                );
+              },
             ),
           ],
         ),

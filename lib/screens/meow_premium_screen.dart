@@ -6,6 +6,7 @@ import '../widgets/meow_mascot_widget.dart';
 import '../widgets/tactile_button.dart';
 import '../services/currency_exchange_service.dart';
 import 'saving_goals_screen.dart';
+import 'goal_calculator_screen.dart';
 import 'budget_management_screen.dart';
 import 'projects_budget_screen.dart';
 import 'zakat_calculator_screen.dart';
@@ -13,6 +14,8 @@ import 'islamic_inheritance_screen.dart';
 import 'islamic_baby_hair_charity_screen.dart';
 import 'currency_converter_screen.dart';
 import '../widgets/live_rates_dashboard_widget.dart';
+import '../widgets/meow_paywall_modal.dart';
+import '../config/app_config.dart';
 
 class MeowPremiumScreen extends StatefulWidget {
   final ExpenseController controller;
@@ -32,6 +35,22 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
     });
   }
 
+  void _openFeature(Widget screen, {String? reason}) {
+    if (!widget.controller.isPremium) {
+      MeowPaywallModal.show(
+        context,
+        controller: widget.controller,
+        reason: reason ?? 'ฟีเจอร์พรีเมี่ยมสำหรับสมาชิก VIP เท่านั้น 👑',
+      );
+      return;
+    }
+    HapticFeedback.lightImpact();
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => screen),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -48,6 +67,7 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
 
         final goals = widget.controller.savingGoals;
         final totalBudget = widget.controller.monthlySalary;
+        final isVip = widget.controller.isPremium;
 
         return Scaffold(
           backgroundColor: bgColor,
@@ -79,27 +99,45 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.22),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: Colors.white24),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.stars_rounded, size: 13, color: Color(0xFFFDE047)),
-                                const SizedBox(width: 4),
-                                Text(
-                                  isEn ? 'PREMIUM SUITE • 100% FREE' : 'ศูนย์รวมเครื่องมือพรีเมี่ยม • ฟรีตลอดชีพ 🛡️',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
+                          InkWell(
+                            onTap: () {
+                              if (!isVip) {
+                                MeowPaywallModal.show(
+                                  context,
+                                  controller: widget.controller,
+                                  reason: 'สมัคร VIP เพื่อปลดล็อคเครื่องมือพรีเมี่ยมทั้งหมด 👑',
+                                );
+                              }
+                            },
+                            borderRadius: BorderRadius.circular(16),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.22),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: Colors.white24),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    isVip ? Icons.stars_rounded : Icons.lock_outline_rounded,
+                                    size: 13,
+                                    color: const Color(0xFFFDE047),
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    isVip
+                                        ? (isEn ? 'PREMIUM SUITE • VIP UNLOCKED 👑' : 'ศูนย์รวมเครื่องมือพรีเมี่ยม • สิทธิ์ VIP ตลอดชีพ 👑')
+                                        : (isEn ? 'PREMIUM SUITE • VIP ONLY 🔒' : 'ศูนย์รวมเครื่องมือพรีเมี่ยม • สำหรับสมาชิก VIP 🔒'),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                           const SizedBox(height: 5),
@@ -151,12 +189,9 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                       textColor: textColor,
                       trailing: InkWell(
                         onTap: () {
-                          HapticFeedback.lightImpact();
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => CurrencyConverterScreen(controller: widget.controller),
-                            ),
+                          _openFeature(
+                            CurrencyConverterScreen(controller: widget.controller),
+                            reason: 'เครื่องคิดเลขแปลงเงิน & อัตราแลกเปลี่ยนสด สำหรับสมาชิก VIP 👑',
                           );
                         },
                         borderRadius: BorderRadius.circular(8),
@@ -189,12 +224,9 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                     // Dedicated Action Button: Currency & Gold Converter Calculator
                     TactileButton(
                       onTap: () {
-                        HapticFeedback.lightImpact();
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => CurrencyConverterScreen(controller: widget.controller),
-                          ),
+                        _openFeature(
+                          CurrencyConverterScreen(controller: widget.controller),
+                          reason: 'เครื่องคิดเลขแปลงเงิน & คำนวณทอง สำหรับสมาชิก VIP 👑',
                         );
                       },
                       child: Container(
@@ -302,15 +334,7 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                           borderColor: borderColor,
                           textColor: textColor,
                           subTextColor: subTextColor,
-                          onTap: () {
-                            HapticFeedback.lightImpact();
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => SavingGoalsScreen(controller: widget.controller),
-                              ),
-                            );
-                          },
+                          onTap: () => _openFeature(SavingGoalsScreen(controller: widget.controller)),
                         ),
 
                         // 2. Budget Management
@@ -327,15 +351,7 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                           borderColor: borderColor,
                           textColor: textColor,
                           subTextColor: subTextColor,
-                          onTap: () {
-                            HapticFeedback.lightImpact();
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => BudgetManagementScreen(controller: widget.controller),
-                              ),
-                            );
-                          },
+                          onTap: () => _openFeature(BudgetManagementScreen(controller: widget.controller)),
                         ),
 
                         // 3. Goal Calculator
@@ -350,15 +366,7 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                           borderColor: borderColor,
                           textColor: textColor,
                           subTextColor: subTextColor,
-                          onTap: () {
-                            HapticFeedback.lightImpact();
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => SavingGoalsScreen(controller: widget.controller),
-                              ),
-                            );
-                          },
+                          onTap: () => _openFeature(GoalCalculatorScreen(controller: widget.controller)),
                         ),
 
                         // 4. Project Budgets
@@ -373,15 +381,10 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                           borderColor: borderColor,
                           textColor: textColor,
                           subTextColor: subTextColor,
-                          onTap: () {
-                            HapticFeedback.lightImpact();
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => ProjectsBudgetScreen(controller: widget.controller),
-                              ),
-                            );
-                          },
+                          onTap: () => _openFeature(
+                            ProjectsBudgetScreen(controller: widget.controller),
+                            reason: 'งบโปรเจกต์ & ทุนวิจัย สำหรับสมาชิก VIP 👑',
+                          ),
                         ),
                       ],
                     ),
@@ -419,15 +422,7 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                           borderColor: borderColor,
                           textColor: textColor,
                           subTextColor: subTextColor,
-                          onTap: () {
-                            HapticFeedback.lightImpact();
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => ZakatCalculatorScreen(controller: widget.controller),
-                              ),
-                            );
-                          },
+                          onTap: () => _openFeature(ZakatCalculatorScreen(controller: widget.controller)),
                         ),
 
                         // Islamic Inheritance
@@ -442,15 +437,7 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                           borderColor: borderColor,
                           textColor: textColor,
                           subTextColor: subTextColor,
-                          onTap: () {
-                            HapticFeedback.lightImpact();
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => IslamicInheritanceScreen(controller: widget.controller),
-                              ),
-                            );
-                          },
+                          onTap: () => _openFeature(IslamicInheritanceScreen(controller: widget.controller)),
                         ),
                       ],
                     ),
@@ -458,15 +445,7 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
 
                     // Newborn Baby Hair Charity Card (Full Width Compact Strip)
                     TactileButton(
-                      onTap: () {
-                        HapticFeedback.lightImpact();
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => IslamicBabyHairCharityScreen(controller: widget.controller),
-                          ),
-                        );
-                      },
+                      onTap: () => _openFeature(IslamicBabyHairCharityScreen(controller: widget.controller)),
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                         decoration: BoxDecoration(

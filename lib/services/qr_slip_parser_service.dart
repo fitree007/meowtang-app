@@ -10,6 +10,7 @@ class QrSlipResult {
   final String? receiverName;
   final String? receiverPromptPay;
   final String? senderBank;
+  final String? senderBankCode;
   final String? rawPayload;
 
   const QrSlipResult({
@@ -19,11 +20,35 @@ class QrSlipResult {
     this.receiverName,
     this.receiverPromptPay,
     this.senderBank,
+    this.senderBankCode,
     this.rawPayload,
   });
 }
 
 class QrSlipParserService {
+  /// Standard Bank of Thailand (BOT) 3-digit bank code mapping
+  static String? mapBankCodeToName(String? code) {
+    if (code == null) return null;
+    const map = {
+      '002': 'ธนาคารกรุงเทพ',
+      '004': 'ธนาคารกสิกรไทย',
+      '006': 'ธนาคารกรุงไทย',
+      '011': 'ธนาคารทหารไทยธนชาต',
+      '014': 'ธนาคารไทยพาณิชย์',
+      '022': 'ธนาคารซีไอเอ็มบีไทย',
+      '024': 'ธนาคารยูโอบี',
+      '025': 'ธนาคารกรุงศรีอยุธยา',
+      '030': 'ธนาคารออมสิน',
+      '033': 'ธนาคารอาคารสงเคราะห์',
+      '034': 'ธนาคารเพื่อการเกษตรและสหกรณ์การเกษตร',
+      '066': 'ธนาคารอิสลามแห่งประเทศไทย',
+      '067': 'ธนาคารทิสโก้',
+      '069': 'ธนาคารเกียรตินาคินภัทร',
+      '073': 'ธนาคารแลนด์ แอนด์ เฮ้าส์',
+    };
+    return map[code.trim()];
+  }
+
   /// Primary entry point: Decodes raw QR Code string payload from a bank slip
   static QrSlipResult parseQrCodePayload(String rawPayload) {
     if (rawPayload.isEmpty) {
@@ -140,14 +165,51 @@ class QrSlipParserService {
         }
       }
 
+      // Extract Sending Bank Code
+      // In ITMX / Thai QR standard, Sub-tag 01 with length 3 indicates the 3-digit BOT bank code ('0103' + code)
+      String? senderBankCode;
+      String? senderBank;
+
+      final bankSubTagMatch = RegExp(r'0103(002|004|006|011|014|022|024|025|030|033|034|066|067|069|073)').firstMatch(payload);
+      if (bankSubTagMatch != null) {
+        senderBankCode = bankSubTagMatch.group(1);
+        senderBank = mapBankCodeToName(senderBankCode);
+      }
+
+      if (senderBankCode == null) {
+        for (final tag in ['00', '30', '31']) {
+          if (tlvMap.containsKey(tag)) {
+            final data = tlvMap[tag]!;
+            final m = RegExp(r'0103(002|004|006|011|014|022|024|025|030|033|034|066|067|069|073)').firstMatch(data);
+            if (m != null) {
+              senderBankCode = m.group(1);
+              senderBank = mapBankCodeToName(senderBankCode);
+              break;
+            }
+          }
+        }
+      }
+
+      // Check for explicit iBank brand indicators ONLY if bank was not already determined
+      if (senderBank == null &&
+          (payload.toLowerCase().contains('ibank') ||
+           payload.toLowerCase().contains('islamic bank') ||
+           payload.contains('ธนาคารอิสลาม') ||
+           payload.contains('0103066'))) {
+        senderBankCode = '066';
+        senderBank = 'ธนาคารอิสลามแห่งประเทศไทย';
+      }
+
       // Only valid slip QR if there is an explicit amount > 0 or a transaction reference ID
-      if (amount > 0 || (refId != null && refId.isNotEmpty)) {
+      if (amount > 0 || (refId != null && refId.isNotEmpty) || senderBankCode == '066') {
         return QrSlipResult(
           success: true,
           amount: amount,
           refId: refId,
           receiverName: receiverName,
           receiverPromptPay: promptPayTarget,
+          senderBank: senderBank,
+          senderBankCode: senderBankCode,
           rawPayload: payload,
         );
       }

@@ -6,6 +6,7 @@ import '../state/expense_controller.dart';
 import '../services/pdf_statement_service.dart';
 import '../services/excel_export_service.dart';
 import '../widgets/export_success_modal.dart';
+import '../widgets/meow_paywall_modal.dart';
 import '../utils/format_utils.dart';
 
 class ExportReportScreen extends StatefulWidget {
@@ -84,6 +85,16 @@ class _ExportReportScreenState extends State<ExportReportScreen> {
 
   Future<void> _performExport() async {
     HapticFeedback.mediumImpact();
+
+    if (!widget.controller.isPremium) {
+      MeowPaywallModal.show(
+        context,
+        controller: widget.controller,
+        reason: 'ฟีเจอร์ส่งออกรายงาน Statement PDF และ Excel สำหรับสมาชิก VIP เท่านั้น 👑',
+      );
+      return;
+    }
+
     setState(() => _isExporting = true);
 
     try {

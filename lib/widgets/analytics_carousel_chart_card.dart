@@ -713,11 +713,15 @@ class _AnalyticsCarouselChartCardState extends State<AnalyticsCarouselChartCard>
     final txs = widget.transactions;
     final List<_TrendPoint> points = [];
 
-    const monthLabelsTh = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
-    const monthFullTh = [
-      'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
-      'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
-    ];
+    final monthLabels = widget.isEnglish
+        ? ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        : const ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+    final monthFull = widget.isEnglish
+        ? ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+        : const [
+            'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+            'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+          ];
     final year = widget.anchorDate.year;
 
     int maxMonthIndex = 0;
@@ -731,7 +735,7 @@ class _AnalyticsCarouselChartCardState extends State<AnalyticsCarouselChartCard>
         maxMonthIndex = m - 1;
       }
       points.add(_TrendPoint(
-        label: monthLabelsTh[m - 1],
+        label: monthLabels[m - 1],
         amount: sum,
         color: _chartPalette[(m - 1) % _chartPalette.length],
       ));
@@ -743,7 +747,7 @@ class _AnalyticsCarouselChartCardState extends State<AnalyticsCarouselChartCard>
     if (maxVal <= 0) maxVal = 20000.0;
     final ceilMax = ((maxVal / 5000).ceil() * 5000.0).clamp(10000.0, 10000000.0);
 
-    final peakMonthName = monthLabelsTh[maxMonthIndex];
+    final peakMonthName = monthLabels[maxMonthIndex];
 
     final activeMonthIdx = (_selectedTrendMonthIndex >= 0 && _selectedTrendMonthIndex < 12)
         ? _selectedTrendMonthIndex
@@ -770,7 +774,7 @@ class _AnalyticsCarouselChartCardState extends State<AnalyticsCarouselChartCard>
                       border: Border.all(color: const Color(0xFF38BDF8).withValues(alpha: 0.4)),
                     ),
                     child: Text(
-                      'พ.ศ. ${year + 543}',
+                      widget.isEnglish ? '$year' : 'พ.ศ. ${year + 543}',
                       style: const TextStyle(
                         color: Color(0xFF38BDF8),
                         fontSize: 10,
@@ -789,7 +793,7 @@ class _AnalyticsCarouselChartCardState extends State<AnalyticsCarouselChartCard>
                         border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.3)),
                       ),
                       child: Text(
-                        '🔥 พีคสุด: $peakMonthName',
+                        widget.isEnglish ? '🔥 Peak: $peakMonthName' : '🔥 พีคสุด: $peakMonthName',
                         style: const TextStyle(
                           color: Color(0xFFEF4444),
                           fontSize: 10,
@@ -802,11 +806,11 @@ class _AnalyticsCarouselChartCardState extends State<AnalyticsCarouselChartCard>
               Row(
                 children: [
                   Text(
-                    'เฉลี่ย ',
+                    widget.isEnglish ? 'Avg ' : 'เฉลี่ย ',
                     style: TextStyle(color: subTextColor, fontSize: 10.5),
                   ),
                   Text(
-                    '฿${FormatUtils.formatCurrency(avg)}/ด.',
+                    '฿${FormatUtils.formatCurrency(avg)}/${widget.isEnglish ? "mo" : "ด."}',
                     style: const TextStyle(
                       color: Color(0xFFFFD166),
                       fontSize: 11.5,
@@ -835,7 +839,7 @@ class _AnalyticsCarouselChartCardState extends State<AnalyticsCarouselChartCard>
                     const Icon(Icons.touch_app_rounded, size: 13, color: Color(0xFF38BDF8)),
                     const SizedBox(width: 4),
                     Text(
-                      '${monthFullTh[activeMonthIdx]} ${year + 543}:',
+                      '${monthFull[activeMonthIdx]} ${widget.isEnglish ? year : year + 543}:',
                       style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textColor),
                     ),
                   ],
@@ -849,60 +853,95 @@ class _AnalyticsCarouselChartCardState extends State<AnalyticsCarouselChartCard>
           ),
           const SizedBox(height: 4),
 
-          // Glowing Cyber Wave Canvas
+          // Glowing Cyber Wave Canvas with touch & drag interaction
           Expanded(
-            child: CustomPaint(
-              size: Size.infinite,
-              painter: _CoolGlowingTrendPainter(
-                points: points,
-                maxVal: ceilMax,
-                avgVal: avg,
-                maxMonthIndex: activeMonthIdx,
-                progress: progress,
-                isDark: widget.isDark,
-              ),
-            ),
-          ),
-          const SizedBox(height: 2),
-
-          // Month Selection Quick Pill Bar (แตะเพื่อดูยอดรายเดือน)
-          SizedBox(
-            height: 22,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: 12,
-              itemBuilder: (context, idx) {
-                final isSel = idx == activeMonthIdx;
-                return GestureDetector(
-                  onTap: () {
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                void updateSelectedMonth(Offset localPos) {
+                  final step = constraints.maxWidth / 12.0;
+                  final idx = (localPos.dx / step).floor().clamp(0, 11);
+                  if (idx != _selectedTrendMonthIndex) {
                     HapticFeedback.selectionClick();
                     setState(() {
                       _selectedTrendMonthIndex = idx;
                     });
-                  },
-                  child: Container(
-                    margin: const EdgeInsets.only(right: 4),
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: isSel ? points[idx].color : Colors.transparent,
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                        color: isSel ? points[idx].color : (widget.isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
-                      ),
+                  }
+                }
+
+                return GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTapDown: (d) => updateSelectedMonth(d.localPosition),
+                  onHorizontalDragUpdate: (d) => updateSelectedMonth(d.localPosition),
+                  child: CustomPaint(
+                    size: Size(constraints.maxWidth, constraints.maxHeight),
+                    painter: _CoolGlowingTrendPainter(
+                      points: points,
+                      maxVal: ceilMax,
+                      avgVal: avg,
+                      maxMonthIndex: maxMonthIndex,
+                      selectedMonthIndex: activeMonthIdx,
+                      progress: progress,
+                      isDark: widget.isDark,
                     ),
-                    child: Center(
-                      child: Text(
-                        monthLabelsTh[idx],
-                        style: TextStyle(
-                          fontSize: 9.5,
-                          fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
-                          color: isSel ? Colors.white : subTextColor,
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 4),
+
+          // Clean 12-Month Quick Selector Bar (แสดงครบ 12 เดือนทันที ไม่ต้องเลื่อน)
+          Container(
+            height: 24,
+            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+            decoration: BoxDecoration(
+              color: widget.isDark ? Colors.white.withValues(alpha: 0.04) : Colors.black.withValues(alpha: 0.03),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              children: List.generate(12, (idx) {
+                final isSel = idx == activeMonthIdx;
+                final isCurrent = (DateTime.now().month - 1) == idx && DateTime.now().year == year;
+                return Expanded(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() {
+                        _selectedTrendMonthIndex = idx;
+                      });
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      curve: Curves.easeOut,
+                      decoration: BoxDecoration(
+                        color: isSel ? points[idx].color : Colors.transparent,
+                        borderRadius: BorderRadius.circular(5),
+                        border: Border.all(
+                          color: isSel
+                              ? points[idx].color
+                              : (isCurrent
+                                  ? const Color(0xFFFFD166).withValues(alpha: 0.7)
+                                  : Colors.transparent),
+                          width: 1,
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          monthLabels[idx],
+                          style: TextStyle(
+                            fontSize: 8.5,
+                            fontWeight: isSel ? FontWeight.w900 : (isCurrent ? FontWeight.bold : FontWeight.w500),
+                            color: isSel
+                                ? Colors.white
+                                : (isCurrent ? const Color(0xFFFFD166) : subTextColor),
+                          ),
                         ),
                       ),
                     ),
                   ),
                 );
-              },
+              }),
             ),
           ),
         ],
@@ -985,6 +1024,7 @@ class _CoolGlowingTrendPainter extends CustomPainter {
   final double maxVal;
   final double avgVal;
   final int maxMonthIndex;
+  final int selectedMonthIndex;
   final double progress;
   final bool isDark;
 
@@ -993,6 +1033,7 @@ class _CoolGlowingTrendPainter extends CustomPainter {
     required this.maxVal,
     required this.avgVal,
     required this.maxMonthIndex,
+    required this.selectedMonthIndex,
     required this.progress,
     required this.isDark,
   });
@@ -1001,7 +1042,7 @@ class _CoolGlowingTrendPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (points.isEmpty) return;
 
-    final bottomPadding = 22.0;
+    final bottomPadding = 12.0;
     final topPadding = 10.0;
     final chartHeight = size.height - bottomPadding - topPadding;
     final stepX = size.width / points.length;
@@ -1017,7 +1058,30 @@ class _CoolGlowingTrendPainter extends CustomPainter {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
     }
 
-    // 2. Average Glowing Dashed Line
+    // 2. Highlight Beam for Selected Month
+    if (selectedMonthIndex >= 0 && selectedMonthIndex < points.length) {
+      final selX = (selectedMonthIndex * stepX) + (stepX / 2);
+      final beamRect = Rect.fromLTWH(selectedMonthIndex * stepX + 1, topPadding, stepX - 2, chartHeight);
+      final beamPaint = Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            points[selectedMonthIndex].color.withValues(alpha: isDark ? 0.28 : 0.18),
+            points[selectedMonthIndex].color.withValues(alpha: 0.02),
+          ],
+        ).createShader(beamRect);
+      canvas.drawRRect(RRect.fromRectAndRadius(beamRect, const Radius.circular(5)), beamPaint);
+
+      // Subtle vertical dash/line marker
+      final guidePaint = Paint()
+        ..color = points[selectedMonthIndex].color.withValues(alpha: 0.45)
+        ..strokeWidth = 1.0
+        ..style = PaintingStyle.stroke;
+      canvas.drawLine(Offset(selX, topPadding), Offset(selX, topPadding + chartHeight), guidePaint);
+    }
+
+    // 3. Average Glowing Dashed Line
     if (avgVal > 0 && maxVal > 0) {
       final avgY = topPadding + chartHeight - ((avgVal / maxVal) * chartHeight * progress);
       final avgPaint = Paint()
@@ -1025,7 +1089,6 @@ class _CoolGlowingTrendPainter extends CustomPainter {
         ..strokeWidth = 1.2
         ..style = PaintingStyle.stroke;
 
-      // Draw dashed line
       const dashWidth = 4.0;
       const dashSpace = 3.0;
       double startX = 0.0;
@@ -1049,7 +1112,7 @@ class _CoolGlowingTrendPainter extends CustomPainter {
       coords.add(Offset(x, y));
     }
 
-    // 3. Smooth Glowing Gradient Area Fill (Under the Curve)
+    // 4. Smooth Glowing Gradient Area Fill (Under the Curve)
     if (coords.length > 1) {
       final path = Path();
       path.moveTo(coords[0].dx, coords[0].dy);
@@ -1088,12 +1151,11 @@ class _CoolGlowingTrendPainter extends CustomPainter {
 
       canvas.drawPath(areaPath, areaPaint);
 
-      // 4. Glowing Neon Line Stroke
+      // Glowing Neon Line Stroke
       final lineShader = const LinearGradient(
         colors: [Color(0xFF38BDF8), Color(0xFF818CF8), Color(0xFFEC4899), Color(0xFFFFD166)],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
 
-      // Outer glow for dark mode
       if (isDark) {
         final glowPaint = Paint()
           ..shader = lineShader
@@ -1118,49 +1180,32 @@ class _CoolGlowingTrendPainter extends CustomPainter {
       final c = coords[i];
       final p = points[i];
       final isMax = i == maxMonthIndex;
+      final isSel = i == selectedMonthIndex;
 
-      if (p.amount > 0) {
+      if (p.amount > 0 || isSel) {
         // Outer halo
         final haloPaint = Paint()
-          ..color = isMax
-              ? const Color(0xFFEF4444).withValues(alpha: 0.4)
-              : const Color(0xFF38BDF8).withValues(alpha: 0.25)
+          ..color = (isSel
+                  ? points[i].color
+                  : (isMax ? const Color(0xFFEF4444) : const Color(0xFF38BDF8)))
+              .withValues(alpha: isSel ? 0.45 : (isMax ? 0.35 : 0.2))
           ..style = PaintingStyle.fill;
-        canvas.drawCircle(c, isMax ? 7.0 : 4.5, haloPaint);
+        canvas.drawCircle(c, isSel ? 9.0 : (isMax ? 7.0 : 4.5), haloPaint);
 
         // Core dot
         final dotPaint = Paint()
-          ..color = isMax ? const Color(0xFFEF4444) : Colors.white
+          ..color = isSel
+              ? points[i].color
+              : (isMax ? const Color(0xFFEF4444) : Colors.white)
           ..style = PaintingStyle.fill;
-        canvas.drawCircle(c, isMax ? 4.0 : 2.5, dotPaint);
+        canvas.drawCircle(c, isSel ? 5.0 : (isMax ? 4.0 : 2.5), dotPaint);
 
         final dotBorder = Paint()
-          ..color = isMax ? Colors.white : const Color(0xFF38BDF8)
-          ..strokeWidth = 1.5
+          ..color = isSel ? Colors.white : (isMax ? Colors.white : const Color(0xFF38BDF8))
+          ..strokeWidth = isSel ? 2.0 : 1.5
           ..style = PaintingStyle.stroke;
-        canvas.drawCircle(c, isMax ? 4.0 : 2.5, dotBorder);
+        canvas.drawCircle(c, isSel ? 5.0 : (isMax ? 4.0 : 2.5), dotBorder);
       }
-
-      // X-Axis Month Labels
-      final isCurrentMonth = (DateTime.now().month - 1) == i;
-      final textPainter = TextPainter(
-        text: TextSpan(
-          text: p.label,
-          style: TextStyle(
-            color: isCurrentMonth
-                ? (const Color(0xFFFFD166))
-                : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
-            fontSize: 9,
-            fontWeight: isCurrentMonth || isMax ? FontWeight.bold : FontWeight.w500,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-
-      textPainter.paint(
-        canvas,
-        Offset(c.dx - (textPainter.width / 2), topPadding + chartHeight + 6),
-      );
     }
   }
 

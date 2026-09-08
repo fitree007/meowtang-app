@@ -400,38 +400,27 @@ class OnlineSlipVerificationService {
   }
 
   static ThaiBankInfo _detectBankFromQrOrText(String qr, String text) {
-    if (qr.contains('0004') || qr.contains('004') || text.contains('กสิกร') || text.contains('KBank') || text.contains('K PLUS')) {
-      return ThaiBankDetector.getBankByCode('KBANK');
-    }
-    if (qr.contains('0014') || qr.contains('014') || text.contains('ไทยพาณิชย์') || text.contains('SCB')) {
-      return ThaiBankDetector.getBankByCode('SCB');
-    }
-    if (qr.contains('0006') || qr.contains('006') || text.contains('กรุงไทย') || text.contains('KTB') || text.contains('เป๋าตัง')) {
-      return ThaiBankDetector.getBankByCode('KTB');
-    }
-    if (qr.contains('0002') || qr.contains('002') || text.contains('กรุงเทพ') || text.contains('BBL') || text.contains('Bualuang')) {
-      return ThaiBankDetector.getBankByCode('BBL');
-    }
-    if (qr.contains('0011') || qr.contains('011') || text.contains('ทหารไทย') || text.contains('ttb')) {
-      return ThaiBankDetector.getBankByCode('TTB');
-    }
-    if (qr.contains('0025') || qr.contains('025') || text.contains('กรุงศรี') || text.contains('BAY') || text.contains('Krungsri')) {
-      return ThaiBankDetector.getBankByCode('BAY');
-    }
-    if (qr.contains('0030') || qr.contains('030') || text.contains('ออมสิน') || text.contains('GSB') || text.contains('MyMo')) {
-      return ThaiBankDetector.getBankByCode('GSB');
-    }
-    if (qr.contains('0034') || qr.contains('034') || text.contains('ธ.ก.ส.') || text.contains('BAAC')) {
-      return ThaiBankDetector.getBankByCode('BAAC');
-    }
-    if (qr.contains('0066') || qr.contains('066') || qr.contains('067') || text.contains('อิสลาม') || text.contains('iBank')) {
-      return ThaiBankDetector.getBankByCode('IBANK');
-    }
-    if (qr.contains('0069') || qr.contains('069') || text.contains('เกียรตินาคิน') || text.contains('KKP')) {
-      return ThaiBankDetector.getBankByCode('KKP');
-    }
-    if (qr.contains('0073') || qr.contains('073') || text.contains('แลนด์ แอนด์ เฮ้าส์') || text.contains('LH')) {
-      return ThaiBankDetector.getBankByCode('LH');
+    if (qr.isNotEmpty) {
+      final qrResult = QrSlipParserService.parseQrCodePayload(qr);
+      if (qrResult.senderBankCode != null) {
+        const codeMap = {
+          '002': 'BBL',
+          '004': 'KBANK',
+          '006': 'KTB',
+          '011': 'TTB',
+          '014': 'SCB',
+          '025': 'BAY',
+          '030': 'GSB',
+          '034': 'BAAC',
+          '066': 'IBANK',
+          '069': 'KKP',
+          '073': 'LHBANK',
+        };
+        final mappedCode = codeMap[qrResult.senderBankCode];
+        if (mappedCode != null) {
+          return ThaiBankDetector.getBankByCode(mappedCode);
+        }
+      }
     }
     return ThaiBankDetector.detectBankFromText(text);
   }

@@ -67,10 +67,10 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
           {
             'icon': Icons.sync_rounded,
             'color': const Color(0xFF10B981),
-            'title': '1. Auto Slip Sync (Banks & PaoTang)',
+            'title': '1. Auto Slip Sync (22 Banks & PaoTang)',
             'badge': 'Guide 1 of 10 • Auto Sync',
-            'desc': 'Real-time background detector that automatically captures new bank transfer slips from 12+ Thai banks and the Pictures/PaoTang directory (e.g. Thai Chuey Thai 60/40, iBank, State Welfare).',
-            'setup': '⚙️ Setup & How to use:\n1. Grant "Photos & Media Permission" in system settings.\n2. When you save or download a transfer slip from banking apps or PaoTang, the app auto-imports it instantly.\n3. Tap "Auto-Sync Slips" button on Dashboard or pull-to-refresh to run a manual storage scan anytime.',
+            'desc': 'Real-time background detector that automatically captures new bank transfer slips from 22 Thai banks and digital wallets (KBank, SCB, KTB, iBank, BBL, TTB, GSB, BAY, CIMB, UOB, TMRW, LHB, KKP, GHB, Tisco, PaoTang, TrueMoney, etc.).',
+            'setup': '⚙️ Setup & How to use:\n1. Grant "Photos & Media Permission" in device settings.\n2. When you save or download a transfer slip, the app auto-imports it instantly.\n3. Pull-down to refresh on the Overview screen anytime to reload all data and scan new slips without restarting the app.',
             'tip': '💡 100% smart duplicate prevention ensures no slip is recorded twice.',
           },
           {
@@ -85,11 +85,11 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
           {
             'icon': Icons.document_scanner_rounded,
             'color': const Color(0xFF8B5CF6),
-            'title': '3. 100% Offline Dual-Engine OCR',
+            'title': '3. 100% Offline OCR & Auto Amount Fill',
             'badge': 'Guide 3 of 10 • Offline Scanner',
-            'desc': 'Extract amount, date/time, sender, and receiver from bank slips completely offline. No internet required, zero ads, and 100% private data kept only on your device.',
-            'setup': '⚙️ How to use:\n1. Tap Arrow Up Menu > "Pick Slip Image (OCR)".\n2. Choose any slip photo from your gallery. AI extracts the transaction in under a second.',
-            'tip': '💡 Built-in Self-Transfer Filter automatically skips transfers between your own accounts.',
+            'desc': 'Extract amount, date/time, sender, receiver, and transfer memo from bank slips completely offline. Also automatically fills the amount into the calculator when picking a slip on the "+" screen!',
+            'setup': '⚙️ How to use:\n1. On the "+" entry screen, tap "+ Slip" to pick a receipt. The amount fills into the keypad automatically.\n2. Or tap Arrow Up Menu > "Pick Slip Image (OCR)" to process any slip photo in under a second.',
+            'tip': '💡 100% private offline engine keeps all your financial images securely on your device.',
           },
           {
             'icon': Icons.swipe_rounded,
@@ -121,11 +121,11 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
           {
             'icon': Icons.account_balance_rounded,
             'color': const Color(0xFFF59E0B),
-            'title': '7. Nationwide Bank Filter',
-            'badge': 'Guide 7 of 10 • Bank Filter',
-            'desc': 'Filter transactions and monthly totals by specific Thai banks (KBank, SCB, KTB, BBL, iBank, PaoTang, etc.) with real-time balance calculations.',
-            'setup': '⚙️ How to use:\n1. In Dashboard, tap the "Bank Filter" chip button.\n2. Check/uncheck specific banks to show or hide their transaction history and totals.',
-            'tip': '💡 Use "Select All / Deselect All" for rapid multi-bank switching.',
+            'title': '7. Nationwide Bank Filter & Multi-Accounts',
+            'badge': 'Guide 7 of 10 • Bank Accounts',
+            'desc': 'Filter transactions and monthly totals by specific Thai banks (KBank, SCB, KTB, BBL, iBank, PaoTang, etc.) and manage separate bank accounts with real official bank logos.',
+            'setup': '⚙️ How to use:\n1. In Dashboard, tap the "Bank Filter" chip button to filter history by bank.\n2. Open "Accounts" to manage separate wallets matched directly to your actual bank cards.',
+            'tip': '💡 Slips are automatically linked to the sender bank account.',
           },
           {
             'icon': Icons.calculate_rounded,
@@ -146,13 +146,13 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
             'tip': '💡 Filter for "Saved Categories" to see where you succeeded in budget trimming.',
           },
           {
-            'icon': Icons.backup_rounded,
-            'color': const Color(0xFF10B981),
-            'title': '10. Excel / CSV Export & Device Backup',
-            'badge': 'Guide 10 of 10 • Data & Backup',
-            'desc': 'Export professional financial statements to Excel (.xlsx) / CSV and create encrypted device backups for 100% data portability.',
-            'setup': '⚙️ How to use:\n1. Open Profile (Human) Menu > "Export Excel / CSV" or "Backup & Restore".\n2. Tap "Export / Share File" to save or send your financial spreadsheet.',
-            'tip': '💡 All data stays 100% offline on your phone; regular backups ensure peace of mind.',
+            'icon': Icons.picture_as_pdf_rounded,
+            'color': const Color(0xFFEF4444),
+            'title': '10. PDF Statement A4, Excel Export & Backup',
+            'badge': 'Guide 10 of 10 • Export & Backup',
+            'desc': 'Export formal financial statements as standard A4 PDF with Thai typography or Excel (.xlsx) directly into your Downloads folder. Plus, 100% offline encrypted backup and restore.',
+            'setup': '⚙️ How to use:\n1. Open Profile > "Export Financial Statement PDF" or "Export Excel".\n2. Select period or bank account and export. The file saves directly into Downloads/MeowTang for instant opening and sharing.',
+            'tip': '💡 Zero watermark and completely offline, safe from server leaks.',
           },
         ];
 
@@ -161,10 +161,10 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
           {
             'icon': Icons.sync_rounded,
             'color': const Color(0xFF10B981),
-            'title': '1. ดึงสลิปอัตโนมัติจากธนาคาร & เป๋าตัง',
+            'title': '1. ดึงสลิปอัตโนมัติ 22 ธนาคาร & เป๋าตัง',
             'badge': 'คู่มือ 1 จาก 10 • ระบบดึงสลิป',
-            'desc': 'ระบบตรวจจับสลิปใหม่จากอัลบั้มรูปภาพของ 12+ ธนาคารชั้นนำ และโฟลเดอร์ Pictures/PaoTang (เช่น สลิปไทยช่วยไทย 60/40, คนละครึ่ง, สวัสดิการแห่งรัฐ, ธนาคารอิสลาม iBank) ทันทีเมื่อเซฟรูป พร้อมระบบป้องกันบันทึกสลิปซ้ำ 100%',
-            'setup': '⚙️ วิธีการตั้งค่า & ใช้งาน:\n1. ตรวจสอบว่าได้อนุญาต "สิทธิ์การเข้าถึงรูปภาพ (Photos & Media)" ในการตั้งค่าเครื่อง\n2. เมื่อเซฟรูปสลิปจากแอพธนาคารหรือเป๋าตัง ระบบจะดึงและบันทึกรายการให้อัตโนมัติทันที\n3. ในหน้าภาพรวม สามารถกดปุ่ม "ดึงสลิปอัตโนมัติ" หรือรูดหน้าจอลง (Pull-to-refresh) เพื่อสแกนสลิปย้อนหลังได้ตลอดเวลา',
+            'desc': 'ระบบตรวจจับสลิปใหม่จากอัลบั้มรูปภาพของ 22 ธนาคารชั้นนำ & กระเป๋าเงินดิจิทัล (กสิกร, ไทยพาณิชย์, กรุงไทย, อิสลาม iBank, กรุงเทพ, ทีทีบี, ออมสิน, กรุงศรี, CIMB, UOB, TMRW, LHB, KKP, GHB, Tisco, เป๋าตัง, TrueMoney ฯลฯ) ทันทีเมื่อเซฟรูป พร้อมระบบป้องกันบันทึกสลิปซ้ำ 100%',
+            'setup': '⚙️ วิธีการตั้งค่า & ใช้งาน:\n1. ตรวจสอบว่าได้อนุญาต "สิทธิ์การเข้าถึงรูปภาพ (Photos & Media)" ในการตั้งค่าเครื่อง\n2. เมื่อเซฟรูปสลิปจากแอพธนาคารหรือเป๋าตัง ระบบจะดึงและบันทึกรายการให้อัตโนมัติทันที\n3. ในหน้าภาพรวม สามารถรูดหน้าจอลงสุด (Pull-to-refresh) เพื่อรีเฟรชข้อมูลล่าสุดทั้งหมดและสแกนสลิปใหม่ได้ทันทีโดยไม่ต้องปิดแอพ',
             'tip': '💡 ระบบฉลาดจะอ่านยอดที่ชำระจริง (Net Paid) และข้ามการโอนเงินให้ตัวเองให้อัตโนมัติ',
           },
           {
@@ -179,11 +179,11 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
           {
             'icon': Icons.document_scanner_rounded,
             'color': const Color(0xFF8B5CF6),
-            'title': '3. สแกนสลิปออฟไลน์ 100% (Dual-Engine OCR)',
+            'title': '3. สแกนสลิปออฟไลน์ 100% & ใส่ยอดในหน้า + ทันที',
             'badge': 'คู่มือ 3 จาก 10 • OCR ออฟไลน์',
-            'desc': 'ถอดรหัสยอดเงิน วันที่ บัญชี และบันทึกช่วยจำจากภาพสลิปได้แบบออฟไลน์ 100% ไม่ต้องต่อเน็ต ฟรีตลอดชีพ ข้อมูลรูปและตัวเลขทั้งหมดถูกประมวลผลในเครื่องคุณเท่านั้น ปลอดภัยสูงสุด',
-            'setup': '⚙️ วิธีการใช้งาน:\n1. แตะปุ่มลูกศรขึ้นที่มุมขวาล่าง > เลือก "เลือกรูปสลิปจากคลังภาพ (OCR)"\n2. เลือกรูปสลิปที่ต้องการ ระบบจะสกัดยอดเงิน วันที่ และจัดหมวดหมู่ให้อัตโนมัติใน 1 วินาที',
-            'tip': '💡 ระบบคัดกรองการโอนเงินให้ตัวเอง (Self-Transfer Filter) ช่วยให้ยอดรายรับ-รายจ่ายไม่เบิ้ลซ้ำซ้อน',
+            'desc': 'ถอดรหัสยอดเงิน วันที่ บัญชี และบันทึกช่วยจำ (Memo) จากภาพสลิปได้แบบออฟไลน์ 100% ไม่ต้องต่อเน็ต ปลอดภัยสูงสุด พร้อมระบบดึงยอดเงินจากสลิปมาใส่ในช่องยอดเงินของหน้า "+" ให้ทันทีเมื่อเลือกรูปสลิป',
+            'setup': '⚙️ วิธีการใช้งาน:\n1. ในหน้าระบุรายการ "+" แตะปุ่ม "+ สลิป" แล้วเลือกรูป ยอดเงินจะถูกสแกนและกรอกให้อัตโนมัติทันที\n2. หรือแตะปุ่มลูกศรขึ้นที่มุมขวาล่าง > เลือก "เลือกรูปสลิปจากคลังภาพ (OCR)" เพื่อสแกนจัดหมวดหมู่ใน 0.3 วินาที',
+            'tip': '💡 ข้อมูลทั้งหมดประมวลผลในเครื่องคุณ 100% ไม่มีทางรั่วไหลออกสู่อินเทอร์เน็ต',
           },
           {
             'icon': Icons.swipe_rounded,
@@ -215,10 +215,10 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
           {
             'icon': Icons.account_balance_rounded,
             'color': const Color(0xFFF59E0B),
-            'title': '7. แยกสลิปตามธนาคารทั่วประเทศ (Bank Filter)',
+            'title': '7. แยกสลิปตามธนาคาร & กระเป๋าเงินแยกบัญชีจริง',
             'badge': 'คู่มือ 7 จาก 10 • ตัวกรองธนาคาร',
-            'desc': 'กรองดูรายการและยอดเงินรวมแยกเฉพาะธนาคารที่ต้องการ เช่น ดูเฉพาะยอดกสิกร, ไทยพาณิชย์, กรุงไทย, เป๋าตัง หรือดูทุกธนาคารพร้อมกัน',
-            'setup': '⚙️ วิธีการใช้งาน:\n1. ในหน้าภาพรวม แตะปุ่ม "แยกตามธนาคาร (Bank Filter)"\n2. ติ๊กเลือกเปิด/ปิดธนาคารที่ต้องการแสดงผล ยอดรวมและประวัติจะคำนวณใหม่สดๆ ทันที',
+            'desc': 'กรองดูรายการและยอดเงินรวมแยกเฉพาะธนาคารที่ต้องการ พร้อมระบบกระเป๋าเงินแยกตามบัญชีธนาคารจริง 22 แห่ง พร้อมโลโก้คมชัด',
+            'setup': '⚙️ วิธีการใช้งาน:\n1. ในหน้าภาพรวม แตะปุ่ม "แยกตามธนาคาร (Bank Filter)" เพื่อเลือกเปิด/ปิดธนาคารที่ต้องการแสดงผล\n2. ไปที่เมนู "บัญชี/กระเป๋าเงิน" เพื่อดูยอดเงินแยกตามธนาคารจริง สลิปที่สแกนจะวิ่งเข้าบัญชีธนาคารต้นทางให้อัตโนมัติ',
             'tip': '💡 ใช้ปุ่ม "เลือกทั้งหมด / ยกเลิกทั้งหมด" ด้านล่างเพื่อสลับดูภาพรวมได้อย่างรวดเร็ว',
           },
           {
@@ -228,7 +228,7 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
             'badge': 'คู่มือ 8 จาก 10 • แป้นพิมพ์คำนวณ',
             'desc': 'คำนวณตัวเลขบวก ลบ คูณ หาร ได้ในตัว พร้อมช่องแสดงผลขนาดใหญ่พิเศษที่เลื่อนดูแนวนอนได้เมื่อมีรายการบวกเลขยาวๆ',
             'setup': '⚙️ วิธีการใช้งาน:\n1. แตะปุ่ม "+" หรือ "จดบันทึก" เพื่อเปิดแป้นพิมพ์\n2. พิมพ์สูตร เช่น 120+45+60 แล้วกด = เพื่อรวมยอดเงินทันทีโดยไม่ต้องสลับแอพ',
-            'tip': '💡 สลับแท็บ "รายจ่าย", "รายรับ", และ "โอนเงิน" ได้ที่แถบด้านบนของหน้าต่าง',
+            'tip': '💡 สลับแท็บ "รายจ่าย", "รายรับ", และ "บัตรเครดิต" ได้ที่แถบด้านบนของหน้าต่าง',
           },
           {
             'icon': Icons.insights_rounded,
@@ -240,12 +240,12 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
             'tip': '💡 กดกรองดูเฉพาะ "หมวดที่ประหยัดขึ้น" เพื่อดูความสำเร็จในการคุมงบประมาณของคุณ',
           },
           {
-            'icon': Icons.backup_rounded,
-            'color': const Color(0xFF10B981),
-            'title': '10. ส่งออกรายงาน Excel/CSV & สำรองข้อมูล',
+            'icon': Icons.picture_as_pdf_rounded,
+            'color': const Color(0xFFEF4444),
+            'title': '10. รายงานสเตทเมนต์ PDF A4, Excel & สำรองข้อมูล',
             'badge': 'คู่มือ 10 จาก 10 • สำรอง & ส่งออก',
-            'desc': 'ส่งออกรายงานบัญชี Statement รายรับรายจ่าย และหมวดหมู่ภาษีเป็นไฟล์ Excel (.xlsx) / CSV พร้อมระบบสำรองข้อมูลในเครื่องเพื่อความปลอดภัย 100%',
-            'setup': '⚙️ วิธีการตั้งค่า & ใช้งาน:\n1. ไปที่เมนูโปรไฟล์ (คน) > "ส่งออก Excel / CSV" หรือ "สำรอง & กู้คืนข้อมูล"\n2. เลือกช่วงเวลาที่ต้องการ แล้วกด "แชร์ / ส่งออกไฟล์"\n3. สามารถนำไฟล์สำรองข้อมูลมากด "กู้คืน (Restore)" เมื่อเปลี่ยนเครื่องใหม่ได้ทันที',
+            'desc': 'ส่งออกรายงานสรุปบัญชี Statement A4 มาตรฐานเป็นไฟล์ PDF หรือ Excel (.xlsx) บันทึกตรงเข้าโฟลเดอร์ Downloads/MeowTang พร้อมระบบสำรองและกู้คืนข้อมูลแบบออฟไลน์ 100%',
+            'setup': '⚙️ วิธีการตั้งค่า & ใช้งาน:\n1. ไปที่เมนูโปรไฟล์ (คน) > "ส่งออกสเตทเมนต์ PDF" หรือ "ส่งออก Excel"\n2. เลือกช่วงเวลาหรือบัญชีที่ต้องการ ระบบจะสร้างเอกสารบันทึกลงโฟลเดอร์ Downloads ทันที พร้อมปุ่มเปิดดูและแชร์\n3. ใช้เมนู "สำรอง & กู้คืนข้อมูล" เพื่อบันทึกไฟล์สำรองเก็บไว้ในเครื่องอย่างปลอดภัย',
             'tip': '💡 ข้อมูลทั้งหมดอยู่ในเครื่องคุณ 100% แนะนำให้กดส่งออกไฟล์สำรองเก็บไว้เป็นระยะ',
           },
         ];

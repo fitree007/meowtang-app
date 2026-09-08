@@ -12,9 +12,17 @@ import '../widgets/tactile_button.dart';
 import '../widgets/slip_image_viewer_dialog.dart';
 import '../services/native_gallery_service.dart';
 import '../services/slip_storage_service.dart';
+import '../services/native_bridge_service.dart';
+import '../services/qr_slip_parser_service.dart';
+import '../services/ocr_engine_service.dart';
+import '../services/easyocr_tesseract_fusion_service.dart';
 import '../utils/format_utils.dart';
 import 'category_management_screen.dart';
+import 'account_management_screen.dart';
 import '../widgets/currency_quick_convert_sheet.dart';
+import '../widgets/bank_badge.dart';
+import '../services/thai_bank_detector.dart';
+import '../widgets/meow_paywall_modal.dart';
 
 class MeowEntryScreen extends StatefulWidget {
   final ExpenseController controller;
@@ -126,84 +134,234 @@ class _MeowEntryScreenState extends State<MeowEntryScreen> {
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-        decoration: BoxDecoration(
-          color: currentTheme.cardBackground,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setModalState) {
+          // All available bank templates that aren't yet added
+          final allSupported = ThaiBankDetector.supportedBanks;
+          final existingBankCodes = widget.controller.accounts.map((a) => a.bankCode.toUpperCase()).toSet();
+          final otherBanks = allSupported.where((b) => !existingBankCodes.contains(b.code)).toList();
+
+          return Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.80,
             ),
-            const SizedBox(height: 14),
-            Text(
-              isEn ? 'Select Wallet Account' : 'เลือกบัญชี / กระเป๋าเงิน',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                color: currentTheme.textColor,
-              ),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            decoration: BoxDecoration(
+              color: currentTheme.cardBackground,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
             ),
-            const SizedBox(height: 12),
-            ...widget.controller.accounts.map((acc) {
-              final isSel = _selectedAccount?.id == acc.id;
-              return Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                decoration: BoxDecoration(
-                  color: isSel ? currentTheme.primaryColor.withValues(alpha: 0.12) : currentTheme.surfaceBackground,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: isSel ? currentTheme.primaryColor : currentTheme.borderColor,
-                    width: isSel ? 1.5 : 1,
-                  ),
-                ),
-                child: ListTile(
-                  dense: true,
-                  leading: Container(
-                    padding: const EdgeInsets.all(8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
                     decoration: BoxDecoration(
-                      color: Color(acc.colorValue).withValues(alpha: 0.2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(Icons.account_balance_wallet_rounded, color: Color(acc.colorValue), size: 18),
-                  ),
-                  title: Text(
-                    widget.controller.trAccount(acc.name),
-                    style: TextStyle(
-                      fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
-                      color: currentTheme.textColor,
+                      color: Colors.grey.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                  subtitle: Text(
-                    '฿${FormatUtils.formatCurrency(acc.balance)}',
-                    style: TextStyle(
-                      color: currentTheme.textSecondaryColor,
-                      fontSize: 12,
-                    ),
-                  ),
-                  trailing: isSel ? Icon(Icons.check_circle_rounded, color: currentTheme.primaryColor) : null,
-                  onTap: () {
-                    HapticFeedback.selectionClick();
-                    setState(() => _selectedAccount = acc);
-                    Navigator.pop(ctx);
-                  },
                 ),
-              );
-            }),
-          ],
-        ),
+                const SizedBox(height: 14),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      isEn ? 'Select Wallet / Bank' : 'เลือกบัญชี / ธนาคาร',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: currentTheme.textColor,
+                      ),
+                    ),
+                    TactileButton(
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => AccountManagementScreen(controller: widget.controller),
+                          ),
+                        ).then((_) {
+                          if (mounted) setState(() {});
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: currentTheme.primaryColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: currentTheme.primaryColor.withValues(alpha: 0.4)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.settings_outlined, size: 14, color: currentTheme.primaryColor),
+                            const SizedBox(width: 4),
+                            Text(
+                              isEn ? 'Manage' : 'จัดการบัญชี',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.bold,
+                                color: currentTheme.primaryColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Flexible(
+                  child: ListView(
+                    shrinkWrap: true,
+                    physics: const BouncingScrollPhysics(),
+                    children: [
+                      // Section 1: บัญชีของคุณที่เปิดใช้งานอยู่ (My Accounts)
+                      Text(
+                        isEn ? 'My Accounts (${widget.controller.accounts.length})' : 'บัญชีของคุณ (${widget.controller.accounts.length})',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: currentTheme.textSecondaryColor,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ...widget.controller.accounts.map((acc) {
+                        final isSel = _selectedAccount?.id == acc.id;
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          decoration: BoxDecoration(
+                            color: isSel ? currentTheme.primaryColor.withValues(alpha: 0.12) : currentTheme.surfaceBackground,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: isSel ? currentTheme.primaryColor : currentTheme.borderColor,
+                              width: isSel ? 1.5 : 1,
+                            ),
+                          ),
+                          child: ListTile(
+                            dense: true,
+                            leading: BankBadge(bankCode: acc.bankCode, size: 36),
+                            title: Text(
+                              widget.controller.trAccount(acc.name),
+                              style: TextStyle(
+                                fontWeight: isSel ? FontWeight.bold : FontWeight.w600,
+                                color: currentTheme.textColor,
+                              ),
+                            ),
+                            subtitle: Text(
+                              '฿${FormatUtils.formatCurrency(acc.balance)}  •  ${acc.accountNumber}',
+                              style: TextStyle(
+                                color: currentTheme.textSecondaryColor,
+                                fontSize: 11.5,
+                              ),
+                            ),
+                            trailing: isSel
+                                ? Icon(Icons.check_circle_rounded, color: currentTheme.primaryColor, size: 22)
+                                : null,
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              setState(() => _selectedAccount = acc);
+                              Navigator.pop(ctx);
+                            },
+                          ),
+                        );
+                      }),
+
+                      // Section 2: ธนาคารทั้งหมด (All Banks - Quick Select & Auto Add)
+                      if (otherBanks.isNotEmpty) ...[
+                        const SizedBox(height: 14),
+                        Row(
+                          children: [
+                            Text(
+                              isEn ? 'All Other Banks & Wallets (${otherBanks.length})' : 'ธนาคารและกระเป๋าเงินอื่นๆ (${otherBanks.length})',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: currentTheme.textSecondaryColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        ...otherBanks.map((bank) {
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            decoration: BoxDecoration(
+                              color: currentTheme.surfaceBackground,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: currentTheme.borderColor),
+                            ),
+                            child: ListTile(
+                              dense: true,
+                              leading: BankBadge(bankCode: bank.code, size: 36),
+                              title: Text(
+                                bank.nameTh,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: currentTheme.textColor,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              subtitle: Text(
+                                '${bank.shortName}  •  ${bank.nameEn}',
+                                style: TextStyle(
+                                  color: currentTheme.textSecondaryColor,
+                                  fontSize: 11,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              trailing: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: currentTheme.primaryColor.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  isEn ? 'Select' : 'เลือก',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: currentTheme.primaryColor,
+                                  ),
+                                ),
+                              ),
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                // Create and add account on the fly
+                                final newAcc = AccountItem(
+                                  id: 'acc_${bank.code.toLowerCase()}_${DateTime.now().millisecondsSinceEpoch}',
+                                  name: bank.nameTh,
+                                  bankCode: bank.code,
+                                  accountNumber: bank.code == 'CASH' ? 'CASH-WALLET' : 'xxx-x-xxxxx-x',
+                                  balance: 0.0,
+                                  colorValue: bank.brandColor.toARGB32(),
+                                  type: (bank.code == 'PAOTANG' || bank.code == 'TRUEMONEY')
+                                      ? AccountType.eWallet
+                                      : (bank.code == 'CASH' ? AccountType.cash : AccountType.bank),
+                                  allowAutoDeduction: true,
+                                );
+                                widget.controller.addAccount(newAcc);
+                                setState(() => _selectedAccount = newAcc);
+                                Navigator.pop(ctx);
+                              },
+                            ),
+                          );
+                        }),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -546,10 +704,72 @@ class _MeowEntryScreenState extends State<MeowEntryScreen> {
 
   Future<void> _pickSlipImage() async {
     HapticFeedback.selectionClick();
+
+    if (!widget.controller.canImportMoreSlips) {
+      final monthlyUsed = widget.controller.currentMonthSlipCount;
+      final monthlyMax = widget.controller.maxFreeSlipsPerMonth;
+      final isEn = widget.controller.isEnglish;
+      MeowPaywallModal.show(
+        context,
+        controller: widget.controller,
+        reason: isEn
+            ? 'Monthly slip quota reached ($monthlyUsed/$monthlyMax slips). Reset to 0/$monthlyMax on 1st of every month. Upgrade to VIP for unlimited slips!'
+            : 'โควต้าสลิปฟรีเดือนนี้ครบแล้ว ($monthlyUsed/$monthlyMax สลิป) รีเซ็ตเป็น 0/$monthlyMax ทุกวันที่ 1 ปลดล็อค VIP เพื่อใช้งานไม่จำกัด 👑',
+      );
+      return;
+    }
+
     final path = await NativeGalleryService.pickImageFromGallery();
     if (path != null && path.isNotEmpty) {
       final savedPath = await SlipStorageService.persistSlipImage(path);
       setState(() => _slipImagePath = savedPath);
+
+      // Auto extract amount from slip and fill into calculator on the "+" screen!
+      try {
+        final mlResult = await NativeBridgeService.processSlipImage(savedPath);
+        final qrPayload = mlResult['qrPayload'] as String? ?? '';
+        final rawOcrText = mlResult['ocrText'] as String? ?? '';
+
+        double detectedAmount = 0.0;
+        if (qrPayload.trim().isNotEmpty) {
+          final qrResult = QrSlipParserService.parseQrCodePayload(qrPayload);
+          if (qrResult.success && qrResult.amount > 0) {
+            detectedAmount = qrResult.amount;
+          }
+        }
+        if (detectedAmount <= 0 && rawOcrText.trim().isNotEmpty) {
+          final ocrParsed = widget.controller.parseSlip(rawOcrText, fileName: path, filePath: savedPath);
+          if (ocrParsed.amount > 0) {
+            detectedAmount = ocrParsed.amount;
+          } else {
+            detectedAmount = OcrEngineService.extractAmountFromText(rawOcrText);
+          }
+        }
+        if (detectedAmount <= 0 && rawOcrText.trim().isNotEmpty) {
+          detectedAmount = EasyOcrTesseractFusionService.extractAmount(rawOcrText);
+        }
+
+        if (detectedAmount > 0 && mounted) {
+          setState(() {
+            _calcInput = detectedAmount == detectedAmount.roundToDouble()
+                ? detectedAmount.toInt().toString()
+                : detectedAmount.toStringAsFixed(2);
+          });
+          HapticFeedback.mediumImpact();
+        }
+
+        final detectedDate = OcrEngineService.extractDateTimeFromText(
+          rawOcrText,
+          fileName: path,
+        );
+        if (mounted) {
+          setState(() {
+            _selectedDate = detectedDate;
+          });
+        }
+      } catch (e) {
+        debugPrint('Slip extraction error on entry screen: $e');
+      }
     }
   }
 
@@ -694,7 +914,22 @@ class _MeowEntryScreenState extends State<MeowEntryScreen> {
 
     final title = _selectedCategory?.name ?? 'รายการทั่วไป';
 
-    final persistentSlipPath = _slipImagePath != null && _slipImagePath!.isNotEmpty
+    final hasSlip = _slipImagePath != null && _slipImagePath!.isNotEmpty;
+    if (hasSlip && !widget.controller.canImportMoreSlips) {
+      final monthlyUsed = widget.controller.currentMonthSlipCount;
+      final monthlyMax = widget.controller.maxFreeSlipsPerMonth;
+      final isEn = widget.controller.isEnglish;
+      MeowPaywallModal.show(
+        context,
+        controller: widget.controller,
+        reason: isEn
+            ? 'Monthly slip quota reached ($monthlyUsed/$monthlyMax slips). Reset to 0/$monthlyMax on 1st of every month. Upgrade to VIP for unlimited slips!'
+            : 'โควต้าสลิปฟรีเดือนนี้ครบแล้ว ($monthlyUsed/$monthlyMax สลิป) รีเซ็ตเป็น 0/$monthlyMax ทุกวันที่ 1 ปลดล็อค VIP เพื่อใช้งานไม่จำกัด 👑',
+      );
+      return;
+    }
+
+    final persistentSlipPath = hasSlip
         ? await SlipStorageService.persistSlipImage(_slipImagePath!)
         : _slipImagePath;
 
@@ -716,6 +951,9 @@ class _MeowEntryScreenState extends State<MeowEntryScreen> {
       widget.controller.saveTag(_selectedTag);
     }
     widget.controller.addTransaction(item);
+    if (hasSlip) {
+      await widget.controller.recordSlipImported(slipDate: item.date);
+    }
     if (!mounted) return;
     Navigator.pop(context);
 

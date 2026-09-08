@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">เหมียวตังค์</string>
+    <string name="widget_name">เหมียวตังค์ (ปุ่มพูดจดด่วน 🎙️)</string>
+    <string name="widget_quota_name">บันทึกริซกี (รายรับ-รายจ่ายวันนี้)</string>
+    <string name="widget_quota_desc">แสดงสรุปยอดรายรับและรายจ่ายวันนี้ พร้อมปุ่มพูดจดและบันทึกด่วน</string>
+    <string name="shortcut_quick_voice">🎙️ พูดบันทึกริซกีด่วน</string>
+    <string name="shortcut_quick_scan">📷 อัพโหลดสลิป AI</string>
+    <string name="shortcut_voice_short">พูดบันทึก</string>
+    <string name="shortcut_voice_long">🎙️ พูดบันทึกริซกีด่วน</string>
+    <string name="shortcut_scan_short">อัพโหลดสลิป</string>
+    <string name="shortcut_scan_long">📷 อัพโหลดสลิป AI</string>
+</resources>

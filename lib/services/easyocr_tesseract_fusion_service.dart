@@ -297,7 +297,9 @@ class EasyOcrTesseractFusionService {
 
   /// 5. Thai Bank Name Recognizer with Multi-Layer Directional & Album Fuzzy Matching
   static String detectBankName(String text, {String? filePath}) {
-    // 1. Album / File Path check (Highest priority)
+    final textLower = text.toLowerCase();
+
+    // 1. Album / File Path check
     if (filePath != null && filePath.isNotEmpty) {
       final fileLower = filePath.toLowerCase();
       if (fileLower.contains('k plus') || fileLower.contains('kplus') || fileLower.contains('kbank') || fileLower.contains('kasikorn')) {
@@ -306,11 +308,12 @@ class EasyOcrTesseractFusionService {
       if (fileLower.contains('scb easy') || fileLower.contains('scb') || fileLower.contains('ไทยพาณิชย์')) {
         return 'ไทยพาณิชย์ (SCB EASY)';
       }
-      if (fileLower.contains('ibank') || fileLower.contains('อิสลาม') || fileLower.contains('islamic')) {
+      if (fileLower.contains('ibank') || fileLower.contains('islamicbank') || fileLower.contains('ธนาคารอิสลาม') || fileLower.contains('ไอแบงก์')) {
         return 'iBank (อิสลามแห่งประเทศไทย)';
       }
       if (fileLower.contains('paotang') || fileLower.contains('เป๋าตัง') || fileLower.contains('gwallet') || fileLower.contains('g-wallet') || fileLower.contains('ไทยช่วยไทย')) {
-        if (fileLower.contains('ibank') || fileLower.contains('อิสลาม')) {
+        if (fileLower.contains('ibank') || fileLower.contains('ธนาคารอิสลาม') ||
+            textLower.contains('ibank') || textLower.contains('ธนาคารอิสลาม') || textLower.contains('อิสลามแห่งประเทศไทย') || textLower.contains('ไอแบงก์') || textLower.contains('ไอแบงค์') || textLower.contains('islamic bank')) {
           return 'iBank (อิสลามแห่งประเทศไทย)';
         }
         if (fileLower.contains('ไทยช่วยไทย')) {
@@ -386,7 +389,13 @@ class EasyOcrTesseractFusionService {
     if (clean.contains('scb') || clean.contains('ไทยพาณิชย์') || clean.contains('แม่มณี')) {
       return 'ไทยพาณิชย์ (SCB EASY)';
     }
-    if (clean.contains('ibank') || clean.contains('อิสลามแห่งประเทศไทย') || clean.contains('อิสลาม') || clean.contains('islamic')) {
+    if (clean.contains('ibank') ||
+        clean.contains('อิสลามแห่งประเทศไทย') ||
+        clean.contains('ธนาคารอิสลาม') ||
+        clean.contains('ธ.อิสลาม') ||
+        clean.contains('ไอแบงก์') ||
+        clean.contains('ไอแบงค์') ||
+        clean.contains('islamic bank')) {
       return 'iBank (อิสลามแห่งประเทศไทย)';
     }
     if (clean.contains('ไทยช่วยไทย') || clean.contains('คนละครึ่ง') || clean.contains('เราชนะ') || clean.contains('สวัสดิการแห่งรัฐ') || clean.contains('เงินช่วยเหลือ')) {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/thai_bank_detector.dart';
 
 enum AccountType {
   bank,
@@ -10,7 +11,7 @@ enum AccountType {
 class AccountItem {
   final String id;
   final String name;
-  final String bankCode; // KBANK, SCB, KTB, BBL, TTB, GSB, TRUEMONEY, SHOPEEPAY, CASH, CRYPTO
+  final String bankCode; // KBANK, SCB, KTB, BBL, TTB, GSB, IBANK, BAY, BAAC, GHB, TRUEMONEY, PAOTANG, CASH, etc.
   final String accountNumber;
   final double balance;
   final int colorValue;
@@ -33,30 +34,13 @@ class AccountItem {
   Color get color => Color(colorValue);
 
   String get bankDisplayName {
-    switch (bankCode.toUpperCase()) {
-      case 'KBANK':
-        return 'กสิกรไทย (KBank)';
-      case 'SCB':
-        return 'ไทยพาณิชย์ (SCB)';
-      case 'KTB':
-        return 'กรุงไทย (Krungthai NEXT)';
-      case 'BBL':
-        return 'กรุงเทพ (Bualuang)';
-      case 'TTB':
-        return 'ทีเอ็มบีธนชาต (ttb)';
-      case 'GSB':
-        return 'ออมสิน (GSB)';
-      case 'TRUEMONEY':
-        return 'TrueMoney Wallet';
-      case 'SHOPEEPAY':
-        return 'ShopeePay';
-      case 'CASH':
-        return 'เงินสด (Cash)';
-      case 'CRYPTO':
-        return 'พอร์ตลงทุน / หุ้น';
-      default:
-        return name;
+    if (bankCode.toUpperCase() == 'CASH') return 'เงินสด (Cash)';
+    if (bankCode.toUpperCase() == 'CRYPTO') return 'พอร์ตลงทุน / สินทรัพย์';
+    final meta = ThaiBankDetector.getBankByCode(bankCode);
+    if (meta.code != 'OTHER') {
+      return meta.nameTh;
     }
+    return name;
   }
 
   Map<String, dynamic> toJson() {

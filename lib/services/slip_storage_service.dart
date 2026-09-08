@@ -54,7 +54,7 @@ class SlipStorageService {
         ? sourceFile.uri.pathSegments.last
         : 'slip_${DateTime.now().millisecondsSinceEpoch}.jpg';
 
-    final safeBaseName = baseName.replaceAll(RegExp(r'[^\w\.\-]'), '_');
+    final safeBaseName = baseName.replaceAll(RegExp(r'[^\u0E00-\u0E7Fa-zA-Z0-9\.\-_]'), '_');
     final hashName = 'slip_${safeBaseName.hashCode.abs()}_$safeBaseName';
     final targetFileName = customName ?? hashName;
 

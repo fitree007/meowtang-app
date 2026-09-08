@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../config/app_config.dart';
 import '../models/transaction_item.dart';
 import '../models/account_item.dart';
 import '../models/category_item.dart';
@@ -17,6 +19,7 @@ import '../services/duplicate_slip_checker.dart';
 import '../services/slip_storage_service.dart';
 import '../localization/app_strings.dart';
 import '../theme/app_theme_model.dart';
+import '../services/thai_bank_detector.dart';
 
 enum MascotMood {
  happy,
@@ -61,6 +64,7 @@ class ExpenseController extends ChangeNotifier {
  List<AccountItem> get accounts => _accounts;
  List<CategoryItem> get categories => _categories;
  List<TransactionItem> get allTransactions => _transactions;
+ List<TransactionItem> get transactions => _transactions;
  List<SavingGoalItem> get savingGoals => _savingGoals;
  int get streakDays => _storage.getStreakDays();
  List<String> get unlockedAccessories => _storage.getUnlockedAccessories();
@@ -383,14 +387,19 @@ class ExpenseController extends ChangeNotifier {
     .fold(0.0, (sum, t) => sum + t.amount);
  }
 
- double get totalExpenseThisYear => getThisYearTotalExpense();
+ double get totalExpenseThisYear => getYearlyExpense(DateTime.now().year);
 
- double get totalIncomeThisYear {
-  final now = DateTime.now();
+ double get totalIncomeThisYear => getYearlyIncome(DateTime.now().year);
+
+ double getYearlyExpense(int year) {
   return _transactions
-    .where((t) =>
-      t.date.year == now.year &&
-      t.type == TransactionType.income)
+    .where((t) => t.date.year == year && t.type == TransactionType.expense)
+    .fold(0.0, (sum, t) => sum + t.amount);
+ }
+
+ double getYearlyIncome(int year) {
+  return _transactions
+    .where((t) => t.date.year == year && t.type == TransactionType.income)
     .fold(0.0, (sum, t) => sum + t.amount);
  }
 
@@ -449,8 +458,134 @@ class ExpenseController extends ChangeNotifier {
   notifyListeners();
  }
 
+  // ==========================================
+  // MONETIZATION & EDITION MANAGEMENT
+  // ==========================================
+  bool get isCreatorEdition => AppConfig.isCreatorEdition;
+  bool get isPlayStoreEdition => AppConfig.isPlayStoreEdition;
+
+  bool get isPremium => AppConfig.isCreatorEdition || _storage.isPremium();
+  String get premiumTier => AppConfig.isCreatorEdition ? 'creator' : _storage.getPremiumTier();
+  DateTime? get premiumExpiry => AppConfig.isCreatorEdition ? null : _storage.getPremiumExpiry();
+
+  Future<void> setPremiumStatus(bool isPremium, {String tier = 'lifetime', DateTime? expiry}) async {
+    await _storage.setPremium(isPremium, tier: tier, expiry: expiry);
+    notifyListeners();
+  }
+
+  // SLIP SCAN QUOTA (15 Free slips/month for Free users, Unlimited for VIP/Creator)
+  // Initial device import (current & previous month) is FREE and leaves quota at 0/15 for current & future slips!
+  String get currentMonthKey {
+    final now = DateTime.now();
+    return '${now.year}-${now.month.toString().padLeft(2, '0')}';
+  }
+
+  int get currentMonthSlipCount => _storage.getSlipQuotaCountForMonth(currentMonthKey);
+  int get maxFreeSlipsPerMonth => AppConfig.freeSlipsPerMonth;
+  int get welcomeBonusRemaining => 0;
+  int get welcomeBonusTotal => 0;
+  bool get hasWelcomeBonus => false;
+
+  bool get canImportMoreSlips =>
+      isPremium || (currentMonthSlipCount < maxFreeSlipsPerMonth);
+
+  Future<int> recordSlipImported({DateTime? slipDate, bool isInitialImport = false}) async {
+    // 1. Initial batch import of device slips (current & previous month) is FREE
+    //    and does NOT consume the monthly quota, leaving it at 0/15 for current/future slips!
+    if (isInitialImport) {
+      return currentMonthSlipCount;
+    }
+
+    // 2. Ongoing / real-time auto slips: count against the quota for the slip's month
+    final targetDate = slipDate ?? DateTime.now();
+    final quotaKey = '${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}';
+
+    final currentCount = _storage.getSlipQuotaCountForMonth(quotaKey);
+    if (currentCount < maxFreeSlipsPerMonth) {
+      final updated = await _storage.incrementSlipQuotaCount(quotaKey);
+      notifyListeners();
+      return updated;
+    }
+    return currentCount;
+  }
+
+  Future<void> setWelcomeBonusSlips(int count) async {
+    await _storage.setWelcomeBonusSlips(count);
+    notifyListeners();
+  }
+
+  // THEME UNLOCK & PURCHASE (29 THB per theme or Free with VIP)
+  bool isThemeUnlocked(String themeId) {
+    if (isPremium) return true;
+    if (AppConfig.defaultFreeThemeIds.contains(themeId)) return true;
+    if (_storage.getPurchasedThemes().contains(themeId)) return true;
+    if (_testDriveThemeId == themeId) return true;
+    return false;
+  }
+
+  Future<void> purchaseTheme(String themeId) async {
+    await _storage.addPurchasedTheme(themeId);
+    await _storage.unlockTheme(themeId);
+    await setTheme(themeId);
+    notifyListeners();
+  }
+
+  // ICON / MASCOT UNLOCK & PURCHASE (10 THB per item or Free with VIP)
+  bool isMascotUnlocked(String mascotId) {
+    if (isPremium) return true;
+    if (AppConfig.defaultFreeMascotIds.contains(mascotId)) return true;
+    if (_storage.getPurchasedIcons().contains(mascotId)) return true;
+    return false;
+  }
+
+  Future<void> purchaseIcon(String iconId) async {
+    await _storage.addPurchasedIcon(iconId);
+    notifyListeners();
+  }
+
+  // 30-SECOND THEME TEST DRIVE
+  String? _testDriveThemeId;
+  int _testDriveRemainingSeconds = 0;
+  Timer? _testDriveTimer;
+  VoidCallback? _onTestDriveExpired;
+
+  String? get testDriveThemeId => _testDriveThemeId;
+  int get testDriveRemainingSeconds => _testDriveRemainingSeconds;
+  bool get isThemeInTestDrive => _testDriveThemeId != null;
+
+  void startThemeTestDrive(String themeId, {VoidCallback? onExpired}) {
+    _testDriveTimer?.cancel();
+    _testDriveThemeId = themeId;
+    _testDriveRemainingSeconds = AppConfig.themeTrialSeconds;
+    _onTestDriveExpired = onExpired;
+    notifyListeners();
+
+    _testDriveTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_testDriveRemainingSeconds > 1) {
+        _testDriveRemainingSeconds--;
+        notifyListeners();
+      } else {
+        cancelThemeTestDrive(callExpiredCallback: true);
+      }
+    });
+  }
+
+  void cancelThemeTestDrive({bool callExpiredCallback = false}) {
+    _testDriveTimer?.cancel();
+    _testDriveTimer = null;
+    final hadTrial = _testDriveThemeId != null;
+    _testDriveThemeId = null;
+    _testDriveRemainingSeconds = 0;
+    notifyListeners();
+
+    if (callExpiredCallback && hadTrial) {
+      _onTestDriveExpired?.call();
+    }
+    _onTestDriveExpired = null;
+  }
+
  // THEME MANAGEMENT
- String get currentThemeId => _storage.getCurrentThemeId();
+ String get currentThemeId => _testDriveThemeId ?? _storage.getCurrentThemeId();
  bool get isDarkMode => _storage.getIsDarkMode();
  AppThemeModel get currentTheme => AppThemePresets.getById(currentThemeId, isDark: isDarkMode);
  List<String> get unlockedThemes => _storage.getUnlockedThemes();
@@ -729,6 +864,63 @@ class ExpenseController extends ChangeNotifier {
   notifyListeners();
  }
 
+ /// Finds or automatically creates an account matching the given bank code or bank name
+ AccountItem getOrCreateAccountForBank(String bankCode, {String? bankName}) {
+   final code = bankCode.toUpperCase().trim();
+   if (code.isEmpty || code == 'CASH') {
+     return _accounts.firstWhere(
+       (a) => a.bankCode == 'CASH' || a.id == 'acc_cash',
+       orElse: () => _accounts.isNotEmpty
+           ? _accounts.first
+           : AccountItem(
+               id: 'acc_cash',
+               name: 'เงินสด (Cash)',
+               bankCode: 'CASH',
+               accountNumber: 'CASH-WALLET',
+               balance: 0.0,
+               colorValue: 0xFF10B981,
+               type: AccountType.cash,
+               isDefault: true,
+             ),
+     );
+   }
+
+   // 1. Check existing account by exact bankCode
+   final existingIdx = _accounts.indexWhere((a) => a.bankCode.toUpperCase() == code);
+   if (existingIdx != -1) {
+     return _accounts[existingIdx];
+   }
+
+   // 2. Check by name or partial match
+   final byNameIdx = _accounts.indexWhere(
+     (a) => (bankName != null && bankName.isNotEmpty && a.name.toLowerCase().contains(bankName.toLowerCase())) ||
+            a.name.toUpperCase().contains(code),
+   );
+   if (byNameIdx != -1) {
+     return _accounts[byNameIdx];
+   }
+
+   // 3. Auto-create account for this bank
+   final meta = ThaiBankDetector.getBankByCode(code);
+   final isEWallet = (code == 'TRUEMONEY' || code == 'SHOPEEPAY' || code == 'RABBITLINEPAY' || code == 'PAOTANG' || code == 'AIRPAY' || code == 'BLUECONNECT');
+   final newAcc = AccountItem(
+     id: 'acc_${code.toLowerCase()}',
+     name: meta.nameTh,
+     bankCode: code,
+     accountNumber: 'xxx-x-xxxxx-x',
+     balance: 0.00,
+     colorValue: meta.brandColor.value,
+     type: isEWallet ? AccountType.eWallet : AccountType.bank,
+     allowAutoDeduction: true,
+     isDefault: false,
+   );
+
+   _accounts.add(newAcc);
+   _storage.saveAccounts(_accounts);
+   notifyListeners();
+   return newAcc;
+ }
+
  // CATEGORY MANAGEMENT (Add / Edit / Delete / Reorder / Reset)
  Future<void> addCategory(CategoryItem cat) async {
   _categories.add(cat);
@@ -888,12 +1080,13 @@ class ExpenseController extends ChangeNotifier {
   }
 
   // TRANSACTION ACTIONS
-  Future<void> addTransaction(TransactionItem item) async {
-    // Duplicate & Deleted Protection Guard
-    if (item.slipImageUrl != null || (item.slipRefId != null && !item.slipRefId!.startsWith('SLIP-'))) {
+  Future<bool> addTransaction(TransactionItem item, {bool isRestore = false}) async {
+    // Duplicate & Deleted Protection Guard (Bypass if restoring an undo transaction)
+    if (!isRestore && (item.slipImageUrl != null || (item.slipRefId != null && !item.slipRefId!.startsWith('SLIP-') && !item.slipRefId!.startsWith('NO-QR-')))) {
       final isDup = DuplicateSlipChecker.isDuplicate(
         existingTransactions: _transactions,
         deletedSlipIdentifiers: _storage.getDeletedSlips(),
+        importedSlipIdentifiers: _storage.getImportedSlipIdentifiers(),
         filePath: item.slipImageUrl,
         fileName: item.slipImageUrl != null ? DuplicateSlipChecker.extractBasename(item.slipImageUrl) : null,
         refId: item.slipRefId,
@@ -902,7 +1095,7 @@ class ExpenseController extends ChangeNotifier {
         bankName: item.bankName,
       );
       if (isDup) {
-        return;
+        return false;
       }
     }
 
@@ -930,6 +1123,7 @@ class ExpenseController extends ChangeNotifier {
   await _checkAndUpdateStreakOnNewTransaction(item.date);
   await syncAndroidWidget();
   notifyListeners();
+  return true;
  }
 
   /// Updates an existing transaction in-place without triggering slip blacklisting
@@ -973,6 +1167,11 @@ class ExpenseController extends ChangeNotifier {
 
   /// Restores a previously deleted transaction and removes its slip from the blacklist
   Future<void> restoreTransaction(TransactionItem item) async {
+    // Avoid double-restoring if item is already present
+    if (_transactions.any((t) => t.id == item.id)) {
+      return;
+    }
+
     // Remove from blacklist so user can keep it
     final identifiers = <String>[];
     if (item.slipImageUrl != null && item.slipImageUrl!.isNotEmpty) {
@@ -989,7 +1188,7 @@ class ExpenseController extends ChangeNotifier {
     }
     await _storage.removeDeletedSlipIdentifiers(identifiers);
 
-    await addTransaction(item);
+    await addTransaction(item, isRestore: true);
   }
 
   Future<void> deleteTransaction(String id, {bool recordToDeletedBlacklist = true}) async {
@@ -1183,13 +1382,14 @@ class ExpenseController extends ChangeNotifier {
  }
 
  // OCR & NLP
- SlipExtractResult parseSlip(String rawText, {String? defaultBankCode, String? fileName, String? filePath}) {
+ SlipExtractResult parseSlip(String rawText, {String? defaultBankCode, String? fileName, String? filePath, String? qrPayload}) {
   return _ocrEngine.parseSlipText(
    rawText,
    _categories,
    defaultBankCode: defaultBankCode,
    fileName: fileName,
    filePath: filePath,
+   qrPayload: qrPayload,
   );
  }
 
