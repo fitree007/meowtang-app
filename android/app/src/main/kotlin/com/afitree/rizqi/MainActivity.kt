@@ -19,6 +19,11 @@ import android.provider.Settings
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.graphics.BitmapFactory
+import androidx.core.app.NotificationCompat
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
@@ -297,6 +302,22 @@ class MainActivity : FlutterActivity() {
                         val savedPath = compressAndSaveSlipInternal(filePath, customName)
                         result.success(savedPath)
                     }
+                }
+                "showScanProgressNotification" -> {
+                    val title = call.argument<String>("title") ?: "เหมียวตังค์: กำลังดึงสลิป..."
+                    val message = call.argument<String>("message") ?: "ระบบกำลังประมวลผลสลิปในเครื่อง"
+                    showScanProgressNotification(title, message)
+                    result.success(true)
+                }
+                "showScanCompletedNotification" -> {
+                    val title = call.argument<String>("title") ?: "เหมียวตังค์: ดึงสลิปสำเร็จแล้ว!"
+                    val message = call.argument<String>("message") ?: "ประมวลผลสลิปเรียบร้อยแล้ว"
+                    showScanCompletedNotification(title, message)
+                    result.success(true)
+                }
+                "cancelScanProgressNotification" -> {
+                    cancelScanProgressNotification()
+                    result.success(true)
                 }
                 else -> {
                     result.notImplemented()
@@ -1257,6 +1278,86 @@ class MainActivity : FlutterActivity() {
             e.printStackTrace()
             null
         }
+    }
+
+    private val SCAN_NOTIFICATION_ID = 2001
+    private val SCAN_COMPLETED_NOTIFICATION_ID = 2002
+    private val SCAN_CHANNEL_ID = "meow_slip_sync_channel"
+
+    private fun ensureScanNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val channel = NotificationChannel(
+                SCAN_CHANNEL_ID,
+                "สถานะการดึงสลิป (Slip Scan Status)",
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "แจ้งเตือนสถานะการค้นหาและประมวลผลสลิปในเครื่อง"
+                setShowBadge(false)
+            }
+            manager.createNotificationChannel(channel)
+        }
+    }
+
+    private fun showScanProgressNotification(title: String, message: String) {
+        ensureScanNotificationChannel()
+        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            2001,
+            launchIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val notification = NotificationCompat.Builder(this, SCAN_CHANNEL_ID)
+            .setContentTitle(title)
+            .setContentText(message)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setLargeIcon(BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher))
+            .setContentIntent(pendingIntent)
+            .setOngoing(true)
+            .setProgress(0, 0, true)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .build()
+
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.notify(SCAN_NOTIFICATION_ID, notification)
+    }
+
+    private fun showScanCompletedNotification(title: String, message: String) {
+        ensureScanNotificationChannel()
+        cancelScanProgressNotification()
+
+        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            2002,
+            launchIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val notification = NotificationCompat.Builder(this, SCAN_CHANNEL_ID)
+            .setContentTitle(title)
+            .setContentText(message)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setLargeIcon(BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher))
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .build()
+
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.notify(SCAN_COMPLETED_NOTIFICATION_ID, notification)
+    }
+
+    private fun cancelScanProgressNotification() {
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.cancel(SCAN_NOTIFICATION_ID)
     }
 
     override fun onDestroy() {

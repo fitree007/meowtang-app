@@ -298,4 +298,46 @@ class NativeBridgeService {
       return null;
     }
   }
+
+  /// Displays ongoing notification indicating background slip scanning progress
+  static Future<bool> showScanProgressNotification({
+    required String title,
+    required String message,
+  }) async {
+    try {
+      final res = await _channel.invokeMethod('showScanProgressNotification', {
+        'title': title,
+        'message': message,
+      });
+      return res == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Displays completed notification indicating slips have been imported successfully
+  static Future<bool> showScanCompletedNotification({
+    required String title,
+    required String message,
+  }) async {
+    try {
+      final res = await _channel.invokeMethod('showScanCompletedNotification', {
+        'title': title,
+        'message': message,
+      });
+      return res == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Cancels the ongoing scan progress notification
+  static Future<bool> cancelScanProgressNotification() async {
+    try {
+      final res = await _channel.invokeMethod('cancelScanProgressNotification');
+      return res == true;
+    } catch (_) {
+      return false;
+    }
+  }
 }

@@ -140,10 +140,15 @@ class SlipAutoSyncService {
     }
 
     final isCreator = AppConfig.isCreatorEdition;
+    final isInitialScan = !controller.storage.isInitialDeviceScanCompleted();
     final now = DateTime.now();
     final startOfPreviousMonth = getStartOfPreviousMonth(now);
-    // In Creator Edition: scan ALL historical slips on device without cutoff (daysLimit = 0)
-    final daysToScan = isCreator ? 0 : (now.difference(startOfPreviousMonth).inDays + 2);
+    // 12-Month Cutoff for Initial Device Scan: exactly 12 calendar months backwards
+    final twelveMonthsAgo = DateTime(now.year - 1, now.month, 1);
+    final cutoffDate = isCreator ? DateTime(2000) : (isInitialScan ? twelveMonthsAgo : startOfPreviousMonth);
+
+    // In Creator Edition: 0 (all). In Initial Scan: 370 days (12 months). In Ongoing Scans: 2 months.
+    final daysToScan = isCreator ? 0 : (isInitialScan ? 370 : (now.difference(startOfPreviousMonth).inDays + 2));
 
     final slipFiles = await NativeBridgeService.scanBankSlips(daysLimit: daysToScan);
     final allSlips = List<Map<String, dynamic>>.from(slipFiles);
@@ -166,8 +171,8 @@ class SlipAutoSyncService {
               final ext = path.split('.').last.toLowerCase();
               if (['jpg', 'jpeg', 'png', 'webp'].contains(ext)) {
                 final stat = entity.statSync();
-                // Filter: strictly current month and previous month only (unless Creator Edition)
-                if (!isCreator && stat.modified.isBefore(startOfPreviousMonth)) {
+                // Filter: cutoffDate (12 months for initial scan, 2 months for ongoing scans)
+                if (!isCreator && stat.modified.isBefore(cutoffDate)) {
                   continue;
                 }
                 if (stat.size > 1024) {
@@ -205,13 +210,20 @@ class SlipAutoSyncService {
       } catch (_) {}
     }
 
-    final isInitialScan = !controller.storage.isInitialDeviceScanCompleted();
-
     if (allSlips.isEmpty) {
       if (isInitialScan) {
         await controller.storage.setInitialDeviceScanCompleted(true);
+        await NativeBridgeService.cancelScanProgressNotification();
       }
       return [];
+    }
+
+    // Background notification for initial 12-month scan
+    if (isInitialScan) {
+      NativeBridgeService.showScanProgressNotification(
+        title: 'เหมียวตังค์: กำลังดึงและอ่านสลิปในเครื่อง... 🔄',
+        message: 'ระบบกำลังค้นหาและอ่านสลิปย้อนหลัง 12 เดือนในเครื่องอัตโนมัติ',
+      );
     }
 
     final importedSlips = <TransactionItem>[];
@@ -223,8 +235,8 @@ class SlipAutoSyncService {
       final timestamp = slip['dateAdded'] as num? ?? DateTime.now().millisecondsSinceEpoch;
       final slipDate = DateTime.fromMillisecondsSinceEpoch(timestamp.toInt());
 
-      // Filter: strictly current month and previous month only (unless Creator Edition)
-      if (!isCreator && slipDate.isBefore(startOfPreviousMonth)) {
+      // Filter: cutoffDate (12 months for initial scan, 2 months for ongoing scans)
+      if (!isCreator && slipDate.isBefore(cutoffDate)) {
         continue;
       }
 
@@ -266,8 +278,8 @@ class SlipAutoSyncService {
         );
 
         if (item != null) {
-          // If extracted transaction date is before previous month, discard it (unless Creator Edition)
-          if (!isCreator && item.date.isBefore(startOfPreviousMonth)) {
+          // If extracted transaction date is before cutoff date, discard it (unless Creator Edition)
+          if (!isCreator && item.date.isBefore(cutoffDate)) {
             if (key.isNotEmpty) _processedKeys.add(key);
             continue;
           }
@@ -298,6 +310,13 @@ class SlipAutoSyncService {
     }
 
       if (isInitialScan) {
+        await NativeBridgeService.cancelScanProgressNotification();
+        if (importedSlips.isNotEmpty) {
+          await NativeBridgeService.showScanCompletedNotification(
+            title: 'เหมียวตังค์: ดึงสลิปสำเร็จแล้ว! 🎉',
+            message: 'บันทึกย้อนหลังเรียบร้อย ${importedSlips.length} รายการ (โควต้าเดือนนี้ยังเหลือเต็ม 0/10 สลิป)',
+          );
+        }
         await controller.storage.setInitialDeviceScanCompleted(true);
       }
 
