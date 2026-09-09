@@ -16,6 +16,8 @@ class AnalyticsCarouselChartCard extends StatefulWidget {
   final bool isEnglish;
   final List<CategoryItem> allCategories;
   final bool isProcessingSlips;
+  final bool hasNoTransactionsAtAll;
+  final VoidCallback? onTriggerScan;
 
   const AnalyticsCarouselChartCard({
     super.key,
@@ -28,6 +30,8 @@ class AnalyticsCarouselChartCard extends StatefulWidget {
     this.isEnglish = false,
     required this.allCategories,
     this.isProcessingSlips = false,
+    this.hasNoTransactionsAtAll = false,
+    this.onTriggerScan,
   });
 
   @override
@@ -107,7 +111,10 @@ class _AnalyticsCarouselChartCardState extends State<AnalyticsCarouselChartCard>
     final borderColor = widget.isDark ? MeowTheme.borderColor : const Color(0xFFE2E8F0);
     final textPrimary = widget.isDark ? Colors.white : const Color(0xFF0F172A);
 
-    if (widget.isProcessingSlips && (widget.transactions.isEmpty || widget.totalAmount <= 0)) {
+    final bool showProcessingCard = widget.isProcessingSlips ||
+        (widget.hasNoTransactionsAtAll && (widget.transactions.isEmpty || widget.totalAmount <= 0));
+
+    if (showProcessingCard) {
       return Container(
         margin: const EdgeInsets.only(bottom: 16),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
@@ -171,6 +178,25 @@ class _AnalyticsCarouselChartCardState extends State<AnalyticsCarouselChartCard>
               ),
               textAlign: TextAlign.center,
             ),
+            if (widget.onTriggerScan != null && !widget.isProcessingSlips) ...[
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: widget.onTriggerScan,
+                icon: const Icon(Icons.sync_rounded, size: 16),
+                label: Text(
+                  widget.isEnglish ? 'Scan Slips Now' : 'ค้นหาและอ่านสลิปในเครื่อง',
+                  style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: widget.isDark ? const Color(0xFF38BDF8) : const Color(0xFF2563EB),
+                  side: BorderSide(
+                    color: widget.isDark ? const Color(0xFF38BDF8).withValues(alpha: 0.5) : const Color(0xFF2563EB).withValues(alpha: 0.5),
+                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                ),
+              ),
+            ],
           ],
         ),
       );

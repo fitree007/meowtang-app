@@ -19,6 +19,7 @@ import 'budget_management_screen.dart';
 import 'compare_analytics_screen.dart';
 import '../widgets/transaction_detail_sheet.dart';
 import '../widgets/slip_image_viewer_dialog.dart';
+import '../services/slip_auto_sync_service.dart';
 
 enum AnalyticsMainTab {
  overview,
@@ -92,13 +93,32 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> with SingleTi
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
  ];
 
- @override
- void initState() {
-  super.initState();
-  if (widget.controller.expenseCategories.isNotEmpty) {
-   _selectedDrillCategoryId = widget.controller.expenseCategories.first.id;
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_onControllerUpdate);
+    if (widget.controller.expenseCategories.isNotEmpty) {
+      _selectedDrillCategoryId = widget.controller.expenseCategories.first.id;
+    }
+    // Auto-trigger slip scan if app has no transactions yet and is not currently scanning
+    if (widget.controller.allTransactions.isEmpty && !widget.controller.isProcessingSlips) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          SlipAutoSyncService.scanAndAutoImportNewSlips(widget.controller);
+        }
+      });
+    }
   }
- }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_onControllerUpdate);
+    super.dispose();
+  }
+
+  void _onControllerUpdate() {
+    if (mounted) setState(() {});
+  }
 
  String _formatPeriodTitle() {
   final d = _currentAnchorDate;
@@ -836,6 +856,10 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> with SingleTi
    isEnglish: widget.controller.isEnglish,
    allCategories: widget.controller.categories,
    isProcessingSlips: widget.controller.isProcessingSlips,
+   hasNoTransactionsAtAll: widget.controller.allTransactions.isEmpty,
+   onTriggerScan: () {
+     SlipAutoSyncService.scanAndAutoImportNewSlips(widget.controller);
+   },
   );
  }
 
