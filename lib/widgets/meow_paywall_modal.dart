@@ -134,9 +134,9 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
                   Center(
                     child: Text(
                       isEn
-                          ? 'Unlock unlimited slips, export reports & all themes'
-                          : 'สแกนสลิปไม่จำกัด, ส่งออกรายงาน และปลดล็อคทุกธีม',
-                      style: TextStyle(fontSize: 13, color: subColor),
+                          ? 'Save 10+ hours a month on bookkeeping • Less than 1฿ per day!'
+                          : 'ประหยัดเวลาทำบัญชีได้กว่า 10 ชม./เดือน เพียงวันละไม่ถึง 1 บาท! ✨',
+                      style: TextStyle(fontSize: 13, color: subColor, fontWeight: FontWeight.w500),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -170,86 +170,111 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
                     ),
                   ],
 
-                  // Rewarded Ad Option: +2 slips for this calendar month
+                  // Rewarded Ad Option: +2 slips for this calendar month (max 10 ads/mo, 0/10 reset every month)
                   if (!widget.controller.isPremium) ...[
                     const SizedBox(height: 14),
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: isDark
-                              ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
-                              : [const Color(0xFFEFF6FF), const Color(0xFFDBEAFE)],
-                        ),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: const Color(0xFF3B82F6).withValues(alpha: 0.4),
-                          width: 1.2,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF2563EB).withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(12),
+                    Builder(
+                      builder: (context) {
+                        final adWatches = widget.controller.currentMonthAdWatchesCount;
+                        final maxAds = widget.controller.maxMonthlyRewardedAds;
+                        final canWatch = widget.controller.canWatchRewardedAd;
+                        return Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: isDark
+                                  ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
+                                  : [const Color(0xFFEFF6FF), const Color(0xFFDBEAFE)],
                             ),
-                            child: const Icon(Icons.play_circle_fill_rounded, color: Color(0xFF2563EB), size: 26),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: const Color(0xFF3B82F6).withValues(alpha: 0.4),
+                              width: 1.2,
+                            ),
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  isEn ? 'Watch Ad to Get +2 Free Slips' : 'ดูโฆษณาเพื่อรับเพิ่ม +2 สลิป 🎬',
-                                  style: TextStyle(
-                                    color: textColor,
-                                    fontSize: 13.5,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF2563EB).withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  isEn
-                                      ? 'Bonus valid for this month only (${widget.controller.currentMonthSlipCount}/${widget.controller.maxFreeSlipsPerMonth} used)'
-                                      : 'สิทธิ์ใช้ได้เฉพาะเดือนนี้ (${widget.controller.currentMonthSlipCount}/${widget.controller.maxFreeSlipsPerMonth} สลิป)',
-                                  style: TextStyle(
-                                    color: subColor,
-                                    fontSize: 11,
-                                  ),
+                                child: const Icon(Icons.play_circle_fill_rounded, color: Color(0xFF2563EB), size: 26),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      isEn ? 'Watch Ad to Get +2 Slips ($adWatches/$maxAds)' : 'ดูโฆษณาเพื่อรับเพิ่ม +2 สลิป 🎬 ($adWatches/$maxAds)',
+                                      style: TextStyle(
+                                        color: textColor,
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      canWatch
+                                          ? (isEn
+                                              ? 'Used $adWatches/$maxAds ad watches this month • Resets 1st of month'
+                                              : 'ดูไปแล้ว $adWatches/$maxAds ครั้งเดือนนี้ • รีเซ็ตทุกวันที่ 1 (ไม่สะสมข้ามเดือน)')
+                                          : (isEn
+                                              ? 'Monthly ad quota reached ($maxAds/$maxAds) • Resets next month'
+                                              : 'ครบโควต้าดูโฆษณาเดือนนี้แล้ว ($maxAds/$maxAds) • รอรีเซ็ตเดือนถัดไป'),
+                                      style: TextStyle(
+                                        color: canWatch ? subColor : const Color(0xFFEF4444),
+                                        fontSize: 10.5,
+                                        fontWeight: canWatch ? FontWeight.normal : FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
+                              ),
+                              ElevatedButton(
+                                onPressed: (_isProcessing || !canWatch) ? null : _handleWatchAd,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF2563EB),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  elevation: 1,
+                                ),
+                                child: Text(
+                                  canWatch ? (isEn ? 'Watch' : 'ชมคลิป') : (isEn ? 'Full' : 'ครบแล้ว'),
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ],
                           ),
-                          ElevatedButton(
-                            onPressed: _isProcessing ? null : _handleWatchAd,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF2563EB),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              elevation: 1,
-                            ),
-                            child: Text(
-                              isEn ? 'Watch' : 'ชมคลิป',
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ],
-                      ),
+                        );
+                      },
                     ),
                   ],
 
                   const SizedBox(height: 18),
 
-                  // 2. Value Features List
+                  // 2. WOW Value Features List
                   _buildFeatureRow(
                     icon: Icons.qr_code_scanner_rounded,
                     color: const Color(0xFF10B981),
-                    title: isEn ? 'Unlimited Slip Auto-Scanning' : 'ดึงสลิปอัตโนมัติไม่จำกัด',
-                    subtitle: isEn ? 'Free tier limited to ${AppConfig.freeSlipsPerMonth} slips/mo' : 'ผู้ใช้ฟรีจำกัด ${AppConfig.freeSlipsPerMonth} สลิป/เดือน',
+                    title: isEn ? 'Unlimited AI Slip Auto-Scanning' : '⚡ ดึงสลิปอัตโนมัติ 22 ธนาคาร ไม่อั้น',
+                    subtitle: isEn
+                        ? 'Zero manual typing! Instant AI detection on save, no monthly limits'
+                        : 'ไม่ต้องนั่งพิมพ์เอง! AI อ่านสลิปและลงบัญชีทันทีที่เซฟรูป สแกนไม่อั้น',
+                    textColor: textColor,
+                    subColor: subColor,
+                  ),
+                  const SizedBox(height: 10),
+                  _buildFeatureRow(
+                    icon: Icons.shield_rounded,
+                    color: const Color(0xFF059669),
+                    title: isEn ? '100% Offline Vault Security' : '🔒 ความปลอดภัยสูงสุด ออฟไลน์ 100%',
+                    subtitle: isEn
+                        ? 'Your data stays in your device only. Never on cloud, zero hack risk'
+                        : 'ข้อมูลอยู่ในเครื่องคุณคนเดียว ไม่ส่งขึ้น Cloud ไม่เชื่อมบัญชี ไม่ดูดเงิน',
                     textColor: textColor,
                     subColor: subColor,
                   ),
@@ -257,17 +282,10 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
                   _buildFeatureRow(
                     icon: Icons.picture_as_pdf_rounded,
                     color: const Color(0xFFEF4444),
-                    title: isEn ? 'Export PDF & Excel/CSV' : 'ส่งออกไฟล์ PDF Statement & Excel',
-                    subtitle: isEn ? 'Formal financial reports for work' : 'รายงานการเงินมาตรฐานพร้อมแชร์ทันที',
-                    textColor: textColor,
-                    subColor: subColor,
-                  ),
-                  const SizedBox(height: 10),
-                  _buildFeatureRow(
-                    icon: Icons.palette_rounded,
-                    color: const Color(0xFF8B5CF6),
-                    title: isEn ? 'Unlock All 18 Themes & Icons' : 'ปลดล็อคครบทั้ง 18 ธีมและไอคอนพิเศษ',
-                    subtitle: isEn ? 'Save 29฿ per theme purchase' : 'ประหยัด 29 บาทต่อธีม ใช้ได้ฟรีทุกตัว',
+                    title: isEn ? 'Instant A4 PDF & Excel Statement Reports' : '📄 ส่งออก Statement A4 PDF & Excel ทันที',
+                    subtitle: isEn
+                        ? 'Professional statement reports ready for taxes, loans, or business'
+                        : 'สร้างเล่มรายงานรายรับ-รายจ่ายสวยหรู พร้อมยื่นภาษี สมัครสินเชื่อ หรือร้านค้า',
                     textColor: textColor,
                     subColor: subColor,
                   ),
@@ -275,8 +293,21 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
                   _buildFeatureRow(
                     icon: Icons.auto_awesome_rounded,
                     color: const Color(0xFFF59E0B),
-                    title: isEn ? 'Live Exchange Rates & Research Budget' : 'เรททอง/เงินสด & งบวิจัยและโปรเจกต์',
-                    subtitle: isEn ? 'Full financial intelligence tools' : 'ศูนย์รวมเครื่องมือคำนวณขั้นสูงครบวงจร',
+                    title: isEn ? 'Live Currencies & Multi-Project Budgets' : '🌍 แปลงค่าเงินโลกสด & วางแผนงบแยกโปรเจกต์',
+                    subtitle: isEn
+                        ? 'Real-time exchange rates, project budgeting, and Islamic tools'
+                        : 'เรทเงินต่างประเทศเรียลไทม์, ตั้งงบรายโปรเจกต์, พร้อมซะกาต & มรดกอิสลามิก',
+                    textColor: textColor,
+                    subColor: subColor,
+                  ),
+                  const SizedBox(height: 10),
+                  _buildFeatureRow(
+                    icon: Icons.palette_rounded,
+                    color: const Color(0xFF8B5CF6),
+                    title: isEn ? 'Unlock All 18 Themes & Custom Photo' : '🎨 ปลดล็อค 18 ธีมพรีเมี่ยม & ใส่รูปตัวเองได้',
+                    subtitle: isEn
+                        ? 'Unlimited theme styling, custom mascot avatar, and cool sound effects'
+                        : 'เปลี่ยนสีสันธีมได้ไม่ซ้ำวัน พร้อมใส่รูปโปรไฟล์ตัวเองหรือรูปแมวตัวโปรดอิสระ',
                     textColor: textColor,
                     subColor: subColor,
                   ),
@@ -308,13 +339,13 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
                   ),
                   const SizedBox(height: 8),
 
-                  // Card 2: Yearly (199 THB/yr)
+                  // Card 2: Yearly (299 THB/yr)
                   _buildTierCard(
                     index: 1,
                     title: isEn ? 'Yearly Subscription' : 'รายปี',
                     price: '฿${AppConfig.yearlySubPriceThb}',
-                    period: isEn ? '/year' : '/ปี (ตกเดือนละ 16฿)',
-                    badge: isEn ? 'SAVE 57%' : 'ประหยัด 57% ⭐',
+                    period: isEn ? '/year (~25฿/mo)' : '/ปี (ตกเดือนละ ~25฿)',
+                    badge: isEn ? 'SAVE 36% ⭐' : 'ประหยัด 36% ⭐',
                     badgeColor: const Color(0xFF059669),
                     theme: theme,
                     textColor: textColor,

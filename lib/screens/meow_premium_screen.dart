@@ -128,7 +128,7 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                                   const SizedBox(width: 4),
                                   Text(
                                     isVip
-                                        ? (isEn ? 'PREMIUM SUITE • VIP UNLOCKED 👑' : 'ศูนย์รวมเครื่องมือพรีเมี่ยม • สิทธิ์ VIP ตลอดชีพ 👑')
+                                        ? (isEn ? 'PREMIUM SUITE • VIP UNLOCKED 👑' : 'ศูนย์รวมเครื่องมือพรีเมี่ยม • สิทธิ์ VIP พรีเมี่ยม 👑')
                                         : (isEn ? 'PREMIUM SUITE • VIP ONLY 🔒' : 'ศูนย์รวมเครื่องมือพรีเมี่ยม • สำหรับสมาชิก VIP 🔒'),
                                     style: const TextStyle(
                                       color: Colors.white,

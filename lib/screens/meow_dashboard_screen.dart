@@ -1313,6 +1313,34 @@ void _handleMascotPetting() {
                                               fontWeight: FontWeight.w600,
                                             ),
                                           ),
+                                          const SizedBox(width: 6),
+                                          // Small Privacy Eye Toggle Button
+                                          GestureDetector(
+                                            onTap: () {
+                                              HapticFeedback.selectionClick();
+                                              widget.controller.toggleHideBalance();
+                                            },
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: Colors.black.withValues(alpha: 0.18),
+                                                borderRadius: BorderRadius.circular(6),
+                                                border: Border.all(color: Colors.white.withValues(alpha: 0.25), width: 0.8),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(
+                                                    widget.controller.isHideBalance
+                                                        ? Icons.visibility_off_rounded
+                                                        : Icons.visibility_rounded,
+                                                    size: 13,
+                                                    color: Colors.white,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
                                           if (_monthlyIncome > 0 && (_monthlyIncome - _monthlyExpense) <= 0) ...[
                                             const SizedBox(width: 6),
                                             Container(
@@ -1349,7 +1377,9 @@ void _handleMascotPetting() {
                                         fit: BoxFit.scaleDown,
                                         alignment: Alignment.centerLeft,
                                         child: Text(
-                                          '${CurrencyFormat.format(_monthlyExpense)} ฿',
+                                          widget.controller.isHideBalance
+                                              ? '•••••• ฿'
+                                              : '${CurrencyFormat.format(_monthlyExpense)} ฿',
                                           style: TextStyle(
                                             color: _monthlyExpenseTextColor,
                                             fontSize: 28,
@@ -1380,7 +1410,9 @@ void _handleMascotPetting() {
                                             const Icon(Icons.arrow_downward, color: Color(0xFF34D399), size: 10),
                                             const SizedBox(width: 3),
                                             Text(
-                                              '${widget.controller.isEnglish ? "Income" : "รายรับเดือนนี้"}: ฿${CurrencyFormat.format(_monthlyIncome)}',
+                                              widget.controller.isHideBalance
+                                                  ? '${widget.controller.isEnglish ? "Income" : "รายรับเดือนนี้"}: •••••• ฿'
+                                                  : '${widget.controller.isEnglish ? "Income" : "รายรับเดือนนี้"}: ฿${CurrencyFormat.format(_monthlyIncome)}',
                                               style: const TextStyle(
                                                 color: Colors.white,
                                                 fontSize: 10.5,

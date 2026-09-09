@@ -29,10 +29,11 @@ void main() {
       expect(AppConfig.welcomeBonusSlips, 100);
       expect(AppConfig.freeSlipsPerMonth, 10);
       expect(AppConfig.rewardedAdBonusSlips, 2);
+      expect(AppConfig.maxMonthlyRewardedAds, 10);
       expect(AppConfig.themePriceThb, 29);
       expect(AppConfig.iconPriceThb, 10);
       expect(AppConfig.monthlySubPriceThb, 39);
-      expect(AppConfig.yearlySubPriceThb, 199);
+      expect(AppConfig.yearlySubPriceThb, 299);
       expect(AppConfig.lifetimePriceThb, 390);
       expect(AppConfig.themeTrialSeconds, 30);
     });
@@ -254,6 +255,49 @@ void main() {
       expect(controller.getYearlyExpense(2027), 0.0);
       // 2026 remains unchanged
       expect(controller.getYearlyIncome(2026), 35000.0);
+    });
+
+    test('12. Rewarded Ads are capped at 10 times/month and reset to 0/10 with zero rollover next month', () async {
+      expect(controller.currentMonthAdWatchesCount, 0);
+      expect(controller.canWatchRewardedAd, isTrue);
+
+      // Watch 10 ads
+      for (int i = 1; i <= 10; i++) {
+        expect(controller.canWatchRewardedAd, isTrue);
+        await controller.watchRewardedAdForBonusSlips();
+        expect(controller.currentMonthAdWatchesCount, i);
+      }
+
+      // 10th ad reached: canWatchRewardedAd must become false
+      expect(controller.currentMonthAdWatchesCount, 10);
+      expect(controller.canWatchRewardedAd, isFalse);
+
+      // Attempting to watch an 11th ad has no effect
+      await controller.watchRewardedAdForBonusSlips();
+      expect(controller.currentMonthAdWatchesCount, 10);
+
+      // Bonus slips accumulated: 10 ads * 2 slips = 20 bonus slips
+      // Total max free slips for this month = 10 (base) + 20 (bonus) = 30
+      expect(controller.maxFreeSlipsPerMonth, 30);
+
+      // Next month key check (Zero Rollover):
+      // The storage queries a new month key (e.g. '2026-10') which has 0 ad watches and 0 bonus slips
+      const nextMonthKey = '2099-01';
+      expect(storage.getMonthlyAdWatchCount(nextMonthKey), 0);
+      expect(storage.getAdBonusSlipsForMonth(nextMonthKey), 0);
+      expect(storage.getSlipQuotaCountForMonth(nextMonthKey), 0);
+    });
+
+    test('13. Privacy eye toggles hide balance and persists correctly', () async {
+      expect(controller.isHideBalance, isFalse);
+
+      await controller.toggleHideBalance();
+      expect(controller.isHideBalance, isTrue);
+      expect(storage.isHideBalance(), isTrue);
+
+      await controller.toggleHideBalance();
+      expect(controller.isHideBalance, isFalse);
+      expect(storage.isHideBalance(), isFalse);
     });
   });
 }

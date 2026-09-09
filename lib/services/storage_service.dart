@@ -1117,6 +1117,28 @@ class StorageService {
     return updated;
   }
 
+  // REWARDED AD WATCH COUNT (Max 10 per calendar month, resets to 0/10 every month, zero rollover)
+  int getMonthlyAdWatchCount(String monthKey) {
+    return _prefs.getInt('meow_ad_watch_count_v1_$monthKey') ?? 0;
+  }
+
+  Future<int> incrementMonthlyAdWatchCount(String monthKey) async {
+    final current = getMonthlyAdWatchCount(monthKey);
+    final updated = current + 1;
+    await _prefs.setInt('meow_ad_watch_count_v1_$monthKey', updated);
+    return updated;
+  }
+
+  // PRIVACY EYE (Hide/Show Balances in Overview)
+  static const String _keyHideBalance = 'meow_privacy_hide_balance_v1';
+  bool isHideBalance() {
+    return _prefs.getBool(_keyHideBalance) ?? false;
+  }
+
+  Future<void> setHideBalance(bool hide) async {
+    await _prefs.setBool(_keyHideBalance, hide);
+  }
+
   // WELCOME BONUS SLIPS (100 free slips for first-time install)
   int getWelcomeBonusSlipsRemaining() {
     return _prefs.getInt(_keyWelcomeBonusSlips) ?? AppConfig.welcomeBonusSlips;

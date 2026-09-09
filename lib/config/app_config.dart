@@ -28,11 +28,14 @@ class AppConfig {
   /// Bonus slips granted per Rewarded Video Ad watched (valid for that month only)
   static const int rewardedAdBonusSlips = 2;
 
+  /// Maximum rewarded video ads a user can watch per calendar month (resets every month)
+  static const int maxMonthlyRewardedAds = 10;
+
   /// Pricing display constants (in Thai Baht)
   static const int themePriceThb = 29;
   static const int iconPriceThb = 10;
   static const int monthlySubPriceThb = 39;
-  static const int yearlySubPriceThb = 199;
+  static const int yearlySubPriceThb = 299;
   static const int lifetimePriceThb = 390;
 
   /// 30-Second theme trial duration

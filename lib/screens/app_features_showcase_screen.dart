@@ -57,9 +57,23 @@ class AppFeaturesShowcaseScreen extends StatelessWidget {
           badgeText: 'Voice AI',
         ),
         const FeatureHighlightItem(
+          icon: Icons.track_changes_rounded,
+          title: 'Financial Planning & Budgets',
+          description: 'Set monthly budget limits, manage project finances, track saving goals, and visualize gauge meters.',
+          color: Color(0xFF10B981),
+          badgeText: 'Smart Budget',
+        ),
+        const FeatureHighlightItem(
+          icon: Icons.currency_exchange_rounded,
+          title: 'Live Global Currency Converter',
+          description: 'Instant multi-currency exchange conversion with real-time exchange rates and gold price tracker.',
+          color: Color(0xFF06B6D4),
+          badgeText: 'Live Rates',
+        ),
+        const FeatureHighlightItem(
           icon: Icons.widgets_rounded,
-          title: 'Home Screen Widget',
-          description: 'One-tap voice shortcut widget on your home screen to record transactions without opening the app.',
+          title: 'Home Screen Widget & Privacy Eye',
+          description: 'One-tap voice shortcut widget on your home screen and privacy eye button to hide balances in public.',
           color: Color(0xFF8B5CF6),
           badgeText: 'Shortcut',
         ),
@@ -79,17 +93,10 @@ class AppFeaturesShowcaseScreen extends StatelessWidget {
         ),
         const FeatureHighlightItem(
           icon: Icons.auto_awesome_rounded,
-          title: 'Financial & Islamic Tools',
-          description: 'Gold rate tracker, Zakat calculator, Qirat, and Barakat donation logs for holistic wealth planning.',
+          title: 'Zakat & Islamic Inheritance Suite',
+          description: 'Dedicated Zakat calculator, Faraid inheritance distribution calculator, and Barakat charity logs.',
           color: Color(0xFFF59E0B),
           badgeText: 'Islamic Suite',
-        ),
-        const FeatureHighlightItem(
-          icon: Icons.visibility_off_rounded,
-          title: 'Privacy Eye & Built-in Calculator',
-          description: 'One-tap privacy eye to hide balances in public, built-in keypad calculator, and interactive mascot.',
-          color: Color(0xFF10B981),
-          badgeText: 'Smart Extras',
         ),
       ];
     }
@@ -117,11 +124,25 @@ class AppFeaturesShowcaseScreen extends StatelessWidget {
         badgeText: 'จดด้วยเสียง',
       ),
       const FeatureHighlightItem(
+        icon: Icons.track_changes_rounded,
+        title: 'วางแผนการเงิน & ตั้งงบประมาณ',
+        description: 'กำหนดงบรายจ่าย แยกโปรเจกต์งาน ตั้งเป้าหมายเงินออม พร้อมหลอดวัดความคุ้มครองการใช้เงิน',
+        color: Color(0xFF10B981),
+        badgeText: 'Financial Plan',
+      ),
+      const FeatureHighlightItem(
+        icon: Icons.currency_exchange_rounded,
+        title: 'แปลงค่าเงินโลกสดอัตโนมัติ',
+        description: 'อัปเดตอัตราแลกเปลี่ยนเงินตราต่างประเทศและราคาทองคำแท่ง/รูปพรรณแบบเรียลไทม์ คำนวณข้ามสกุลเงินทันที',
+        color: Color(0xFF0284C7),
+        badgeText: 'Live Rates',
+      ),
+      const FeatureHighlightItem(
         icon: Icons.widgets_rounded,
-        title: 'วิดเจ็ตทางลัดหน้าจอโฮม',
-        description: 'แตะไอคอนบนหน้าจอโทรศัพท์เพื่อกดพูดบันทึกเสียงได้ทันที สะดวก รวดเร็ว ไม่ต้องเปิดแอพ',
+        title: 'วิดเจ็ตหน้าจอโฮม & ปุ่มตาซ่อนยอด',
+        description: 'แตะไอคอนหน้าจอเพื่อบันทึกเสียงทันที และกดปุ่มตาบนการ์ดเพื่อซ่อนยอดเงินเมื่ออยู่ในที่สาธารณะ',
         color: Color(0xFF8B5CF6),
-        badgeText: 'Home Widget',
+        badgeText: 'ลูกเล่นฉลาด',
       ),
       const FeatureHighlightItem(
         icon: Icons.file_download_rounded,
@@ -139,17 +160,10 @@ class AppFeaturesShowcaseScreen extends StatelessWidget {
       ),
       const FeatureHighlightItem(
         icon: Icons.auto_awesome_rounded,
-        title: 'เครื่องมือการเงิน & อิสลามิก',
-        description: 'คำนวณซะกาต, ราคาทองคำแท่ง/รูปพรรณ, กีร็อต และบันทึกเงินบริจาค/ริสกีบารอกัต ครบครัน',
+        title: 'ซะกาต & คำนวณมรดกอิสลามิก',
+        description: 'คำนวณซะกาตทองคำ/เงินออม, คำนวณแบ่งกองมรดกตามหลักการอิสลามิก (ฟะรออิด), กีร็อต และบันทึกริสกีบารอกัต',
         color: Color(0xFFF59E0B),
         badgeText: 'Islamic Suite',
-      ),
-      const FeatureHighlightItem(
-        icon: Icons.visibility_off_rounded,
-        title: 'ปุ่มตาซ่อนยอดเงิน & เครื่องคิดเลขในตัว',
-        description: 'กดเปิด-ปิดตาซ่อนยอดเงินเมื่ออยู่ในที่สาธารณะ แป้นพิมพ์คำนวณเลขในตัว และมาสคอตแมวขยิบตาโต้ตอบได้',
-        color: Color(0xFF10B981),
-        badgeText: 'ลูกเล่นอัจฉริยะ',
       ),
     ];
   }

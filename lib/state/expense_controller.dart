@@ -498,10 +498,24 @@ class ExpenseController extends ChangeNotifier {
   int get welcomeBonusTotal => 0;
   bool get hasWelcomeBonus => false;
 
+  // PRIVACY EYE: Hide or show balance amounts in Overview & Dashboard
+  bool get isHideBalance => _storage.isHideBalance();
+  Future<void> toggleHideBalance() async {
+    await _storage.setHideBalance(!isHideBalance);
+    notifyListeners();
+  }
+
+  // REWARDED AD BONUS SLIPS (Max 10 per month, resets to 0/10 every month, zero rollover)
+  int get maxMonthlyRewardedAds => AppConfig.maxMonthlyRewardedAds;
+  int get currentMonthAdWatchesCount => _storage.getMonthlyAdWatchCount(currentMonthKey);
+  bool get canWatchRewardedAd => !isPremium && (currentMonthAdWatchesCount < maxMonthlyRewardedAds);
+
   bool get canImportMoreSlips =>
       isPremium || (currentMonthSlipCount < maxFreeSlipsPerMonth);
 
   Future<int> watchRewardedAdForBonusSlips() async {
+    if (!canWatchRewardedAd) return currentMonthAdBonusSlips;
+    await _storage.incrementMonthlyAdWatchCount(currentMonthKey);
     final updated = await _storage.addAdBonusSlipsForMonth(
       currentMonthKey,
       AppConfig.rewardedAdBonusSlips,

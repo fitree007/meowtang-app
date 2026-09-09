@@ -444,19 +444,21 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> with SingleTi
          ),
         ],
        ),
-       const SizedBox(height: 6),
-       // 3 Main Segmented Tabs
+       const SizedBox(height: 8),
+       // 3 Main Segmented Tabs (High Contrast, Clear Visibility)
        Container(
-        height: 38,
+        height: 44,
+        padding: const EdgeInsets.all(3),
         decoration: BoxDecoration(
-         color: Colors.black.withValues(alpha: 0.15),
-         borderRadius: BorderRadius.circular(12),
+         color: Colors.black.withValues(alpha: 0.22),
+         borderRadius: BorderRadius.circular(13),
+         border: Border.all(color: Colors.white.withValues(alpha: 0.22), width: 1),
         ),
         child: Row(
          children: [
-          _buildMainTabButton(AnalyticsMainTab.overview, isEn ? 'Overview' : 'ภาพรวม'),
-          _buildMainTabButton(AnalyticsMainTab.categoryTags, isEn ? 'Categories & #Tags' : 'หมวดหมู่ & #แท็ก'),
-          _buildMainTabButton(AnalyticsMainTab.comparison, isEn ? '2-Month Compare' : 'เทียบ 2 เดือน'),
+          _buildMainTabButton(AnalyticsMainTab.overview, isEn ? 'Overview' : 'ภาพรวม', Icons.pie_chart_rounded),
+          _buildMainTabButton(AnalyticsMainTab.categoryTags, isEn ? 'Categories' : 'หมวดหมู่ & #แท็ก', Icons.label_rounded),
+          _buildMainTabButton(AnalyticsMainTab.comparison, isEn ? 'Compare' : 'เทียบ 2 เดือน', Icons.compare_arrows_rounded),
          ],
         ),
        ),
@@ -468,30 +470,70 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> with SingleTi
   );
  }
 
- Widget _buildMainTabButton(AnalyticsMainTab tab, String label) {
+ Widget _buildMainTabButton(AnalyticsMainTab tab, String label, IconData icon) {
   final isSelected = _activeTab == tab;
+  final currentTheme = widget.controller.currentTheme;
+  final isDark = widget.controller.isDarkMode;
+
   return Expanded(
    child: GestureDetector(
     onTap: () {
      HapticFeedback.selectionClick();
      setState(() => _activeTab = tab);
     },
-    child: Container(
+    child: AnimatedContainer(
+     duration: const Duration(milliseconds: 200),
+     curve: Curves.easeInOut,
+     margin: const EdgeInsets.symmetric(horizontal: 2),
      decoration: BoxDecoration(
-      color: isSelected ? (widget.controller.isDarkMode ? MeowTheme.navyBackground : Colors.white) : Colors.transparent,
+      color: isSelected
+          ? (isDark ? const Color(0xFF1E293B) : Colors.white)
+          : Colors.transparent,
       borderRadius: BorderRadius.circular(10),
-      boxShadow: isSelected ? [
-       BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 4, offset: const Offset(0, 1))
-      ] : [],
+      border: isSelected
+          ? Border.all(
+              color: isDark ? const Color(0xFF38BDF8) : currentTheme.primaryColor.withValues(alpha: 0.35),
+              width: 1.2,
+            )
+          : null,
+      boxShadow: isSelected
+          ? [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.18),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ]
+          : [],
      ),
      alignment: Alignment.center,
-     child: Text(
-      label,
-      style: TextStyle(
-       color: isSelected ? (widget.controller.isDarkMode ? Colors.white : const Color(0xFF0F172A)) : Colors.white.withValues(alpha: 0.8),
-       fontSize: 12,
-       fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-      ),
+     padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 4),
+     child: Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+       Icon(
+        icon,
+        size: 14,
+        color: isSelected
+            ? (isDark ? const Color(0xFF38BDF8) : currentTheme.primaryDark)
+            : Colors.white.withValues(alpha: 0.9),
+       ),
+       const SizedBox(width: 4),
+       Flexible(
+        child: Text(
+         label,
+         maxLines: 1,
+         overflow: TextOverflow.ellipsis,
+         style: TextStyle(
+          color: isSelected
+              ? (isDark ? Colors.white : currentTheme.primaryDark)
+              : Colors.white.withValues(alpha: 0.95),
+          fontSize: 11.5,
+          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+         ),
+        ),
+       ),
+      ],
      ),
     ),
    ),
