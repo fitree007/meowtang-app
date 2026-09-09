@@ -1,6 +1,7 @@
 import '../widgets/bank_badge.dart';
 import 'app_features_showcase_screen.dart';
 import '../widgets/meow_paywall_modal.dart';
+import '../widgets/custom_photo_avatar_dialog.dart';
 import 'dart:io';
 import 'dart:async';
 import 'dart:ui';
@@ -1474,16 +1475,51 @@ void _handleMascotPetting() {
                           ],
                         ),
                       ),
-                      // Right: Mascot Cat
-                      MeowMascotWidget(
-                        size: 100,
-                        withPen: true,
-                        mascotId: widget.controller.selectedMascotId,
-                        accessory: widget.controller.selectedMascotAccessory,
-                        customPhotoPath: widget.controller.customAvatarPath,
-                        isCustomPhoto: widget.controller.isCustomAvatarEnabled,
-                        mood: widget.controller.mascotMood,
-                        onTap: _handleMascotPetting,
+                      // Right: Mascot Cat with visible Camera Badge
+                      Stack(
+                        alignment: Alignment.bottomRight,
+                        children: [
+                          MeowMascotWidget(
+                            size: 100,
+                            withPen: true,
+                            mascotId: widget.controller.selectedMascotId,
+                            accessory: widget.controller.selectedMascotAccessory,
+                            customPhotoPath: widget.controller.customAvatarPath,
+                            isCustomPhoto: widget.controller.isCustomAvatarEnabled,
+                            mood: widget.controller.mascotMood,
+                            onTap: _handleMascotPetting,
+                          ),
+                          Positioned(
+                            bottom: 6,
+                            right: 6,
+                            child: GestureDetector(
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                CustomPhotoAvatarDialog.show(
+                                  context,
+                                  widget.controller,
+                                  onSaved: (_) => setState(() {}),
+                                );
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(5),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF2563EB),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white, width: 2),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.35),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 14),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),

@@ -205,9 +205,15 @@ class SlipAutoSyncService {
       } catch (_) {}
     }
 
-    if (allSlips.isEmpty) return [];
-
     final isInitialScan = !controller.storage.isInitialDeviceScanCompleted();
+
+    if (allSlips.isEmpty) {
+      if (isInitialScan) {
+        await controller.storage.setInitialDeviceScanCompleted(true);
+      }
+      return [];
+    }
+
     final importedSlips = <TransactionItem>[];
 
     for (final slip in allSlips) {

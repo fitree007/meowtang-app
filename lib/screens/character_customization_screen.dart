@@ -141,30 +141,54 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
               child: Row(
                 children: [
                   // Live Mascot Avatar Stage
-                  Container(
-                    width: 96,
-                    height: 96,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.black.withValues(alpha: 0.08),
-                      boxShadow: [
-                        BoxShadow(
-                          color: currentMascot.primaryColor.withValues(alpha: 0.3),
-                          blurRadius: 14,
-                          spreadRadius: 1,
+                  GestureDetector(
+                    onTap: _openCustomPhotoDialog,
+                    child: Stack(
+                      alignment: Alignment.bottomRight,
+                      children: [
+                        Container(
+                          width: 96,
+                          height: 96,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.black.withValues(alpha: 0.08),
+                            boxShadow: [
+                              BoxShadow(
+                                color: currentMascot.primaryColor.withValues(alpha: 0.3),
+                                blurRadius: 14,
+                                spreadRadius: 1,
+                              ),
+                            ],
+                          ),
+                          child: Center(
+                            child: MeowMascotWidget(
+                              size: 88,
+                              mascotId: _selectedMascotId,
+                              accessory: _selectedAccessory,
+                              customPhotoPath: customPhoto,
+                              isCustomPhoto: isCustomPhoto,
+                              withPen: true,
+                              animate: true,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2563EB),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.25),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 14),
                         ),
                       ],
-                    ),
-                    child: Center(
-                      child: MeowMascotWidget(
-                        size: 88,
-                        mascotId: _selectedMascotId,
-                        accessory: _selectedAccessory,
-                        customPhotoPath: customPhoto,
-                        isCustomPhoto: isCustomPhoto,
-                        withPen: true,
-                        animate: true,
-                      ),
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -246,21 +270,34 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
                             // Quick button to pick custom photo
                             InkWell(
                               onTap: _openCustomPhotoDialog,
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(10),
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                 decoration: BoxDecoration(
-                                  color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-                                  borderRadius: BorderRadius.circular(8),
+                                  gradient: const LinearGradient(
+                                    colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+                                  ),
+                                  borderRadius: BorderRadius.circular(10),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF2563EB).withValues(alpha: 0.3),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(Icons.add_a_photo, size: 12, color: textPrimary),
+                                    const Icon(Icons.camera_alt_rounded, size: 14, color: Colors.white),
                                     const SizedBox(width: 4),
                                     Text(
-                                      isEn ? 'My Photo' : 'ใส่รูปเอง',
-                                      style: TextStyle(color: textPrimary, fontSize: 10.5, fontWeight: FontWeight.bold),
+                                      isEn ? 'Use My Photo' : 'ใส่รูปตัวเอง 📷',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ],
                                 ),

@@ -1,31 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../state/expense_controller.dart';
-import '../widgets/bank_badge.dart';
 import '../widgets/meow_mascot_widget.dart';
 import 'main_navigation_screen.dart';
 
-class FeatureSlideItem {
-  final String emoji;
-  final String tag;
+class FeatureHighlightItem {
+  final IconData icon;
   final String title;
-  final String subtitle;
   final String description;
-  final Color accentColor;
-  final Widget Function(dynamic theme, bool isDark) previewBuilder;
+  final Color color;
+  final String badgeText;
 
-  const FeatureSlideItem({
-    required this.emoji,
-    required this.tag,
+  const FeatureHighlightItem({
+    required this.icon,
     required this.title,
-    required this.subtitle,
     required this.description,
-    required this.accentColor,
-    required this.previewBuilder,
+    required this.color,
+    required this.badgeText,
   });
 }
 
-class AppFeaturesShowcaseScreen extends StatefulWidget {
+class AppFeaturesShowcaseScreen extends StatelessWidget {
   final ExpenseController controller;
   final VoidCallback? onCompleted;
   final bool isFromOverview;
@@ -37,767 +32,388 @@ class AppFeaturesShowcaseScreen extends StatefulWidget {
     this.isFromOverview = false,
   });
 
-  @override
-  State<AppFeaturesShowcaseScreen> createState() => _AppFeaturesShowcaseScreenState();
-}
+  List<FeatureHighlightItem> _getItems(bool isEn) {
+    if (isEn) {
+      return [
+        const FeatureHighlightItem(
+          icon: Icons.shield_rounded,
+          title: '100% Offline Vault',
+          description: 'Maximum security. All data stays strictly on your phone. No cloud sync, no tracking, zero risk.',
+          color: Color(0xFF059669),
+          badgeText: 'Top Security',
+        ),
+        const FeatureHighlightItem(
+          icon: Icons.receipt_long_rounded,
+          title: '22 Banks Slip Auto-Sync',
+          description: 'Automatically scans & imports slips from 22 Thai banks & e-Wallets with 100% duplicate prevention.',
+          color: Color(0xFF2563EB),
+          badgeText: 'Auto Scan',
+        ),
+        const FeatureHighlightItem(
+          icon: Icons.mic_rounded,
+          title: 'Thai Voice AI Recording',
+          description: 'Speak in natural Thai e.g. "Dinner 60 Baht" to automatically record & categorize in 1 second.',
+          color: Color(0xFF06B6D4),
+          badgeText: 'Voice AI',
+        ),
+        const FeatureHighlightItem(
+          icon: Icons.widgets_rounded,
+          title: 'Home Screen Widget',
+          description: 'One-tap voice shortcut widget on your home screen to record transactions without opening the app.',
+          color: Color(0xFF8B5CF6),
+          badgeText: 'Shortcut',
+        ),
+        const FeatureHighlightItem(
+          icon: Icons.file_download_rounded,
+          title: 'Export CSV & A4 PDF Reports',
+          description: 'Generate clean Excel/CSV spreadsheets and professional A4 PDF financial statements instantly.',
+          color: Color(0xFFD97706),
+          badgeText: 'Reports',
+        ),
+        const FeatureHighlightItem(
+          icon: Icons.palette_rounded,
+          title: 'Themes & Custom Photo Avatar',
+          description: 'Choose from 18 bespoke color themes and set your own personal photo or favorite cat as profile.',
+          color: Color(0xFFEC4899),
+          badgeText: 'Personalize',
+        ),
+        const FeatureHighlightItem(
+          icon: Icons.auto_awesome_rounded,
+          title: 'Financial & Islamic Tools',
+          description: 'Gold rate tracker, Zakat calculator, Qirat, and Barakat donation logs for holistic wealth planning.',
+          color: Color(0xFFF59E0B),
+          badgeText: 'Islamic Suite',
+        ),
+        const FeatureHighlightItem(
+          icon: Icons.visibility_off_rounded,
+          title: 'Privacy Eye & Built-in Calculator',
+          description: 'One-tap privacy eye to hide balances in public, built-in keypad calculator, and interactive mascot.',
+          color: Color(0xFF10B981),
+          badgeText: 'Smart Extras',
+        ),
+      ];
+    }
 
-class _AppFeaturesShowcaseScreenState extends State<AppFeaturesShowcaseScreen> {
-  final PageController _pageController = PageController();
-  int _currentPage = 0;
+    return [
+      const FeatureHighlightItem(
+        icon: Icons.shield_rounded,
+        title: '100% Offline Vault',
+        description: 'ความปลอดภัยสูงสุด ข้อมูลอยู่ในเครื่องของคุณเท่านั้น ไม่แอบส่งขึ้น Cloud ไม่ดูดเงิน ปลอดภัย 100%',
+        color: Color(0xFF059669),
+        badgeText: 'ปลอดภัยสูงสุด',
+      ),
+      const FeatureHighlightItem(
+        icon: Icons.receipt_long_rounded,
+        title: 'สแกนสลิปอัตโนมัติ 22 ธนาคาร',
+        description: 'ตรวจจับและดึงยอด วันที่ เวลา ปลายทางจากสลิป 22 ธนาคาร & e-Wallet ชั้นนำ พร้อมระบบกันสลิปซ้ำ 100%',
+        color: Color(0xFF2563EB),
+        badgeText: 'ระบบ AI 0.3s',
+      ),
+      const FeatureHighlightItem(
+        icon: Icons.mic_rounded,
+        title: 'บันทึกด้วยเสียง AI พูดไทย',
+        description: 'พูดภาษาไทย เช่น "กินข้าว 60 บาท" หรือ "เติมน้ำมัน 800" ระบบแยกยอดและจัดหมวดหมู่อัตโนมัติใน 1 วิ',
+        color: Color(0xFF06B6D4),
+        badgeText: 'จดด้วยเสียง',
+      ),
+      const FeatureHighlightItem(
+        icon: Icons.widgets_rounded,
+        title: 'วิดเจ็ตทางลัดหน้าจอโฮม',
+        description: 'แตะไอคอนบนหน้าจอโทรศัพท์เพื่อกดพูดบันทึกเสียงได้ทันที สะดวก รวดเร็ว ไม่ต้องเปิดแอพ',
+        color: Color(0xFF8B5CF6),
+        badgeText: 'Home Widget',
+      ),
+      const FeatureHighlightItem(
+        icon: Icons.file_download_rounded,
+        title: 'ส่งออกข้อมูล CSV & รายงาน PDF A4',
+        description: 'ส่งออกข้อมูลเป็นไฟล์ Excel (CSV) และสร้างรายงานสเตทเมนต์ PDF ขนาด A4 พิมพ์หรือส่งต่อได้ทันที',
+        color: Color(0xFFD97706),
+        badgeText: 'Export รายงาน',
+      ),
+      const FeatureHighlightItem(
+        icon: Icons.palette_rounded,
+        title: 'ปรับแต่งธีม & ใส่รูปตัวเองได้',
+        description: 'เลือกชุดสีธีมได้ 18 สไตล์ และสามารถอัปโหลดรูปตัวเองหรือรูปแมวตัวโปรดเป็นรูปโปรไฟล์ได้อิสระ',
+        color: Color(0xFFEC4899),
+        badgeText: 'ปรับแต่งอิสระ',
+      ),
+      const FeatureHighlightItem(
+        icon: Icons.auto_awesome_rounded,
+        title: 'เครื่องมือการเงิน & อิสลามิก',
+        description: 'คำนวณซะกาต, ราคาทองคำแท่ง/รูปพรรณ, กีร็อต และบันทึกเงินบริจาค/ริสกีบารอกัต ครบครัน',
+        color: Color(0xFFF59E0B),
+        badgeText: 'Islamic Suite',
+      ),
+      const FeatureHighlightItem(
+        icon: Icons.visibility_off_rounded,
+        title: 'ปุ่มตาซ่อนยอดเงิน & เครื่องคิดเลขในตัว',
+        description: 'กดเปิด-ปิดตาซ่อนยอดเงินเมื่ออยู่ในที่สาธารณะ แป้นพิมพ์คำนวณเลขในตัว และมาสคอตแมวขยิบตาโต้ตอบได้',
+        color: Color(0xFF10B981),
+        badgeText: 'ลูกเล่นอัจฉริยะ',
+      ),
+    ];
+  }
 
-  List<FeatureSlideItem> get _slides => [
-    // Slide 1: Auto Slip Sync & 22 Banks OCR
-    FeatureSlideItem(
-      emoji: '🧾',
-      tag: 'ระบบสแกนสลิป AI 0.3s',
-      title: 'ดึงสลิปอัตโนมัติ 22 ธนาคาร',
-      subtitle: 'สแกนยอด บัญชี วันที่ และบันทึกช่วยจำ (Memo) ทันที',
-      description: 'เชื่อมโยงสลิปจาก 22 ธนาคาร & กระเป๋าเงินดิจิทัล (กสิกร, ไทยพาณิชย์, กรุงไทย, อิสลาม, เป๋าตัง, กรุงเทพ, ทีทีบี, ออมสิน, ทรูมันนี่ ฯลฯ) อ่านข้อมูลแม่นยำใน 0.3 วินาที พร้อมระบบกันสแกนซ้ำ 100% และบันทึกรูปเก็บไว้ถาวร',
-      accentColor: const Color(0xFF10B981),
-      previewBuilder: (theme, isDark) => _buildSlipPreview(theme, isDark),
-    ),
-
-    // Slide 2: Security & 100% Offline Privacy Vault
-    FeatureSlideItem(
-      emoji: '🛡️',
-      tag: 'ความปลอดภัย & ไพรเวท 100%',
-      title: 'ปลอดภัยระดับสูงสุด (Offline Vault)',
-      subtitle: 'ข้อมูลไม่รั่วไหล ไม่ส่งขึ้น Cloud ไม่ขอรหัสผ่านธนาคาร',
-      description: 'ทำงานแบบออฟไลน์ 100% ข้อมูลการเงินและภาพสลิปทั้งหมดจะถูกเก็บรักษาอย่างปลอดภัยในโทรศัพท์ของคุณ ไม่มีการส่งขึ้น Cloud ไม่ต้องเชื่อมต่อบัญชีหรือกรอกรหัสผ่านธนาคาร ไร้ความเสี่ยงถูกแฮ็กหรือดูดเงิน พร้อมระบบสำรองและกู้คืน (Backup) ที่เชื่อถือได้',
-      accentColor: const Color(0xFF059669),
-      previewBuilder: (theme, isDark) => _buildSecurityPreview(theme, isDark),
-    ),
-
-    // Slide 3: Smart 2-Way Budgeting
-    FeatureSlideItem(
-      emoji: '📊',
-      tag: 'คุมงบประมาณสองทาง HP/MP',
-      title: 'วางแผนงบ & หลอดเกจพลังงาน',
-      subtitle: 'เชื่อมโยงปุ่ม + อัตโนมัติ เตือนสถานะเงินสดๆ',
-      description: 'กำหนดงบประมาณรายหมวดที่คุณต้องการได้อิสระ บันทึกรายจ่ายปุ๊บคำนวณหักงบทันที พร้อมหลอดเกจพลังงาน HP/MP เตือนสถานะ (ปกติ 🟢 / ใกล้เต็ม 🟡 / เกินงบ 🚨) ช่วยวางแผนไม่ให้เงินช็อตปลายเดือน',
-      accentColor: const Color(0xFF3B82F6),
-      previewBuilder: (theme, isDark) => _buildBudgetPreview(theme, isDark),
-    ),
-
-    // Slide 4: Financial Goals & Savings Roadmap
-    FeatureSlideItem(
-      emoji: '🎯',
-      tag: 'เป้าหมายการเงิน & เงินออม',
-      title: 'กระปุกเงินออม & แผนคำนวณอัจฉริยะ',
-      subtitle: 'สร้างเป้าหมายในฝัน พร้อมปุ่มลัดหยอดเงิน 1 วินาที',
-      description: 'ตั้งเป้าหมายการเงินได้ไม่จำกัด (เงินฉุกเฉิน, เที่ยว, ซื้อบ้าน/รถ, ปลดหนี้) มีปุ่มลัดหยอดเงินออมได้ทันที พร้อมเครื่องคิดเลขคำนวณวันบรรลุเป้าหมายและแผนเร่งสปีดการออมให้ถึงเป้าหมายได้เร็วขึ้น',
-      accentColor: const Color(0xFFF59E0B),
-      previewBuilder: (theme, isDark) => _buildGoalPreview(theme, isDark),
-    ),
-
-    // Slide 5: Thai Voice Assistant & Built-in Calculator
-    FeatureSlideItem(
-      emoji: '🎙️',
-      tag: 'จดด้วยเสียง & เครื่องคิดเลขในตัว',
-      title: 'พูดภาษาไทยบันทึกใน 1 วินาที',
-      subtitle: 'AI แยกยอดเงินและจัดหมวดหมู่อัตโนมัติ',
-      description: 'แตะปุ่มไมค์พูดภาษาไทย เช่น "กินข้าวขาหมู 65 บาท" หรือ "เติมน้ำมัน 800 บาท" ระบบ AI จะแปลงเสียงเป็นตัวเลขพร้อมเลือกหมวดหมู่ให้เสร็จสรรพ พร้อมแป้นพิมพ์เครื่องคิดเลขในตัว คำนวณบวกลบคูณหารได้ทันที',
-      accentColor: const Color(0xFF06B6D4),
-      previewBuilder: (theme, isDark) => _buildVoicePreview(theme, isDark),
-    ),
-
-    // Slide 6: Visual Analytics, Statement Export, Islamic Suite & Themes
-    FeatureSlideItem(
-      emoji: '💎',
-      tag: 'สเตทเมนต์ PDF A4, อิสลาม & 18 ธีม',
-      title: 'ส่งออก PDF A4, Excel & ชุดเครื่องมือพิเศษ',
-      subtitle: 'รายงานสเตทเมนต์มาตรฐาน, ซะกาต/มรดก และ 18 ธีม',
-      description: 'ตรวจสุขภาพการเงินด้วยกราฟเชิงลึก ส่งออกรายงาน PDF สเตทเมนต์ A4 มาตรฐานหรือไฟล์ Excel เข้าโฟลเดอร์ Downloads โดยตรง พร้อมเครื่องมือการเงินอิสลาม (ซะกาต & ฟาราอิฎ), แยกบัญชีตามธนาคารจริง และ 18 ธีมสุดคูล (Liquid Glass กระจกใส, แพนกวิน, อวกาศ ฯลฯ)',
-      accentColor: const Color(0xFF8B5CF6),
-      previewBuilder: (theme, isDark) => _buildUltimateSuitePreview(theme, isDark),
-    ),
-  ];
-
-  void _onFinish() async {
+  void _onFinish(BuildContext context) async {
     HapticFeedback.mediumImpact();
-    await widget.controller.completeShowcase();
-    widget.onCompleted?.call();
+    await controller.completeShowcase();
+    onCompleted?.call();
 
-    if (!mounted) return;
-    if (widget.isFromOverview) {
+    if (!context.mounted) return;
+    if (isFromOverview) {
       Navigator.pop(context);
     } else {
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
-          builder: (_) => MainNavigationScreen(controller: widget.controller),
+          builder: (_) => MainNavigationScreen(controller: controller),
         ),
         (route) => false,
       );
     }
   }
 
-  void _onNext() {
-    HapticFeedback.selectionClick();
-    if (_currentPage < _slides.length - 1) {
-      _pageController.nextPage(
-        duration: const Duration(milliseconds: 320),
-        curve: Curves.easeInOutCubic,
-      );
-    } else {
-      _onFinish();
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final currentTheme = widget.controller.currentTheme;
-    final isDark = widget.controller.isDarkMode;
-    final slides = _slides;
-    final isLastPage = _currentPage == slides.length - 1;
+    final theme = controller.currentTheme;
+    final isDark = controller.isDarkMode;
+    final isEn = controller.isEnglish;
+    final items = _getItems(isEn);
 
     return Scaffold(
-      backgroundColor: currentTheme.scaffoldBackground,
+      backgroundColor: theme.scaffoldBackground,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: widget.isFromOverview
+        leading: isFromOverview
             ? IconButton(
-                icon: Icon(Icons.arrow_back_ios_new_rounded, color: currentTheme.textColor, size: 20),
+                icon: Icon(Icons.arrow_back_ios_new_rounded, color: theme.textColor, size: 20),
                 onPressed: () => Navigator.pop(context),
               )
             : null,
         title: Text(
-          widget.isFromOverview ? 'คู่มือระบบฟีเจอร์เด่นของแอพ' : 'จุดเด่นของเหมียวตังค์ (4/4)',
+          isFromOverview
+              ? (isEn ? 'MeowTang Features Guide' : 'คู่มือฟีเจอร์เด่นเหมียวตังค์')
+              : (isEn ? 'Core Highlights (4/4)' : 'จุดเด่นของเหมียวตังค์ (4/4)'),
           style: TextStyle(
-            fontSize: 15,
+            fontSize: 16,
             fontWeight: FontWeight.bold,
-            color: currentTheme.textColor,
+            color: theme.textColor,
           ),
         ),
         centerTitle: true,
         actions: [
-          TextButton(
-            onPressed: _onFinish,
-            child: Text(
-              widget.isFromOverview ? 'ปิด' : 'ข้าม',
-              style: TextStyle(
-                fontSize: 13.5,
-                fontWeight: FontWeight.bold,
-                color: currentTheme.primaryColor,
+          if (!isFromOverview)
+            TextButton(
+              onPressed: () => _onFinish(context),
+              child: Text(
+                isEn ? 'Skip' : 'ข้าม',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: theme.primaryColor,
+                ),
               ),
             ),
-          ),
         ],
       ),
-      body: Column(
-        children: [
-          // Swipeable Carousel Area
-          Expanded(
-            child: PageView.builder(
-              controller: _pageController,
-              onPageChanged: (idx) => setState(() => _currentPage = idx),
-              itemCount: slides.length,
-              itemBuilder: (context, idx) {
-                final slide = slides[idx];
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                physics: const BouncingScrollPhysics(),
+                children: [
+                  // Mascot Header Banner
+                  Container(
+                    padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
-                      color: currentTheme.cardBackground,
+                      color: theme.cardBackground,
                       borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: currentTheme.borderColor),
+                      border: Border.all(color: theme.borderColor),
                       boxShadow: [
                         BoxShadow(
-                          color: slide.accentColor.withValues(alpha: 0.08),
-                          blurRadius: 18,
+                          color: theme.primaryColor.withValues(alpha: 0.08),
+                          blurRadius: 16,
                           offset: const Offset(0, 4),
                         ),
                       ],
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Row(
                       children: [
-                        // Top Badge & Emoji
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(9),
-                              decoration: BoxDecoration(
-                                color: slide.accentColor.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              child: Text(slide.emoji, style: const TextStyle(fontSize: 22)),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                                    decoration: BoxDecoration(
-                                      color: slide.accentColor.withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(
-                                      slide.tag,
-                                      style: TextStyle(
-                                        fontSize: 9.5,
-                                        fontWeight: FontWeight.bold,
-                                        color: slide.accentColor,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    slide.title,
-                                    style: TextStyle(
-                                      fontSize: 15.5,
-                                      fontWeight: FontWeight.bold,
-                                      color: currentTheme.textColor,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
+                        MeowMascotWidget(
+                          size: 64,
+                          mascotId: controller.selectedMascotId,
+                          accessory: 'star',
+                          customPhotoPath: controller.customAvatarPath,
+                          isCustomPhoto: controller.isCustomAvatarEnabled,
                         ),
-                        const SizedBox(height: 8),
-
-                        // Subtitle & Description text
-                        Text(
-                          slide.subtitle,
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w600,
-                            color: slide.accentColor,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          slide.description,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: currentTheme.textSecondaryColor,
-                            height: 1.4,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-
-                        // Visual Mockup Preview Box
+                        const SizedBox(width: 14),
                         Expanded(
-                          child: Center(
-                            child: slide.previewBuilder(currentTheme, isDark),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: theme.primaryColor.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  isEn ? '⭐ Smart Financial Companion' : '⭐ ผู้ช่วยการเงินอัจฉริยะส่วนตัว',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: theme.primaryColor,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                isEn ? 'Everything in One App' : 'ครบจบทุกฟังก์ชันในแอพเดียว',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: theme.textColor,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                isEn
+                                    ? 'Effortless budgeting, ultra-secure, and tailored for you.'
+                                    : 'ช่วยคุมงบ จัดการเงินง่าย ปลอดภัยสูงสุด ออกแบบเพื่อคุณ',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: theme.textSecondaryColor,
+                                  height: 1.3,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
                   ),
-                );
-              },
+
+                  const SizedBox(height: 18),
+
+                  // Minimal List of Highlights
+                  ...items.map((item) => _buildMinimalFeatureCard(item, theme, isDark)),
+
+                  const SizedBox(height: 16),
+                ],
+              ),
             ),
-          ),
 
-          // Bottom Navigation & Page Indicators
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // Dots Indicator
-                Row(
-                  children: List.generate(slides.length, (i) {
-                    final isSel = i == _currentPage;
-                    return AnimatedContainer(
-                      duration: const Duration(milliseconds: 250),
-                      margin: const EdgeInsets.only(right: 5),
-                      width: isSel ? 20 : 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        color: isSel ? currentTheme.primaryColor : currentTheme.borderColor,
-                        borderRadius: BorderRadius.circular(3),
+            // Bottom Confirm Button
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => _onFinish(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.primaryColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 15),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 3,
+                    shadowColor: theme.primaryColor.withValues(alpha: 0.4),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        isFromOverview
+                            ? (isEn ? 'Close Guide' : 'รับทราบและปิดหน้าต่าง')
+                            : (isEn ? 'Get Started with MeowTang 🐱✨' : 'เริ่มใช้งานเหมียวตังค์เลย 🐱✨'),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    );
-                  }),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.arrow_forward_rounded, size: 20),
+                    ],
+                  ),
                 ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-                // Next / Finish Button
-                SizedBox(
-                  height: 44,
-                  child: ElevatedButton.icon(
-                    onPressed: _onNext,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: currentTheme.primaryColor,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      padding: const EdgeInsets.symmetric(horizontal: 18),
-                      elevation: 0,
+  Widget _buildMinimalFeatureCard(FeatureHighlightItem item, dynamic theme, bool isDark) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.cardBackground,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: theme.borderColor.withValues(alpha: 0.8)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: item.color.withValues(alpha: isDark ? 0.2 : 0.12),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(item.icon, color: item.color, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        item.title,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: theme.textColor,
+                        ),
+                      ),
                     ),
-                    iconAlignment: IconAlignment.end,
-                    icon: Icon(isLastPage ? Icons.auto_awesome_rounded : Icons.arrow_forward_rounded, size: 16),
-                    label: Text(
-                      isLastPage ? 'เข้าสู่เหมียวตังค์ ✨' : 'ถัดไป (${_currentPage + 1}/6)',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: item.color.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        item.badgeText,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: item.color,
+                        ),
+                      ),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  item.description,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: theme.textSecondaryColor,
+                    height: 1.35,
                   ),
                 ),
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  // --- MOCKUP PREVIEWS ---
-
-  // Preview 1: Slip Card with 22 Banks
-  static Widget _buildSlipPreview(dynamic currentTheme, bool isDark) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: currentTheme.surfaceBackground,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: currentTheme.borderColor),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const BankBadge(bankCode: 'KBANK', size: 32),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('กสิกรไทย (K PLUS)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: currentTheme.textColor)),
-                    Text('ดึงสลิปอัตโนมัติ 22 ธนาคาร & e-Wallet', style: TextStyle(fontSize: 10, color: currentTheme.textSecondaryColor)),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Text('✓ สแกน 0.3s', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Color(0xFF10B981))),
-              ),
-            ],
-          ),
-          const Divider(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('ยอดโอนเงิน:', style: TextStyle(fontSize: 11, color: currentTheme.textSecondaryColor)),
-              const Text('฿ 450.00', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Color(0xFFEF4444))),
-            ],
-          ),
-          const SizedBox(height: 2),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('บันทึกช่วยจำ:', style: TextStyle(fontSize: 11, color: currentTheme.textSecondaryColor)),
-              Text('ค่าอาหารเที่ยงกับทีม 🍜', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: currentTheme.textColor)),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Preview 2: Security & 100% Offline Privacy Vault
-  static Widget _buildSecurityPreview(dynamic currentTheme, bool isDark) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: currentTheme.surfaceBackground,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF10B981).withValues(alpha: 0.08),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.shield_rounded, color: Color(0xFF10B981), size: 20),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'ระบบความปลอดภัยระดับเครื่อง (Offline Vault)',
-                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: currentTheme.textColor),
-                    ),
-                    const Text(
-                      '🛡️ ไพรเวท 100% ปลอดภัย ไร้กังวลข้อมูลหลุด',
-                      style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Color(0xFF10B981)),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const Divider(height: 10),
-          _buildSecurityCheckItem('ออฟไลน์ 100% ไม่ส่งรูปสลิปหรือยอดเงินขึ้น Cloud', currentTheme),
-          const SizedBox(height: 3),
-          _buildSecurityCheckItem('ไม่ขอรหัสผ่าน ไม่ผูกบัญชี ปลอดภัยจากแฮกเกอร์/ดูดเงิน', currentTheme),
-          const SizedBox(height: 3),
-          _buildSecurityCheckItem('บันทึกในเครื่องคุณ พร้อมสำรองและกู้คืน (Backup)', currentTheme),
-          const SizedBox(height: 3),
-          _buildSecurityCheckItem('ไร้โฆษณารบกวน 100% และไม่มีการติดตามพฤติกรรม', currentTheme),
-        ],
-      ),
-    );
-  }
-
-  static Widget _buildSecurityCheckItem(String text, dynamic currentTheme) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        const Icon(Icons.check_circle_rounded, size: 12, color: Color(0xFF10B981)),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Text(
-            text,
-            style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w500, color: currentTheme.textColor),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-      ],
-    );
-  }
-
-  // Preview 2: Budget Bar
-  static Widget _buildBudgetPreview(dynamic currentTheme, bool isDark) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: currentTheme.surfaceBackground,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: currentTheme.borderColor),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('หลอดงบประมาณสองทาง (HP/MP)', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: currentTheme.textColor)),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Text('✓ ปกติ', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Color(0xFF10B981))),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          _buildMiniGaugeRow('🍔 ค่าอาหาร', 0.45, '45%', const Color(0xFF10B981), currentTheme),
-          const SizedBox(height: 5),
-          _buildMiniGaugeRow('🚗 ค่าน้ำมัน', 0.85, '85%', const Color(0xFFF59E0B), currentTheme),
-          const SizedBox(height: 5),
-          _buildMiniGaugeRow('🛍️ ช้อปปิ้ง', 1.0, '🚨 เกินงบ', const Color(0xFFEF4444), currentTheme),
-        ],
-      ),
-    );
-  }
-
-  static Widget _buildMiniGaugeRow(String name, double progress, String pct, Color color, dynamic currentTheme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(name, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: currentTheme.textColor)),
-            Text(pct, style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: color)),
-          ],
-        ),
-        const SizedBox(height: 2),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(3),
-          child: LinearProgressIndicator(
-            value: progress.clamp(0.0, 1.0),
-            minHeight: 4.5,
-            backgroundColor: currentTheme.cardBackground,
-            valueColor: AlwaysStoppedAnimation<Color>(color),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // Preview 3: Goal Card
-  static Widget _buildGoalPreview(dynamic currentTheme, bool isDark) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: currentTheme.surfaceBackground,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: currentTheme.borderColor),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(color: const Color(0xFF10B981).withValues(alpha: 0.15), shape: BoxShape.circle),
-                child: const Text('🛡️', style: TextStyle(fontSize: 15)),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('เงินสำรองฉุกเฉิน 6 เดือน', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: currentTheme.textColor)),
-                    Text('เก็บได้แล้ว ฿45,000 / ฿100,000', style: TextStyle(fontSize: 10, color: currentTheme.textSecondaryColor)),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(color: const Color(0xFF10B981).withValues(alpha: 0.12), borderRadius: BorderRadius.circular(6)),
-                child: const Text('45%', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Color(0xFF10B981))),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(3),
-            child: const LinearProgressIndicator(
-              value: 0.45,
-              minHeight: 4.5,
-              backgroundColor: Colors.grey,
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF10B981)),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
-            decoration: BoxDecoration(color: currentTheme.cardBackground, borderRadius: BorderRadius.circular(8)),
-            child: Row(
-              children: [
-                const Text('💡', style: TextStyle(fontSize: 10)),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text('ออมวันละ ฿200 จะถึงเป้าใน 275 วัน (มีปุ่มลัดหยอดเงิน)', style: TextStyle(fontSize: 9.5, color: currentTheme.textColor, fontWeight: FontWeight.w600)),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Preview 4: Voice & Calculator
-  static Widget _buildVoicePreview(dynamic currentTheme, bool isDark) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: currentTheme.surfaceBackground,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: currentTheme.borderColor),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: const BoxDecoration(color: Color(0xFF06B6D4), shape: BoxShape.circle),
-                child: const Icon(Icons.mic_rounded, color: Colors.white, size: 18),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('"กินข้าวขาหมู 65 บาท"', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: currentTheme.textColor)),
-                    Text('AI แปลงเสียง & จัดหมวดหมู่ใน 1s', style: TextStyle(fontSize: 9.5, color: currentTheme.textSecondaryColor)),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(color: const Color(0xFF06B6D4).withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)),
-                child: const Text('🍔 อาหาร', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Color(0xFF0891B2))),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(color: currentTheme.cardBackground, borderRadius: BorderRadius.circular(8)),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('🧮 แป้นพิมพ์เครื่องคิดเลขในตัว:', style: TextStyle(fontSize: 9.5, color: currentTheme.textSecondaryColor)),
-                Text('65 + 15 = ฿80', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: currentTheme.textColor)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Preview 5: Export Card
-  static Widget _buildExportPreview(dynamic currentTheme, bool isDark) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: currentTheme.surfaceBackground,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: currentTheme.borderColor),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(7),
-                decoration: BoxDecoration(color: const Color(0xFFEF4444).withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
-                child: const Icon(Icons.picture_as_pdf_rounded, color: Color(0xFFEF4444), size: 18),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('รายงานสเตทเมนต์ PDF A4 & Excel', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: currentTheme.textColor)),
-                    Text('📁 Downloads / MeowTang /', style: TextStyle(fontSize: 9.5, color: currentTheme.textSecondaryColor)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 5),
-                  decoration: BoxDecoration(color: currentTheme.primaryColor, borderRadius: BorderRadius.circular(8)),
-                  alignment: Alignment.center,
-                  child: const Text('📄 เปิดไฟล์ทันที', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Colors.white)),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 5),
-                  decoration: BoxDecoration(color: currentTheme.cardBackground, borderRadius: BorderRadius.circular(8), border: Border.all(color: currentTheme.borderColor)),
-                  alignment: Alignment.center,
-                  child: Text('📤 แชร์ส่งต่อ', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: currentTheme.textColor)),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Preview 6: Statement PDF/Excel, Islamic Suite & 18 Themes
-  static Widget _buildUltimateSuitePreview(dynamic currentTheme, bool isDark) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: currentTheme.surfaceBackground,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEF4444).withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.picture_as_pdf_rounded, color: Color(0xFFEF4444), size: 16),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  'ส่งออก Statement PDF A4 & Excel คมชัด',
-                  style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: currentTheme.textColor),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Text('ฟรี 100%', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF8B5CF6))),
-              ),
-            ],
-          ),
-          const Divider(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildFeatureIconBadge('🕌', 'คำนวณซะกาต/มรดก', currentTheme),
-              _buildFeatureIconBadge('💳', 'บัญชีแยกธนาคาร', currentTheme),
-              _buildFeatureIconBadge('🎨', '18 ธีม Liquid Glass', currentTheme),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  static Widget _buildFeatureIconBadge(String emoji, String text, dynamic currentTheme) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-      decoration: BoxDecoration(
-        color: currentTheme.cardBackground,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: currentTheme.borderColor),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(emoji, style: const TextStyle(fontSize: 14)),
-          const SizedBox(height: 2),
-          Text(text, style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w600, color: currentTheme.textColor)),
         ],
       ),
     );

@@ -27,7 +27,8 @@ void main() {
 
     test('1. AppConfig pricing and quota constants are valid', () {
       expect(AppConfig.welcomeBonusSlips, 100);
-      expect(AppConfig.freeSlipsPerMonth, 15);
+      expect(AppConfig.freeSlipsPerMonth, 10);
+      expect(AppConfig.rewardedAdBonusSlips, 2);
       expect(AppConfig.themePriceThb, 29);
       expect(AppConfig.iconPriceThb, 10);
       expect(AppConfig.monthlySubPriceThb, 39);
@@ -93,18 +94,18 @@ void main() {
       await controller.recordSlipImported(slipDate: now, isInitialImport: true);
       await controller.recordSlipImported(slipDate: now, isInitialImport: true);
 
-      // Monthly quota remains untouched at 0/15!
+      // Monthly quota remains untouched at 0/10!
       expect(controller.currentMonthSlipCount, 0);
       expect(controller.canImportMoreSlips, isTrue);
 
-      // 2. Incoming new / future slips (isInitialImport: false) now consume the 0/15 quota
-      for (int i = 0; i < 15; i++) {
+      // 2. Incoming new / future slips (isInitialImport: false) now consume the 0/10 quota
+      for (int i = 0; i < 10; i++) {
         expect(controller.canImportMoreSlips, isTrue);
         await controller.recordSlipImported(slipDate: now, isInitialImport: false);
       }
 
-      // Quota is now full (15/15)
-      expect(controller.currentMonthSlipCount, 15);
+      // Quota is now full (10/10)
+      expect(controller.currentMonthSlipCount, 10);
       expect(controller.canImportMoreSlips, isFalse);
 
       // 3. A slip dated in previous month does NOT affect current month's quota
@@ -173,9 +174,9 @@ void main() {
       expect(controller.transactions.firstWhere((t) => t.id == 'tx_slip_123').amount, 500.0);
     });
 
-    test('10. Monthly slip quota is strictly 15/month and consumed when manual slip is recorded', () async {
+    test('10. Monthly slip quota is strictly 10/month and can be extended by +2 via rewarded ad', () async {
       expect(controller.currentMonthSlipCount, 0);
-      expect(controller.maxFreeSlipsPerMonth, 15);
+      expect(controller.maxFreeSlipsPerMonth, 10);
       expect(controller.canImportMoreSlips, isTrue);
 
       // Simulate recording a slip import via '+' button or manual entry
@@ -184,16 +185,26 @@ void main() {
       expect(controller.currentMonthSlipCount, 1);
       expect(controller.canImportMoreSlips, isTrue);
 
-      // Simulate consuming until 15 slips
-      for (int i = 2; i <= 15; i++) {
+      // Simulate consuming until 10 slips
+      for (int i = 2; i <= 10; i++) {
         await controller.recordSlipImported(slipDate: slipDate);
       }
-      expect(controller.currentMonthSlipCount, 15);
+      expect(controller.currentMonthSlipCount, 10);
       expect(controller.canImportMoreSlips, isFalse);
 
-      // Attempting to record beyond 15 does not increment
+      // Attempting to record beyond 10 does not increment
       await controller.recordSlipImported(slipDate: slipDate);
-      expect(controller.currentMonthSlipCount, 15);
+      expect(controller.currentMonthSlipCount, 10);
+
+      // Watch rewarded video ad -> awards +2 slips for this month (10 -> 12)
+      await controller.watchRewardedAdForBonusSlips();
+      expect(controller.maxFreeSlipsPerMonth, 12);
+      expect(controller.canImportMoreSlips, isTrue);
+
+      // Record one more slip -> 11/12
+      await controller.recordSlipImported(slipDate: slipDate);
+      expect(controller.currentMonthSlipCount, 11);
+      expect(controller.canImportMoreSlips, isTrue);
     });
 
     test('11. Yearly income & expense calculates strictly per calendar year and resets naturally in next year', () async {

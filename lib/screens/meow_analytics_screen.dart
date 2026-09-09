@@ -856,6 +856,7 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> with SingleTi
    isEnglish: widget.controller.isEnglish,
    allCategories: widget.controller.categories,
    isProcessingSlips: widget.controller.isProcessingSlips,
+   isInitialScan: !widget.controller.storage.isInitialDeviceScanCompleted(),
    hasNoTransactionsAtAll: widget.controller.allTransactions.isEmpty,
    onTriggerScan: () {
      SlipAutoSyncService.scanAndAutoImportNewSlips(widget.controller);

@@ -17,6 +17,7 @@ import 'theme_shop_screen.dart';
 import 'saving_goals_screen.dart';
 import 'goal_calculator_screen.dart';
 import 'data_backup_restore_screen.dart';
+import '../widgets/custom_photo_avatar_dialog.dart';
 
 class MeowHumanScreen extends StatefulWidget {
  final ExpenseController controller;
@@ -259,13 +260,44 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
           ],
          ),
         ),
-        MeowMascotWidget(
-         size: 78,
-         mascotId: widget.controller.selectedMascotId,
-         accessory: widget.controller.selectedMascotAccessory,
-         customPhotoPath: widget.controller.customAvatarPath,
-         isCustomPhoto: widget.controller.isCustomAvatarEnabled,
-         withPen: true,
+        GestureDetector(
+          onTap: () {
+            HapticFeedback.selectionClick();
+            CustomPhotoAvatarDialog.show(
+              context,
+              widget.controller,
+              onSaved: (_) => setState(() {}),
+            );
+          },
+          child: Stack(
+            alignment: Alignment.bottomRight,
+            children: [
+              MeowMascotWidget(
+                size: 78,
+                mascotId: widget.controller.selectedMascotId,
+                accessory: widget.controller.selectedMascotAccessory,
+                customPhotoPath: widget.controller.customAvatarPath,
+                isCustomPhoto: widget.controller.isCustomAvatarEnabled,
+                withPen: true,
+              ),
+              Container(
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2563EB),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 14),
+              ),
+            ],
+          ),
         ),
        ],
       ),
@@ -628,6 +660,22 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
          cardColor: cardColor,
          borderColor: borderColor,
          children: [
+          _buildMenuItem(
+           icon: Icons.camera_alt_rounded,
+           iconBgColor: const Color(0xFF2563EB),
+           title: isEn ? 'Change Profile Photo' : 'ใส่รูปตัวเอง / เปลี่ยนรูปโปรไฟล์',
+           subtitle: isEn ? 'Upload custom photo or pet picture' : 'อัปโหลดรูปตัวเองหรือรูปสัตว์เลี้ยงเป็นโปรไฟล์',
+           trailingBadge: widget.controller.isCustomAvatarEnabled ? (isEn ? 'Active' : 'ใช้งานอยู่') : (isEn ? 'Choose' : 'เลือกรูป'),
+           isDark: isDark,
+           onTap: () {
+            CustomPhotoAvatarDialog.show(
+              context,
+              widget.controller,
+              onSaved: (_) => setState(() {}),
+            );
+           },
+          ),
+          const Divider(height: 1),
           _buildMenuItem(
            icon: Icons.face_retouching_natural_rounded,
            iconBgColor: const Color(0xFF6366F1),

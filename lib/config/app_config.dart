@@ -23,7 +23,10 @@ class AppConfig {
   static const int welcomeBonusSlips = 100;
 
   /// Free slip scan quota per calendar month for non-VIP users
-  static const int freeSlipsPerMonth = 15;
+  static const int freeSlipsPerMonth = 10;
+
+  /// Bonus slips granted per Rewarded Video Ad watched (valid for that month only)
+  static const int rewardedAdBonusSlips = 2;
 
   /// Pricing display constants (in Thai Baht)
   static const int themePriceThb = 29;

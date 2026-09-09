@@ -37,7 +37,7 @@ class MeowPaywallModal extends StatefulWidget {
 }
 
 class _MeowPaywallModalState extends State<MeowPaywallModal> {
-  int _selectedTierIndex = 2; // Default to Lifetime (Index 2: Most Value)
+  int _selectedTierIndex = 1; // Default to Yearly (Index 1: Most Value)
   bool _isProcessing = false;
 
   @override
@@ -170,6 +170,78 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
                     ),
                   ],
 
+                  // Rewarded Ad Option: +2 slips for this calendar month
+                  if (!widget.controller.isPremium) ...[
+                    const SizedBox(height: 14),
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: isDark
+                              ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
+                              : [const Color(0xFFEFF6FF), const Color(0xFFDBEAFE)],
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: const Color(0xFF3B82F6).withValues(alpha: 0.4),
+                          width: 1.2,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF2563EB).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.play_circle_fill_rounded, color: Color(0xFF2563EB), size: 26),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  isEn ? 'Watch Ad to Get +2 Free Slips' : 'ดูโฆษณาเพื่อรับเพิ่ม +2 สลิป 🎬',
+                                  style: TextStyle(
+                                    color: textColor,
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  isEn
+                                      ? 'Bonus valid for this month only (${widget.controller.currentMonthSlipCount}/${widget.controller.maxFreeSlipsPerMonth} used)'
+                                      : 'สิทธิ์ใช้ได้เฉพาะเดือนนี้ (${widget.controller.currentMonthSlipCount}/${widget.controller.maxFreeSlipsPerMonth} สลิป)',
+                                  style: TextStyle(
+                                    color: subColor,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          ElevatedButton(
+                            onPressed: _isProcessing ? null : _handleWatchAd,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF2563EB),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              elevation: 1,
+                            ),
+                            child: Text(
+                              isEn ? 'Watch' : 'ชมคลิป',
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
                   const SizedBox(height: 18),
 
                   // 2. Value Features List
@@ -177,7 +249,7 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
                     icon: Icons.qr_code_scanner_rounded,
                     color: const Color(0xFF10B981),
                     title: isEn ? 'Unlimited Slip Auto-Scanning' : 'ดึงสลิปอัตโนมัติไม่จำกัด',
-                    subtitle: isEn ? 'Free tier limited to 15 slips/mo' : 'ผู้ใช้ฟรีจำกัด ${AppConfig.freeSlipsPerMonth} สลิป/เดือน',
+                    subtitle: isEn ? 'Free tier limited to ${AppConfig.freeSlipsPerMonth} slips/mo' : 'ผู้ใช้ฟรีจำกัด ${AppConfig.freeSlipsPerMonth} สลิป/เดือน',
                     textColor: textColor,
                     subColor: subColor,
                   ),
@@ -248,21 +320,6 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
                     textColor: textColor,
                     subColor: subColor,
                   ),
-                  const SizedBox(height: 8),
-
-                  // Card 3: Lifetime (390 THB Once)
-                  _buildTierCard(
-                    index: 2,
-                    title: isEn ? 'Lifetime VIP' : 'ซื้อขาดตลอดชีพ',
-                    price: '฿${AppConfig.lifetimePriceThb}',
-                    period: isEn ? 'pay once, own forever' : 'จ่ายครั้งเดียว ใช้ได้ตลอดชีพ',
-                    badge: isEn ? 'MOST POPULAR 👑' : 'คุ้มค่าที่สุด 👑',
-                    badgeColor: const Color(0xFFD97706),
-                    theme: theme,
-                    textColor: textColor,
-                    subColor: subColor,
-                  ),
-
                   const SizedBox(height: 22),
 
                   // 4. Action CTA Button
@@ -352,10 +409,8 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
   String _getCtaText(bool isEn) {
     if (_selectedTierIndex == 0) {
       return isEn ? 'Subscribe ฿${AppConfig.monthlySubPriceThb}/mo' : 'สมัครรายเดือน ฿${AppConfig.monthlySubPriceThb}';
-    } else if (_selectedTierIndex == 1) {
-      return isEn ? 'Subscribe ฿${AppConfig.yearlySubPriceThb}/yr' : 'สมัครรายปี ฿${AppConfig.yearlySubPriceThb}';
     } else {
-      return isEn ? 'Unlock Lifetime VIP ฿${AppConfig.lifetimePriceThb}' : 'ปลดล็อคตลอดชีพ ฿${AppConfig.lifetimePriceThb}';
+      return isEn ? 'Subscribe ฿${AppConfig.yearlySubPriceThb}/yr' : 'สมัครรายปี ฿${AppConfig.yearlySubPriceThb}';
     }
   }
 
@@ -502,12 +557,10 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
     await Future.delayed(const Duration(milliseconds: 500));
 
     // Simulated In-App Purchase execution (Pre-wired for Play Store Billing)
-    final tier = _selectedTierIndex == 0
-        ? 'monthly'
-        : (_selectedTierIndex == 1 ? 'yearly' : 'lifetime');
+    final tier = _selectedTierIndex == 0 ? 'monthly' : 'yearly';
     final expiry = _selectedTierIndex == 0
         ? DateTime.now().add(const Duration(days: 30))
-        : (_selectedTierIndex == 1 ? DateTime.now().add(const Duration(days: 365)) : null);
+        : DateTime.now().add(const Duration(days: 365));
 
     await widget.controller.setPremiumStatus(true, tier: tier, expiry: expiry);
 
@@ -525,6 +578,35 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
             Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
             SizedBox(width: 10),
             Text('ยินดีต้อนรับสู่ MeowTang VIP สำเร็จแล้ว! 🎉'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleWatchAd() async {
+    HapticFeedback.mediumImpact();
+    setState(() => _isProcessing = true);
+
+    // Simulated Google AdMob Rewarded Video completion
+    await Future.delayed(const Duration(milliseconds: 1000));
+
+    await widget.controller.watchRewardedAdForBonusSlips();
+
+    if (!mounted) return;
+    setState(() => _isProcessing = false);
+    Navigator.pop(context, true);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: const Color(0xFF059669),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        content: Row(
+          children: const [
+            Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+            SizedBox(width: 10),
+            Text('ยินดีด้วย! คุณได้รับสิทธิ์เพิ่ม +2 สลิปสำหรับเดือนนี้แล้ว 🎬✨'),
           ],
         ),
       ),

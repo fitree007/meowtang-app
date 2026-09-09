@@ -1105,6 +1105,18 @@ class StorageService {
     await _prefs.setInt(_keySlipQuotaCount, 0);
   }
 
+  // REWARDED AD BONUS SLIPS (Valid only for the calendar month watched, resets to 0 next month)
+  int getAdBonusSlipsForMonth(String monthKey) {
+    return _prefs.getInt('meow_ad_bonus_slips_v1_$monthKey') ?? 0;
+  }
+
+  Future<int> addAdBonusSlipsForMonth(String monthKey, int bonusCount) async {
+    final current = getAdBonusSlipsForMonth(monthKey);
+    final updated = current + bonusCount;
+    await _prefs.setInt('meow_ad_bonus_slips_v1_$monthKey', updated);
+    return updated;
+  }
+
   // WELCOME BONUS SLIPS (100 free slips for first-time install)
   int getWelcomeBonusSlipsRemaining() {
     return _prefs.getInt(_keyWelcomeBonusSlips) ?? AppConfig.welcomeBonusSlips;

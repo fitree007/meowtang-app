@@ -16,6 +16,7 @@ class AnalyticsCarouselChartCard extends StatefulWidget {
   final bool isEnglish;
   final List<CategoryItem> allCategories;
   final bool isProcessingSlips;
+  final bool isInitialScan;
   final bool hasNoTransactionsAtAll;
   final VoidCallback? onTriggerScan;
 
@@ -30,6 +31,7 @@ class AnalyticsCarouselChartCard extends StatefulWidget {
     this.isEnglish = false,
     required this.allCategories,
     this.isProcessingSlips = false,
+    this.isInitialScan = false,
     this.hasNoTransactionsAtAll = false,
     this.onTriggerScan,
   });
@@ -111,8 +113,7 @@ class _AnalyticsCarouselChartCardState extends State<AnalyticsCarouselChartCard>
     final borderColor = widget.isDark ? MeowTheme.borderColor : const Color(0xFFE2E8F0);
     final textPrimary = widget.isDark ? Colors.white : const Color(0xFF0F172A);
 
-    final bool showProcessingCard = widget.isProcessingSlips ||
-        (widget.hasNoTransactionsAtAll && (widget.transactions.isEmpty || widget.totalAmount <= 0));
+    final bool showProcessingCard = widget.isProcessingSlips && widget.isInitialScan;
 
     if (showProcessingCard) {
       return Container(

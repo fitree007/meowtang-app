@@ -27,6 +27,13 @@ public class NativeBridgePlugin: NSObject, FlutterPlugin, UIImagePickerControlle
   private static var instance: NativeBridgePlugin?
   private static var isRegistered = false
   private var imagePickerResult: FlutterResult?
+  private var speechRecognizer: SFSpeechRecognizer? = SFSpeechRecognizer(locale: Locale(identifier: "th-TH"))
+  private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
+  private var recognitionTask: SFSpeechRecognitionTask?
+  private let audioEngine = AVAudioEngine()
+  private var pendingVoiceResult: FlutterResult?
+  private var silenceTimer: Timer?
+  private var latestVoiceText: String = ""
 
   public static func register(with registrar: FlutterPluginRegistrar) {
     guard !isRegistered else { return }
@@ -65,6 +72,12 @@ public class NativeBridgePlugin: NSObject, FlutterPlugin, UIImagePickerControlle
       let args = call.arguments as? [String: Any]
       let filePath = args?["filePath"] as? String ?? ""
       self.shareFile(filePath: filePath, result: result)
+
+    case "startVoiceRecognition":
+      self.startVoiceRecognition(result: result)
+
+    case "stopVoiceRecognition":
+      self.stopVoiceRecognition(result: result)
 
     case "startMediaObserver", "startBackgroundService", "stopMediaObserver":
       result(true)
@@ -222,7 +235,7 @@ public class NativeBridgePlugin: NSObject, FlutterPlugin, UIImagePickerControlle
         let cacheDir = FileManager.default.temporaryDirectory.appendingPathComponent("ios_slip_cache")
         try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
 
-        let total = min(assets.count, 500)
+        let total = assets.count
         let dateFormatter = ISO8601DateFormatter()
 
         for i in 0..<total {
@@ -416,6 +429,132 @@ public class NativeBridgePlugin: NSObject, FlutterPlugin, UIImagePickerControlle
       return findTop(selected)
     }
     return vc
+  }
+
+  // MARK: - Speech Recognition (Thai Language)
+  private func startVoiceRecognition(result: @escaping FlutterResult) {
+    if self.pendingVoiceResult != nil {
+      finishVoiceRecognition(text: self.latestVoiceText)
+    }
+
+    self.pendingVoiceResult = result
+    self.latestVoiceText = ""
+
+    SFSpeechRecognizer.requestAuthorization { [weak self] authStatus in
+      guard let self = self else { return }
+      DispatchQueue.main.async {
+        guard authStatus == .authorized else {
+          self.finishVoiceRecognition(text: "")
+          return
+        }
+
+        AVAudioSession.sharedInstance().requestRecordPermission { granted in
+          DispatchQueue.main.async {
+            guard granted else {
+              self.finishVoiceRecognition(text: "")
+              return
+            }
+            self.beginSpeechListening()
+          }
+        }
+      }
+    }
+  }
+
+  private func beginSpeechListening() {
+    stopCurrentAudioEngine()
+
+    let audioSession = AVAudioSession.sharedInstance()
+    do {
+      try audioSession.setCategory(.playAndRecord, mode: .measurement, options: [.duckOthers, .defaultToSpeaker])
+      try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
+    } catch {
+      finishVoiceRecognition(text: "")
+      return
+    }
+
+    if speechRecognizer == nil {
+      speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "th-TH")) ?? SFSpeechRecognizer()
+    }
+
+    recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
+    guard let recognitionRequest = recognitionRequest else {
+      finishVoiceRecognition(text: "")
+      return
+    }
+    recognitionRequest.shouldReportPartialResults = true
+
+    let inputNode = audioEngine.inputNode
+    let recordingFormat = inputNode.outputFormat(forBus: 0)
+    inputNode.removeTap(onBus: 0)
+    inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, _ in
+      self.recognitionRequest?.append(buffer)
+    }
+
+    audioEngine.prepare()
+    do {
+      try audioEngine.start()
+    } catch {
+      finishVoiceRecognition(text: "")
+      return
+    }
+
+    recognitionTask = speechRecognizer?.recognitionTask(with: recognitionRequest) { [weak self] speechResult, error in
+      guard let self = self else { return }
+      if let speechResult = speechResult {
+        let text = speechResult.bestTranscription.formattedString
+        self.latestVoiceText = text
+        self.resetSilenceTimer()
+        if speechResult.isFinal {
+          self.finishVoiceRecognition(text: text)
+        }
+      }
+      if error != nil {
+        self.finishVoiceRecognition(text: self.latestVoiceText)
+      }
+    }
+
+    resetSilenceTimer(timeout: 5.0)
+  }
+
+  private func resetSilenceTimer(timeout: TimeInterval = 2.0) {
+    silenceTimer?.invalidate()
+    silenceTimer = Timer.scheduledTimer(withTimeInterval: timeout, repeats: false) { [weak self] _ in
+      guard let self = self else { return }
+      if !self.latestVoiceText.isEmpty {
+        self.finishVoiceRecognition(text: self.latestVoiceText)
+      }
+    }
+  }
+
+  private func stopVoiceRecognition(result: @escaping FlutterResult) {
+    finishVoiceRecognition(text: latestVoiceText)
+    result(true)
+  }
+
+  private func finishVoiceRecognition(text: String) {
+    silenceTimer?.invalidate()
+    silenceTimer = nil
+    stopCurrentAudioEngine()
+
+    if let res = pendingVoiceResult {
+      pendingVoiceResult = nil
+      DispatchQueue.main.async {
+        res(text.trimmingCharacters(in: .whitespacesAndNewlines))
+      }
+    }
+  }
+
+  private func stopCurrentAudioEngine() {
+    if audioEngine.isRunning {
+      audioEngine.stop()
+      audioEngine.inputNode.removeTap(onBus: 0)
+    }
+    recognitionRequest?.endAudio()
+    recognitionRequest = nil
+    recognitionTask?.cancel()
+    recognitionTask = nil
+    try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
   }
 }
 

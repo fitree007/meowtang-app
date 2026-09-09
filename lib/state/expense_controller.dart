@@ -492,13 +492,23 @@ class ExpenseController extends ChangeNotifier {
   }
 
   int get currentMonthSlipCount => _storage.getSlipQuotaCountForMonth(currentMonthKey);
-  int get maxFreeSlipsPerMonth => AppConfig.freeSlipsPerMonth;
+  int get currentMonthAdBonusSlips => _storage.getAdBonusSlipsForMonth(currentMonthKey);
+  int get maxFreeSlipsPerMonth => AppConfig.freeSlipsPerMonth + currentMonthAdBonusSlips;
   int get welcomeBonusRemaining => 0;
   int get welcomeBonusTotal => 0;
   bool get hasWelcomeBonus => false;
 
   bool get canImportMoreSlips =>
       isPremium || (currentMonthSlipCount < maxFreeSlipsPerMonth);
+
+  Future<int> watchRewardedAdForBonusSlips() async {
+    final updated = await _storage.addAdBonusSlipsForMonth(
+      currentMonthKey,
+      AppConfig.rewardedAdBonusSlips,
+    );
+    notifyListeners();
+    return updated;
+  }
 
   Future<int> recordSlipImported({DateTime? slipDate, bool isInitialImport = false}) async {
     // 1. Initial batch import of device slips (current & previous month) is FREE
