@@ -844,13 +844,13 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
             ),
            ),
            const SizedBox(height: 4),
-              Text(
-               isEn ? 'Version 1.37.0 (Latest Release)' : 'เวอร์ชัน 1.37.0 (ล่าสุด)',
-               style: TextStyle(
-                color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
-                fontSize: 11,
+               Text(
+                isEn ? 'Version ${ExpenseController.appVersion} (Latest Release)' : 'เวอร์ชัน ${ExpenseController.appVersion} (ล่าสุด)',
+                style: TextStyle(
+                 color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                 fontSize: 11,
+                ),
                ),
-              ),
            const SizedBox(height: 24),
           ],
          ),

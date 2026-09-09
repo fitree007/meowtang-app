@@ -161,17 +161,30 @@ class OcrEngineService {
       }
 
       // Valid Bank Slip Verification URLs or ITMX Mini-QR
-      if (qClean.contains('http://') ||
-          qClean.contains('https://') ||
-          qClean.contains('ITMX') ||
-          qClean.contains('kplus') ||
-          qClean.contains('scb') ||
-          qClean.contains('ktb') ||
-          qClean.contains('slip') ||
-          qClean.contains('verify') ||
-          qClean.contains('promptpay')) {
-        // If image has transfer evidence or is in a bank folder or has valid ref
-        if (hasTransferSuccessEvidence || isDedicatedBankFolder(filePath) || isDedicatedBankFolder(fileName) || clean.contains('รหัสอ้างอิง') || clean.contains('จำนวนเงิน')) {
+      final lowerQr = qClean.toLowerCase();
+      final bool isBankVerificationQr = lowerQr.contains('itmx') ||
+          lowerQr.contains('/slip') ||
+          lowerQr.contains('slip') ||
+          lowerQr.contains('verify') ||
+          lowerQr.contains('kplus') ||
+          lowerQr.contains('kasikorn') ||
+          lowerQr.contains('scb') ||
+          lowerQr.contains('krungthai') ||
+          lowerQr.contains('ktb') ||
+          qClean.startsWith('000201010212') ||
+          qClean.contains('A000000677010112');
+
+      if (isBankVerificationQr) {
+        if (hasTransferSuccessEvidence ||
+            isDedicatedBankFolder(filePath) ||
+            isDedicatedBankFolder(fileName) ||
+            clean.contains('รหัสอ้างอิง') ||
+            clean.contains('จำนวนเงิน') ||
+            clean.contains('โอน') ||
+            clean.contains('บาท') ||
+            clean.contains('จ่าย') ||
+            clean.contains('ชำระ') ||
+            extractAmountFromText(rawText) > 0) {
           return true;
         }
       }
@@ -197,9 +210,12 @@ class OcrEngineService {
     ];
 
     final matchesKeyword = slipKeywords.any((kw) => clean.contains(kw) || file.contains(kw));
-    if (matchesKeyword && hasTransferSuccessEvidence) {
+    if (matchesKeyword) {
       final amount = extractAmountFromText(rawText);
-      if (amount > 0) return true;
+      final hasAmountAndTransfer = amount > 0 && (clean.contains('โอน') || clean.contains('transfer') || clean.contains('ชำระ') || clean.contains('จ่าย') || clean.contains('เติมเงิน') || clean.contains('บาท') || clean.contains('thb'));
+      if (hasTransferSuccessEvidence || hasAmountAndTransfer) {
+        return true;
+      }
       // Allow PaoTang / government welfare without amount
       if (clean.contains('เป๋าตัง') || clean.contains('paotang') || clean.contains('g-wallet') || clean.contains('คนละครึ่ง') || clean.contains('เราชนะ') || clean.contains('สวัสดิการ')) {
         return true;
@@ -908,6 +924,31 @@ class OcrEngineService {
       name = name.replaceFirst('บจก.', 'บจก. ');
     } else if (name.startsWith('หจก.') && !name.startsWith('หจก. ')) {
       name = name.replaceFirst('หจก.', 'หจก. ');
+    }
+
+    // If name contains both Thai and English, remove redundant bilingual English translation
+    if (RegExp(r'[\u0E00-\u0E7F]').hasMatch(name) && RegExp(r'[a-zA-Z]').hasMatch(name)) {
+      // Split on slash or pipe if present
+      if (name.contains('/') || name.contains('|')) {
+        final parts = name.split(RegExp(r'[/|]'));
+        for (final p in parts) {
+          if (RegExp(r'[\u0E00-\u0E7F]').hasMatch(p) && p.trim().length >= 2) {
+            name = p.trim();
+            break;
+          }
+        }
+      }
+      // If English title (MR, MRS, MS, MISS) appears after Thai text, truncate at that point
+      final engTitleMatch = RegExp(r'\s+(?:MR|MRS|MS|MISS)\.?\s+.*$', caseSensitive: false).firstMatch(name);
+      if (engTitleMatch != null) {
+        name = name.substring(0, engTitleMatch.start).trim();
+      } else {
+        // If there's an English name block after Thai words, e.g. "นาย กขค ABCD"
+        final thaiThenEngMatch = RegExp(r'^([\u0E00-\u0E7F\s.]+?)\s+[A-Za-z\s.]+$').firstMatch(name);
+        if (thaiThenEngMatch != null && thaiThenEngMatch.group(1)!.trim().length >= 3) {
+          name = thaiThenEngMatch.group(1)!.trim();
+        }
+      }
     }
 
     return name.trim();

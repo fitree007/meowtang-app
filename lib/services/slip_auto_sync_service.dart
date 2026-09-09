@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import '../models/transaction_item.dart';
 import '../models/category_item.dart';
 import '../models/slip_extract_result.dart';
@@ -107,10 +108,12 @@ class SlipAutoSyncService {
   /// Scans device storage for new bank slips and imports unimported slips from CURRENT & PREVIOUS month only.
   /// On initial import, existing device slips do NOT consume monthly quota, keeping it clean at 0/15!
   static Future<List<TransactionItem>> scanAndAutoImportNewSlips(ExpenseController controller) async {
-    _processedKeys.clear();
-    _inFlightKeys.clear();
-    // 0. Auto-clean existing duplicates in database if any exist
-    await deduplicateExistingTransactions(controller);
+    controller.setProcessingSlips(true);
+    try {
+      _processedKeys.clear();
+      _inFlightKeys.clear();
+      // 0. Auto-clean existing duplicates in database if any exist
+      await deduplicateExistingTransactions(controller);
 
     // 0.1. Seed persistent registry with any existing transactions
     final existingSlips = <String>[];
@@ -288,11 +291,14 @@ class SlipAutoSyncService {
       }
     }
 
-    if (isInitialScan) {
-      await controller.storage.setInitialDeviceScanCompleted(true);
-    }
+      if (isInitialScan) {
+        await controller.storage.setInitialDeviceScanCompleted(true);
+      }
 
-    return importedSlips;
+      return importedSlips;
+    } finally {
+      controller.setProcessingSlips(false);
+    }
   }
 
   /// Cleans up any existing duplicate transactions in the database (e.g. from previous double-scans)
@@ -659,16 +665,27 @@ class SlipAutoSyncService {
       cleanBank = 'กรุงไทย';
       bankName = 'กรุงไทย (Krungthai NEXT)';
     } else if (isIBank || (qrSenderCode == '066') || cleanBank.contains('ธนาคารอิสลาม') || cleanBank.contains('ibank') || cleanBank.contains('ไอแบงก์')) {
-      cleanBank = 'ธนาคารอิสลามแห่งประเทศไทย';
+      cleanBank = 'ธนาคารอิสลาม';
       bankName = 'ธนาคารอิสลามแห่งประเทศไทย';
     } else if (cleanBank.contains('กรุงเทพ') || (qrSenderCode == '002')) {
       cleanBank = 'กรุงเทพ';
+    } else if (cleanBank.contains('ทหารไทย') || cleanBank.contains('ttb') || (qrSenderCode == '011')) {
+      cleanBank = 'ทหารไทยธนชาต (ttb)';
+    } else if (cleanBank.contains('ออมสิน') || cleanBank.contains('mymo') || (qrSenderCode == '030')) {
+      cleanBank = 'ออมสิน';
+    } else if (cleanBank.contains('กรุงศรี') || (qrSenderCode == '025')) {
+      cleanBank = 'กรุงศรีอยุธยา';
+    } else if (cleanBank.contains('ทรูมันนี่') || cleanBank.contains('truemoney')) {
+      cleanBank = 'ทรูมันนี่';
+    } else if (cleanBank.contains('พร้อมเพย์') || cleanBank.contains('promptpay')) {
+      cleanBank = 'พร้อมเพย์';
     } else if (cleanBank.contains('ไทยช่วยไทย')) {
       cleanBank = 'ไทยช่วยไทย (เป๋าตัง)';
     } else if (cleanBank.contains('เป๋าตัง') || cleanBank.contains('paotang')) {
       cleanBank = 'เป๋าตัง';
     }
 
+    final bool isIOS = defaultTargetPlatform == TargetPlatform.iOS;
     String title;
     if (isIncome) {
       if (lowerCombined.contains('ไทยช่วยไทย')) {
@@ -679,24 +696,29 @@ class SlipAutoSyncService {
         title = 'เงินช่วยเหลือ (เราชนะ)';
       } else if (lowerCombined.contains('สวัสดิการ')) {
         title = 'เงินช่วยเหลือ (สวัสดิการแห่งรัฐ)';
-      } else if (senderName != 'ไม่ระบุผู้โอน' && senderName.isNotEmpty) {
+      } else if (!isIOS && senderName != 'ไม่ระบุผู้โอน' && senderName.isNotEmpty) {
         title = 'รับเงินโอนจาก $senderName';
-      } else if (isIBank || cleanBank == 'ธนาคารอิสลามแห่งประเทศไทย') {
-        title = 'รับเงินโอน (ธนาคารอิสลาม)';
+      } else if (isIBank || cleanBank == 'ธนาคารอิสลาม') {
+        title = 'รับเงินโอนผ่านธนาคารอิสลาม';
       } else {
-        title = 'เงินเข้าบัญชี ($cleanBank)';
+        title = 'รับเงินโอนผ่าน$cleanBank';
       }
     } else {
-      if (senderName != 'ไม่ระบุผู้โอน' && receiverName != 'ไม่ระบุผู้รับ') {
-        title = '$senderName โอนให้ $receiverName';
-      } else if (receiverName != 'ไม่ระบุผู้รับ') {
-        title = 'โอนให้ $receiverName';
-      } else if (senderName != 'ไม่ระบุผู้โอน') {
-        title = '$senderName โอนเงิน ($cleanBank)';
-      } else if (isIBank || cleanBank == 'ธนาคารอิสลามแห่งประเทศไทย') {
-        title = 'โอนเงินผ่านธนาคารอิสลาม';
-      } else {
+      if (isIOS) {
+        // iOS Standardized Slip Title requested by user: โอนเงินผ่าน.....(ชื่อธนาคาร)
         title = 'โอนเงินผ่าน$cleanBank';
+      } else {
+        if (senderName != 'ไม่ระบุผู้โอน' && receiverName != 'ไม่ระบุผู้รับ') {
+          title = '$senderName โอนให้ $receiverName';
+        } else if (receiverName != 'ไม่ระบุผู้รับ') {
+          title = 'โอนให้ $receiverName';
+        } else if (senderName != 'ไม่ระบุผู้โอน') {
+          title = '$senderName โอนเงิน ($cleanBank)';
+        } else if (isIBank || cleanBank == 'ธนาคารอิสลาม') {
+          title = 'โอนเงินผ่านธนาคารอิสลาม';
+        } else {
+          title = 'โอนเงินผ่าน$cleanBank';
+        }
       }
     }
 

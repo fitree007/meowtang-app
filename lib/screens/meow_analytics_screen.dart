@@ -822,7 +822,6 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> with SingleTi
    ),
   );
  }
-
  Widget _buildChartCard() {
   final items = _filteredTransactions.where((t) => t.type == _selectedType).toList();
   final total = _selectedType == TransactionType.expense ? _totalExpense : _totalIncome;
@@ -836,6 +835,7 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> with SingleTi
    isDark: widget.controller.isDarkMode,
    isEnglish: widget.controller.isEnglish,
    allCategories: widget.controller.categories,
+   isProcessingSlips: widget.controller.isProcessingSlips,
   );
  }
 

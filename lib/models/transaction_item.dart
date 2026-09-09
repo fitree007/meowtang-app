@@ -141,6 +141,35 @@ class TransactionItem {
       }
     }
 
+    String _sanitizePartyName(String name) {
+      var n = name.trim();
+      n = n.replaceAll(RegExp(r'^[•|~_<>*^\\/#@\s]+|[•|~_<>*^\\/#@\s]+$'), '');
+      if (RegExp(r'[\u0E00-\u0E7F]').hasMatch(n) && RegExp(r'[a-zA-Z]').hasMatch(n)) {
+        if (n.contains('/') || n.contains('|')) {
+          final parts = n.split(RegExp(r'[/|]'));
+          for (final p in parts) {
+            if (RegExp(r'[\u0E00-\u0E7F]').hasMatch(p) && p.trim().length >= 2) {
+              n = p.trim();
+              break;
+            }
+          }
+        }
+        final engTitleMatch = RegExp(r'\s+(?:MR|MRS|MS|MISS)\.?\s+.*$', caseSensitive: false).firstMatch(n);
+        if (engTitleMatch != null) {
+          n = n.substring(0, engTitleMatch.start).trim();
+        } else {
+          final thaiThenEngMatch = RegExp(r'^([\u0E00-\u0E7F\s.]+?)\s+[A-Za-z\s.]+$').firstMatch(n);
+          if (thaiThenEngMatch != null && thaiThenEngMatch.group(1)!.trim().length >= 3) {
+            n = thaiThenEngMatch.group(1)!.trim();
+          }
+        }
+      }
+      return n.trim();
+    }
+
+    if (s != null && s.isNotEmpty) s = _sanitizePartyName(s);
+    if (r != null && r.isNotEmpty) r = _sanitizePartyName(r);
+
     if (s != null && s.isNotEmpty && r != null && r.isNotEmpty) {
       return 'โอนจาก $s ➔ $r';
     } else if (r != null && r.isNotEmpty) {

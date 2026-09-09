@@ -28,28 +28,39 @@ enum MascotMood {
 }
 
 class ExpenseController extends ChangeNotifier {
- final StorageService _storage;
- final OcrEngineService _ocrEngine = OcrEngineService();
- final NlpParserService _nlpParser = NlpParserService();
- final CashflowForecastService _forecastService = CashflowForecastService();
+  static const String appVersion = '1.41.8';
 
- static const MethodChannel _widgetChannel = MethodChannel('com.afitree.rizqi/widget');
+  final StorageService _storage;
+  final OcrEngineService _ocrEngine = OcrEngineService();
+  final NlpParserService _nlpParser = NlpParserService();
+  final CashflowForecastService _forecastService = CashflowForecastService();
 
- List<TransactionItem> _transactions = [];
- List<AccountItem> _accounts = [];
- List<CategoryItem> _categories = [];
- List<SavingGoalItem> _savingGoals = [];
- final List<ProjectBudget> _projects = [];
- TaxProfile _taxProfile = TaxProfile();
+  static const MethodChannel _widgetChannel = MethodChannel('com.afitree.rizqi/widget');
 
- // Filter & Search
- String _searchQuery = '';
- TransactionType? _filterType;
- String? _filterCategoryId;
- String? _filterAccountId;
- DateTimeRange? _filterDateRange;
+  List<TransactionItem> _transactions = [];
+  List<AccountItem> _accounts = [];
+  List<CategoryItem> _categories = [];
+  List<SavingGoalItem> _savingGoals = [];
+  final List<ProjectBudget> _projects = [];
+  TaxProfile _taxProfile = TaxProfile();
 
- bool _isLoading = false;
+  // Filter & Search
+  String _searchQuery = '';
+  TransactionType? _filterType;
+  String? _filterCategoryId;
+  String? _filterAccountId;
+  DateTimeRange? _filterDateRange;
+
+  bool _isLoading = false;
+  bool _isProcessingSlips = false;
+  bool get isProcessingSlips => _isProcessingSlips;
+
+  void setProcessingSlips(bool value) {
+    if (_isProcessingSlips != value) {
+      _isProcessingSlips = value;
+      notifyListeners();
+    }
+  }
 
  ExpenseController(this._storage) {
   loadData();
@@ -1080,9 +1091,9 @@ class ExpenseController extends ChangeNotifier {
   }
 
   // TRANSACTION ACTIONS
-  Future<bool> addTransaction(TransactionItem item, {bool isRestore = false}) async {
-    // Duplicate & Deleted Protection Guard (Bypass if restoring an undo transaction)
-    if (!isRestore && (item.slipImageUrl != null || (item.slipRefId != null && !item.slipRefId!.startsWith('SLIP-') && !item.slipRefId!.startsWith('NO-QR-')))) {
+  Future<bool> addTransaction(TransactionItem item, {bool isRestore = false, bool allowManualOverride = false}) async {
+    // Duplicate & Deleted Protection Guard (Bypass if restoring an undo transaction or user confirmed manual save)
+    if (!isRestore && !allowManualOverride && (item.slipImageUrl != null || (item.slipRefId != null && !item.slipRefId!.startsWith('SLIP-') && !item.slipRefId!.startsWith('NO-QR-')))) {
       final isDup = DuplicateSlipChecker.isDuplicate(
         existingTransactions: _transactions,
         deletedSlipIdentifiers: _storage.getDeletedSlips(),

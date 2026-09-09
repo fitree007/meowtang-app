@@ -15,6 +15,7 @@ class AnalyticsCarouselChartCard extends StatefulWidget {
   final bool isDark;
   final bool isEnglish;
   final List<CategoryItem> allCategories;
+  final bool isProcessingSlips;
 
   const AnalyticsCarouselChartCard({
     super.key,
@@ -26,6 +27,7 @@ class AnalyticsCarouselChartCard extends StatefulWidget {
     required this.isDark,
     this.isEnglish = false,
     required this.allCategories,
+    this.isProcessingSlips = false,
   });
 
   @override
@@ -104,6 +106,75 @@ class _AnalyticsCarouselChartCardState extends State<AnalyticsCarouselChartCard>
     final cardBg = widget.isDark ? MeowTheme.navySurface : Colors.white;
     final borderColor = widget.isDark ? MeowTheme.borderColor : const Color(0xFFE2E8F0);
     final textPrimary = widget.isDark ? Colors.white : const Color(0xFF0F172A);
+
+    if (widget.isProcessingSlips && (widget.transactions.isEmpty || widget.totalAmount <= 0)) {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        decoration: BoxDecoration(
+          color: cardBg,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: borderColor),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: widget.isDark ? 0.2 : 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        alignment: Alignment.center,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                SizedBox(
+                  width: 58,
+                  height: 58,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 3,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      widget.isDark ? const Color(0xFF38BDF8) : const Color(0xFF2563EB),
+                    ),
+                  ),
+                ),
+                Icon(
+                  Icons.receipt_long_rounded,
+                  color: widget.isDark ? const Color(0xFF38BDF8) : const Color(0xFF2563EB),
+                  size: 28,
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            Text(
+              widget.isEnglish
+                  ? 'Processing slips on device...'
+                  : 'กำลังประมวลผลสลิปในเครื่อง...',
+              style: TextStyle(
+                color: textPrimary,
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              widget.isEnglish
+                  ? 'Searching and reading bank slips automatically.\nCharts will appear once completed.'
+                  : 'ระบบกำลังค้นหาและอ่านสลิปธนาคารอัตโนมัติ\nกราฟจะแสดงทันทีเมื่อเสร็จสิ้น',
+              style: TextStyle(
+                color: widget.isDark ? Colors.white60 : const Color(0xFF64748B),
+                fontSize: 12.5,
+                height: 1.4,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
 
     if (widget.transactions.isEmpty || widget.totalAmount <= 0) {
       return Container(

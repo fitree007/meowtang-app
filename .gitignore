@@ -52,4 +52,6 @@ dist_apk/
 dist_ipa/
 *.apk
 *.ipa
+android/build/
+.kotlin/
 

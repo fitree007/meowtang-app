@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/transaction_item.dart';
@@ -276,21 +277,52 @@ class _SlipAutoRecordScreenState extends State<SlipAutoRecordScreen> {
     fallbackCategory: isIncomeSlip ? incomeFallback : expenseFallback,
   );
 
-  // 9. Generate Title showing Who transferred to Whom
-  String title = isIncomeSlip ? 'รับเงินโอน $bankName' : 'โอนเงิน $bankName';
-  if (isIncomeSlip) {
-    if (senderName != 'ไม่ระบุผู้โอน') {
-      title = 'รับเงินจาก $senderName';
-    } else {
-      title = 'เงินโอนเข้า ($bankName)';
-    }
+  // 9. Generate Title showing Who transferred to Whom (iOS format: โอนเงินผ่าน(ชื่อธนาคาร))
+  final bool isIOS = defaultTargetPlatform == TargetPlatform.iOS;
+  String cleanBank = bankName;
+  if (bankName.contains('กสิกร') || bankName.toLowerCase().contains('k plus') || bankName.toLowerCase().contains('kbank')) {
+    cleanBank = 'กสิกรไทย';
+  } else if (bankName.contains('ไทยพาณิชย์') || bankName.toLowerCase().contains('scb')) {
+    cleanBank = 'ไทยพาณิชย์';
+  } else if (bankName.contains('กรุงไทย')) {
+    cleanBank = 'กรุงไทย';
+  } else if (isIBank || bankName.contains('ธนาคารอิสลาม') || bankName.toLowerCase().contains('ibank') || bankName.contains('ไอแบงก์')) {
+    cleanBank = 'ธนาคารอิสลาม';
+  } else if (bankName.contains('กรุงเทพ')) {
+    cleanBank = 'กรุงเทพ';
+  } else if (bankName.contains('ทหารไทย') || bankName.toLowerCase().contains('ttb')) {
+    cleanBank = 'ทหารไทยธนชาต (ttb)';
+  } else if (bankName.contains('ออมสิน') || bankName.toLowerCase().contains('mymo')) {
+    cleanBank = 'ออมสิน';
+  } else if (bankName.contains('กรุงศรี')) {
+    cleanBank = 'กรุงศรีอยุธยา';
+  } else if (bankName.contains('ทรูมันนี่') || bankName.toLowerCase().contains('truemoney')) {
+    cleanBank = 'ทรูมันนี่';
+  } else if (bankName.contains('พร้อมเพย์')) {
+    cleanBank = 'พร้อมเพย์';
+  } else if (bankName.contains('เป๋าตัง')) {
+    cleanBank = 'เป๋าตัง';
+  }
+
+  String title;
+  if (isIOS) {
+    title = isIncomeSlip ? 'รับเงินโอนผ่าน$cleanBank' : 'โอนเงินผ่าน$cleanBank';
   } else {
-    if (senderName != 'ไม่ระบุผู้โอน' && receiverName != 'ไม่ระบุผู้รับ') {
-      title = '$senderName โอนให้ $receiverName';
-    } else if (receiverName != 'ไม่ระบุผู้รับ') {
-      title = 'โอนให้ $receiverName';
-    } else if (senderName != 'ไม่ระบุผู้โอน') {
-      title = '$senderName โอนเงิน ($bankName)';
+    title = isIncomeSlip ? 'รับเงินโอน $bankName' : 'โอนเงิน $bankName';
+    if (isIncomeSlip) {
+      if (senderName != 'ไม่ระบุผู้โอน') {
+        title = 'รับเงินจาก $senderName';
+      } else {
+        title = 'เงินโอนเข้า ($bankName)';
+      }
+    } else {
+      if (senderName != 'ไม่ระบุผู้โอน' && receiverName != 'ไม่ระบุผู้รับ') {
+        title = '$senderName โอนให้ $receiverName';
+      } else if (receiverName != 'ไม่ระบุผู้รับ') {
+        title = 'โอนให้ $receiverName';
+      } else if (senderName != 'ไม่ระบุผู้โอน') {
+        title = '$senderName โอนเงิน ($bankName)';
+      }
     }
   }
 
@@ -374,8 +406,19 @@ class _SlipAutoRecordScreenState extends State<SlipAutoRecordScreen> {
    slipImageUrl: persistentSlipPath,
   );
 
-  widget.controller.addTransaction(item);
-  await widget.controller.recordSlipImported(slipDate: item.date);
+   final added = await widget.controller.addTransaction(item, allowManualOverride: true);
+   if (!added) {
+    if (mounted) {
+     ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+       content: Text('ไม่สามารถบันทึกรายการได้ กรุณาตรวจสอบข้อมูล'),
+       backgroundColor: MeowTheme.expenseRed,
+      ),
+     );
+    }
+    return;
+   }
+   await widget.controller.recordSlipImported(slipDate: item.date);
 
   ScaffoldMessenger.of(context).showSnackBar(
    SnackBar(

@@ -92,9 +92,9 @@ class MeowLandingScreen extends StatelessWidget {
               ),
               const SizedBox(height: 20),
 
-              // Service Credit
+              // Contact Email
               const Text(
-                'ให้บริการโดย Afitree Yamaenoh',
+                'Contact Email fitree.work24725@gmail.com',
                 style: TextStyle(
                   color: MeowTheme.textLightMuted,
                   fontSize: 12,

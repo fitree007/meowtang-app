@@ -12,9 +12,9 @@ class AppStrings {
       'ms': 'سيستم چاتتن ڤنداڤتن & ڤربلنجأن AI بيجق',
     },
     'credit_service': {
-      'th': 'ให้บริการโดย Afitree Yamaenoh',
-      'en': 'Provided by Afitree Yamaenoh',
-      'ms': 'دبريكن اوليه Afitree Yamaenoh',
+      'th': 'Contact Email fitree.work24725@gmail.com',
+      'en': 'Contact Email fitree.work24725@gmail.com',
+      'ms': 'Contact Email fitree.work24725@gmail.com',
     },
 
     // Navigation
