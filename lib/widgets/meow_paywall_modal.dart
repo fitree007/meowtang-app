@@ -86,22 +86,22 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
             Expanded(
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                padding: const EdgeInsets.fromLTRB(16, 2, 16, 14),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // 1. Compact Header (Mascot + Title + Dismiss Button)
+                    // 1. Minimal Header (Mascot + Title + Close Button)
                     Row(
                       children: [
                         MeowMascotWidget(
-                          size: 48,
+                          size: 40,
                           mascotId: widget.controller.selectedMascotId,
                           accessory: 'crown',
                           customPhotoPath: widget.controller.customAvatarPath,
                           isCustomPhoto: widget.controller.isCustomAvatarEnabled,
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -109,25 +109,25 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
                               Row(
                                 children: [
                                   Text(
-                                    isEn ? 'MeowTang VIP Suite' : 'เหมียวตังค์ VIP Suite',
+                                    isEn ? 'MeowTang VIP' : 'เหมียวตังค์ VIP',
                                     style: TextStyle(
-                                      fontSize: 18,
+                                      fontSize: 17,
                                       fontWeight: FontWeight.bold,
                                       color: textColor,
                                       letterSpacing: -0.3,
                                     ),
                                   ),
                                   const SizedBox(width: 4),
-                                  const Text('👑', style: TextStyle(fontSize: 16)),
+                                  const Text('👑', style: TextStyle(fontSize: 15)),
                                 ],
                               ),
-                              const SizedBox(height: 2),
+                              const SizedBox(height: 1),
                               Text(
                                 isEn
-                                    ? 'Save 10+ hrs/month • Under 1฿ per day! ✨'
-                                    : 'ประหยัดเวลาทำบัญชีกว่า 10 ชม./เดือน วันละไม่ถึง 1฿ ✨',
+                                    ? 'Unlock all features unlimited • Less than 1฿/day ✨'
+                                    : 'ปลดล็อคทุกฟีเจอร์ในแอป ไร้ขีดจำกัด เพียงวันละไม่ถึง 1฿ ✨',
                                 style: TextStyle(
-                                  fontSize: 11.5,
+                                  fontSize: 11,
                                   color: subColor,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -136,45 +136,16 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
                           ),
                         ),
                         IconButton(
-                          icon: Icon(Icons.close_rounded, color: subColor, size: 22),
+                          icon: Icon(Icons.close_rounded, color: subColor, size: 20),
                           visualDensity: VisualDensity.compact,
                           padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                          constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
                           onPressed: () => Navigator.pop(context),
                         ),
                       ],
                     ),
 
-                    // Optional Reason Banner (e.g. Quota reached or Export clicked)
-                    if (widget.initialReason != null) ...[
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: primary.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: primary.withValues(alpha: 0.3)),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.info_outline_rounded, color: primary, size: 16),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                widget.initialReason!,
-                                style: TextStyle(
-                                  color: textColor,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-
-                    // Rewarded Ad Option: Slim Strip
+                    // 2. Rewarded Ad Bar (Placed BEFORE perks box as agreed)
                     if (!widget.controller.isPremium) ...[
                       const SizedBox(height: 8),
                       Builder(
@@ -183,42 +154,70 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
                           final maxAds = widget.controller.maxMonthlyRewardedAds;
                           final canWatch = widget.controller.canWatchRewardedAd;
                           return Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                             decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: isDark
-                                    ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
-                                    : [const Color(0xFFEFF6FF), const Color(0xFFDBEAFE)],
-                              ),
-                              borderRadius: BorderRadius.circular(12),
+                              color: canWatch
+                                  ? (isDark ? const Color(0xFF1E293B) : const Color(0xFFF0FDF4))
+                                  : (isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF3F4F6)),
+                              borderRadius: BorderRadius.circular(10),
                               border: Border.all(
-                                color: const Color(0xFF3B82F6).withValues(alpha: 0.35),
-                                width: 1.0,
+                                color: canWatch
+                                    ? const Color(0xFF10B981).withValues(alpha: 0.35)
+                                    : subColor.withValues(alpha: 0.2),
+                                width: 0.8,
                               ),
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.play_circle_fill_rounded, color: Color(0xFF2563EB), size: 22),
-                                const SizedBox(width: 8),
+                                Icon(
+                                  Icons.play_circle_fill_rounded,
+                                  color: canWatch ? const Color(0xFF10B981) : subColor,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 7),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        isEn ? 'Watch Ad for +2 Slips ($adWatches/$maxAds)' : 'ดูโฆษณารับ +2 สลิป 🎬 ($adWatches/$maxAds)',
-                                        style: TextStyle(
-                                          color: textColor,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                                      Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              isEn ? 'FREE' : 'ทางเลือกฟรี 🎁',
+                                              style: const TextStyle(
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.bold,
+                                                color: Color(0xFF059669),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 5),
+                                          Text(
+                                            isEn ? 'Watch ad for +2 slips' : 'ดูคลิปรับฟรี +2 สลิป',
+                                            style: TextStyle(
+                                              color: textColor,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                       Text(
                                         canWatch
-                                            ? (isEn ? 'Resets 1st of month' : 'รีเซ็ตทุกวันที่ 1 (ไม่สะสมข้ามเดือน)')
-                                            : (isEn ? 'Monthly quota reached' : 'ครบโควต้าเดือนนี้แล้ว ($maxAds/$maxAds)'),
+                                            ? (isEn
+                                                ? 'Used $adWatches/$maxAds this month • Resets 1st'
+                                                : 'ดูไปแล้ว $adWatches/$maxAds ครั้งเดือนนี้ • รีเซ็ตทุกวันที่ 1')
+                                            : (isEn
+                                                ? 'Reached quota ($maxAds/$maxAds) • Resets next month'
+                                                : 'ครบโควต้า $maxAds/$maxAds ครั้งเดือนนี้แล้ว • รอรีเซ็ตเดือนถัดไป'),
                                         style: TextStyle(
                                           color: canWatch ? subColor : const Color(0xFFEF4444),
-                                          fontSize: 9.5,
+                                          fontSize: 9,
                                           fontWeight: canWatch ? FontWeight.normal : FontWeight.bold,
                                         ),
                                       ),
@@ -229,17 +228,17 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
                                 ElevatedButton(
                                   onPressed: (_isProcessing || !canWatch) ? null : _handleWatchAd,
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF2563EB),
+                                    backgroundColor: const Color(0xFF10B981),
                                     foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                    minimumSize: const Size(60, 30),
+                                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                                    minimumSize: const Size(54, 26),
                                     visualDensity: VisualDensity.compact,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                                     elevation: 0,
                                   ),
                                   child: Text(
                                     canWatch ? (isEn ? 'Watch' : 'ชมคลิป') : (isEn ? 'Full' : 'ครบ'),
-                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                                    style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold),
                                   ),
                                 ),
                               ],
@@ -249,87 +248,140 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
                       ),
                     ],
 
-                    const SizedBox(height: 10),
+                    // Optional Non-slip Reason Notice (if any)
+                    if (widget.initialReason != null && !widget.initialReason!.contains('โควต้าสลิปฟรี')) ...[
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: primary.withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: primary.withValues(alpha: 0.25), width: 0.8),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.info_outline_rounded, color: primary, size: 14),
+                            const SizedBox(width: 5),
+                            Expanded(
+                              child: Text(
+                                widget.initialReason!,
+                                style: TextStyle(
+                                  color: textColor,
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
 
-                    // 2. WOW Value Features (Compact 2-Column Pill Grid)
+                    const SizedBox(height: 8),
+
+                    // 3. VIP Benefits Box (6 Minimalist Bento Cards)
                     Row(
                       children: [
                         Expanded(
-                          child: _buildPerkChip(
+                          child: _buildMinimalPerkCard(
                             icon: Icons.qr_code_scanner_rounded,
                             color: const Color(0xFF10B981),
-                            title: isEn ? 'Unlimited Slip Scan' : '⚡ สแกนสลิป 22 ธ. ไม่อั้น',
+                            title: isEn ? 'Unlimited Slips' : '⚡ สแกนสลิปไม่อั้น',
+                            desc: isEn ? 'Auto-scan 22 banks, no limits' : 'AI ลงบัญชีทันที ไม่จำกัด 10/ด.',
                             isDark: isDark,
                             textColor: textColor,
+                            subColor: subColor,
                           ),
                         ),
                         const SizedBox(width: 6),
                         Expanded(
-                          child: _buildPerkChip(
-                            icon: Icons.shield_rounded,
-                            color: const Color(0xFF059669),
-                            title: isEn ? '100% Offline Vault' : '🔒 ออฟไลน์ 100% ไร้เสี่ยง',
-                            isDark: isDark,
-                            textColor: textColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildPerkChip(
+                          child: _buildMinimalPerkCard(
                             icon: Icons.picture_as_pdf_rounded,
                             color: const Color(0xFFEF4444),
-                            title: isEn ? 'Export A4 PDF & Excel' : '📄 ส่งออก PDF & Excel',
+                            title: isEn ? 'A4 PDF & Excel' : '📄 ส่งออก PDF & Excel',
+                            desc: isEn ? 'Ready for taxes & loan filing' : 'ทำเล่มรายงานพร้อมยื่นภาษี/กู้',
                             isDark: isDark,
                             textColor: textColor,
+                            subColor: subColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildMinimalPerkCard(
+                            icon: Icons.track_changes_rounded,
+                            color: const Color(0xFF3B82F6),
+                            title: isEn ? 'Wealth & Budgets' : '🎯 วางแผนงบ & ออมเงิน',
+                            desc: isEn ? 'Track goals & project budgets' : 'คุมงบเตือนก่อนหมด & ตั้งเป้าออม',
+                            isDark: isDark,
+                            textColor: textColor,
+                            subColor: subColor,
                           ),
                         ),
                         const SizedBox(width: 6),
                         Expanded(
-                          child: _buildPerkChip(
-                            icon: Icons.auto_awesome_rounded,
+                          child: _buildMinimalPerkCard(
+                            icon: Icons.currency_exchange_rounded,
                             color: const Color(0xFFF59E0B),
-                            title: isEn ? 'Multi-Project Budget' : '🌍 แปลงเงิน & งบโปรเจกต์',
+                            title: isEn ? 'Live Rates & Gold' : '💱 เรทเงินโลก & ทองคำสด',
+                            desc: isEn ? 'Real-time rates & calculator' : 'แปลงค่าเงิน & คำนวณราคาทองสด',
                             isDark: isDark,
                             textColor: textColor,
+                            subColor: subColor,
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 6),
-                    _buildPerkChip(
-                      icon: Icons.palette_rounded,
-                      color: const Color(0xFF8B5CF6),
-                      title: isEn ? 'Unlock All 18 Themes & Custom Avatar' : '🎨 ปลดล็อคครบ 18 ธีม & ใส่รูปโปรไฟล์ตัวเอง',
-                      isDark: isDark,
-                      textColor: textColor,
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    // 3. Side-by-Side Pricing Cards Selection
                     Row(
                       children: [
-                        Text(
-                          isEn ? 'Select Plan' : 'เลือกแพ็กเกจ',
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.bold,
-                            color: textColor,
+                        Expanded(
+                          child: _buildMinimalPerkCard(
+                            icon: Icons.mosque_rounded,
+                            color: const Color(0xFF8B5CF6),
+                            title: isEn ? 'Islamic Suite' : '🕌 ซะกาต & แบ่งมรดก',
+                            desc: isEn ? 'Live Zakat & Faraid laws' : 'คำนวณซะกาต & แบ่งมรดกฟะรออิฎ',
+                            isDark: isDark,
+                            textColor: textColor,
+                            subColor: subColor,
                           ),
                         ),
-                        const Spacer(),
-                        Text(
-                          isEn ? 'Cancel anytime' : 'ยกเลิกได้ทุกเมื่อ',
-                          style: TextStyle(fontSize: 11, color: subColor),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: _buildMinimalPerkCard(
+                            icon: Icons.palette_rounded,
+                            color: const Color(0xFFEC4899),
+                            title: isEn ? '18 Themes & Avatar' : '🎨 18 ธีม & รูปตัวเอง',
+                            desc: isEn ? 'Unlock themes & custom avatar' : 'ปลดล็อคทุกธีม & ใช้รูปโปรไฟล์ได้',
+                            isDark: isDark,
+                            textColor: textColor,
+                            subColor: subColor,
+                          ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 6),
 
+                    const SizedBox(height: 5),
+
+                    // Subtle Trust & Security Tag
+                    Center(
+                      child: Text(
+                        isEn
+                            ? '🚫 100% Ad-Free • 🔒 100% Offline Vault Security'
+                            : '🚫 ไร้โฆษณากวนใจ 100% • 🔒 ข้อมูลออฟไลน์ ปลอดภัย ไม่เสี่ยงดูดเงิน',
+                        style: TextStyle(fontSize: 9.5, color: subColor, fontWeight: FontWeight.w500),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    // 4. Side-by-Side Minimal Pricing Cards Selection
                     Row(
                       children: [
                         // Card 1: Monthly
@@ -364,14 +416,14 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
                       ],
                     ),
 
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
 
-                    // 4. Action CTA Button
+                    // 5. Action CTA Button
                     TactileButton(
                       onTap: _isProcessing ? null : _handleSubscribe,
                       child: Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        padding: const EdgeInsets.symmetric(vertical: 11),
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
@@ -379,11 +431,11 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
                               theme.primaryDark,
                             ],
                           ),
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: theme.primaryColor.withValues(alpha: 0.35),
-                              blurRadius: 8,
+                              color: theme.primaryColor.withValues(alpha: 0.3),
+                              blurRadius: 6,
                               offset: const Offset(0, 2),
                             ),
                           ],
@@ -391,21 +443,21 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
                         child: Center(
                           child: _isProcessing
                               ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.2),
                                 )
                               : Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 18),
+                                    const Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 17),
                                     const SizedBox(width: 6),
                                     Text(
                                       _getCtaText(isEn),
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontWeight: FontWeight.bold,
-                                        fontSize: 15,
+                                        fontSize: 14.5,
                                       ),
                                     ),
                                   ],
@@ -414,9 +466,9 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
                       ),
                     ),
 
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
 
-                    // 5. Restore Purchases & Dismiss
+                    // 6. Restore Purchases & Dismiss
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -424,7 +476,7 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
                           onPressed: _handleRestore,
                           style: TextButton.styleFrom(
                             visualDensity: VisualDensity.compact,
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           ),
                           child: Text(
                             isEn ? 'Restore Purchases' : 'กู้คืนสิทธิ์ (Restore)',
@@ -440,7 +492,7 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
                           onPressed: () => Navigator.pop(context),
                           style: TextButton.styleFrom(
                             visualDensity: VisualDensity.compact,
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           ),
                           child: Text(
                             isEn ? 'Maybe Later' : 'ไว้คราวหน้า',
@@ -467,38 +519,54 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
     }
   }
 
-  Widget _buildPerkChip({
+  Widget _buildMinimalPerkCard({
     required IconData icon,
     required Color color,
     required String title,
+    required String desc,
     required bool isDark,
     required Color textColor,
+    required Color subColor,
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.12 : 0.07),
+        color: color.withValues(alpha: isDark ? 0.10 : 0.05),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: color.withValues(alpha: 0.25),
+          color: color.withValues(alpha: 0.22),
           width: 0.8,
         ),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: color, size: 15),
+          Icon(icon, color: color, size: 16),
           const SizedBox(width: 6),
           Expanded(
-            child: Text(
-              title,
-              style: TextStyle(
-                color: textColor,
-                fontWeight: FontWeight.w600,
-                fontSize: 11,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: textColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 11,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  desc,
+                  style: TextStyle(
+                    color: subColor,
+                    fontSize: 9.5,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
           ),
         ],

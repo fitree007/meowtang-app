@@ -77,8 +77,8 @@ class _SlipAutoRecordScreenState extends State<SlipAutoRecordScreen> {
        context,
        controller: widget.controller,
        reason: isEn
-           ? 'Monthly slip quota reached ($monthlyUsed/$monthlyMax slips). Reset to 0/$monthlyMax on 1st of every month. Upgrade to VIP for unlimited slips!'
-           : 'โควต้าสลิปฟรีเดือนนี้ครบแล้ว ($monthlyUsed/$monthlyMax สลิป) รีเซ็ตเป็น 0/$monthlyMax ทุกวันที่ 1 ปลดล็อค VIP เพื่อใช้งานไม่จำกัด 👑',
+           ? 'Monthly slip quota reached ($monthlyUsed/$monthlyMax slips). Watch short ad for +2 free slips or upgrade to VIP for unlimited slips!'
+           : 'โควต้าสลิปฟรีเดือนนี้ครบแล้ว ($monthlyUsed/$monthlyMax สลิป) 🎬 ดูคลิปสั้นรับฟรี +2 สลิปได้ทันที หรือสมัคร VIP สแกนไม่อั้นตลอดชีพ 👑',
      );
      return;
    }
@@ -379,13 +379,13 @@ class _SlipAutoRecordScreenState extends State<SlipAutoRecordScreen> {
      final monthlyUsed = widget.controller.currentMonthSlipCount;
      final monthlyMax = widget.controller.maxFreeSlipsPerMonth;
      final isEn = widget.controller.isEnglish;
-     MeowPaywallModal.show(
-       context,
-       controller: widget.controller,
-       reason: isEn
-           ? 'Monthly slip quota reached ($monthlyUsed/$monthlyMax slips). Reset to 0/$monthlyMax on 1st of every month. Upgrade to VIP for unlimited slips!'
-           : 'โควต้าสลิปฟรีเดือนนี้ครบแล้ว ($monthlyUsed/$monthlyMax สลิป) รีเซ็ตเป็น 0/$monthlyMax ทุกวันที่ 1 ปลดล็อค VIP เพื่อใช้งานไม่จำกัด 👑',
-     );
+      MeowPaywallModal.show(
+        context,
+        controller: widget.controller,
+        reason: isEn
+            ? 'Monthly slip quota reached ($monthlyUsed/$monthlyMax slips). Watch short ad for +2 free slips or upgrade to VIP for unlimited slips!'
+            : 'โควต้าสลิปฟรีเดือนนี้ครบแล้ว ($monthlyUsed/$monthlyMax สลิป) 🎬 ดูคลิปสั้นรับฟรี +2 สลิปได้ทันที หรือสมัคร VIP สแกนไม่อั้นตลอดชีพ 👑',
+      );
      return;
    }
 
