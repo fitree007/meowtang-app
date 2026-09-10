@@ -84,351 +84,373 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
             ),
 
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
+              child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
-                children: [
-                  // 1. Header with Mascot
-                  Center(
-                    child: Stack(
-                      alignment: Alignment.bottomRight,
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // 1. Compact Header (Mascot + Title + Dismiss Button)
+                    Row(
                       children: [
                         MeowMascotWidget(
-                          size: 72,
+                          size: 48,
                           mascotId: widget.controller.selectedMascotId,
                           accessory: 'crown',
                           customPhotoPath: widget.controller.customAvatarPath,
                           isCustomPhoto: widget.controller.isCustomAvatarEnabled,
                         ),
-                        Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFF59E0B),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.stars_rounded,
-                            color: Colors.white,
-                            size: 16,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  Center(
-                    child: Text(
-                      isEn ? 'MeowTang VIP Suite 👑' : 'เหมียวตังค์ VIP Suite 👑',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: textColor,
-                        letterSpacing: -0.5,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-
-                  const SizedBox(height: 4),
-                  Center(
-                    child: Text(
-                      isEn
-                          ? 'Save 10+ hours a month on bookkeeping • Less than 1฿ per day!'
-                          : 'ประหยัดเวลาทำบัญชีได้กว่า 10 ชม./เดือน เพียงวันละไม่ถึง 1 บาท! ✨',
-                      style: TextStyle(fontSize: 13, color: subColor, fontWeight: FontWeight.w500),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-
-                  // Optional Reason Banner (e.g. Quota reached or Export clicked)
-                  if (widget.initialReason != null) ...[
-                    const SizedBox(height: 14),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: primary.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: primary.withValues(alpha: 0.3)),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.info_outline_rounded, color: primary, size: 18),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              widget.initialReason!,
-                              style: TextStyle(
-                                color: textColor,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-
-                  // Rewarded Ad Option: +2 slips for this calendar month (max 10 ads/mo, 0/10 reset every month)
-                  if (!widget.controller.isPremium) ...[
-                    const SizedBox(height: 14),
-                    Builder(
-                      builder: (context) {
-                        final adWatches = widget.controller.currentMonthAdWatchesCount;
-                        final maxAds = widget.controller.maxMonthlyRewardedAds;
-                        final canWatch = widget.controller.canWatchRewardedAd;
-                        return Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: isDark
-                                  ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
-                                  : [const Color(0xFFEFF6FF), const Color(0xFFDBEAFE)],
-                            ),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: const Color(0xFF3B82F6).withValues(alpha: 0.4),
-                              width: 1.2,
-                            ),
-                          ),
-                          child: Row(
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF2563EB).withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: const Icon(Icons.play_circle_fill_rounded, color: Color(0xFF2563EB), size: 26),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      isEn ? 'Watch Ad to Get +2 Slips ($adWatches/$maxAds)' : 'ดูโฆษณาเพื่อรับเพิ่ม +2 สลิป 🎬 ($adWatches/$maxAds)',
-                                      style: TextStyle(
-                                        color: textColor,
-                                        fontSize: 13.5,
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                              Row(
+                                children: [
+                                  Text(
+                                    isEn ? 'MeowTang VIP Suite' : 'เหมียวตังค์ VIP Suite',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: textColor,
+                                      letterSpacing: -0.3,
                                     ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      canWatch
-                                          ? (isEn
-                                              ? 'Used $adWatches/$maxAds ad watches this month • Resets 1st of month'
-                                              : 'ดูไปแล้ว $adWatches/$maxAds ครั้งเดือนนี้ • รีเซ็ตทุกวันที่ 1 (ไม่สะสมข้ามเดือน)')
-                                          : (isEn
-                                              ? 'Monthly ad quota reached ($maxAds/$maxAds) • Resets next month'
-                                              : 'ครบโควต้าดูโฆษณาเดือนนี้แล้ว ($maxAds/$maxAds) • รอรีเซ็ตเดือนถัดไป'),
-                                      style: TextStyle(
-                                        color: canWatch ? subColor : const Color(0xFFEF4444),
-                                        fontSize: 10.5,
-                                        fontWeight: canWatch ? FontWeight.normal : FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Text('👑', style: TextStyle(fontSize: 16)),
+                                ],
                               ),
-                              ElevatedButton(
-                                onPressed: (_isProcessing || !canWatch) ? null : _handleWatchAd,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF2563EB),
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                  elevation: 1,
-                                ),
-                                child: Text(
-                                  canWatch ? (isEn ? 'Watch' : 'ชมคลิป') : (isEn ? 'Full' : 'ครบแล้ว'),
-                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                              const SizedBox(height: 2),
+                              Text(
+                                isEn
+                                    ? 'Save 10+ hrs/month • Under 1฿ per day! ✨'
+                                    : 'ประหยัดเวลาทำบัญชีกว่า 10 ชม./เดือน วันละไม่ถึง 1฿ ✨',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: subColor,
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
                             ],
                           ),
-                        );
-                      },
-                    ),
-                  ],
-
-                  const SizedBox(height: 18),
-
-                  // 2. WOW Value Features List
-                  _buildFeatureRow(
-                    icon: Icons.qr_code_scanner_rounded,
-                    color: const Color(0xFF10B981),
-                    title: isEn ? 'Unlimited AI Slip Auto-Scanning' : '⚡ ดึงสลิปอัตโนมัติ 22 ธนาคาร ไม่อั้น',
-                    subtitle: isEn
-                        ? 'Zero manual typing! Instant AI detection on save, no monthly limits'
-                        : 'ไม่ต้องนั่งพิมพ์เอง! AI อ่านสลิปและลงบัญชีทันทีที่เซฟรูป สแกนไม่อั้น',
-                    textColor: textColor,
-                    subColor: subColor,
-                  ),
-                  const SizedBox(height: 10),
-                  _buildFeatureRow(
-                    icon: Icons.shield_rounded,
-                    color: const Color(0xFF059669),
-                    title: isEn ? '100% Offline Vault Security' : '🔒 ความปลอดภัยสูงสุด ออฟไลน์ 100%',
-                    subtitle: isEn
-                        ? 'Your data stays in your device only. Never on cloud, zero hack risk'
-                        : 'ข้อมูลอยู่ในเครื่องคุณคนเดียว ไม่ส่งขึ้น Cloud ไม่เชื่อมบัญชี ไม่ดูดเงิน',
-                    textColor: textColor,
-                    subColor: subColor,
-                  ),
-                  const SizedBox(height: 10),
-                  _buildFeatureRow(
-                    icon: Icons.picture_as_pdf_rounded,
-                    color: const Color(0xFFEF4444),
-                    title: isEn ? 'Instant A4 PDF & Excel Statement Reports' : '📄 ส่งออก Statement A4 PDF & Excel ทันที',
-                    subtitle: isEn
-                        ? 'Professional statement reports ready for taxes, loans, or business'
-                        : 'สร้างเล่มรายงานรายรับ-รายจ่ายสวยหรู พร้อมยื่นภาษี สมัครสินเชื่อ หรือร้านค้า',
-                    textColor: textColor,
-                    subColor: subColor,
-                  ),
-                  const SizedBox(height: 10),
-                  _buildFeatureRow(
-                    icon: Icons.auto_awesome_rounded,
-                    color: const Color(0xFFF59E0B),
-                    title: isEn ? 'Live Currencies & Multi-Project Budgets' : '🌍 แปลงค่าเงินโลกสด & วางแผนงบแยกโปรเจกต์',
-                    subtitle: isEn
-                        ? 'Real-time exchange rates, project budgeting, and Islamic tools'
-                        : 'เรทเงินต่างประเทศเรียลไทม์, ตั้งงบรายโปรเจกต์, พร้อมซะกาต & มรดกอิสลามิก',
-                    textColor: textColor,
-                    subColor: subColor,
-                  ),
-                  const SizedBox(height: 10),
-                  _buildFeatureRow(
-                    icon: Icons.palette_rounded,
-                    color: const Color(0xFF8B5CF6),
-                    title: isEn ? 'Unlock All 18 Themes & Custom Photo' : '🎨 ปลดล็อค 18 ธีมพรีเมี่ยม & ใส่รูปตัวเองได้',
-                    subtitle: isEn
-                        ? 'Unlimited theme styling, custom mascot avatar, and cool sound effects'
-                        : 'เปลี่ยนสีสันธีมได้ไม่ซ้ำวัน พร้อมใส่รูปโปรไฟล์ตัวเองหรือรูปแมวตัวโปรดอิสระ',
-                    textColor: textColor,
-                    subColor: subColor,
-                  ),
-
-                  const SizedBox(height: 22),
-
-                  // 3. Pricing Cards Selection
-                  Text(
-                    isEn ? 'Choose Your Plan' : 'เลือกแพ็กเกจที่เหมาะกับคุณ',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: textColor,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-
-                  // Card 1: Monthly (39 THB/mo)
-                  _buildTierCard(
-                    index: 0,
-                    title: isEn ? 'Monthly Subscription' : 'รายเดือน',
-                    price: '฿${AppConfig.monthlySubPriceThb}',
-                    period: isEn ? '/month' : '/เดือน',
-                    badge: null,
-                    badgeColor: null,
-                    theme: theme,
-                    textColor: textColor,
-                    subColor: subColor,
-                  ),
-                  const SizedBox(height: 8),
-
-                  // Card 2: Yearly (299 THB/yr)
-                  _buildTierCard(
-                    index: 1,
-                    title: isEn ? 'Yearly Subscription' : 'รายปี',
-                    price: '฿${AppConfig.yearlySubPriceThb}',
-                    period: isEn ? '/year (~25฿/mo)' : '/ปี (ตกเดือนละ ~25฿)',
-                    badge: isEn ? 'SAVE 36% ⭐' : 'ประหยัด 36% ⭐',
-                    badgeColor: const Color(0xFF059669),
-                    theme: theme,
-                    textColor: textColor,
-                    subColor: subColor,
-                  ),
-                  const SizedBox(height: 22),
-
-                  // 4. Action CTA Button
-                  TactileButton(
-                    onTap: _isProcessing ? null : _handleSubscribe,
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            theme.primaryLight,
-                            theme.primaryDark,
-                          ],
                         ),
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: theme.primaryColor.withValues(alpha: 0.35),
-                            blurRadius: 10,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                      ),
-                      child: Center(
-                        child: _isProcessing
-                            ? const SizedBox(
-                                width: 22,
-                                height: 22,
-                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
-                              )
-                            : Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 20),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    _getCtaText(isEn),
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                ],
+                        IconButton(
+                          icon: Icon(Icons.close_rounded, color: subColor, size: 22),
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+
+                    // Optional Reason Banner (e.g. Quota reached or Export clicked)
+                    if (widget.initialReason != null) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: primary.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: primary.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.info_outline_rounded, color: primary, size: 16),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                widget.initialReason!,
+                                style: TextStyle(
+                                  color: textColor,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // 5. Restore Purchases & Terms
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      TextButton(
-                        onPressed: _handleRestore,
-                        child: Text(
-                          isEn ? 'Restore Purchases' : 'กู้คืนการซื้อ (Restore)',
-                          style: TextStyle(
-                            color: subColor,
-                            fontSize: 12,
-                            decoration: TextDecoration.underline,
-                          ),
-                        ),
-                      ),
-                      Text(' • ', style: TextStyle(color: subColor)),
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: Text(
-                          isEn ? 'Maybe Later' : 'ไว้คราวหน้า',
-                          style: TextStyle(color: subColor, fontSize: 12),
+                            ),
+                          ],
                         ),
                       ),
                     ],
-                  ),
-                ],
+
+                    // Rewarded Ad Option: Slim Strip
+                    if (!widget.controller.isPremium) ...[
+                      const SizedBox(height: 8),
+                      Builder(
+                        builder: (context) {
+                          final adWatches = widget.controller.currentMonthAdWatchesCount;
+                          final maxAds = widget.controller.maxMonthlyRewardedAds;
+                          final canWatch = widget.controller.canWatchRewardedAd;
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: isDark
+                                    ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
+                                    : [const Color(0xFFEFF6FF), const Color(0xFFDBEAFE)],
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: const Color(0xFF3B82F6).withValues(alpha: 0.35),
+                                width: 1.0,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.play_circle_fill_rounded, color: Color(0xFF2563EB), size: 22),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        isEn ? 'Watch Ad for +2 Slips ($adWatches/$maxAds)' : 'ดูโฆษณารับ +2 สลิป 🎬 ($adWatches/$maxAds)',
+                                        style: TextStyle(
+                                          color: textColor,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      Text(
+                                        canWatch
+                                            ? (isEn ? 'Resets 1st of month' : 'รีเซ็ตทุกวันที่ 1 (ไม่สะสมข้ามเดือน)')
+                                            : (isEn ? 'Monthly quota reached' : 'ครบโควต้าเดือนนี้แล้ว ($maxAds/$maxAds)'),
+                                        style: TextStyle(
+                                          color: canWatch ? subColor : const Color(0xFFEF4444),
+                                          fontSize: 9.5,
+                                          fontWeight: canWatch ? FontWeight.normal : FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                ElevatedButton(
+                                  onPressed: (_isProcessing || !canWatch) ? null : _handleWatchAd,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF2563EB),
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    minimumSize: const Size(60, 30),
+                                    visualDensity: VisualDensity.compact,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                    elevation: 0,
+                                  ),
+                                  child: Text(
+                                    canWatch ? (isEn ? 'Watch' : 'ชมคลิป') : (isEn ? 'Full' : 'ครบ'),
+                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+
+                    const SizedBox(height: 10),
+
+                    // 2. WOW Value Features (Compact 2-Column Pill Grid)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildPerkChip(
+                            icon: Icons.qr_code_scanner_rounded,
+                            color: const Color(0xFF10B981),
+                            title: isEn ? 'Unlimited Slip Scan' : '⚡ สแกนสลิป 22 ธ. ไม่อั้น',
+                            isDark: isDark,
+                            textColor: textColor,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: _buildPerkChip(
+                            icon: Icons.shield_rounded,
+                            color: const Color(0xFF059669),
+                            title: isEn ? '100% Offline Vault' : '🔒 ออฟไลน์ 100% ไร้เสี่ยง',
+                            isDark: isDark,
+                            textColor: textColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildPerkChip(
+                            icon: Icons.picture_as_pdf_rounded,
+                            color: const Color(0xFFEF4444),
+                            title: isEn ? 'Export A4 PDF & Excel' : '📄 ส่งออก PDF & Excel',
+                            isDark: isDark,
+                            textColor: textColor,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: _buildPerkChip(
+                            icon: Icons.auto_awesome_rounded,
+                            color: const Color(0xFFF59E0B),
+                            title: isEn ? 'Multi-Project Budget' : '🌍 แปลงเงิน & งบโปรเจกต์',
+                            isDark: isDark,
+                            textColor: textColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    _buildPerkChip(
+                      icon: Icons.palette_rounded,
+                      color: const Color(0xFF8B5CF6),
+                      title: isEn ? 'Unlock All 18 Themes & Custom Avatar' : '🎨 ปลดล็อคครบ 18 ธีม & ใส่รูปโปรไฟล์ตัวเอง',
+                      isDark: isDark,
+                      textColor: textColor,
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // 3. Side-by-Side Pricing Cards Selection
+                    Row(
+                      children: [
+                        Text(
+                          isEn ? 'Select Plan' : 'เลือกแพ็กเกจ',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.bold,
+                            color: textColor,
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          isEn ? 'Cancel anytime' : 'ยกเลิกได้ทุกเมื่อ',
+                          style: TextStyle(fontSize: 11, color: subColor),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+
+                    Row(
+                      children: [
+                        // Card 1: Monthly
+                        Expanded(
+                          child: _buildCompactTierCard(
+                            index: 0,
+                            title: isEn ? 'Monthly' : 'รายเดือน',
+                            price: '฿${AppConfig.monthlySubPriceThb}',
+                            period: isEn ? '/month' : '/เดือน',
+                            badge: null,
+                            badgeColor: null,
+                            theme: theme,
+                            textColor: textColor,
+                            subColor: subColor,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        // Card 2: Yearly (Recommended)
+                        Expanded(
+                          child: _buildCompactTierCard(
+                            index: 1,
+                            title: isEn ? 'Yearly' : 'รายปี',
+                            price: '฿${AppConfig.yearlySubPriceThb}',
+                            period: isEn ? '/yr (~25฿/mo)' : '/ปี (~25฿/ด.)',
+                            badge: isEn ? 'SAVE 36% ⭐' : 'ประหยัด 36% ⭐',
+                            badgeColor: const Color(0xFF059669),
+                            theme: theme,
+                            textColor: textColor,
+                            subColor: subColor,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // 4. Action CTA Button
+                    TactileButton(
+                      onTap: _isProcessing ? null : _handleSubscribe,
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              theme.primaryLight,
+                              theme.primaryDark,
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: theme.primaryColor.withValues(alpha: 0.35),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: _isProcessing
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                                )
+                              : Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 18),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      _getCtaText(isEn),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 6),
+
+                    // 5. Restore Purchases & Dismiss
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        TextButton(
+                          onPressed: _handleRestore,
+                          style: TextButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          ),
+                          child: Text(
+                            isEn ? 'Restore Purchases' : 'กู้คืนสิทธิ์ (Restore)',
+                            style: TextStyle(
+                              color: subColor,
+                              fontSize: 11,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                        Text(' • ', style: TextStyle(color: subColor, fontSize: 11)),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: TextButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          ),
+                          child: Text(
+                            isEn ? 'Maybe Later' : 'ไว้คราวหน้า',
+                            style: TextStyle(color: subColor, fontSize: 11),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -439,55 +461,52 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
 
   String _getCtaText(bool isEn) {
     if (_selectedTierIndex == 0) {
-      return isEn ? 'Subscribe ฿${AppConfig.monthlySubPriceThb}/mo' : 'สมัครรายเดือน ฿${AppConfig.monthlySubPriceThb}';
+      return isEn ? 'Subscribe Monthly ฿${AppConfig.monthlySubPriceThb}/mo' : 'สมัคร VIP รายเดือน ฿${AppConfig.monthlySubPriceThb}/เดือน';
     } else {
-      return isEn ? 'Subscribe ฿${AppConfig.yearlySubPriceThb}/yr' : 'สมัครรายปี ฿${AppConfig.yearlySubPriceThb}';
+      return isEn ? 'Subscribe Yearly ฿${AppConfig.yearlySubPriceThb}/yr (Best ⭐)' : 'สมัคร VIP รายปี ฿${AppConfig.yearlySubPriceThb}/ปี (แนะนำ ⭐)';
     }
   }
 
-  Widget _buildFeatureRow({
+  Widget _buildPerkChip({
     required IconData icon,
     required Color color,
     required String title,
-    required String subtitle,
+    required bool isDark,
     required Color textColor,
-    required Color subColor,
   }) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: color, size: 20),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: isDark ? 0.12 : 0.07),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: color.withValues(alpha: 0.25),
+          width: 0.8,
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  color: textColor,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 15),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              title,
+              style: TextStyle(
+                color: textColor,
+                fontWeight: FontWeight.w600,
+                fontSize: 11,
               ),
-              Text(
-                subtitle,
-                style: TextStyle(color: subColor, fontSize: 11),
-              ),
-            ],
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  Widget _buildTierCard({
+  Widget _buildCompactTierCard({
     required int index,
     required String title,
     required String price,
@@ -507,72 +526,84 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         decoration: BoxDecoration(
           color: isSelected ? theme.primaryColor.withValues(alpha: 0.08) : theme.surfaceBackground,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: isSelected ? theme.primaryColor : theme.borderColor,
             width: isSelected ? 2.0 : 1.0,
           ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              isSelected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
-              color: isSelected ? theme.primaryColor : subColor,
-              size: 20,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        title,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                          color: textColor,
-                        ),
-                      ),
-                      if (badge != null) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: badgeColor?.withValues(alpha: 0.15) ?? Colors.transparent,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: badgeColor ?? Colors.transparent, width: 0.8),
-                          ),
-                          child: Text(
-                            badge,
-                            style: TextStyle(
-                              color: badgeColor,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: theme.primaryColor.withValues(alpha: 0.15),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    period,
-                    style: TextStyle(color: subColor, fontSize: 11),
+                ]
+              : null,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  isSelected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
+                  color: isSelected ? theme.primaryColor : subColor,
+                  size: 16,
+                ),
+                const SizedBox(width: 5),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: textColor,
+                  ),
+                ),
+                const Spacer(),
+                if (badge != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                    decoration: BoxDecoration(
+                      color: badgeColor?.withValues(alpha: 0.15) ?? Colors.transparent,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: badgeColor ?? Colors.transparent, width: 0.6),
+                    ),
+                    child: Text(
+                      badge,
+                      style: TextStyle(
+                        color: badgeColor,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            RichText(
+              text: TextSpan(
+                children: [
+                  TextSpan(
+                    text: price,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: isSelected ? theme.primaryColor : textColor,
+                    ),
+                  ),
+                  TextSpan(
+                    text: ' $period',
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      color: subColor,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ],
-              ),
-            ),
-            Text(
-              price,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 17,
-                color: isSelected ? theme.primaryColor : textColor,
               ),
             ),
           ],
