@@ -189,60 +189,23 @@ class _SlipAutoRecordScreenState extends State<SlipAutoRecordScreen> {
     ? ocrParsed.receiverName
     : (extractedParties['receiver'] != 'ไม่ระบุผู้รับ' ? extractedParties['receiver']! : 'ไม่ระบุผู้รับ');
 
-  final cleanCombined = '$rawOcrText $fileName $bankName $path'.toLowerCase();
-  final senderCode = qrSenderBankCode ?? qrResult?.senderBankCode;
-  final bool qrIndicatesOtherBank = senderCode != null && senderCode.isNotEmpty && senderCode != '066';
+  // 5. Detect Bank Name with bulletproof sender/receiver separation & QR code priority
+  final targetType = ocrParsed.suggestedType;
+  final bool isIncomeSlip = targetType == TransactionType.income;
 
-  final bool isKBank = (senderCode == '004') ||
-      cleanCombined.contains('k plus') ||
-      cleanCombined.contains('kplus') ||
-      cleanCombined.contains('kbank') ||
-      cleanCombined.contains('kasikorn') ||
-      path.toLowerCase().contains('k plus') ||
-      path.toLowerCase().contains('kplus') ||
-      path.toLowerCase().contains('kbank');
+  final bankIdent = ThaiBankDetector.identifySlipBank(
+    rawOcrText: rawOcrText,
+    qrSenderBankCode: qrSenderBankCode ?? qrResult?.senderBankCode,
+    qrSenderBank: qrResult?.senderBank,
+    qrPayload: qrPayload,
+    filePath: path,
+    fileName: fileName,
+    isIncome: isIncomeSlip,
+  );
 
-  final bool isKrungthai = (senderCode == '006') ||
-      qrPayload.contains('N006') ||
-      cleanCombined.contains('n006') ||
-      path.toLowerCase().contains('krungthai') ||
-      (cleanCombined.contains('กรุงไทย') && !cleanCombined.contains('ไอแบงก์') && !cleanCombined.contains('ธนาคารอิสลาม'));
-
-  final bool isSCB = (senderCode == '014') ||
-      cleanCombined.contains('scb easy') ||
-      cleanCombined.contains('scb') ||
-      path.toLowerCase().contains('scb') ||
-      (cleanCombined.contains('ไทยพาณิชย์') && !cleanCombined.contains('ไอแบงก์') && !cleanCombined.contains('ธนาคารอิสลาม'));
-
-  final bool isIBank = !qrIndicatesOtherBank &&
-      !isKBank &&
-      !isKrungthai &&
-      !isSCB &&
-      ((senderCode == '066') ||
-          (qrResult != null && (qrResult.senderBank != null && qrResult.senderBank!.contains('อิสลาม'))) ||
-          qrPayload.toLowerCase().contains('0103066') ||
-          qrPayload.toLowerCase().contains('ibank') ||
-          cleanCombined.contains('ibank') ||
-          cleanCombined.contains('ไอแบงก์') ||
-          cleanCombined.contains('ไอแบงค์') ||
-          cleanCombined.contains('ธนาคารอิสลาม') ||
-          cleanCombined.contains('อิสลามแห่งประเทศไทย'));
-
-  final bool isPaotangGovNoQr = (cleanCombined.contains('เป๋าตัง') ||
-          cleanCombined.contains('paotang') ||
-          cleanCombined.contains('g-wallet') ||
-          cleanCombined.contains('gwallet') ||
-          cleanCombined.contains('ไทยช่วยไทย') ||
-          cleanCombined.contains('คนละครึ่ง') ||
-          cleanCombined.contains('เราชนะ') ||
-          cleanCombined.contains('สวัสดิการ') ||
-          path.toLowerCase().contains('paotang') ||
-          path.contains('เป๋าตัง')) &&
-      !isIBank &&
-      !isKBank &&
-      !isKrungthai &&
-      !isSCB &&
-      qrPayload.isEmpty;
+  bankName = bankIdent.bankName;
+  String cleanBank = bankIdent.cleanBank;
+  final bool isPaotangGovNoQr = bankIdent.bankCode == 'PAOTANG' && qrPayload.isEmpty;
 
   // STEP 2: Fallback to Advanced OCR Text Recognition for Amount
   if (detectedAmount <= 0) {
@@ -260,7 +223,6 @@ class _SlipAutoRecordScreenState extends State<SlipAutoRecordScreen> {
      if (ocrParsed.amount > 0) {
        detectedAmount = ocrParsed.amount;
        if (ocrParsed.refId.isNotEmpty) refNo = ocrParsed.refId;
-       if (ocrParsed.senderBank.isNotEmpty && bankName == 'ธนาคารไทย') bankName = ocrParsed.senderBank;
      } else {
        detectedAmount = OcrEngineService.extractAmountFromText(rawOcrText.isNotEmpty ? rawOcrText : fileName);
      }
@@ -290,28 +252,7 @@ class _SlipAutoRecordScreenState extends State<SlipAutoRecordScreen> {
    }
   }
 
-  // 6. Detect Bank Name with QR code & sender-section priority
-  if (qrResult?.senderBank != null && qrResult!.senderBank!.isNotEmpty) {
-   bankName = qrResult.senderBank!;
-  } else if (isIBank) {
-   bankName = 'ธนาคารอิสลามแห่งประเทศไทย';
-  } else if (isKrungthai) {
-   bankName = 'กรุงไทย (Krungthai NEXT)';
-  } else if (isSCB) {
-   bankName = 'ไทยพาณิชย์ (SCB EASY)';
-  } else if (isKBank) {
-   bankName = 'กสิกรไทย (K PLUS)';
-  } else if (ocrParsed.senderBank.isNotEmpty && ocrParsed.senderBank != 'ธนาคารไทย') {
-   bankName = ocrParsed.senderBank;
-  } else if (bankName == 'ธนาคารไทย' || bankName.isEmpty) {
-   bankName = EasyOcrTesseractFusionService.detectBankName(rawOcrText, filePath: path);
-  }
-
-  // 7. Auto-detect Income vs Expense
-  final targetType = ocrParsed.suggestedType;
-  final bool isIncomeSlip = targetType == TransactionType.income;
-
-  // 8. Match Category according to Income / Expense
+  // 6. Match Category according to Income / Expense
   final customRulesRaw = widget.controller.storage.getKeywordRules();
   final customRules = customRulesRaw.map((r) => KeywordRule.fromJson(r)).toList();
 
@@ -341,38 +282,8 @@ class _SlipAutoRecordScreenState extends State<SlipAutoRecordScreen> {
     fallbackCategory: isIncomeSlip ? incomeFallback : expenseFallback,
   );
 
-  // 9. Generate Title showing Who transferred to Whom (iOS format: โอนเงินผ่าน(ชื่อธนาคาร))
+  // 7. Generate Title showing Who transferred to Whom (iOS format: โอนเงินผ่าน(ชื่อธนาคาร))
   final bool isIOS = defaultTargetPlatform == TargetPlatform.iOS;
-  String cleanBank = bankName;
-  if (isKBank || (senderCode == '004') || cleanBank.contains('กสิกร')) {
-    cleanBank = 'กสิกรไทย';
-    bankName = 'กสิกรไทย (K PLUS)';
-  } else if (isSCB || (senderCode == '014') || cleanBank.contains('ไทยพาณิชย์')) {
-    cleanBank = 'ไทยพาณิชย์';
-    bankName = 'ไทยพาณิชย์ (SCB EASY)';
-  } else if (isKrungthai || (senderCode == '006') || cleanBank.contains('กรุงไทย')) {
-    cleanBank = 'กรุงไทย';
-    bankName = 'กรุงไทย (Krungthai NEXT)';
-  } else if (isIBank || (senderCode == '066') || cleanBank.contains('ธนาคารอิสลาม') || cleanBank.contains('ibank') || cleanBank.contains('ไอแบงก์')) {
-    cleanBank = 'ธนาคารอิสลาม';
-    bankName = 'ธนาคารอิสลามแห่งประเทศไทย';
-  } else if (cleanBank.contains('กรุงเทพ') || (senderCode == '002')) {
-    cleanBank = 'กรุงเทพ';
-  } else if (cleanBank.contains('ทหารไทย') || cleanBank.contains('ttb') || (senderCode == '011')) {
-    cleanBank = 'ทหารไทยธนชาต (ttb)';
-  } else if (cleanBank.contains('ออมสิน') || cleanBank.contains('mymo') || (senderCode == '030')) {
-    cleanBank = 'ออมสิน';
-  } else if (cleanBank.contains('กรุงศรี') || (senderCode == '025')) {
-    cleanBank = 'กรุงศรีอยุธยา';
-  } else if (cleanBank.contains('ทรูมันนี่') || cleanBank.contains('truemoney')) {
-    cleanBank = 'ทรูมันนี่';
-  } else if (cleanBank.contains('พร้อมเพย์') || cleanBank.contains('promptpay')) {
-    cleanBank = 'พร้อมเพย์';
-  } else if (cleanBank.contains('ไทยช่วยไทย')) {
-    cleanBank = 'ไทยช่วยไทย (เป๋าตัง)';
-  } else if (cleanBank.contains('เป๋าตัง') || cleanBank.contains('paotang')) {
-    cleanBank = 'เป๋าตัง';
-  }
 
   String title;
   if (isIOS) {
@@ -403,16 +314,8 @@ class _SlipAutoRecordScreenState extends State<SlipAutoRecordScreen> {
   final bool isSelf = ocrParsed.isSelfTransfer ||
     OcrEngineService.isSelfTransfer(senderName, receiverName, rawText: rawOcrText);
 
-  // Auto-select the bank account corresponding to the slip's bank
-  final targetBankCode = isIBank
-      ? 'IBANK'
-      : (isKrungthai
-          ? 'KTB'
-          : (isSCB
-              ? 'SCB'
-              : (isKBank
-                  ? 'KBANK'
-                  : ThaiBankDetector.detectCodeFromBankName(cleanBank))));
+  // Auto-select the bank account corresponding to the slip's issuing bank
+  final targetBankCode = bankIdent.bankCode;
   final targetAccount = widget.controller.getOrCreateAccountForBank(targetBankCode, bankName: bankName);
 
   if (mounted) {

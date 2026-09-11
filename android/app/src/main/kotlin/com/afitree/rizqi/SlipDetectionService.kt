@@ -21,11 +21,26 @@ import android.provider.MediaStore
 import androidx.core.app.NotificationCompat
 import org.json.JSONArray
 
+import android.content.pm.ServiceInfo
+import android.graphics.Bitmap
+import android.os.PowerManager
+
 class SlipDetectionService : Service() {
-    private val HEADS_UP_CHANNEL_ID = "rizqi_slip_heads_up_channel"
+    companion object {
+        const val ACTION_START_SCAN = "com.afitree.rizqi.ACTION_START_SCAN"
+        const val ACTION_STOP_SCAN = "com.afitree.rizqi.ACTION_STOP_SCAN"
+        const val EXTRA_SCAN_TITLE = "extra_scan_title"
+        const val EXTRA_SCAN_MESSAGE = "extra_scan_message"
+
+        const val SCAN_NOTIFICATION_ID = 2001
+        const val HEADS_UP_CHANNEL_ID = "rizqi_slip_heads_up_channel"
+        const val SCAN_CHANNEL_ID = "meow_slip_sync_channel"
+    }
 
     private var mediaObserver: ContentObserver? = null
     private var lastNotifiedSlipId: String? = null
+    private var wakeLock: PowerManager.WakeLock? = null
+    private var isScanningForeground = false
 
     override fun onCreate() {
         super.onCreate()
@@ -34,12 +49,112 @@ class SlipDetectionService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val action = intent?.action
+        if (action == ACTION_START_SCAN) {
+            val title = intent.getStringExtra(EXTRA_SCAN_TITLE) ?: "เหมียวตังค์: กำลังดึงและอ่านสลิป... 🔄"
+            val message = intent.getStringExtra(EXTRA_SCAN_MESSAGE) ?: "ระบบกำลังประมวลผลสลิปในเครื่อง"
+            startScanForeground(title, message)
+        } else if (action == ACTION_STOP_SCAN) {
+            stopScanForeground()
+        }
         return START_STICKY
+    }
+
+    private fun startScanForeground(title: String, message: String) {
+        acquireWakeLock()
+        isScanningForeground = true
+
+        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            SCAN_NOTIFICATION_ID,
+            launchIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val catLargeIcon = BitmapFactory.decodeResource(resources, R.drawable.ic_notification_cat_large)
+            ?: BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher)
+
+        val notification = NotificationCompat.Builder(this, SCAN_CHANNEL_ID)
+            .setContentTitle(title)
+            .setContentText(message)
+            .setSmallIcon(R.drawable.ic_stat_cat)
+            .setLargeIcon(catLargeIcon)
+            .setColor(0xFFFF8A00.toInt())
+            .setContentIntent(pendingIntent)
+            .setOngoing(true)
+            .setProgress(0, 0, true)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .build()
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(SCAN_NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        } else {
+            startForeground(SCAN_NOTIFICATION_ID, notification)
+        }
+    }
+
+    private fun stopScanForeground() {
+        releaseWakeLock()
+        if (isScanningForeground) {
+            isScanningForeground = false
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+            } else {
+                @Suppress("DEPRECATION")
+                stopForeground(true)
+            }
+        }
+    }
+
+    private fun acquireWakeLock() {
+        try {
+            if (wakeLock == null) {
+                val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+                wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MeowTang::SlipScanWakeLock").apply {
+                    setReferenceCounted(false)
+                }
+            }
+            wakeLock?.let {
+                if (!it.isHeld) {
+                    it.acquire(15 * 60 * 1000L) // 15 minutes safety timeout
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun releaseWakeLock() {
+        try {
+            wakeLock?.let {
+                if (it.isHeld) {
+                    it.release()
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     private fun createNotificationChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+            // Scan status foreground channel (LOW importance so no annoying chime on updates)
+            val scanChannel = NotificationChannel(
+                SCAN_CHANNEL_ID,
+                "สถานะการดึงสลิป (Slip Scan Status)",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "แจ้งเตือนสถานะการค้นหาและประมวลผลสลิปในเครื่อง"
+                setShowBadge(false)
+            }
+            manager.createNotificationChannel(scanChannel)
 
             // High-priority Channel for Actionable Heads-Up Notification (only pops up when slip is detected)
             val headsUpChannel = NotificationChannel(
@@ -266,11 +381,15 @@ class SlipDetectionService : Service() {
         val title = if (isIncome) "💰 พบยอดเงินเข้าใหม่ (รายรับ)" else "🧾 พบสลิปใหม่ แตะเพื่อบันทึก"
         val desc = if (isIncome) "ตรวจพบยอดเงินเข้า: $bankName แตะเพื่อตรวจสอบและบันทึก" else "ตรวจพบ: $bankName แตะเพื่อตรวจสอบยอดเงินและบันทึก"
 
+        val catLargeIcon = BitmapFactory.decodeResource(resources, R.drawable.ic_notification_cat_large)
+            ?: BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher)
+
         val notification = NotificationCompat.Builder(this, HEADS_UP_CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(desc)
-            .setSmallIcon(R.mipmap.ic_launcher)
-            .setLargeIcon(BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher))
+            .setSmallIcon(R.drawable.ic_stat_cat)
+            .setLargeIcon(catLargeIcon)
+            .setColor(0xFFFF8A00.toInt())
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_MAX)
@@ -282,7 +401,13 @@ class SlipDetectionService : Service() {
         manager.notify((System.currentTimeMillis() % 10000).toInt() + 100, notification)
     }
 
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        stopScanForeground()
+        super.onTaskRemoved(rootIntent)
+    }
+
     override fun onDestroy() {
+        stopScanForeground()
         mediaObserver?.let {
             contentResolver.unregisterContentObserver(it)
         }

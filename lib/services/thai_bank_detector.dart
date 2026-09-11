@@ -2,6 +2,21 @@ import 'package:flutter/material.dart';
 import '../models/transaction_item.dart';
 import '../models/account_item.dart';
 
+class SlipBankIdentification {
+  final String bankCode;
+  final String bankName;
+  final String cleanBank;
+
+  const SlipBankIdentification({
+    required this.bankCode,
+    required this.bankName,
+    required this.cleanBank,
+  });
+
+  @override
+  String toString() => 'SlipBankIdentification(code: $bankCode, name: $bankName, clean: $cleanBank)';
+}
+
 class ThaiBankInfo {
   final String code;
   final String nameTh;
@@ -518,5 +533,245 @@ class ThaiBankDetector {
   static ThaiBankInfo detectBankFromText(String text) {
     final code = _detectBankFromTextSnippet(text.toLowerCase()) ?? 'OTHER';
     return getBankByCode(code);
+  }
+
+  /// Detects the issuing bank of a slip with bulletproof prioritization:
+  /// 1. QR Code 3-digit BOT bank code (Ultimate Authority)
+  /// 2. Dedicated banking album/folder path (when present)
+  /// 3. OCR text with STRICT exclusion of receiver section (Header & Sender only)
+  static SlipBankIdentification identifySlipBank({
+    required String rawOcrText,
+    String? qrSenderBankCode,
+    String? qrSenderBank,
+    String? qrPayload,
+    String? filePath,
+    String? fileName,
+    bool isIncome = false,
+  }) {
+    // --- Priority 1: QR Code BOT Bank Code (Highest Authority) ---
+    String? code = qrSenderBankCode?.trim();
+    if (code == null || code.isEmpty) {
+      if (qrPayload != null && qrPayload.trim().isNotEmpty) {
+        final subMatch = RegExp(r'0103(002|004|006|011|014|022|024|025|030|033|034|066|067|069|073)').firstMatch(qrPayload);
+        if (subMatch != null) {
+          code = subMatch.group(1);
+        }
+      }
+    }
+
+    if (code != null && code.isNotEmpty) {
+      switch (code) {
+        case '004':
+          return const SlipBankIdentification(bankCode: 'KBANK', bankName: 'กสิกรไทย (K PLUS)', cleanBank: 'กสิกรไทย');
+        case '006':
+          return const SlipBankIdentification(bankCode: 'KTB', bankName: 'กรุงไทย (Krungthai NEXT)', cleanBank: 'กรุงไทย');
+        case '014':
+          return const SlipBankIdentification(bankCode: 'SCB', bankName: 'ไทยพาณิชย์ (SCB EASY)', cleanBank: 'ไทยพาณิชย์');
+        case '002':
+          return const SlipBankIdentification(bankCode: 'BBL', bankName: 'กรุงเทพ (Bualuang)', cleanBank: 'กรุงเทพ');
+        case '011':
+          return const SlipBankIdentification(bankCode: 'TTB', bankName: 'ทหารไทยธนชาต (ttb)', cleanBank: 'ทหารไทยธนชาต (ttb)');
+        case '025':
+          return const SlipBankIdentification(bankCode: 'BAY', bankName: 'กรุงศรีอยุธยา (KMA)', cleanBank: 'กรุงศรีอยุธยา');
+        case '030':
+          return const SlipBankIdentification(bankCode: 'GSB', bankName: 'MyMo (ออมสิน)', cleanBank: 'ออมสิน');
+        case '034':
+          return const SlipBankIdentification(bankCode: 'BAAC', bankName: 'ธ.ก.ส. (A-Mobile Plus)', cleanBank: 'ธ.ก.ส.');
+        case '066':
+          return const SlipBankIdentification(bankCode: 'IBANK', bankName: 'iBank (อิสลามแห่งประเทศไทย)', cleanBank: 'ธนาคารอิสลาม');
+        case '022':
+          return const SlipBankIdentification(bankCode: 'CIMB', bankName: 'CIMB Thai', cleanBank: 'ซีไอเอ็มบี');
+        case '024':
+          return const SlipBankIdentification(bankCode: 'UOB', bankName: 'UOB TMRW', cleanBank: 'ยูโอบี');
+        case '069':
+          return const SlipBankIdentification(bankCode: 'KKP', bankName: 'เกียรตินาคินภัทร (Dime! / KKP)', cleanBank: 'เกียรตินาคินภัทร');
+        case '073':
+          return const SlipBankIdentification(bankCode: 'LHBANK', bankName: 'แลนด์ แอนด์ เฮ้าส์ (LHB You)', cleanBank: 'แลนด์ แอนด์ เฮ้าส์');
+      }
+    }
+
+    if (qrSenderBank != null && qrSenderBank.trim().isNotEmpty && qrSenderBank != 'ธนาคารไทย') {
+      final bCode = detectCodeFromBankName(qrSenderBank);
+      if (bCode != 'CASH' && bCode != 'OTHER') {
+        return _makeBankIdentification(bCode, fallbackName: qrSenderBank);
+      }
+    }
+
+    if (qrPayload != null && qrPayload.trim().isNotEmpty) {
+      final lowerQr = qrPayload.toLowerCase();
+      if (lowerQr.contains('kasikornbank') || lowerQr.contains('kplus')) {
+        return const SlipBankIdentification(bankCode: 'KBANK', bankName: 'กสิกรไทย (K PLUS)', cleanBank: 'กสิกรไทย');
+      }
+      if (lowerQr.contains('krungthai') || lowerQr.contains('ktb') || lowerQr.contains('n006')) {
+        return const SlipBankIdentification(bankCode: 'KTB', bankName: 'กรุงไทย (Krungthai NEXT)', cleanBank: 'กรุงไทย');
+      }
+      if (lowerQr.contains('scbeasy') || lowerQr.contains('scb')) {
+        return const SlipBankIdentification(bankCode: 'SCB', bankName: 'ไทยพาณิชย์ (SCB EASY)', cleanBank: 'ไทยพาณิชย์');
+      }
+      if (lowerQr.contains('bangkokbank') || lowerQr.contains('bualuang')) {
+        return const SlipBankIdentification(bankCode: 'BBL', bankName: 'กรุงเทพ (Bualuang)', cleanBank: 'กรุงเทพ');
+      }
+      if (lowerQr.contains('ttbbank') || lowerQr.contains('ttb')) {
+        return const SlipBankIdentification(bankCode: 'TTB', bankName: 'ทหารไทยธนชาต (ttb)', cleanBank: 'ทหารไทยธนชาต (ttb)');
+      }
+      if (lowerQr.contains('gsb.or.th') || lowerQr.contains('mymo')) {
+        return const SlipBankIdentification(bankCode: 'GSB', bankName: 'MyMo (ออมสิน)', cleanBank: 'ออมสิน');
+      }
+      if (lowerQr.contains('krungsri') || lowerQr.contains('kma')) {
+        return const SlipBankIdentification(bankCode: 'BAY', bankName: 'กรุงศรีอยุธยา (KMA)', cleanBank: 'กรุงศรีอยุธยา');
+      }
+      if (lowerQr.contains('ibank') || lowerQr.contains('0103066')) {
+        return const SlipBankIdentification(bankCode: 'IBANK', bankName: 'ธนาคารอิสลามแห่งประเทศไทย', cleanBank: 'ธนาคารอิสลาม');
+      }
+    }
+
+    // --- Priority 2: Dedicated Bank Folder / Path (Album check) ---
+    final pathLower = (filePath ?? '').toLowerCase();
+    if (pathLower.isNotEmpty && !pathLower.contains('/cache/')) {
+      if (pathLower.contains('k plus') || pathLower.contains('kplus') || pathLower.contains('kbank')) {
+        return const SlipBankIdentification(bankCode: 'KBANK', bankName: 'กสิกรไทย (K PLUS)', cleanBank: 'กสิกรไทย');
+      }
+      if (pathLower.contains('scb easy') || pathLower.contains('scb') || pathLower.contains('ไทยพาณิชย์')) {
+        return const SlipBankIdentification(bankCode: 'SCB', bankName: 'ไทยพาณิชย์ (SCB EASY)', cleanBank: 'ไทยพาณิชย์');
+      }
+      if (pathLower.contains('krungthai next') || pathLower.contains('krungthai') || pathLower.contains('ktb')) {
+        return const SlipBankIdentification(bankCode: 'KTB', bankName: 'กรุงไทย (Krungthai NEXT)', cleanBank: 'กรุงไทย');
+      }
+      if (pathLower.contains('bualuang') || pathLower.contains('bangkokbank')) {
+        return const SlipBankIdentification(bankCode: 'BBL', bankName: 'กรุงเทพ (Bualuang)', cleanBank: 'กรุงเทพ');
+      }
+      if (pathLower.contains('ttb touch') || pathLower.contains('ttb')) {
+        return const SlipBankIdentification(bankCode: 'TTB', bankName: 'ทหารไทยธนชาต (ttb)', cleanBank: 'ทหารไทยธนชาต (ttb)');
+      }
+      if (pathLower.contains('mymo') || pathLower.contains('gsb')) {
+        return const SlipBankIdentification(bankCode: 'GSB', bankName: 'MyMo (ออมสิน)', cleanBank: 'ออมสิน');
+      }
+      if (pathLower.contains('kma') || pathLower.contains('krungsri')) {
+        return const SlipBankIdentification(bankCode: 'BAY', bankName: 'กรุงศรีอยุธยา (KMA)', cleanBank: 'กรุงศรีอยุธยา');
+      }
+      if (pathLower.contains('ibank') || pathLower.contains('islamicbank') || pathLower.contains('อิสลาม')) {
+        return const SlipBankIdentification(bankCode: 'IBANK', bankName: 'ธนาคารอิสลามแห่งประเทศไทย', cleanBank: 'ธนาคารอิสลาม');
+      }
+      if (pathLower.contains('paotang') || pathLower.contains('เป๋าตัง') || pathLower.contains('g-wallet')) {
+        return const SlipBankIdentification(bankCode: 'PAOTANG', bankName: 'เป๋าตัง (PaoTang)', cleanBank: 'เป๋าตัง');
+      }
+      if (pathLower.contains('truemoney') || pathLower.contains('ทรูมันนี่')) {
+        return const SlipBankIdentification(bankCode: 'TRUEMONEY', bankName: 'TrueMoney Wallet', cleanBank: 'ทรูมันนี่');
+      }
+    }
+
+    // --- Priority 3: OCR Text with STRICT Sender / Receiver Separation ---
+    final cleanOcr = rawOcrText.replaceAll('\r', '').trim();
+    if (cleanOcr.isEmpty) {
+      return const SlipBankIdentification(bankCode: 'OTHER', bankName: 'ธนาคารไทย', cleanBank: 'ธนาคารไทย');
+    }
+
+    final lowerCleanOcr = cleanOcr.toLowerCase();
+
+    // If it's an Income Slip, money was received INTO the receiver account,
+    // so we want to identify the receiver account bank for the user's asset balance!
+    if (isIncome) {
+      final bCode = _detectBankFromTextSnippet(lowerCleanOcr);
+      if (bCode != null) {
+        return _makeBankIdentification(bCode);
+      }
+    }
+
+    // For standard Expense/Transfer slips, the bank is the SENDER / ISSUING bank.
+    // Cut off the Receiver Section completely so recipient bank NEVER hijacks detection!
+    final receiverRegex = RegExp(
+      r'(?:ไปยัง|ผู้รับเงิน|ผู้รับโอน|ผู้รับ|โอนไปยัง|โอนให้|เข้าบัญชี|เข้าบช|เลขที่บัญชีผู้รับ|บัญชีผู้รับ|ปลายทาง|\bto\b|\breceiver\b|\brecipient\b)',
+      caseSensitive: false,
+    );
+    final receiverMatch = receiverRegex.firstMatch(lowerCleanOcr);
+    final senderSection = receiverMatch != null ? lowerCleanOcr.substring(0, receiverMatch.start) : lowerCleanOcr;
+
+    // A. Top Header (first 3-4 lines of sender section or OCR) - Highest confidence for App branding
+    final lines = senderSection.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
+    if (lines.isNotEmpty) {
+      final topHeader = lines.take(3).join(' ');
+      final headerBank = _detectBankFromTextSnippet(topHeader);
+      if (headerBank != null) {
+        return _makeBankIdentification(headerBank);
+      }
+    }
+
+    // B. Search inside "จาก / ผู้โอน / From" line
+    for (int i = 0; i < lines.length; i++) {
+      final line = lines[i];
+      if (line.contains('จาก') || line.contains('ผู้โอน') || line.contains('from')) {
+        final senderSnippet = lines.skip(i).take(3).join(' ');
+        final sBank = _detectBankFromTextSnippet(senderSnippet);
+        if (sBank != null) {
+          return _makeBankIdentification(sBank);
+        }
+        break;
+      }
+    }
+
+    // C. Entire Sender Section (Everything before "ไปยัง")
+    final sectionBank = _detectBankFromTextSnippet(senderSection);
+    if (sectionBank != null) {
+      return _makeBankIdentification(sectionBank);
+    }
+
+    // D. Safe Fallback: Check top lines of full OCR text before anything else
+    final allLines = lowerCleanOcr.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
+    if (allLines.isNotEmpty) {
+      final topLines = allLines.take(3).join(' ');
+      final topBank = _detectBankFromTextSnippet(topLines);
+      if (topBank != null) {
+        return _makeBankIdentification(topBank);
+      }
+    }
+
+    // E. General Fallback
+    final generalCode = detectCodeFromBankName(lowerCleanOcr);
+    return _makeBankIdentification(generalCode);
+  }
+
+  static SlipBankIdentification _makeBankIdentification(String bankCode, {String? fallbackName}) {
+    switch (bankCode.toUpperCase()) {
+      case 'KBANK':
+        return const SlipBankIdentification(bankCode: 'KBANK', bankName: 'กสิกรไทย (K PLUS)', cleanBank: 'กสิกรไทย');
+      case 'MAKE':
+        return const SlipBankIdentification(bankCode: 'MAKE', bankName: 'MAKE by KBank', cleanBank: 'MAKE by KBank');
+      case 'SCB':
+        return const SlipBankIdentification(bankCode: 'SCB', bankName: 'ไทยพาณิชย์ (SCB EASY)', cleanBank: 'ไทยพาณิชย์');
+      case 'KTB':
+        return const SlipBankIdentification(bankCode: 'KTB', bankName: 'กรุงไทย (Krungthai NEXT)', cleanBank: 'กรุงไทย');
+      case 'BBL':
+        return const SlipBankIdentification(bankCode: 'BBL', bankName: 'กรุงเทพ (Bualuang)', cleanBank: 'กรุงเทพ');
+      case 'TTB':
+        return const SlipBankIdentification(bankCode: 'TTB', bankName: 'ทหารไทยธนชาต (ttb)', cleanBank: 'ทหารไทยธนชาต (ttb)');
+      case 'BAY':
+        return const SlipBankIdentification(bankCode: 'BAY', bankName: 'กรุงศรีอยุธยา (KMA)', cleanBank: 'กรุงศรีอยุธยา');
+      case 'GSB':
+        return const SlipBankIdentification(bankCode: 'GSB', bankName: 'MyMo (ออมสิน)', cleanBank: 'ออมสิน');
+      case 'BAAC':
+        return const SlipBankIdentification(bankCode: 'BAAC', bankName: 'ธ.ก.ส. (A-Mobile Plus)', cleanBank: 'ธ.ก.ส.');
+      case 'IBANK':
+        return const SlipBankIdentification(bankCode: 'IBANK', bankName: 'iBank (อิสลามแห่งประเทศไทย)', cleanBank: 'ธนาคารอิสลาม');
+      case 'PAOTANG':
+        return const SlipBankIdentification(bankCode: 'PAOTANG', bankName: 'เป๋าตัง (PaoTang)', cleanBank: 'เป๋าตัง');
+      case 'TRUEMONEY':
+        return const SlipBankIdentification(bankCode: 'TRUEMONEY', bankName: 'TrueMoney Wallet', cleanBank: 'ทรูมันนี่');
+      case 'PROMPTPAY':
+        return const SlipBankIdentification(bankCode: 'PROMPTPAY', bankName: 'พร้อมเพย์', cleanBank: 'พร้อมเพย์');
+      case 'UOB':
+        return const SlipBankIdentification(bankCode: 'UOB', bankName: 'UOB TMRW', cleanBank: 'ยูโอบี');
+      case 'CIMB':
+        return const SlipBankIdentification(bankCode: 'CIMB', bankName: 'CIMB Thai', cleanBank: 'ซีไอเอ็มบี');
+      case 'KKP':
+        return const SlipBankIdentification(bankCode: 'KKP', bankName: 'เกียรตินาคินภัทร (Dime! / KKP)', cleanBank: 'เกียรตินาคินภัทร');
+      case 'LHBANK':
+        return const SlipBankIdentification(bankCode: 'LHBANK', bankName: 'แลนด์ แอนด์ เฮ้าส์ (LHB You)', cleanBank: 'แลนด์ แอนด์ เฮ้าส์');
+      default:
+        return SlipBankIdentification(
+          bankCode: bankCode,
+          bankName: fallbackName ?? 'ธนาคารไทย',
+          cleanBank: fallbackName ?? 'ธนาคารไทย',
+        );
+    }
   }
 }

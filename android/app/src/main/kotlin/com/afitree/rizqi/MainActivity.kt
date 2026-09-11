@@ -1314,26 +1314,48 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun showScanProgressNotification(title: String, message: String) {
+        try {
+            val serviceIntent = Intent(this, SlipDetectionService::class.java).apply {
+                action = SlipDetectionService.ACTION_START_SCAN
+                putExtra(SlipDetectionService.EXTRA_SCAN_TITLE, title)
+                putExtra(SlipDetectionService.EXTRA_SCAN_MESSAGE, message)
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent)
+            } else {
+                startService(serviceIntent)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            showLocalScanProgressNotification(title, message)
+        }
+    }
+
+    private fun showLocalScanProgressNotification(title: String, message: String) {
         ensureScanNotificationChannel()
         val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
         val pendingIntent = PendingIntent.getActivity(
             this,
-            2001,
+            SCAN_NOTIFICATION_ID,
             launchIntent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
+        val catLargeIcon = BitmapFactory.decodeResource(resources, R.drawable.ic_notification_cat_large)
+            ?: BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher)
+
         val notification = NotificationCompat.Builder(this, SCAN_CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(message)
-            .setSmallIcon(R.mipmap.ic_launcher)
-            .setLargeIcon(BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher))
+            .setSmallIcon(R.drawable.ic_stat_cat)
+            .setLargeIcon(catLargeIcon)
+            .setColor(0xFFFF8A00.toInt())
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .setProgress(0, 0, true)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
 
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -1341,24 +1363,28 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun showScanCompletedNotification(title: String, message: String) {
-        ensureScanNotificationChannel()
         cancelScanProgressNotification()
+        ensureScanNotificationChannel()
 
         val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
         val pendingIntent = PendingIntent.getActivity(
             this,
-            2002,
+            SCAN_COMPLETED_NOTIFICATION_ID,
             launchIntent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
+        val catLargeIcon = BitmapFactory.decodeResource(resources, R.drawable.ic_notification_cat_large)
+            ?: BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher)
+
         val notification = NotificationCompat.Builder(this, SCAN_CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(message)
-            .setSmallIcon(R.mipmap.ic_launcher)
-            .setLargeIcon(BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher))
+            .setSmallIcon(R.drawable.ic_stat_cat)
+            .setLargeIcon(catLargeIcon)
+            .setColor(0xFFFF8A00.toInt())
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -1370,6 +1396,14 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun cancelScanProgressNotification() {
+        try {
+            val serviceIntent = Intent(this, SlipDetectionService::class.java).apply {
+                action = SlipDetectionService.ACTION_STOP_SCAN
+            }
+            startService(serviceIntent)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.cancel(SCAN_NOTIFICATION_ID)
     }

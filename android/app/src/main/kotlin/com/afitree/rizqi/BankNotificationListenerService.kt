@@ -324,9 +324,14 @@ class BankNotificationListenerService : NotificationListenerService() {
             )
 
             val formatted = String.format(Locale.getDefault(), "%.2f", amount)
+            val catLargeIcon = android.graphics.BitmapFactory.decodeResource(resources, R.drawable.ic_notification_cat_large)
+                ?: android.graphics.BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher)
+
             val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-                .setSmallIcon(R.mipmap.ic_launcher)
-                .setContentTitle("✨ บันทึกริซกี: เงินเข้า +฿$formatted")
+                .setSmallIcon(R.drawable.ic_stat_cat)
+                .setLargeIcon(catLargeIcon)
+                .setColor(0xFFFF8A00.toInt())
+                .setContentTitle("✨ เหมียวตังค์: เงินเข้า +฿$formatted")
                 .setContentText("บันทึก \"$title\" เข้าสมุดบัญชีเรียบร้อยแล้ว")
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)

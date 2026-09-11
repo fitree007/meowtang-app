@@ -1,3 +1,5 @@
+import 'thai_bank_detector.dart';
+
 /// EasyOCR & Tesseract OCR Hybrid Fusion Service for Thai Bank Slips
 /// Combines EasyOCR CRAFT text region reconstruction + Tesseract LSTM tokenization & Thai bank dictionary
 class EasyOcrTesseractFusionService {
@@ -297,99 +299,11 @@ class EasyOcrTesseractFusionService {
 
   /// 5. Thai Bank Name Recognizer with Multi-Layer Directional & Album Fuzzy Matching
   static String detectBankName(String text, {String? filePath}) {
-    final textLower = text.toLowerCase();
-
-    // 1. Album / File Path check
-    if (filePath != null && filePath.isNotEmpty) {
-      final fileLower = filePath.toLowerCase();
-      if (fileLower.contains('k plus') || fileLower.contains('kplus') || fileLower.contains('kbank') || fileLower.contains('kasikorn')) {
-        return 'กสิกรไทย (K PLUS)';
-      }
-      if (fileLower.contains('scb easy') || fileLower.contains('scb') || fileLower.contains('ไทยพาณิชย์')) {
-        return 'ไทยพาณิชย์ (SCB EASY)';
-      }
-      if (fileLower.contains('ibank') || fileLower.contains('islamicbank') || fileLower.contains('ธนาคารอิสลาม') || fileLower.contains('ไอแบงก์')) {
-        return 'iBank (อิสลามแห่งประเทศไทย)';
-      }
-      if (fileLower.contains('paotang') || fileLower.contains('เป๋าตัง') || fileLower.contains('gwallet') || fileLower.contains('g-wallet') || fileLower.contains('ไทยช่วยไทย')) {
-        if (fileLower.contains('ibank') || fileLower.contains('ธนาคารอิสลาม') ||
-            textLower.contains('ibank') || textLower.contains('ธนาคารอิสลาม') || textLower.contains('อิสลามแห่งประเทศไทย') || textLower.contains('ไอแบงก์') || textLower.contains('ไอแบงค์') || textLower.contains('islamic bank')) {
-          return 'iBank (อิสลามแห่งประเทศไทย)';
-        }
-        if (fileLower.contains('ไทยช่วยไทย')) {
-          return 'ไทยช่วยไทย (เป๋าตัง)';
-        }
-        return 'เป๋าตัง (PaoTang)';
-      }
-      if (fileLower.contains('krungthai next') || fileLower.contains('krungthai') || fileLower.contains('ktb')) {
-        return 'กรุงไทย (Krungthai NEXT)';
-      }
-      if (fileLower.contains('bualuang') || fileLower.contains('bangkok bank') || fileLower.contains('bbl')) {
-        return 'กรุงเทพ (Bualuang)';
-      }
-      if (fileLower.contains('ttb touch') || fileLower.contains('ttb') || fileLower.contains('tmb') || fileLower.contains('thanachart')) {
-        return 'ttb touch';
-      }
-      if (fileLower.contains('kma') || fileLower.contains('krungsri') || fileLower.contains('bay')) {
-        return 'กรุงศรีอยุธยา (KMA)';
-      }
-      if (fileLower.contains('mymo') || fileLower.contains('gsb') || fileLower.contains('ออมสิน')) {
-        return 'MyMo (ออมสิน)';
-      }
-      if (fileLower.contains('a-mobile') || fileLower.contains('baac') || fileLower.contains('ธกส')) {
-        return 'ธ.ก.ส. (A-Mobile Plus)';
-      }
-      if (fileLower.contains('truemoney') || fileLower.contains('true money') || fileLower.contains('ทรูมันนี่')) {
-        return 'TrueMoney Wallet';
-      }
-      if (fileLower.contains('uob tmrw') || fileLower.contains('uob') || fileLower.contains('ยูโอบี')) {
-        return 'UOB TMRW';
-      }
-      if (fileLower.contains('cimb') || fileLower.contains('ซีไอเอ็มบี')) {
-        return 'CIMB Thai';
-      }
-      if (fileLower.contains('dime') || fileLower.contains('kkp') || fileLower.contains('เกียรตินาคิน')) {
-        return 'เกียรตินาคินภัทร (Dime! / KKP)';
-      }
-      if (fileLower.contains('lhb you') || fileLower.contains('lh bank') || fileLower.contains('lhbank')) {
-        return 'แลนด์ แอนด์ เฮ้าส์ (LHB You)';
-      }
-    }
-
-    final clean = normalizeOcrText(text).toLowerCase();
-    final lines = clean.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
-    // 2. Check Sender Section (Everything before "ไปยัง", "ผู้รับ", "to", "receiver", "เข้าบัญชี")
-    // On Thai banking slips, the issuing/sender bank is ALWAYS in the top section before the receiver section!
-    final receiverSplitRegex = RegExp(r'ไปยัง|ผู้รับเงิน|ผู้รับโอน|ผู้รับ|โอนไปยัง|โอนให้|เข้าบัญชี|ปลายทาง|\bto\b|\breceiver\b', caseSensitive: false);
-    final splitMatch = receiverSplitRegex.firstMatch(clean);
-    final senderSection = splitMatch != null ? clean.substring(0, splitMatch.start) : clean;
-
-    // A. Check top lines of sender section (highest confidence for issuing bank branding)
-    final senderLines = senderSection.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
-    if (senderLines.isNotEmpty) {
-      final topHeader = senderLines.take(3).join(' ');
-      final headerBank = _matchSingleBankName(topHeader);
-      if (headerBank != null) return headerBank;
-    }
-
-    // B. Check entire sender section (before the receiver section starts)
-    final sBank = _matchSingleBankName(senderSection);
-    if (sBank != null) return sBank;
-
-    // 3. Check "จาก / From / ผู้โอน" explicitly
-    for (int i = 0; i < lines.length; i++) {
-      final line = lines[i];
-      if (line.contains('จาก') || line.contains('ผู้โอน') || line.contains('from')) {
-        final senderSnippet = lines.skip(i).take(3).join(' ');
-        final snippetBank = _matchSingleBankName(senderSnippet);
-        if (snippetBank != null) return snippetBank;
-        break;
-      }
-    }
-
-    // 4. Fallback to general text matching
-    final generalBank = _matchSingleBankName(clean);
-    return generalBank ?? 'ธนาคารไทย';
+    final identification = ThaiBankDetector.identifySlipBank(
+      rawOcrText: text,
+      filePath: filePath,
+    );
+    return identification.bankName;
   }
 
   static String? _matchSingleBankName(String clean) {

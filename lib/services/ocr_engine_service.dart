@@ -5,6 +5,7 @@ import '../models/slip_extract_result.dart';
 import 'category_matcher_service.dart';
 import 'easyocr_tesseract_fusion_service.dart';
 import 'qr_slip_parser_service.dart';
+import 'thai_bank_detector.dart';
 
 class MockSlipTemplate {
   final String id;
@@ -426,55 +427,23 @@ class OcrEngineService {
     }
 
     final String? qrSenderCode = qrSlipInfo?.senderBankCode;
-    final bool qrIndicatesOtherBank = qrSenderCode != null && qrSenderCode.isNotEmpty && qrSenderCode != '066';
 
-    final bool isKBank = (qrSenderCode == '004') ||
-        cleanCombined.contains('k plus') ||
-        cleanCombined.contains('kplus') ||
-        cleanCombined.contains('kbank') ||
-        cleanCombined.contains('kasikorn') ||
-        (filePath != null && (filePath.toLowerCase().contains('k plus') || filePath.toLowerCase().contains('kplus') || filePath.toLowerCase().contains('kbank')));
+    // Detect Bank using unified ThaiBankDetector.identifySlipBank (strict sender/receiver isolation)
+    final bankIdent = ThaiBankDetector.identifySlipBank(
+      rawOcrText: cleanText,
+      qrSenderBankCode: qrSenderCode,
+      qrSenderBank: qrSlipInfo?.senderBank,
+      qrPayload: qrPayload,
+      filePath: filePath,
+      fileName: fileName,
+    );
 
-    // Krungthai explicit signatures (Ref ID starting with N006, bank code 006, or Krungthai without Islamic mentions)
-    final bool isKrungthai = (qrSenderCode == '006') ||
-        (qrPayload != null && qrPayload.contains('N006')) ||
-        cleanCombined.contains('n006') ||
-        (filePath != null && filePath.toLowerCase().contains('krungthai')) ||
-        (cleanCombined.contains('กรุงไทย') && !cleanCombined.contains('ไอแบงก์') && !cleanCombined.contains('ธนาคารอิสลาม'));
-
-    final bool isSCB = (qrSenderCode == '014') ||
-        cleanCombined.contains('scb easy') ||
-        cleanCombined.contains('scb') ||
-        (filePath != null && filePath.toLowerCase().contains('scb')) ||
-        (cleanCombined.contains('ไทยพาณิชย์') && !cleanCombined.contains('ไอแบงก์') && !cleanCombined.contains('ธนาคารอิสลาม'));
-
-    final bool isIBank = !qrIndicatesOtherBank &&
-        !isKBank &&
-        !isKrungthai &&
-        !isSCB &&
-        ((qrSenderCode == '066') ||
-            (qrPayload != null && (qrPayload.toLowerCase().contains('0103066') || qrPayload.toLowerCase().contains('ibank') || qrPayload.toLowerCase().contains('islamic bank'))) ||
-            cleanCombined.contains('ibank') ||
-            cleanCombined.contains('ไอแบงก์') ||
-            cleanCombined.contains('ไอแบงค์') ||
-            cleanCombined.contains('ธนาคารอิสลาม') ||
-            cleanCombined.contains('อิสลามแห่งประเทศไทย'));
-
+    final bool isIBank = bankIdent.bankCode == 'IBANK';
+    final bool isKBank = bankIdent.bankCode == 'KBANK';
+    final bool isKrungthai = bankIdent.bankCode == 'KTB';
+    final bool isSCB = bankIdent.bankCode == 'SCB';
     final bool hasQr = qrPayload != null && qrPayload.trim().isNotEmpty;
-    final bool isPaotangGov = !hasQr &&
-        !isIBank &&
-        !isKBank &&
-        !isKrungthai &&
-        !isSCB &&
-        (cleanCombined.contains('เป๋าตัง') ||
-            cleanCombined.contains('paotang') ||
-            cleanCombined.contains('g-wallet') ||
-            cleanCombined.contains('gwallet') ||
-            cleanCombined.contains('ไทยช่วยไทย') ||
-            cleanCombined.contains('คนละครึ่ง') ||
-            cleanCombined.contains('เราชนะ') ||
-            cleanCombined.contains('สวัสดิการ') ||
-            (filePath != null && (filePath.toLowerCase().contains('paotang') || filePath.contains('เป๋าตัง'))));
+    final bool isPaotangGov = !hasQr && bankIdent.bankCode == 'PAOTANG';
 
     // 1. Amount Extraction
     double amount = 0.0;
@@ -556,19 +525,10 @@ class OcrEngineService {
     final bool isSelf = isSelfTransfer(senderName, receiverName, rawText: cleanText);
 
     // 6. Detect Bank Name with Multi-Layer Directional & Album Fuzzy Matching
-    if (qrSlipInfo?.senderBank != null) {
-      senderBank = qrSlipInfo!.senderBank!;
-    } else if (isKBank) {
-      senderBank = 'กสิกรไทย (K PLUS)';
-    } else if (isSCB) {
-      senderBank = 'ไทยพาณิชย์ (SCB EASY)';
-    } else if (isKrungthai) {
-      senderBank = 'กรุงไทย (Krungthai NEXT)';
-    } else if (isIBank) {
-      senderBank = 'ธนาคารอิสลามแห่งประเทศไทย';
+    if (defaultBankCode != null && defaultBankCode.isNotEmpty && defaultBankCode != 'ธนาคารไทย') {
+      senderBank = defaultBankCode;
     } else {
-      senderBank = defaultBankCode ??
-          EasyOcrTesseractFusionService.detectBankName(cleanText, filePath: filePath ?? fileName);
+      senderBank = bankIdent.bankName;
     }
 
     // 7. Transaction Type & Category Classification (Auto-detect Income vs Expense)

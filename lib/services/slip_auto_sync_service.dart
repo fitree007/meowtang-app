@@ -457,58 +457,22 @@ class SlipAutoSyncService {
     }
 
     final String? qrSenderCode = qrSlipParsed?.senderBankCode;
-    final bool qrIndicatesOtherBank = qrSenderCode != null && qrSenderCode.isNotEmpty && qrSenderCode != '066';
 
-    final bool isKBank = (qrSenderCode == '004') ||
-        cleanCombined.contains('k plus') ||
-        cleanCombined.contains('kplus') ||
-        cleanCombined.contains('kbank') ||
-        cleanCombined.contains('kasikorn') ||
-        path.toLowerCase().contains('k plus') ||
-        path.toLowerCase().contains('kplus') ||
-        path.toLowerCase().contains('kbank');
+    // Detect Bank using unified ThaiBankDetector.identifySlipBank (strict sender/receiver isolation)
+    final bankIdent = ThaiBankDetector.identifySlipBank(
+      rawOcrText: rawOcrText,
+      qrSenderBankCode: qrSenderCode,
+      qrSenderBank: qrSlipParsed?.senderBank ?? (bankName != 'ธนาคารไทย' ? bankName : null),
+      qrPayload: qrPayload,
+      filePath: path,
+      fileName: name,
+    );
 
-    // Krungthai explicit signatures (Ref ID starting with N006, bank code 006, or Krungthai without Islamic mentions)
-    final bool isKrungthai = (qrSenderCode == '006') ||
-        qrPayload.contains('N006') ||
-        cleanCombined.contains('n006') ||
-        path.toLowerCase().contains('krungthai') ||
-        (cleanCombined.contains('กรุงไทย') && !cleanCombined.contains('ไอแบงก์') && !cleanCombined.contains('ธนาคารอิสลาม'));
-
-    final bool isSCB = (qrSenderCode == '014') ||
-        cleanCombined.contains('scb easy') ||
-        cleanCombined.contains('scb') ||
-        path.toLowerCase().contains('scb') ||
-        (cleanCombined.contains('ไทยพาณิชย์') && !cleanCombined.contains('ไอแบงก์') && !cleanCombined.contains('ธนาคารอิสลาม'));
-
-    final bool isIBank = !qrIndicatesOtherBank &&
-        !isKBank &&
-        !isKrungthai &&
-        !isSCB &&
-        ((qrSlipParsed != null && (qrSlipParsed.senderBankCode == '066' || (qrSlipParsed.senderBank != null && qrSlipParsed.senderBank!.contains('อิสลาม')))) ||
-            qrPayload.toLowerCase().contains('0103066') ||
-            qrPayload.toLowerCase().contains('ibank') ||
-            cleanCombined.contains('ibank') ||
-            cleanCombined.contains('ไอแบงก์') ||
-            cleanCombined.contains('ไอแบงค์') ||
-            cleanCombined.contains('ธนาคารอิสลาม') ||
-            cleanCombined.contains('อิสลามแห่งประเทศไทย'));
-
-    final bool isPaotangGovNoQr = (cleanCombined.contains('เป๋าตัง') ||
-            cleanCombined.contains('paotang') ||
-            cleanCombined.contains('g-wallet') ||
-            cleanCombined.contains('gwallet') ||
-            cleanCombined.contains('ไทยช่วยไทย') ||
-            cleanCombined.contains('คนละครึ่ง') ||
-            cleanCombined.contains('เราชนะ') ||
-            cleanCombined.contains('สวัสดิการ') ||
-            path.toLowerCase().contains('paotang') ||
-            path.contains('เป๋าตัง')) &&
-        !isIBank &&
-        !isKBank &&
-        !isKrungthai &&
-        !isSCB &&
-        qrPayload.isEmpty;
+    final bool isIBank = bankIdent.bankCode == 'IBANK';
+    final bool isKBank = bankIdent.bankCode == 'KBANK';
+    final bool isKrungthai = bankIdent.bankCode == 'KTB';
+    final bool isSCB = bankIdent.bankCode == 'SCB';
+    final bool isPaotangGovNoQr = bankIdent.bankCode == 'PAOTANG' && qrPayload.isEmpty;
 
     // 3. Extract Amount & Identifiers
     final bool hasQrCode = qrPayload.trim().isNotEmpty;
@@ -679,36 +643,8 @@ class SlipAutoSyncService {
     );
 
     // 7. Format Title to show Who transferred to Whom or Income Notification
-    String cleanBank = bankName;
-    if (isKBank || (qrSenderCode == '004') || cleanBank.contains('กสิกร')) {
-      cleanBank = 'กสิกรไทย';
-      bankName = 'กสิกรไทย (K PLUS)';
-    } else if (isSCB || (qrSenderCode == '014') || cleanBank.contains('ไทยพาณิชย์')) {
-      cleanBank = 'ไทยพาณิชย์';
-      bankName = 'ไทยพาณิชย์ (SCB EASY)';
-    } else if (isKrungthai || (qrSenderCode == '006') || cleanBank.contains('กรุงไทย')) {
-      cleanBank = 'กรุงไทย';
-      bankName = 'กรุงไทย (Krungthai NEXT)';
-    } else if (isIBank || (qrSenderCode == '066') || cleanBank.contains('ธนาคารอิสลาม') || cleanBank.contains('ibank') || cleanBank.contains('ไอแบงก์')) {
-      cleanBank = 'ธนาคารอิสลาม';
-      bankName = 'ธนาคารอิสลามแห่งประเทศไทย';
-    } else if (cleanBank.contains('กรุงเทพ') || (qrSenderCode == '002')) {
-      cleanBank = 'กรุงเทพ';
-    } else if (cleanBank.contains('ทหารไทย') || cleanBank.contains('ttb') || (qrSenderCode == '011')) {
-      cleanBank = 'ทหารไทยธนชาต (ttb)';
-    } else if (cleanBank.contains('ออมสิน') || cleanBank.contains('mymo') || (qrSenderCode == '030')) {
-      cleanBank = 'ออมสิน';
-    } else if (cleanBank.contains('กรุงศรี') || (qrSenderCode == '025')) {
-      cleanBank = 'กรุงศรีอยุธยา';
-    } else if (cleanBank.contains('ทรูมันนี่') || cleanBank.contains('truemoney')) {
-      cleanBank = 'ทรูมันนี่';
-    } else if (cleanBank.contains('พร้อมเพย์') || cleanBank.contains('promptpay')) {
-      cleanBank = 'พร้อมเพย์';
-    } else if (cleanBank.contains('ไทยช่วยไทย')) {
-      cleanBank = 'ไทยช่วยไทย (เป๋าตัง)';
-    } else if (cleanBank.contains('เป๋าตัง') || cleanBank.contains('paotang')) {
-      cleanBank = 'เป๋าตัง';
-    }
+    String cleanBank = bankIdent.cleanBank;
+    bankName = bankIdent.bankName;
 
     final bool isIOS = defaultTargetPlatform == TargetPlatform.iOS;
     String title;
@@ -769,7 +705,7 @@ class SlipAutoSyncService {
     final persistentSlipPath = await SlipStorageService.persistSlipImage(path);
 
     // Auto-link slip directly to the corresponding bank account (e.g. IBANK, KBank, SCB, KTB)
-    final targetBankCode = isIBank ? 'IBANK' : (isKrungthai ? 'KTB' : ThaiBankDetector.detectCodeFromBankName(cleanBank));
+    final targetBankCode = bankIdent.bankCode;
     final targetAccount = controller.getOrCreateAccountForBank(targetBankCode, bankName: cleanBank);
 
     return TransactionItem(
