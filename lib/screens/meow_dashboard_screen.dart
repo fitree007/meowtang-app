@@ -90,6 +90,7 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
   bool _isAutoScanning = false;
   bool _isSortNewestFirst = true;
   late Set<String> _enabledBankCodes;
+  Timer? _liveSlipSyncTimer;
 
   @override
   void initState() {
@@ -116,42 +117,49 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
     await NativeBridgeService.requestAppPermissions();
 
     // 1. Initial background scan for unimported bank slips with gentle delay (800ms) for smooth startup
-   Future.delayed(const Duration(milliseconds: 800), () {
-     if (mounted) {
-       _autoScanSlipsInBackground(showFeedback: false);
-     }
-   });
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (mounted) {
+        _autoScanSlipsInBackground(showFeedback: false);
+      }
+    });
 
-   // 3. Setup real-time ContentObserver listener for any new incoming slips!
-   SlipAutoSyncService.setupRealtimeSlipObserver(
-    widget.controller,
-    onNewTransactionCreated: (newItem) {
-     if (mounted) {
-      setState(() {
-       _statusMessage = 'ตรวจพบสลิปใหม่ "${newItem.title}" ฿${newItem.amount.toStringAsFixed(2)} บันทึกแล้ว!';
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-       SnackBar(
-        content: Row(
-         children: [
-          const Icon(Icons.receipt_long, color: Colors.white),
-          const SizedBox(width: 10),
-          Expanded(
-           child: Text(
-            'ดักจับสลิปใหม่และบันทึก ฿${newItem.amount.toStringAsFixed(2)} ลงบัญชีเรียบร้อยแล้ว!',
-            style: const TextStyle(fontWeight: FontWeight.bold),
+    // 2. Periodic background check every 4 seconds while app is in foreground
+    _liveSlipSyncTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (mounted && !_isAutoScanning) {
+        _autoScanSlipsInBackground(showFeedback: false);
+      }
+    });
+
+    // 3. Setup real-time ContentObserver listener for any new incoming slips!
+    SlipAutoSyncService.setupRealtimeSlipObserver(
+     widget.controller,
+     onNewTransactionCreated: (newItem) {
+      if (mounted) {
+       setState(() {
+        _statusMessage = 'ตรวจพบสลิปใหม่ "${newItem.title}" ฿${newItem.amount.toStringAsFixed(2)} บันทึกแล้ว!';
+       });
+       ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+         content: Row(
+          children: [
+           const Icon(Icons.receipt_long, color: Colors.white),
+           const SizedBox(width: 10),
+           Expanded(
+            child: Text(
+             'ดักจับสลิปใหม่และบันทึก ฿${newItem.amount.toStringAsFixed(2)} ลงบัญชีเรียบร้อยแล้ว!',
+             style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
            ),
-          ),
-         ],
+          ],
+         ),
+         backgroundColor: MeowTheme.incomeGreen,
+         duration: const Duration(seconds: 4),
         ),
-        backgroundColor: MeowTheme.incomeGreen,
-        duration: const Duration(seconds: 4),
-       ),
-      );
-     }
-    },
-   );
-   });
+       );
+      }
+     },
+    );
+    });
   }
 
   @override
@@ -164,6 +172,8 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _liveSlipSyncTimer?.cancel();
+    _liveSlipSyncTimer = null;
     if (MeowDashboardScreen.onScrollToTopRequested == _scrollToTop) {
       MeowDashboardScreen.onScrollToTopRequested = null;
     }
@@ -183,12 +193,16 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
   }
 
   Future<void> _autoScanSlipsInBackground({bool showFeedback = true}) async {
-  if (_isAutoScanning) return;
-  HapticFeedback.mediumImpact();
-  setState(() {
-   _isAutoScanning = true;
-   _statusMessage = 'กำลังค้นหาภาพสลิปใหม่ในเครื่อง...';
-  });
+    if (_isAutoScanning) return;
+    if (showFeedback) {
+      HapticFeedback.mediumImpact();
+      setState(() {
+        _isAutoScanning = true;
+        _statusMessage = 'กำลังค้นหาภาพสลิปใหม่ในเครื่อง...';
+      });
+    } else {
+      _isAutoScanning = true;
+    }
 
   if (showFeedback) {
    ScaffoldMessenger.of(context).hideCurrentSnackBar();

@@ -281,89 +281,79 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
 
                     const SizedBox(height: 8),
 
-                    // 3. VIP Benefits Box (6 Minimalist Bento Cards)
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildMinimalPerkCard(
+                    // 3. VIP Benefits Vertical List (Minimalist Clean White/Soft Background with Checkmarks)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1E293B).withValues(alpha: 0.5) : const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.08),
+                          width: 0.8,
+                        ),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildBenefitRow(
                             icon: Icons.qr_code_scanner_rounded,
-                            color: const Color(0xFF10B981),
-                            title: isEn ? 'Unlimited Slips' : '⚡ สแกนสลิปไม่อั้น',
-                            desc: isEn ? 'Auto-scan 22 banks, no limits' : 'AI ลงบัญชีทันที ไม่จำกัด 10/ด.',
-                            isDark: isDark,
+                            text: isEn ? 'Unlimited AI auto slip scan (22 banks)' : '⚡ สแกนสลิปอัตโนมัติไม่จำกัด 22 ธนาคาร',
+                            iconColor: const Color(0xFFF59E0B),
                             textColor: textColor,
-                            subColor: subColor,
+                            isDark: isDark,
                           ),
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: _buildMinimalPerkCard(
+                          _buildBenefitRow(
                             icon: Icons.picture_as_pdf_rounded,
-                            color: const Color(0xFFEF4444),
-                            title: isEn ? 'A4 PDF & Excel' : '📄 ส่งออก PDF & Excel',
-                            desc: isEn ? 'Ready for taxes & loan filing' : 'ทำเล่มรายงานพร้อมยื่นภาษี/กู้',
-                            isDark: isDark,
+                            text: isEn ? 'Export PDF and Excel reports' : '📄 ส่งออกรายงาน PDF และ Excel',
+                            iconColor: const Color(0xFFF59E0B),
                             textColor: textColor,
-                            subColor: subColor,
+                            isDark: isDark,
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildMinimalPerkCard(
+                          _buildBenefitRow(
                             icon: Icons.track_changes_rounded,
-                            color: const Color(0xFF3B82F6),
-                            title: isEn ? 'Wealth & Budgets' : '🎯 วางแผนงบ & ออมเงิน',
-                            desc: isEn ? 'Track goals & project budgets' : 'คุมงบเตือนก่อนหมด & ตั้งเป้าออม',
-                            isDark: isDark,
+                            text: isEn ? 'Budget planning & saving goals' : '🎯 วางแผนงบและตั้งเป้าหมายการออม',
+                            iconColor: const Color(0xFFF59E0B),
                             textColor: textColor,
-                            subColor: subColor,
+                            isDark: isDark,
                           ),
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: _buildMinimalPerkCard(
+                          _buildBenefitRow(
+                            icon: Icons.calculate_rounded,
+                            text: isEn ? 'Savings goal time calculator' : '🧮 คำนวณเวลาเก็บออม',
+                            iconColor: const Color(0xFFF59E0B),
+                            textColor: textColor,
+                            isDark: isDark,
+                          ),
+                          _buildBenefitRow(
                             icon: Icons.currency_exchange_rounded,
-                            color: const Color(0xFFF59E0B),
-                            title: isEn ? 'Live Rates & Gold' : '💱 เรทเงินโลก & ทองคำสด',
-                            desc: isEn ? 'Real-time rates & calculator' : 'แปลงค่าเงิน & คำนวณราคาทองสด',
-                            isDark: isDark,
+                            text: isEn ? 'Real-time global rates & gold price' : '💱 เรทเงินโลกและราคาทองคำเรียลไทม์',
+                            iconColor: const Color(0xFFF59E0B),
                             textColor: textColor,
-                            subColor: subColor,
+                            isDark: isDark,
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildMinimalPerkCard(
+                          _buildBenefitRow(
                             icon: Icons.mosque_rounded,
-                            color: const Color(0xFF8B5CF6),
-                            title: isEn ? 'Islamic Suite' : '🕌 ซะกาต & แบ่งมรดก',
-                            desc: isEn ? 'Live Zakat & Faraid laws' : 'คำนวณซะกาต & แบ่งมรดกฟะรออิฎ',
-                            isDark: isDark,
+                            text: isEn ? 'Zakat & Islamic inheritance (Faraid)' : '🕌 คำนวณซะกาตและแบ่งมรดก',
+                            iconColor: const Color(0xFFF59E0B),
                             textColor: textColor,
-                            subColor: subColor,
+                            isDark: isDark,
                           ),
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: _buildMinimalPerkCard(
+                          _buildBenefitRow(
                             icon: Icons.palette_rounded,
-                            color: const Color(0xFFEC4899),
-                            title: isEn ? '18 Themes & Avatar' : '🎨 18 ธีม & รูปตัวเอง',
-                            desc: isEn ? 'Unlock themes & custom avatar' : 'ปลดล็อคทุกธีม & ใช้รูปโปรไฟล์ได้',
-                            isDark: isDark,
+                            text: isEn ? 'Unlock all themes & custom profile' : '🎨 ปลดล็อคธีมและรูปโปรไฟล์ทั้งหมด',
+                            iconColor: const Color(0xFFF59E0B),
                             textColor: textColor,
-                            subColor: subColor,
+                            isDark: isDark,
                           ),
-                        ),
-                      ],
+                          _buildBenefitRow(
+                            icon: Icons.auto_awesome_rounded,
+                            text: isEn ? 'And all future features' : '✨ และฟีเจอร์อื่น ๆ ในอนาคต',
+                            iconColor: const Color(0xFFF59E0B),
+                            textColor: textColor,
+                            isDark: isDark,
+                            showDivider: false,
+                          ),
+                        ],
+                      ),
                     ),
 
                     const SizedBox(height: 5),
@@ -519,58 +509,61 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
     }
   }
 
-  Widget _buildMinimalPerkCard({
+  Widget _buildBenefitRow({
     required IconData icon,
-    required Color color,
-    required String title,
-    required String desc,
-    required bool isDark,
+    required String text,
+    required Color iconColor,
     required Color textColor,
-    required Color subColor,
+    required bool isDark,
+    bool showDivider = true,
   }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.10 : 0.05),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: color.withValues(alpha: 0.22),
-          width: 0.8,
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: color, size: 16),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  title,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 3.5),
+          child: Row(
+            children: [
+              Icon(icon, color: iconColor, size: 16),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  text,
                   style: TextStyle(
                     color: textColor,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 11,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.1,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                Text(
-                  desc,
-                  style: TextStyle(
-                    color: subColor,
-                    fontSize: 9.5,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(width: 6),
+              Container(
+                width: 17,
+                height: 17,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
                 ),
-              ],
-            ),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.check_rounded,
+                  color: Color(0xFF10B981),
+                  size: 12,
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+        if (showDivider)
+          Divider(
+            height: 1,
+            thickness: 0.6,
+            color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
+          ),
+      ],
     );
   }
 

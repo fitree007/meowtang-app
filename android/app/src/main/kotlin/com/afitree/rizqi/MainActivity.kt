@@ -599,13 +599,25 @@ class MainActivity : FlutterActivity() {
     private fun checkLatestSlipAndNotify() {
         if (!hasStoragePermission()) return
 
-        val projection = arrayOf(
-            MediaStore.Images.Media._ID,
-            MediaStore.Images.Media.DISPLAY_NAME,
-            MediaStore.Images.Media.DATE_ADDED,
-            MediaStore.Images.Media.SIZE,
-            MediaStore.Images.Media.DATA
-        )
+        val projection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            arrayOf(
+                MediaStore.Images.Media._ID,
+                MediaStore.Images.Media.DISPLAY_NAME,
+                MediaStore.Images.Media.DATE_ADDED,
+                MediaStore.Images.Media.SIZE,
+                MediaStore.Images.Media.DATA,
+                MediaStore.Images.Media.RELATIVE_PATH,
+                MediaStore.Images.Media.BUCKET_DISPLAY_NAME
+            )
+        } else {
+            arrayOf(
+                MediaStore.Images.Media._ID,
+                MediaStore.Images.Media.DISPLAY_NAME,
+                MediaStore.Images.Media.DATE_ADDED,
+                MediaStore.Images.Media.SIZE,
+                MediaStore.Images.Media.DATA
+            )
+        }
 
         val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
 
@@ -625,33 +637,35 @@ class MainActivity : FlutterActivity() {
                     val dateColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
                     val sizeColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE)
                     val dataColumn = it.getColumnIndex(MediaStore.Images.Media.DATA)
+                    val relPathColumn = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) it.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH) else -1
+                    val bucketColumn = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) it.getColumnIndex(MediaStore.Images.Media.BUCKET_DISPLAY_NAME) else -1
 
                     val id = it.getLong(idColumn).toString()
                     val name = it.getString(nameColumn) ?: ""
                     val dateAdded = it.getLong(dateColumn) * 1000
                     val size = it.getLong(sizeColumn)
                     val path = if (dataColumn != -1) it.getString(dataColumn) else ""
+                    val relPath = if (relPathColumn != -1) it.getString(relPathColumn) ?: "" else ""
+                    val bucketName = if (bucketColumn != -1) it.getString(bucketColumn) ?: "" else ""
 
                     if (id == lastNotifiedSlipId) return
 
                     val lowerName = name.lowercase()
                     val lowerPath = path?.lowercase() ?: ""
+                    val lowerRelPath = relPath.lowercase()
+                    val lowerBucket = bucketName.lowercase()
+                    val combinedSearch = "$lowerName $lowerPath $lowerRelPath $lowerBucket"
 
                     // Negative Filter 1: Ignore My QR / Receive Money QR codes
-                    val isMyQr = lowerName.contains("myqr") || lowerName.contains("my_qr") || lowerName.contains("my-qr") ||
-                                 lowerPath.contains("myqr") || lowerPath.contains("my_qr") || lowerPath.contains("my-qr") ||
-                                 lowerName.contains("qr_receive") || lowerName.contains("receive_qr") || lowerName.contains("promptpay_qr")
+                    val isMyQr = combinedSearch.contains("myqr") || combinedSearch.contains("my_qr") || combinedSearch.contains("my-qr") ||
+                                 combinedSearch.contains("qr_receive") || combinedSearch.contains("receive_qr") || combinedSearch.contains("promptpay_qr")
                     if (isMyQr) return
 
-                    // Negative Filter 2: Ignore Bank Passbook / Book Bank / Statement / Account Certificate images (e.g. Krungthai passbook)
-                    val isPassbook = lowerName.contains("passbook") || lowerName.contains("bookbank") || lowerName.contains("book_bank") ||
-                                     lowerName.contains("สมุดบัญชี") || lowerName.contains("สมุดคู่ฝาก") || lowerName.contains("หน้าสมุด") ||
-                                     lowerName.contains("หน้าบัญชี") || lowerName.contains("account_book") || lowerName.contains("e-savings") ||
-                                     lowerName.contains("esavings") || lowerName.contains("statement") || lowerName.contains("สมุดเงินฝาก") ||
-                                     lowerPath.contains("passbook") || lowerPath.contains("bookbank") || lowerPath.contains("book_bank") ||
-                                     lowerPath.contains("สมุดบัญชี") || lowerPath.contains("สมุดคู่ฝาก") || lowerPath.contains("หน้าสมุด") ||
-                                     lowerPath.contains("หน้าบัญชี") || lowerPath.contains("account_book") || lowerPath.contains("e-savings") ||
-                                     lowerPath.contains("esavings") || lowerPath.contains("statement") || lowerPath.contains("สมุดเงินฝาก")
+                    // Negative Filter 2: Ignore Bank Passbook / Book Bank / Statement / Account Certificate images
+                    val isPassbook = combinedSearch.contains("passbook") || combinedSearch.contains("bookbank") || combinedSearch.contains("book_bank") ||
+                                     combinedSearch.contains("สมุดบัญชี") || combinedSearch.contains("สมุดคู่ฝาก") || combinedSearch.contains("หน้าสมุด") ||
+                                     combinedSearch.contains("หน้าบัญชี") || combinedSearch.contains("account_book") || combinedSearch.contains("e-savings") ||
+                                     combinedSearch.contains("esavings") || combinedSearch.contains("statement") || combinedSearch.contains("สมุดเงินฝาก")
                     if (isPassbook) return
 
                     // Keyword validation for bank slip indicators
@@ -665,40 +679,40 @@ class MainActivity : FlutterActivity() {
                     var detectedBank = "ธนาคารไทย"
                     var isSlip = false
 
-                    if (lowerPath.contains("k plus") || lowerPath.contains("kplus") || lowerPath.contains("k_+") || lowerPath.contains("k+") || lowerName.contains("kbank") || lowerPath.contains("kbank") || lowerPath.contains("kasikorn") || lowerName.contains("kasikorn") || lowerName.contains("k_plus") || lowerName.contains("k+") || lowerName.contains("kplus") || lowerName.contains("k-plus")) {
+                    if (combinedSearch.contains("k plus") || combinedSearch.contains("kplus") || combinedSearch.contains("k_+") || combinedSearch.contains("k+") || combinedSearch.contains("kbank") || combinedSearch.contains("kasikorn")) {
                         detectedBank = "กสิกรไทย (K PLUS)"
                         isSlip = true
-                    } else if (lowerPath.contains("scb") || lowerName.contains("scb")) {
+                    } else if (combinedSearch.contains("scb")) {
                         detectedBank = "ไทยพาณิชย์ (SCB EASY)"
                         isSlip = true
-                    } else if (lowerPath.contains("krungthai") || lowerPath.contains("ktb") || lowerName.contains("ktb") || lowerName.contains("krungthai")) {
+                    } else if (combinedSearch.contains("krungthai") || combinedSearch.contains("ktb")) {
                         detectedBank = "กรุงไทย (Krungthai NEXT)"
                         isSlip = true
-                    } else if (lowerPath.contains("paotang") || lowerName.contains("paotang") || lowerPath.contains("เป๋าตัง") || lowerName.contains("เป๋าตัง") || lowerPath.contains("gwallet") || lowerPath.contains("g-wallet") || lowerPath.contains("ไทยช่วยไทย") || lowerName.contains("ไทยช่วยไทย")) {
-                        detectedBank = if (lowerPath.contains("ibank") || lowerName.contains("ibank") || lowerPath.contains("อิสลาม") || lowerName.contains("อิสลาม")) {
+                    } else if (combinedSearch.contains("paotang") || combinedSearch.contains("เป๋าตัง") || combinedSearch.contains("gwallet") || combinedSearch.contains("g-wallet") || combinedSearch.contains("ไทยช่วยไทย")) {
+                        detectedBank = if (combinedSearch.contains("ibank") || combinedSearch.contains("อิสลาม")) {
                             "iBank (อิสลามแห่งประเทศไทย)"
-                        } else if (lowerPath.contains("ไทยช่วยไทย") || lowerName.contains("ไทยช่วยไทย")) {
+                        } else if (combinedSearch.contains("ไทยช่วยไทย")) {
                             "ไทยช่วยไทย (เป๋าตัง)"
                         } else {
                             "เป๋าตัง (PaoTang)"
                         }
                         isSlip = true
-                    } else if (lowerPath.contains("truemoney") || lowerName.contains("truemoney")) {
+                    } else if (combinedSearch.contains("truemoney")) {
                         detectedBank = "TrueMoney Wallet"
                         isSlip = true
-                    } else if (lowerPath.contains("bbl") || lowerName.contains("bbl") || lowerPath.contains("bualuang")) {
+                    } else if (combinedSearch.contains("bbl") || combinedSearch.contains("bualuang")) {
                         detectedBank = "กรุงเทพ (Bualuang)"
                         isSlip = true
-                    } else if (lowerPath.contains("ttb") || lowerName.contains("ttb")) {
+                    } else if (combinedSearch.contains("ttb")) {
                         detectedBank = "ttb touch"
                         isSlip = true
-                    } else if (lowerPath.contains("mymo") || lowerName.contains("mymo")) {
+                    } else if (combinedSearch.contains("mymo")) {
                         detectedBank = "MyMo (ออมสิน)"
                         isSlip = true
-                    } else if (lowerPath.contains("ibank") || lowerName.contains("ibank") || lowerPath.contains("อิสลาม") || lowerName.contains("อิสลาม")) {
+                    } else if (combinedSearch.contains("ibank") || combinedSearch.contains("อิสลาม")) {
                         detectedBank = "iBank (อิสลามแห่งประเทศไทย)"
                         isSlip = true
-                    } else if (slipKeywords.any { kw -> lowerName.contains(kw) || lowerPath.contains(kw) }) {
+                    } else if (slipKeywords.any { kw -> combinedSearch.contains(kw) }) {
                         detectedBank = "สลิปโอนเงิน"
                         isSlip = true
                     }
