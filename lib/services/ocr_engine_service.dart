@@ -554,22 +554,27 @@ class OcrEngineService {
     );
 
     final fallbackExpense = categories.firstWhere(
-      (c) => c.type == CategoryType.expense,
-      orElse: () => CategoryItem(
-        id: 'cat_expense',
-        name: 'รายจ่าย',
-        iconKey: 'category',
-        colorValue: 0xFFF59E0B,
-        type: CategoryType.expense,
+      (c) => c.type == CategoryType.expense && (c.name == 'รายจ่ายอื่นๆ' || c.id == 'cat_other_exp' || c.name.contains('อื่นๆ')),
+      orElse: () => categories.firstWhere(
+        (c) => c.type == CategoryType.expense,
+        orElse: () => CategoryItem(
+          id: 'cat_other_exp',
+          name: 'รายจ่ายอื่นๆ',
+          iconKey: 'category',
+          colorValue: 0xFF94A3B8,
+          type: CategoryType.expense,
+        ),
       ),
     );
 
-    final textForMatching = [memo ?? '', receiverName, senderName, cleanText].join(' ');
-    final matchedCat = CategoryMatcherService.matchCategory(
-      text: textForMatching,
-      availableCategories: categories.where((c) => c.type == (suggestedType == TransactionType.income ? CategoryType.income : CategoryType.expense)).toList(),
-      fallbackCategory: suggestedType == TransactionType.income ? fallbackIncome : fallbackExpense,
-    );
+    final bool hasMemo = memo != null && memo.trim().isNotEmpty && memo.trim() != 'โปรดระบุยอด';
+    final matchedCat = hasMemo
+        ? CategoryMatcherService.matchCategory(
+            text: memo!.trim(),
+            availableCategories: categories.where((c) => c.type == (suggestedType == TransactionType.income ? CategoryType.income : CategoryType.expense)).toList(),
+            fallbackCategory: suggestedType == TransactionType.income ? fallbackIncome : fallbackExpense,
+          )
+        : (suggestedType == TransactionType.income ? fallbackIncome : fallbackExpense);
 
     // If generic fallback but memo has a specific topic, use memo as suggested category name
     String suggestedCategory = matchedCat.name;

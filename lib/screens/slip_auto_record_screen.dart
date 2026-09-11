@@ -257,10 +257,13 @@ class _SlipAutoRecordScreenState extends State<SlipAutoRecordScreen> {
   final customRules = customRulesRaw.map((r) => KeywordRule.fromJson(r)).toList();
 
   final expenseFallback = widget.controller.expenseCategories.firstWhere(
-    (c) => c.name.contains('รายจ่าย') || c.name.contains('ทั่วไป'),
-    orElse: () => widget.controller.expenseCategories.isNotEmpty
-      ? widget.controller.expenseCategories.first
-      : widget.controller.categories.first,
+    (c) => c.name == 'รายจ่ายอื่นๆ' || c.id == 'cat_other_exp' || c.name.contains('อื่นๆ'),
+    orElse: () => widget.controller.expenseCategories.firstWhere(
+      (c) => c.name.contains('รายจ่าย') || c.name.contains('ทั่วไป'),
+      orElse: () => widget.controller.expenseCategories.isNotEmpty
+        ? widget.controller.expenseCategories.first
+        : widget.controller.categories.first,
+    ),
   );
 
   final incomeFallback = widget.controller.incomeCategories.firstWhere(
@@ -270,40 +273,34 @@ class _SlipAutoRecordScreenState extends State<SlipAutoRecordScreen> {
       : widget.controller.categories.first,
   );
 
-  final targetCategories = isIncomeSlip
-      ? (widget.controller.incomeCategories.isNotEmpty ? widget.controller.incomeCategories : widget.controller.categories.where((c) => c.type == CategoryType.income).toList())
-      : (widget.controller.expenseCategories.isNotEmpty ? widget.controller.expenseCategories : widget.controller.categories.where((c) => c.type == CategoryType.expense).toList());
-
-  final matchedCategory = await CategoryMatcherService.matchOrAutoCreateCategory(
-    noteOrMemo: memo ?? '',
-    recipientOrMerchant: '$rawOcrText $bankName $receiverName $senderName',
-    controller: widget.controller,
-    type: isIncomeSlip ? CategoryType.income : CategoryType.expense,
-    fallbackCategory: isIncomeSlip ? incomeFallback : expenseFallback,
-  );
-
-  // 7. Generate Title showing Who transferred to Whom (iOS format: โอนเงินผ่าน(ชื่อธนาคาร))
-  final bool isIOS = defaultTargetPlatform == TargetPlatform.iOS;
-
-  String title;
-  if (isIOS) {
-    title = isIncomeSlip ? 'รับเงินโอนผ่าน$cleanBank' : 'โอนเงินผ่าน$cleanBank';
+  final bool hasMemo = memo != null && memo.trim().isNotEmpty && memo.trim() != 'โปรดระบุยอด';
+  final CategoryItem matchedCategory;
+  if (!isIncomeSlip && !hasMemo) {
+    // หากไม่มีบันทึกช่วยจำหรือโน้ต ให้จัดอยู่ใน "รายจ่ายอื่นๆ" ตามที่ผู้ใช้ระบุ
+    matchedCategory = expenseFallback;
   } else {
-    title = isIncomeSlip ? 'รับเงินโอน $bankName' : 'โอนเงิน $bankName';
-    if (isIncomeSlip) {
-      if (senderName != 'ไม่ระบุผู้โอน') {
-        title = 'รับเงินจาก $senderName';
-      } else {
-        title = 'เงินโอนเข้า ($bankName)';
-      }
+    matchedCategory = await CategoryMatcherService.matchOrAutoCreateCategory(
+      noteOrMemo: memo ?? '',
+      recipientOrMerchant: hasMemo ? (memo ?? '') : '$bankName $receiverName $senderName',
+      controller: widget.controller,
+      type: isIncomeSlip ? CategoryType.income : CategoryType.expense,
+      fallbackCategory: isIncomeSlip ? incomeFallback : expenseFallback,
+    );
+  }
+
+  // 7. Generate Title showing Who transferred to Whom
+  String title;
+  if (isIncomeSlip) {
+    if (senderName != 'ไม่ระบุผู้โอน' && senderName.isNotEmpty) {
+      title = 'รับเงินจาก $senderName';
     } else {
-      if (senderName != 'ไม่ระบุผู้โอน' && receiverName != 'ไม่ระบุผู้รับ') {
-        title = '$senderName โอนให้ $receiverName';
-      } else if (receiverName != 'ไม่ระบุผู้รับ') {
-        title = 'โอนให้ $receiverName';
-      } else if (senderName != 'ไม่ระบุผู้โอน') {
-        title = '$senderName โอนเงิน ($bankName)';
-      }
+      title = 'รับเงินโอนผ่าน$cleanBank';
+    }
+  } else {
+    if (receiverName != 'ไม่ระบุผู้รับ' && receiverName.isNotEmpty) {
+      title = 'โอนให้ $receiverName';
+    } else {
+      title = 'โอนเงินผ่าน$cleanBank';
     }
   }
 

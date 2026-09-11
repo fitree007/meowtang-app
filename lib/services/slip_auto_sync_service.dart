@@ -610,13 +610,16 @@ class SlipAutoSyncService {
     final customRules = customRulesRaw.map((r) => KeywordRule.fromJson(r)).toList();
 
     final expenseFallback = controller.expenseCategories.firstWhere(
-      (c) => c.name.contains('รายจ่าย') || c.name.contains('ทั่วไป') || c.name.contains('อื่นๆ'),
-      orElse: () => CategoryItem(
-        id: 'cat_general_exp',
-        name: 'รายจ่ายทั่วไป',
-        iconKey: 'category',
-        colorValue: 0xFFF59E0B,
-        type: CategoryType.expense,
+      (c) => c.name == 'รายจ่ายอื่นๆ' || c.id == 'cat_other_exp' || c.name.contains('อื่นๆ'),
+      orElse: () => controller.expenseCategories.firstWhere(
+        (c) => c.name.contains('รายจ่าย') || c.name.contains('ทั่วไป'),
+        orElse: () => CategoryItem(
+          id: 'cat_other_exp',
+          name: 'รายจ่ายอื่นๆ',
+          iconKey: 'category',
+          colorValue: 0xFF94A3B8,
+          type: CategoryType.expense,
+        ),
       ),
     );
 
@@ -635,18 +638,40 @@ class SlipAutoSyncService {
         ? (controller.incomeCategories.isNotEmpty ? controller.incomeCategories : controller.categories.where((c) => c.type == CategoryType.income).toList())
         : (controller.expenseCategories.isNotEmpty ? controller.expenseCategories : controller.categories.where((c) => c.type == CategoryType.expense).toList());
 
-    final matchedCat = CategoryMatcherService.matchCategory(
-      text: '$rawOcrText $bankName $receiverName $senderName ${extractedMemo ?? ""}',
-      availableCategories: targetCategories.isNotEmpty ? targetCategories : controller.categories,
-      customRules: customRules,
-      fallbackCategory: isIncome ? incomeFallback : expenseFallback,
-    );
+    final bool hasMemo = extractedMemo != null &&
+        extractedMemo.trim().isNotEmpty &&
+        extractedMemo.trim() != 'โปรดระบุยอด';
+
+    CategoryItem matchedCat;
+    if (isIncome) {
+      if (hasMemo) {
+        matchedCat = CategoryMatcherService.matchCategory(
+          text: extractedMemo!,
+          availableCategories: targetCategories.isNotEmpty ? targetCategories : controller.categories,
+          customRules: customRules,
+          fallbackCategory: incomeFallback,
+        );
+      } else {
+        matchedCat = incomeFallback;
+      }
+    } else {
+      if (hasMemo) {
+        matchedCat = CategoryMatcherService.matchCategory(
+          text: extractedMemo!,
+          availableCategories: targetCategories.isNotEmpty ? targetCategories : controller.categories,
+          customRules: customRules,
+          fallbackCategory: expenseFallback,
+        );
+      } else {
+        // หากไม่มีบันทึกช่วยจำหรือโน้ต ให้จัดอยู่ใน "รายจ่ายอื่นๆ" ตามที่ผู้ใช้ระบุ
+        matchedCat = expenseFallback;
+      }
+    }
 
     // 7. Format Title to show Who transferred to Whom or Income Notification
     String cleanBank = bankIdent.cleanBank;
     bankName = bankIdent.bankName;
 
-    final bool isIOS = defaultTargetPlatform == TargetPlatform.iOS;
     String title;
     if (isIncome) {
       if (lowerCombined.contains('ไทยช่วยไทย')) {
@@ -657,7 +682,7 @@ class SlipAutoSyncService {
         title = 'เงินช่วยเหลือ (เราชนะ)';
       } else if (lowerCombined.contains('สวัสดิการ')) {
         title = 'เงินช่วยเหลือ (สวัสดิการแห่งรัฐ)';
-      } else if (!isIOS && senderName != 'ไม่ระบุผู้โอน' && senderName.isNotEmpty) {
+      } else if (senderName != 'ไม่ระบุผู้โอน' && senderName.isNotEmpty) {
         title = 'รับเงินโอนจาก $senderName';
       } else if (isIBank || cleanBank == 'ธนาคารอิสลาม') {
         title = 'รับเงินโอนผ่านธนาคารอิสลาม';
@@ -665,21 +690,10 @@ class SlipAutoSyncService {
         title = 'รับเงินโอนผ่าน$cleanBank';
       }
     } else {
-      if (isIOS) {
-        // iOS Standardized Slip Title requested by user: โอนเงินผ่าน.....(ชื่อธนาคาร)
-        title = 'โอนเงินผ่าน$cleanBank';
+      if (receiverName != 'ไม่ระบุผู้รับ' && receiverName.trim().isNotEmpty) {
+        title = 'โอนให้ $receiverName';
       } else {
-        if (senderName != 'ไม่ระบุผู้โอน' && receiverName != 'ไม่ระบุผู้รับ') {
-          title = '$senderName โอนให้ $receiverName';
-        } else if (receiverName != 'ไม่ระบุผู้รับ') {
-          title = 'โอนให้ $receiverName';
-        } else if (senderName != 'ไม่ระบุผู้โอน') {
-          title = '$senderName โอนเงิน ($cleanBank)';
-        } else if (isIBank || cleanBank == 'ธนาคารอิสลาม') {
-          title = 'โอนเงินผ่านธนาคารอิสลาม';
-        } else {
-          title = 'โอนเงินผ่าน$cleanBank';
-        }
+        title = 'โอนเงินผ่าน$cleanBank';
       }
     }
 
