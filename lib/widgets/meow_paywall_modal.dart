@@ -153,95 +153,140 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
                           final adWatches = widget.controller.currentMonthAdWatchesCount;
                           final maxAds = widget.controller.maxMonthlyRewardedAds;
                           final canWatch = widget.controller.canWatchRewardedAd;
-                          return Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: canWatch
-                                  ? (isDark ? const Color(0xFF1E293B) : const Color(0xFFF0FDF4))
-                                  : (isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF3F4F6)),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: canWatch
-                                    ? const Color(0xFF10B981).withValues(alpha: 0.35)
-                                    : subColor.withValues(alpha: 0.2),
-                                width: 0.8,
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.play_circle_fill_rounded,
-                                  color: canWatch ? const Color(0xFF10B981) : subColor,
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 7),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFF10B981).withValues(alpha: 0.15),
-                                              borderRadius: BorderRadius.circular(4),
-                                            ),
-                                            child: Text(
-                                              isEn ? 'FREE' : 'ทางเลือกฟรี 🎁',
-                                              style: const TextStyle(
-                                                fontSize: 9,
-                                                fontWeight: FontWeight.bold,
-                                                color: Color(0xFF059669),
-                                              ),
-                                            ),
+                          return Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: (_isProcessing || !canWatch) ? null : _handleWatchAd,
+                              borderRadius: BorderRadius.circular(12),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+                                decoration: BoxDecoration(
+                                  color: canWatch
+                                      ? (isDark ? const Color(0xFF064E3B).withValues(alpha: 0.35) : const Color(0xFFECFDF5))
+                                      : (isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF3F4F6)),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: canWatch
+                                        ? const Color(0xFF10B981).withValues(alpha: 0.55)
+                                        : subColor.withValues(alpha: 0.2),
+                                    width: 1.2,
+                                  ),
+                                  boxShadow: canWatch
+                                      ? [
+                                          BoxShadow(
+                                            color: const Color(0xFF10B981).withValues(alpha: isDark ? 0.2 : 0.08),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 2),
                                           ),
-                                          const SizedBox(width: 5),
+                                        ]
+                                      : null,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 36,
+                                      height: 36,
+                                      decoration: BoxDecoration(
+                                        color: canWatch
+                                            ? const Color(0xFF10B981).withValues(alpha: 0.20)
+                                            : subColor.withValues(alpha: 0.15),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      alignment: Alignment.center,
+                                      child: Icon(
+                                        Icons.play_circle_fill_rounded,
+                                        color: canWatch ? const Color(0xFF10B981) : subColor,
+                                        size: 24,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 9),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 4.5, vertical: 1.5),
+                                                decoration: BoxDecoration(
+                                                  color: canWatch
+                                                      ? const Color(0xFF10B981).withValues(alpha: 0.18)
+                                                      : subColor.withValues(alpha: 0.15),
+                                                  borderRadius: BorderRadius.circular(5),
+                                                ),
+                                                child: Text(
+                                                  isEn ? 'FREE 🎁' : 'ทางเลือกฟรี 🎁',
+                                                  style: TextStyle(
+                                                    fontSize: 9.5,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: canWatch ? const Color(0xFF059669) : subColor,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Flexible(
+                                                child: Text(
+                                                  isEn ? 'Watch Ad for +2 Slips' : 'ดูคลิปโฆษณารับฟรี +2 สลิป',
+                                                  style: TextStyle(
+                                                    color: textColor,
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 2),
                                           Text(
-                                            isEn ? 'Watch ad for +2 slips' : 'ดูคลิปรับฟรี +2 สลิป',
+                                            canWatch
+                                                ? (isEn
+                                                    ? 'Used $adWatches/$maxAds times this month • Resets 1st'
+                                                    : 'ดูไปแล้ว $adWatches/$maxAds ครั้งเดือนนี้ • รีเซ็ตทุกวันที่ 1')
+                                                : (isEn
+                                                    ? 'Monthly quota reached ($maxAds/$maxAds)'
+                                                    : 'ครบโควต้า $maxAds/$maxAds ครั้งเดือนนี้แล้ว'),
                                             style: TextStyle(
-                                              color: textColor,
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
+                                              color: canWatch ? subColor : const Color(0xFFEF4444),
+                                              fontSize: 9.5,
+                                              fontWeight: canWatch ? FontWeight.normal : FontWeight.bold,
                                             ),
                                           ),
                                         ],
                                       ),
-                                      Text(
-                                        canWatch
-                                            ? (isEn
-                                                ? 'Used $adWatches/$maxAds this month • Resets 1st'
-                                                : 'ดูไปแล้ว $adWatches/$maxAds ครั้งเดือนนี้ • รีเซ็ตทุกวันที่ 1')
-                                            : (isEn
-                                                ? 'Reached quota ($maxAds/$maxAds) • Resets next month'
-                                                : 'ครบโควต้า $maxAds/$maxAds ครั้งเดือนนี้แล้ว • รอรีเซ็ตเดือนถัดไป'),
-                                        style: TextStyle(
-                                          color: canWatch ? subColor : const Color(0xFFEF4444),
-                                          fontSize: 9,
-                                          fontWeight: canWatch ? FontWeight.normal : FontWeight.bold,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    ElevatedButton.icon(
+                                      onPressed: (_isProcessing || !canWatch) ? null : _handleWatchAd,
+                                      icon: Icon(
+                                        canWatch ? Icons.play_arrow_rounded : Icons.lock_outline_rounded,
+                                        size: 15,
+                                        color: Colors.white,
+                                      ),
+                                      label: Text(
+                                        canWatch ? (isEn ? 'Watch (+2)' : 'ดูคลิป (+2)') : (isEn ? 'Full' : 'ครบ'),
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
                                         ),
                                       ),
-                                    ],
-                                  ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFF10B981),
+                                        disabledBackgroundColor: Colors.grey.withValues(alpha: 0.3),
+                                        disabledForegroundColor: Colors.white70,
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                                        minimumSize: const Size(64, 32),
+                                        visualDensity: VisualDensity.compact,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                        elevation: canWatch ? 1 : 0,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(width: 6),
-                                ElevatedButton(
-                                  onPressed: (_isProcessing || !canWatch) ? null : _handleWatchAd,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF10B981),
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                                    minimumSize: const Size(54, 26),
-                                    visualDensity: VisualDensity.compact,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                                    elevation: 0,
-                                  ),
-                                  child: Text(
-                                    canWatch ? (isEn ? 'Watch' : 'ชมคลิป') : (isEn ? 'Full' : 'ครบ'),
-                                    style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold),
-                                  ),
-                                ),
-                              ],
+                              ),
                             ),
                           );
                         },
@@ -296,58 +341,50 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           _buildBenefitRow(
-                            icon: Icons.qr_code_scanner_rounded,
-                            text: isEn ? 'Unlimited AI auto slip scan (22 banks)' : '⚡ สแกนสลิปอัตโนมัติไม่จำกัด 22 ธนาคาร',
-                            iconColor: const Color(0xFFF59E0B),
+                            emoji: '⚡',
+                            text: isEn ? 'Unlimited AI auto slip scan (22 banks)' : 'สแกนสลิปอัตโนมัติไม่จำกัด 22 ธนาคาร',
                             textColor: textColor,
                             isDark: isDark,
                           ),
                           _buildBenefitRow(
-                            icon: Icons.picture_as_pdf_rounded,
-                            text: isEn ? 'Export PDF and Excel reports' : '📄 ส่งออกรายงาน PDF และ Excel',
-                            iconColor: const Color(0xFFF59E0B),
+                            emoji: '📄',
+                            text: isEn ? 'Export PDF and Excel reports' : 'ส่งออกรายงาน PDF และ Excel',
                             textColor: textColor,
                             isDark: isDark,
                           ),
                           _buildBenefitRow(
-                            icon: Icons.track_changes_rounded,
-                            text: isEn ? 'Budget planning & saving goals' : '🎯 วางแผนงบและตั้งเป้าหมายการออม',
-                            iconColor: const Color(0xFFF59E0B),
+                            emoji: '🎯',
+                            text: isEn ? 'Budget planning & saving goals' : 'วางแผนงบและตั้งเป้าหมายการออม',
                             textColor: textColor,
                             isDark: isDark,
                           ),
                           _buildBenefitRow(
-                            icon: Icons.calculate_rounded,
-                            text: isEn ? 'Savings goal time calculator' : '🧮 คำนวณเวลาเก็บออม',
-                            iconColor: const Color(0xFFF59E0B),
+                            emoji: '🧮',
+                            text: isEn ? 'Savings goal time calculator' : 'คำนวณเวลาเก็บออม',
                             textColor: textColor,
                             isDark: isDark,
                           ),
                           _buildBenefitRow(
-                            icon: Icons.currency_exchange_rounded,
-                            text: isEn ? 'Real-time global rates & gold price' : '💱 เรทเงินโลกและราคาทองคำเรียลไทม์',
-                            iconColor: const Color(0xFFF59E0B),
+                            emoji: '💱',
+                            text: isEn ? 'Real-time global rates & gold price' : 'เรทเงินโลกและราคาทองคำเรียลไทม์',
                             textColor: textColor,
                             isDark: isDark,
                           ),
                           _buildBenefitRow(
-                            icon: Icons.mosque_rounded,
-                            text: isEn ? 'Zakat & Islamic inheritance (Faraid)' : '🕌 คำนวณซะกาตและแบ่งมรดก',
-                            iconColor: const Color(0xFFF59E0B),
+                            emoji: '🕌',
+                            text: isEn ? 'Zakat & Islamic inheritance (Faraid)' : 'คำนวณซะกาตและแบ่งมรดก',
                             textColor: textColor,
                             isDark: isDark,
                           ),
                           _buildBenefitRow(
-                            icon: Icons.palette_rounded,
-                            text: isEn ? 'Unlock all themes & custom profile' : '🎨 ปลดล็อคธีมและรูปโปรไฟล์ทั้งหมด',
-                            iconColor: const Color(0xFFF59E0B),
+                            emoji: '🎨',
+                            text: isEn ? 'Unlock all themes & custom profile' : 'ปลดล็อคธีมและรูปโปรไฟล์ทั้งหมด',
                             textColor: textColor,
                             isDark: isDark,
                           ),
                           _buildBenefitRow(
-                            icon: Icons.auto_awesome_rounded,
-                            text: isEn ? 'And all future features' : '✨ และฟีเจอร์อื่น ๆ ในอนาคต',
-                            iconColor: const Color(0xFFF59E0B),
+                            emoji: '✨',
+                            text: isEn ? 'And all future features' : 'และฟีเจอร์อื่น ๆ ในอนาคต',
                             textColor: textColor,
                             isDark: isDark,
                             showDivider: false,
@@ -510,9 +547,8 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
   }
 
   Widget _buildBenefitRow({
-    required IconData icon,
+    required String emoji,
     required String text,
-    required Color iconColor,
     required Color textColor,
     required bool isDark,
     bool showDivider = true,
@@ -524,8 +560,15 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
           padding: const EdgeInsets.symmetric(vertical: 3.5),
           child: Row(
             children: [
-              Icon(icon, color: iconColor, size: 16),
-              const SizedBox(width: 8),
+              Container(
+                width: 22,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  emoji,
+                  style: const TextStyle(fontSize: 14),
+                ),
+              ),
+              const SizedBox(width: 6),
               Expanded(
                 child: Text(
                   text,
