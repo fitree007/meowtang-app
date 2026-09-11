@@ -90,7 +90,6 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
   bool _isAutoScanning = false;
   bool _isSortNewestFirst = true;
   late Set<String> _enabledBankCodes;
-  Timer? _liveSlipSyncTimer;
 
   @override
   void initState() {
@@ -123,14 +122,7 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
       }
     });
 
-    // 2. Periodic background check every 4 seconds while app is in foreground
-    _liveSlipSyncTimer = Timer.periodic(const Duration(seconds: 4), (_) {
-      if (mounted && !_isAutoScanning) {
-        _autoScanSlipsInBackground(showFeedback: false);
-      }
-    });
-
-    // 3. Setup real-time ContentObserver listener for any new incoming slips!
+    // 2. Setup real-time ContentObserver listener for any new incoming slips!
     SlipAutoSyncService.setupRealtimeSlipObserver(
      widget.controller,
      onNewTransactionCreated: (newItem) {
@@ -172,8 +164,6 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _liveSlipSyncTimer?.cancel();
-    _liveSlipSyncTimer = null;
     if (MeowDashboardScreen.onScrollToTopRequested == _scrollToTop) {
       MeowDashboardScreen.onScrollToTopRequested = null;
     }

@@ -78,10 +78,12 @@ class _AnalyticsCarouselChartCardState extends State<AnalyticsCarouselChartCard>
   @override
   void didUpdateWidget(covariant AnalyticsCarouselChartCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.selectedType != widget.selectedType ||
-        oldWidget.totalAmount != widget.totalAmount ||
-        oldWidget.periodTypeStr != widget.periodTypeStr ||
-        oldWidget.transactions != widget.transactions) {
+    final bool typeChanged = oldWidget.selectedType != widget.selectedType;
+    final bool amountChanged = oldWidget.totalAmount != widget.totalAmount;
+    final bool periodChanged = oldWidget.periodTypeStr != widget.periodTypeStr;
+    final bool countChanged = oldWidget.transactions.length != widget.transactions.length;
+
+    if (typeChanged || amountChanged || periodChanged || countChanged) {
       _animController.forward(from: 0.0);
     }
   }

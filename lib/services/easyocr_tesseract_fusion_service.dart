@@ -358,21 +358,31 @@ class EasyOcrTesseractFusionService {
 
     final clean = normalizeOcrText(text).toLowerCase();
     final lines = clean.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
+    // 2. Check Sender Section (Everything before "ไปยัง", "ผู้รับ", "to", "receiver", "เข้าบัญชี")
+    // On Thai banking slips, the issuing/sender bank is ALWAYS in the top section before the receiver section!
+    final receiverSplitRegex = RegExp(r'ไปยัง|ผู้รับเงิน|ผู้รับโอน|ผู้รับ|โอนไปยัง|โอนให้|เข้าบัญชี|ปลายทาง|\bto\b|\breceiver\b', caseSensitive: false);
+    final splitMatch = receiverSplitRegex.firstMatch(clean);
+    final senderSection = splitMatch != null ? clean.substring(0, splitMatch.start) : clean;
 
-    // 2. Check Top Header Lines (Sender Bank Branding)
-    if (lines.isNotEmpty) {
-      final topHeader = lines.take(3).join(' ');
+    // A. Check top lines of sender section (highest confidence for issuing bank branding)
+    final senderLines = senderSection.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
+    if (senderLines.isNotEmpty) {
+      final topHeader = senderLines.take(3).join(' ');
       final headerBank = _matchSingleBankName(topHeader);
       if (headerBank != null) return headerBank;
     }
 
-    // 3. Check "จาก / From / ผู้โอน"
+    // B. Check entire sender section (before the receiver section starts)
+    final sBank = _matchSingleBankName(senderSection);
+    if (sBank != null) return sBank;
+
+    // 3. Check "จาก / From / ผู้โอน" explicitly
     for (int i = 0; i < lines.length; i++) {
       final line = lines[i];
-      if (line.startsWith('จาก') || line.startsWith('ผู้โอน') || line.startsWith('from')) {
+      if (line.contains('จาก') || line.contains('ผู้โอน') || line.contains('from')) {
         final senderSnippet = lines.skip(i).take(3).join(' ');
-        final sBank = _matchSingleBankName(senderSnippet);
-        if (sBank != null) return sBank;
+        final snippetBank = _matchSingleBankName(senderSnippet);
+        if (snippetBank != null) return snippetBank;
         break;
       }
     }

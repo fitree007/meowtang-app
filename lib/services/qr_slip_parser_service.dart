@@ -200,8 +200,8 @@ class QrSlipParserService {
         senderBank = 'ธนาคารอิสลามแห่งประเทศไทย';
       }
 
-      // Only valid slip QR if there is an explicit amount > 0 or a transaction reference ID
-      if (amount > 0 || (refId != null && refId.isNotEmpty) || senderBankCode == '066') {
+      // Only valid slip QR if there is an explicit amount > 0, transaction reference ID, or recognized sending bank code
+      if (amount > 0 || (refId != null && refId.isNotEmpty) || (senderBankCode != null && senderBankCode.isNotEmpty)) {
         return QrSlipResult(
           success: true,
           amount: amount,
