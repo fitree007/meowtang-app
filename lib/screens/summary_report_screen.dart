@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../state/expense_controller.dart';
 import '../models/transaction_item.dart';
+import '../utils/format_utils.dart';
 
 class SummaryReportScreen extends StatefulWidget {
   final ExpenseController controller;
@@ -195,11 +196,11 @@ class _SummaryReportScreenState extends State<SummaryReportScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _buildStatBox('รายรับรวม (ริซกี)', '+฿${income.toStringAsFixed(2)}', const Color(0xFF34D399)),
+                      _buildStatBox('รายรับรวม (ริซกี)', '+฿${FormatUtils.formatCurrency(income)}', const Color(0xFF34D399)),
                       Container(width: 1, height: 40, color: Colors.white12),
-                      _buildStatBox('รายจ่ายรวม', '-฿${expense.toStringAsFixed(2)}', const Color(0xFFF87171)),
+                      _buildStatBox('รายจ่ายรวม', '-฿${FormatUtils.formatCurrency(expense)}', const Color(0xFFF87171)),
                       Container(width: 1, height: 40, color: Colors.white12),
-                      _buildStatBox('คงเหลือสุทธิ', '฿${net.toStringAsFixed(2)}', net >= 0 ? const Color(0xFF38BDF8) : const Color(0xFFF87171)),
+                      _buildStatBox('คงเหลือสุทธิ', '฿${FormatUtils.formatCurrency(net)}', net >= 0 ? const Color(0xFF38BDF8) : const Color(0xFFF87171)),
                     ],
                   ),
                 ],
@@ -273,7 +274,7 @@ class _SummaryReportScreenState extends State<SummaryReportScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(entry.key, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13)),
-                          Text('฿${entry.value.toStringAsFixed(2)} ($pct%)', style: const TextStyle(color: Color(0xFFF87171), fontWeight: FontWeight.bold, fontSize: 12)),
+                          Text('฿${FormatUtils.formatCurrency(entry.value)} ($pct%)', style: const TextStyle(color: Color(0xFFF87171), fontWeight: FontWeight.bold, fontSize: 12)),
                         ],
                       ),
                       const SizedBox(height: 8),

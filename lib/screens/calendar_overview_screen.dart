@@ -787,7 +787,7 @@ class _CalendarOverviewScreenState extends State<CalendarOverviewScreen> {
                                     children: [
                                       if (dayExpense > 0)
                                         Text(
-                                          dayExpense >= 10000 ? '${(dayExpense / 1000).toStringAsFixed(1)}k' : dayExpense.toStringAsFixed(0),
+                                          dayExpense >= 10000 ? '${(dayExpense / 1000).toStringAsFixed(1)}k' : FormatUtils.formatCurrency(dayExpense, trimZero: true),
                                           style: const TextStyle(
                                             fontSize: 8.5,
                                             fontWeight: FontWeight.bold,
@@ -797,7 +797,7 @@ class _CalendarOverviewScreenState extends State<CalendarOverviewScreen> {
                                         ),
                                       if (dayIncome > 0)
                                         Text(
-                                          dayIncome >= 10000 ? '${(dayIncome / 1000).toStringAsFixed(1)}k' : dayIncome.toStringAsFixed(0),
+                                          dayIncome >= 10000 ? '${(dayIncome / 1000).toStringAsFixed(1)}k' : FormatUtils.formatCurrency(dayIncome, trimZero: true),
                                           style: const TextStyle(
                                             fontSize: 8.5,
                                             fontWeight: FontWeight.bold,

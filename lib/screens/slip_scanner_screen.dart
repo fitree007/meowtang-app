@@ -5,6 +5,7 @@ import '../models/slip_extract_result.dart';
 import '../models/transaction_item.dart';
 import '../widgets/glass_container.dart';
 import '../widgets/bank_badge.dart';
+import '../utils/format_utils.dart';
 
 class SlipScannerScreen extends StatefulWidget {
  final ExpenseController controller;
@@ -118,7 +119,7 @@ class _SlipScannerScreenState extends State<SlipScannerScreen>
       const SizedBox(width: 10),
       Expanded(
        child: Text(
-        'บันทึกรายการ ฿${res.amount.toStringAsFixed(2)} ลงในบัญชีสำเร็จแล้ว!',
+        'บันทึกรายการ ฿${FormatUtils.formatCurrency(res.amount)} ลงในบัญชีสำเร็จแล้ว!',
         style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
        ),
       ),
@@ -202,9 +203,9 @@ class _SlipScannerScreenState extends State<SlipScannerScreen>
               ),
              ),
              const SizedBox(width: 6),
-             Text(
-              '฿${sample.amount.toStringAsFixed(0)}',
-              style: TextStyle(
+              Text(
+               '฿${FormatUtils.formatCurrency(sample.amount, trimZero: true)}',
+               style: TextStyle(
                color: isSelected ? const Color(0xFF34D399) : Colors.white54,
                fontWeight: FontWeight.bold,
                fontSize: 12,
@@ -373,14 +374,14 @@ class _SlipScannerScreenState extends State<SlipScannerScreen>
                style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 12),
               ),
               const SizedBox(height: 2),
-              Text(
-               '฿${_extractedResult!.amount.toStringAsFixed(2)}',
-               style: const TextStyle(
-                color: Color(0xFF34D399),
-                fontSize: 28,
-                fontWeight: FontWeight.w900,
+               Text(
+                '฿${FormatUtils.formatCurrency(_extractedResult!.amount)}',
+                style: const TextStyle(
+                 color: Color(0xFF34D399),
+                 fontSize: 28,
+                 fontWeight: FontWeight.w900,
+                ),
                ),
-              ),
              ],
             ),
             Container(

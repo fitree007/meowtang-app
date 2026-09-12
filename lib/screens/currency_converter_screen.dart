@@ -192,7 +192,7 @@ class _CurrencyConverterScreenState extends State<CurrencyConverterScreen> {
     final fromInfo = CurrencyExchangeService.supportedCurrencies[_fromCurrency] ??
         CurrencyInfo(code: _fromCurrency, nameTh: _fromCurrency.toUpperCase(), nameEn: '', symbol: '', flag: '🌐');
 
-    final noteText = 'จ่ายด้วย ${_inputAmount.toStringAsFixed(2)} ${fromInfo.code.toUpperCase()} (เรท 1 ${fromInfo.code.toUpperCase()} = ${CurrencyExchangeService.getRateToThb(_fromCurrency).toStringAsFixed(2)} THB)';
+    final noteText = 'จ่ายด้วย ${FormatUtils.formatCurrency(_inputAmount)} ${fromInfo.code.toUpperCase()} (เรท 1 ${fromInfo.code.toUpperCase()} = ${FormatUtils.formatCurrency(CurrencyExchangeService.getRateToThb(_fromCurrency))} THB)';
 
     Navigator.push(
       context,
@@ -655,7 +655,7 @@ class _CurrencyConverterScreenState extends State<CurrencyConverterScreen> {
                         ],
                       ),
                       Text(
-                        '฿${silverPricePerGram.toStringAsFixed(2)} / กรัม',
+                        '฿${FormatUtils.formatCurrency(silverPricePerGram)} / กรัม',
                         style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: Color(0xFF64748B)),
                       ),
                     ],
@@ -816,7 +816,7 @@ class _CurrencyConverterScreenState extends State<CurrencyConverterScreen> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '100 ฿ = ${(100.0 * item.thbToRate).toStringAsFixed(2)} ${item.info.code.toUpperCase()}',
+                    '100 ฿ = ${FormatUtils.formatCurrency(100.0 * item.thbToRate)} ${item.info.code.toUpperCase()}',
                     style: const TextStyle(fontSize: 10.5, color: Colors.grey),
                   ),
                 ],

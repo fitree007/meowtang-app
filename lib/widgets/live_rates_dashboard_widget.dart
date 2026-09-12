@@ -659,7 +659,7 @@ class _LiveRatesDashboardWidgetState extends State<LiveRatesDashboardWidget>
                   const Text('ราคาต่อกรัม (g)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                   const SizedBox(height: 4),
                   Text(
-                    '฿${silverGramPrice.toStringAsFixed(2)} / g',
+                    '฿${FormatUtils.formatCurrency(silverGramPrice)} / g',
                     style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: Color(0xFF475569)),
                   ),
                   const Text('อิงตลาดโลก Real-time', style: TextStyle(fontSize: 10, color: Colors.grey)),

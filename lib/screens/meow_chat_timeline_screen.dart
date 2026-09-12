@@ -5,6 +5,7 @@ import '../models/account_item.dart';
 import '../widgets/chat_slip_card.dart';
 import '../widgets/chat_input_bar.dart';
 import '../widgets/bank_badge.dart';
+import '../utils/format_utils.dart';
 
 class MeowChatTimelineScreen extends StatefulWidget {
  final ExpenseController controller;
@@ -169,7 +170,7 @@ class _MeowChatTimelineScreenState extends State<MeowChatTimelineScreen> {
           children: [
            const Text('ยอดคงเหลือ: ', style: TextStyle(color: Colors.white60, fontSize: 11)),
            Text(
-            '฿${widget.controller.totalNetWorth.toStringAsFixed(2)}',
+            '฿${FormatUtils.formatCurrency(widget.controller.totalNetWorth)}',
             style: const TextStyle(color: Color(0xFF34D399), fontWeight: FontWeight.bold, fontSize: 12),
            ),
            const SizedBox(width: 4),
@@ -253,9 +254,9 @@ class _MeowChatTimelineScreenState extends State<MeowChatTimelineScreen> {
                   ),
                   const Spacer(),
                   if (dailyInc > 0)
-                   Text('+฿${dailyInc.toStringAsFixed(2)} ', style: const TextStyle(color: Color(0xFF34D399), fontSize: 11, fontWeight: FontWeight.bold)),
+                   Text('+฿${FormatUtils.formatCurrency(dailyInc)} ', style: const TextStyle(color: Color(0xFF34D399), fontSize: 11, fontWeight: FontWeight.bold)),
                   if (dailyExp > 0)
-                   Text('-฿${dailyExp.toStringAsFixed(2)}', style: const TextStyle(color: Color(0xFFF87171), fontSize: 11, fontWeight: FontWeight.bold)),
+                   Text('-฿${FormatUtils.formatCurrency(dailyExp)}', style: const TextStyle(color: Color(0xFFF87171), fontSize: 11, fontWeight: FontWeight.bold)),
                  ],
                 ),
                ),

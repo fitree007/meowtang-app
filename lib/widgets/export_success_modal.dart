@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/native_bridge_service.dart';
+import '../utils/format_utils.dart';
 
 class ExportSuccessModal extends StatelessWidget {
   final String title;
@@ -221,8 +222,8 @@ class ExportSuccessModal extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _buildStatPill('จำนวนรายการ', '$totalCount รายการ', currentTheme),
-                _buildStatPill('รายรับ', '+฿${totalIncome.toStringAsFixed(0)}', currentTheme, color: const Color(0xFF10B981)),
-                _buildStatPill('รายจ่าย', '-฿${totalExpense.toStringAsFixed(0)}', currentTheme, color: const Color(0xFFEF4444)),
+                _buildStatPill('รายรับ', '+฿${FormatUtils.formatCurrency(totalIncome, trimZero: true)}', currentTheme, color: const Color(0xFF10B981)),
+                _buildStatPill('รายจ่าย', '-฿${FormatUtils.formatCurrency(totalExpense, trimZero: true)}', currentTheme, color: const Color(0xFFEF4444)),
               ],
             ),
           ),

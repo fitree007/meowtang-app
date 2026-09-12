@@ -3,6 +3,7 @@ import '../state/expense_controller.dart';
 import '../models/tax_profile.dart';
 import '../widgets/glass_container.dart';
 import '../widgets/ai_insight_card.dart';
+import '../utils/format_utils.dart';
 
 class TaxPreparationScreen extends StatefulWidget {
   final ExpenseController controller;
@@ -103,7 +104,7 @@ class _TaxPreparationScreenState extends State<TaxPreparationScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '฿${taxResult.totalEstimatedTax.toStringAsFixed(2)}',
+                    '฿${FormatUtils.formatCurrency(taxResult.totalEstimatedTax)}',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 32,
@@ -117,9 +118,9 @@ class _TaxPreparationScreenState extends State<TaxPreparationScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _buildSummarySubItem('รายได้รวมทั้งปี', '฿${taxResult.grossIncome.toStringAsFixed(0)}'),
-                      _buildSummarySubItem('หักค่าใช้จ่าย & ลดหย่อน', '฿${(taxResult.standardExpenseDeduction + taxResult.totalAllowableDeductions).toStringAsFixed(0)}'),
-                      _buildSummarySubItem('เงินได้สุทธิสุทธิ', '฿${taxResult.netTaxableIncome.toStringAsFixed(0)}'),
+                      _buildSummarySubItem('รายได้รวมทั้งปี', '฿${FormatUtils.formatCurrency(taxResult.grossIncome, trimZero: true)}'),
+                      _buildSummarySubItem('หักค่าใช้จ่าย & ลดหย่อน', '฿${FormatUtils.formatCurrency(taxResult.standardExpenseDeduction + taxResult.totalAllowableDeductions, trimZero: true)}'),
+                      _buildSummarySubItem('เงินได้สุทธิ', '฿${FormatUtils.formatCurrency(taxResult.netTaxableIncome, trimZero: true)}'),
                     ],
                   ),
                 ],
@@ -254,13 +255,13 @@ class _TaxPreparationScreenState extends State<TaxPreparationScreen> {
                                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
                               ),
                               Text(
-                                'ฐานคำนวณ ฿${bracket.taxableInThisBracket.toStringAsFixed(0)}',
+                                'ฐานคำนวณ ฿${FormatUtils.formatCurrency(bracket.taxableInThisBracket, trimZero: true)}',
                                 style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 11),
                               ),
                             ],
                           ),
                           Text(
-                            '฿${bracket.taxAmount.toStringAsFixed(2)}',
+                            '฿${FormatUtils.formatCurrency(bracket.taxAmount)}',
                             style: const TextStyle(
                               color: Color(0xFFF87171),
                               fontWeight: FontWeight.bold,
@@ -314,7 +315,7 @@ class _TaxPreparationScreenState extends State<TaxPreparationScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(label, style: const TextStyle(color: Colors.white, fontSize: 13)),
-            Text('฿${value.toStringAsFixed(0)}', style: const TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.bold, fontSize: 13)),
+            Text('฿${FormatUtils.formatCurrency(value, trimZero: true)}', style: const TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.bold, fontSize: 13)),
           ],
         ),
         Slider(

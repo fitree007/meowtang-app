@@ -1,3 +1,5 @@
+import '../utils/format_utils.dart';
+
 class TaxBracketResult {
   final String range;
   final double minIncome;
@@ -171,13 +173,13 @@ class TaxProfile {
     // AI Tax Optimization suggestions
     final List<String> tips = [];
     if (easyEReceiptPaid < 50000) {
-      tips.add('ยังใช้สิทธิ์ Easy E-Receipt ได้อีก ${(50000 - easyEReceiptPaid).toStringAsFixed(0)} บาท');
+      tips.add('ยังใช้สิทธิ์ Easy E-Receipt ได้อีก ${FormatUtils.formatCurrency(50000 - easyEReceiptPaid, trimZero: true)} บาท');
     }
     if (thaiEsgPaid < 300000) {
-      tips.add('สามารถลงทุน Thai ESG เพิ่มเพื่อลดหย่อนภาษีได้สูงสุดอีก ${(30000 - thaiEsgPaid).clamp(0, 300000).toStringAsFixed(0)} บาท');
+      tips.add('สามารถลงทุน Thai ESG เพิ่มเพื่อลดหย่อนภาษีได้สูงสุดอีก ${FormatUtils.formatCurrency((300000 - thaiEsgPaid).clamp(0, 300000).toDouble(), trimZero: true)} บาท');
     }
     if (lifeInsurancePaid < 100000) {
-      tips.add('ใช้สิทธิ์ประกันชีวิต/สุขภาพ เพิ่มได้อีก ${(100000 - lifeInsurancePaid).toStringAsFixed(0)} บาท');
+      tips.add('ใช้สิทธิ์ประกันชีวิต/สุขภาพ เพิ่มได้อีก ${FormatUtils.formatCurrency(100000 - lifeInsurancePaid, trimZero: true)} บาท');
     }
     if (tips.isEmpty) {
       tips.add('คุณบริหารและใช้สิทธิ์ลดหย่อนภาษีได้อย่างคุ้มค่าครบถ้วนแล้ว!');

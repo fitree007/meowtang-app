@@ -18,6 +18,7 @@ import 'saving_goals_screen.dart';
 import 'goal_calculator_screen.dart';
 import 'data_backup_restore_screen.dart';
 import '../widgets/custom_photo_avatar_dialog.dart';
+import '../utils/format_utils.dart';
 
 class MeowHumanScreen extends StatefulWidget {
  final ExpenseController controller;
@@ -346,7 +347,7 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
               ),
               const SizedBox(height: 2),
               Text(
-               '฿${widget.controller.totalNetWorth.toStringAsFixed(2)}',
+               '฿${FormatUtils.formatCurrency(widget.controller.totalNetWorth)}',
                style: const TextStyle(
                 color: MeowTheme.incomeGreen,
                 fontSize: 20,

@@ -10,6 +10,7 @@ import 'summary_report_screen.dart';
 import 'category_management_screen.dart';
 import 'account_management_screen.dart';
 import 'add_transaction_screen.dart';
+import '../utils/format_utils.dart';
 
 class HomeDashboardScreen extends StatelessWidget {
   final ExpenseController controller;
@@ -195,7 +196,7 @@ class HomeDashboardScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          '฿${controller.totalNetWorth.toStringAsFixed(2)}',
+                          '฿${FormatUtils.formatCurrency(controller.totalNetWorth)}',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 32,
@@ -219,7 +220,7 @@ class HomeDashboardScreen extends StatelessWidget {
                                     children: [
                                       Text('รายรับเดือนนี้', style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 11)),
                                       Text(
-                                        '+฿${controller.totalIncomeThisMonth.toStringAsFixed(2)}',
+                                        '+฿${FormatUtils.formatCurrency(controller.totalIncomeThisMonth)}',
                                         style: const TextStyle(color: Color(0xFF34D399), fontWeight: FontWeight.bold, fontSize: 13),
                                       ),
                                     ],
@@ -240,7 +241,7 @@ class HomeDashboardScreen extends StatelessWidget {
                                       children: [
                                         Text('รายจ่ายเดือนนี้', style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 11)),
                                         Text(
-                                          '-฿${controller.totalExpenseThisMonth.toStringAsFixed(2)}',
+                                          '-฿${FormatUtils.formatCurrency(controller.totalExpenseThisMonth)}',
                                           style: const TextStyle(color: Color(0xFFF87171), fontWeight: FontWeight.bold, fontSize: 13),
                                         ),
                                       ],
@@ -374,16 +375,16 @@ class HomeDashboardScreen extends StatelessWidget {
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      acc.name,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
-                                    ),
-                                    Text(
-                                      '฿${acc.balance.toStringAsFixed(2)}',
-                                      style: const TextStyle(color: Color(0xFF34D399), fontSize: 12, fontWeight: FontWeight.bold),
-                                    ),
+                                     Text(
+                                       acc.name,
+                                       maxLines: 1,
+                                       overflow: TextOverflow.ellipsis,
+                                       style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                                     ),
+                                     Text(
+                                       '฿${FormatUtils.formatCurrency(acc.balance)}',
+                                       style: const TextStyle(color: Color(0xFF34D399), fontSize: 12, fontWeight: FontWeight.bold),
+                                     ),
                                   ],
                                 ),
                               ],

@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import '../utils/format_utils.dart';
 
 class CategorySliceData {
   final String label;
@@ -62,7 +63,7 @@ class CategoryPieChart extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '฿${total >= 1000000 ? "${(total / 1000000).toStringAsFixed(1)}M" : total.toStringAsFixed(0)}',
+                    '฿${total >= 1000000 ? "${(total / 1000000).toStringAsFixed(1)}M" : FormatUtils.formatCurrency(total, trimZero: true)}',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 18,

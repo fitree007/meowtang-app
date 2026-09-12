@@ -128,7 +128,7 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
      onNewTransactionCreated: (newItem) {
       if (mounted) {
        setState(() {
-        _statusMessage = 'ตรวจพบสลิปใหม่ "${newItem.title}" ฿${newItem.amount.toStringAsFixed(2)} บันทึกแล้ว!';
+        _statusMessage = 'ตรวจพบสลิปใหม่ "${newItem.title}" ฿${FormatUtils.formatCurrency(newItem.amount)} บันทึกแล้ว!';
        });
        ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -138,7 +138,7 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
            const SizedBox(width: 10),
            Expanded(
             child: Text(
-             'ดักจับสลิปใหม่และบันทึก ฿${newItem.amount.toStringAsFixed(2)} ลงบัญชีเรียบร้อยแล้ว!',
+             'ดักจับสลิปใหม่และบันทึก ฿${FormatUtils.formatCurrency(newItem.amount)} ลงบัญชีเรียบร้อยแล้ว!',
              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
            ),
@@ -2204,7 +2204,7 @@ void _handleMascotPetting() {
                           Text(
                            tx.amount <= 0.0
                                ? '0 ฿'
-                               : '${tx.type == TransactionType.expense ? '-' : tx.type == TransactionType.income ? '+' : ''}${tx.amount.toStringAsFixed(tx.amount.truncateToDouble() == tx.amount ? 0 : 2)} ฿',
+                               : '${tx.type == TransactionType.expense ? '-' : tx.type == TransactionType.income ? '+' : ''}${FormatUtils.formatCurrency(tx.amount, trimZero: true)} ฿',
                            style: TextStyle(
                             color: tx.amount <= 0.0
                                 ? (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))

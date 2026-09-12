@@ -1298,7 +1298,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                                   border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
                                 ),
                                 child: Text(
-                                  '= ฿${liveTotal.toStringAsFixed(liveTotal == liveTotal.roundToDouble() ? 0 : 2)}',
+                                  '= ฿${FormatUtils.formatCurrency(liveTotal, trimZero: true)}',
                                   style: const TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,

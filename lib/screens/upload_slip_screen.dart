@@ -5,6 +5,7 @@ import '../models/category_item.dart';
 import '../models/slip_extract_result.dart';
 import '../services/ocr_engine_service.dart';
 import '../widgets/bank_badge.dart';
+import '../utils/format_utils.dart';
 
 class UploadSlipScreen extends StatefulWidget {
  final ExpenseController controller;
@@ -183,7 +184,7 @@ Krungthai NEXT
       const SizedBox(width: 10),
       Expanded(
        child: Text(
-        'บันทึกสลิป ฿${res.amount.toStringAsFixed(2)} ลงในบัญชีสำเร็จแล้ว!',
+        'บันทึกสลิป ฿${FormatUtils.formatCurrency(res.amount)} ลงในบัญชีสำเร็จแล้ว!',
         style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
        ),
       ),
@@ -366,7 +367,7 @@ Krungthai NEXT
               Text('ยอดเงินในสลิป', style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 11)),
               const SizedBox(height: 2),
               Text(
-               '฿${_extractedResult!.amount.toStringAsFixed(2)}',
+               '฿${FormatUtils.formatCurrency(_extractedResult!.amount)}',
                style: const TextStyle(
                 color: Color(0xFF34D399),
                 fontSize: 26,

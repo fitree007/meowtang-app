@@ -20,6 +20,7 @@ import '../services/slip_storage_service.dart';
 import '../localization/app_strings.dart';
 import '../theme/app_theme_model.dart';
 import '../services/thai_bank_detector.dart';
+import '../utils/format_utils.dart';
 
 enum MascotMood {
  happy,
@@ -1735,16 +1736,16 @@ class ExpenseController extends ChangeNotifier {
   if (expenseDelta <= 0 && netDelta >= 0) {
    verdictIsPositive = true;
    verdictTitle = ' วินัยการเงินยอดเยี่ยม! เดือน A บริหารเงินได้ดีกว่า';
-   verdictDesc = 'คุณประหยัดรายจ่ายลง ฿${expenseDelta.abs().toStringAsFixed(0)} (${expenseDeltaPct.abs().toStringAsFixed(1)}%) และมีเงินออมสุทธิเพิ่มขึ้น ฿${netDelta.abs().toStringAsFixed(0)}';
+   verdictDesc = 'คุณประหยัดรายจ่ายลง ฿${FormatUtils.formatCurrency(expenseDelta.abs(), trimZero: true)} (${expenseDeltaPct.abs().toStringAsFixed(1)}%) และมีเงินออมสุทธิเพิ่มขึ้น ฿${FormatUtils.formatCurrency(netDelta.abs(), trimZero: true)}';
   } else if (expenseDelta > 0 && netDelta < 0) {
    verdictIsPositive = false;
    verdictTitle = ' เดือน A มีการใช้จ่ายเพิ่มขึ้น';
    final spikeName = topSpike != null ? ' โดยเฉพาะหมวด "${topSpike['name']}"' : '';
-   verdictDesc = 'รายจ่ายเพิ่มขึ้น ฿${expenseDelta.toStringAsFixed(0)} (+${expenseDeltaPct.toStringAsFixed(1)}%)$spikeName ควรระมัดระวังการใช้จ่าย';
+   verdictDesc = 'รายจ่ายเพิ่มขึ้น ฿${FormatUtils.formatCurrency(expenseDelta, trimZero: true)} (+${expenseDeltaPct.toStringAsFixed(1)}%)$spikeName ควรระมัดระวังการใช้จ่าย';
   } else {
    verdictIsPositive = netA >= 0;
    verdictTitle = ' สรุปภาพรวมทางการเงิน';
-   verdictDesc = 'รายรับ ${incomeDelta >= 0 ? "+" : ""}${incomeDelta.toStringAsFixed(0)}฿, รายจ่าย ${expenseDelta >= 0 ? "+" : ""}${expenseDelta.toStringAsFixed(0)}฿, เงินคงเหลือสุทธิ ฿${netA.toStringAsFixed(0)}';
+   verdictDesc = 'รายรับ ${incomeDelta >= 0 ? "+" : ""}${FormatUtils.formatCurrency(incomeDelta, trimZero: true)}฿, รายจ่าย ${expenseDelta >= 0 ? "+" : ""}${FormatUtils.formatCurrency(expenseDelta, trimZero: true)}฿, เงินคงเหลือสุทธิ ฿${FormatUtils.formatCurrency(netA, trimZero: true)}';
   }
 
   return {

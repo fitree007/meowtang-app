@@ -160,8 +160,8 @@ class _OnlineSlipVerifierScreenState extends State<OnlineSlipVerifierScreen>
             Expanded(
               child: Text(
                 isEn
-                    ? 'Added "฿${amount.toStringAsFixed(2)}" to records!'
-                    : 'บันทึกรายการ "฿${amount.toStringAsFixed(2)}" ลงสมุดเรียบร้อย!',
+                    ? 'Added "฿${FormatUtils.formatCurrency(amount)}" to records!'
+                    : 'บันทึกรายการ "฿${FormatUtils.formatCurrency(amount)}" ลงสมุดเรียบร้อย!',
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),

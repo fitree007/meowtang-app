@@ -7,6 +7,7 @@ import '../state/expense_controller.dart';
 import '../theme/meow_theme.dart';
 import '../services/native_bridge_service.dart';
 import '../widgets/tactile_button.dart';
+import '../utils/format_utils.dart';
 
 class VoiceRecordModal extends StatefulWidget {
   final ExpenseController controller;
@@ -149,7 +150,7 @@ class _VoiceRecordModalState extends State<VoiceRecordModal>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          '✨ บันทึก "${item.title}" ${isIncome ? "+" : "-"}฿${item.amount.toStringAsFixed(2)} เรียบร้อยแล้ว!',
+          '✨ บันทึก "${item.title}" ${isIncome ? "+" : "-"}฿${FormatUtils.formatCurrency(item.amount)} เรียบร้อยแล้ว!',
         ),
         backgroundColor:
             isIncome ? MeowTheme.incomeGreen : MeowTheme.expenseRed,
@@ -530,7 +531,7 @@ class _VoiceRecordModalState extends State<VoiceRecordModal>
                         ),
                       ),
                       Text(
-                        '${isIncome ? "+" : "-"}฿${_parsedAmount?.toStringAsFixed(2) ?? "0.00"}',
+                        '${isIncome ? "+" : "-"}฿${_parsedAmount != null ? FormatUtils.formatCurrency(_parsedAmount!) : "0.00"}',
                         style: TextStyle(
                           color: isIncome
                               ? MeowTheme.incomeGreen

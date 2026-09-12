@@ -5,6 +5,7 @@ import '../models/account_item.dart';
 import '../theme/meow_theme.dart';
 import '../widgets/bank_badge.dart';
 import '../widgets/tactile_button.dart';
+import '../utils/format_utils.dart';
 
 class AccountManagementScreen extends StatefulWidget {
   final ExpenseController controller;
@@ -529,7 +530,7 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              '฿${widget.controller.totalNetWorth.toStringAsFixed(2)}',
+                              '฿${FormatUtils.formatCurrency(widget.controller.totalNetWorth)}',
                               style: const TextStyle(
                                 color: MeowTheme.textDarkPrimary,
                                 fontSize: 26,
@@ -729,7 +730,7 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    '฿${acc.balance.toStringAsFixed(2)}',
+                    '฿${FormatUtils.formatCurrency(acc.balance)}',
                     style: const TextStyle(
                       color: MeowTheme.incomeGreen,
                       fontWeight: FontWeight.bold,

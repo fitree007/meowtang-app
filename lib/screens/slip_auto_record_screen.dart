@@ -16,6 +16,7 @@ import '../services/slip_storage_service.dart';
 import '../services/thai_bank_detector.dart';
 import '../widgets/meow_wheel_date_picker.dart';
 import '../widgets/meow_paywall_modal.dart';
+import '../utils/format_utils.dart';
 
 class SlipAutoRecordScreen extends StatefulWidget {
  final ExpenseController controller;
@@ -404,12 +405,12 @@ class _SlipAutoRecordScreenState extends State<SlipAutoRecordScreen> {
      children: [
       const Icon(Icons.check_circle, color: Colors.white),
       const SizedBox(width: 10),
-      Expanded(
-       child: Text(
-        ' บันทึกสลิป ฿${amount.toStringAsFixed(2)} ลงบัญชีเรียบร้อยแล้ว!',
-        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+       Expanded(
+        child: Text(
+         ' บันทึกสลิป ฿${FormatUtils.formatCurrency(amount)} ลงบัญชีเรียบร้อยแล้ว!',
+         style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
        ),
-      ),
      ],
     ),
     backgroundColor: MeowTheme.incomeGreen,

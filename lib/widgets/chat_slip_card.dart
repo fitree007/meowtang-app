@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/transaction_item.dart';
 import '../models/account_item.dart';
 import 'bank_badge.dart';
+import '../utils/format_utils.dart';
 
 class ChatSlipCard extends StatelessWidget {
   final TransactionItem transaction;
@@ -145,7 +146,7 @@ class ChatSlipCard extends StatelessWidget {
                 ),
               ),
               Text(
-                '${isIncome ? "+" : "-"}฿${transaction.amount.toStringAsFixed(2)}',
+                '${isIncome ? "+" : "-"}฿${FormatUtils.formatCurrency(transaction.amount)}',
                 style: TextStyle(
                   color: isIncome ? const Color(0xFF34D399) : const Color(0xFFF87171),
                   fontSize: 18,

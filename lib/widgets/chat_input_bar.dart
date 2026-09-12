@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../state/expense_controller.dart';
 import '../models/transaction_item.dart';
 import '../models/category_item.dart';
+import '../utils/format_utils.dart';
 
 class ChatInputBar extends StatefulWidget {
  final ExpenseController controller;
@@ -229,7 +230,7 @@ TrueMoney Wallet
   ScaffoldMessenger.of(context).showSnackBar(
    SnackBar(
     backgroundColor: const Color(0xFF10B981),
-    content: Text(' อ่านสลิปสำเร็จ! บันทึก ฿${result.amount.toStringAsFixed(2)} ลงในแชทแล้ว'),
+    content: Text(' อ่านสลิปสำเร็จ! บันทึก ฿${FormatUtils.formatCurrency(result.amount)} ลงในแชทแล้ว'),
    ),
   );
  }

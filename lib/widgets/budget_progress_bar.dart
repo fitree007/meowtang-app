@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/project_budget.dart';
+import '../utils/format_utils.dart';
 
 class BudgetProgressBar extends StatelessWidget {
   final ProjectBudget project;
@@ -125,7 +126,7 @@ class BudgetProgressBar extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  'ใช้ไป ฿${project.spentAmount.toStringAsFixed(0)}',
+                  'ใช้ไป ฿${FormatUtils.formatCurrency(project.spentAmount, trimZero: true)}',
                   style: TextStyle(color: secondaryText, fontSize: 11.5),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -134,7 +135,7 @@ class BudgetProgressBar extends StatelessWidget {
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
-                  'คงเหลือ ฿${project.remainingBudget.clamp(0.0, double.infinity).toStringAsFixed(0)}',
+                  'คงเหลือ ฿${FormatUtils.formatCurrency(project.remainingBudget.clamp(0.0, double.infinity), trimZero: true)}',
                   textAlign: TextAlign.end,
                   style: TextStyle(
                     color: project.isOverBudget ? const Color(0xFFEF4444) : secondaryText,

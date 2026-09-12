@@ -3,6 +3,7 @@ import '../state/expense_controller.dart';
 import '../models/transaction_item.dart';
 import '../models/category_item.dart';
 import '../services/nlp_parser_service.dart';
+import '../utils/format_utils.dart';
 
 class VoiceChatEntryScreen extends StatefulWidget {
   final ExpenseController controller;
@@ -84,7 +85,7 @@ class _VoiceChatEntryScreenState extends State<VoiceChatEntryScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         backgroundColor: const Color(0xFF10B981),
-        content: Text('บันทึก "${res.title}" ฿${res.amount.toStringAsFixed(2)} สำเร็จแล้ว!'),
+        content: Text('บันทึก "${res.title}" ฿${FormatUtils.formatCurrency(res.amount)} สำเร็จแล้ว!'),
       ),
     );
 
@@ -199,7 +200,7 @@ class _VoiceChatEntryScreenState extends State<VoiceChatEntryScreen> {
                           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
                         ),
                         Text(
-                          '${_parsedResult!.type == TransactionType.income ? "+" : "-"}฿${_parsedResult!.amount.toStringAsFixed(2)}',
+                          '${_parsedResult!.type == TransactionType.income ? "+" : "-"}฿${FormatUtils.formatCurrency(_parsedResult!.amount)}',
                           style: TextStyle(
                             color: _parsedResult!.type == TransactionType.income ? const Color(0xFF34D399) : const Color(0xFFF87171),
                             fontWeight: FontWeight.bold,

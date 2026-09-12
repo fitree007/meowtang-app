@@ -2013,7 +2013,7 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> with SingleTi
            borderRadius: BorderRadius.circular(8),
           ),
           child: Text(
-           '${expenseDelta <= 0 ? "ประหยัดลง " : "เพิ่มขึ้น "}${expenseDelta.abs().toStringAsFixed(0)}฿ (${expenseDeltaPct.abs().toStringAsFixed(1)}%)',
+           '${expenseDelta <= 0 ? "ประหยัดลง " : "เพิ่มขึ้น "}${FormatUtils.formatCurrency(expenseDelta.abs(), trimZero: true)}฿ (${expenseDeltaPct.abs().toStringAsFixed(1)}%)',
            style: TextStyle(
             color: expenseDelta <= 0 ? const Color(0xFF10B981) : const Color(0xFFEF4444),
             fontSize: 11,
@@ -2080,7 +2080,7 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> with SingleTi
            borderRadius: BorderRadius.circular(8),
           ),
           child: Text(
-           '${incomeDelta >= 0 ? "+ " : "- "}${incomeDelta.abs().toStringAsFixed(0)}฿ (${incomeDeltaPct.abs().toStringAsFixed(1)}%)',
+           '${incomeDelta >= 0 ? "+ " : "- "}${FormatUtils.formatCurrency(incomeDelta.abs(), trimZero: true)}฿ (${incomeDeltaPct.abs().toStringAsFixed(1)}%)',
            style: TextStyle(
             color: incomeDelta >= 0 ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
             fontSize: 11,
@@ -2132,8 +2132,8 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> with SingleTi
          children: [
           Text('เงินออมสุทธิ', style: TextStyle(fontSize: 10.5, color: currentTheme.textSecondaryColor, fontWeight: FontWeight.w600)),
           const SizedBox(height: 3),
-          Text('฿${netA.toStringAsFixed(0)}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: netA >= 0 ? const Color(0xFF10B981) : const Color(0xFFEF4444))),
-          Text('B: ฿${netB.toStringAsFixed(0)}', style: TextStyle(fontSize: 9.5, color: currentTheme.textSecondaryColor)),
+          Text('฿${FormatUtils.formatCurrency(netA, trimZero: true)}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: netA >= 0 ? const Color(0xFF10B981) : const Color(0xFFEF4444))),
+          Text('B: ฿${FormatUtils.formatCurrency(netB, trimZero: true)}', style: TextStyle(fontSize: 9.5, color: currentTheme.textSecondaryColor)),
          ],
         ),
        ),
@@ -2152,8 +2152,8 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> with SingleTi
          children: [
           Text('เฉลี่ยจ่าย/วัน', style: TextStyle(fontSize: 10.5, color: currentTheme.textSecondaryColor, fontWeight: FontWeight.w600)),
           const SizedBox(height: 3),
-          Text('฿${dailyAvgA.toStringAsFixed(0)}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: currentTheme.textColor)),
-          Text('${dailyAvgDelta <= 0 ? "ลด " : "เพิ่ม "}${dailyAvgDelta.abs().toStringAsFixed(0)}฿/วัน', style: TextStyle(fontSize: 9.5, color: dailyAvgDelta <= 0 ? const Color(0xFF10B981) : const Color(0xFFEF4444), fontWeight: FontWeight.bold)),
+          Text('฿${FormatUtils.formatCurrency(dailyAvgA, trimZero: true)}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: currentTheme.textColor)),
+          Text('${dailyAvgDelta <= 0 ? "ลด " : "เพิ่ม "}${FormatUtils.formatCurrency(dailyAvgDelta.abs(), trimZero: true)}฿/วัน', style: TextStyle(fontSize: 9.5, color: dailyAvgDelta <= 0 ? const Color(0xFF10B981) : const Color(0xFFEF4444), fontWeight: FontWeight.bold)),
          ],
         ),
        ),
@@ -2207,7 +2207,7 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> with SingleTi
             ),
             const SizedBox(height: 4),
             Text(topSaved['name'] as String, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: currentTheme.textColor), maxLines: 1, overflow: TextOverflow.ellipsis),
-            Text('-฿${(topSaved['delta'] as double).abs().toStringAsFixed(0)}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF10B981))),
+            Text('-฿${FormatUtils.formatCurrency((topSaved['delta'] as double).abs(), trimZero: true)}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF10B981))),
            ],
           ),
          ),
@@ -2234,7 +2234,7 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> with SingleTi
             ),
             const SizedBox(height: 4),
             Text(topSpike['name'] as String, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: currentTheme.textColor), maxLines: 1, overflow: TextOverflow.ellipsis),
-            Text('+฿${(topSpike['delta'] as double).abs().toStringAsFixed(0)}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFEF4444))),
+            Text('+฿${FormatUtils.formatCurrency((topSpike['delta'] as double).abs(), trimZero: true)}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFEF4444))),
            ],
           ),
          ),
@@ -2344,7 +2344,7 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> with SingleTi
                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                 '${isSaved ? "ลดลง -" : "เพิ่มขึ้น +"}${delta.abs().toStringAsFixed(0)}฿ (${deltaPct.abs().toStringAsFixed(0)}%)',
+                 '${isSaved ? "ลดลง -" : "เพิ่มขึ้น +"}${FormatUtils.formatCurrency(delta.abs(), trimZero: true)}฿ (${deltaPct.abs().toStringAsFixed(0)}%)',
                  style: TextStyle(
                   color: isSaved ? const Color(0xFF10B981) : const Color(0xFFEF4444),
                   fontSize: 10.5,

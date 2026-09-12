@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../theme/meow_theme.dart';
+import '../utils/format_utils.dart';
 
 class MeowDonutChart extends StatelessWidget {
   final double totalAmount;
@@ -57,7 +58,7 @@ class MeowDonutChart extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                '${totalAmount.toStringAsFixed(totalAmount.truncateToDouble() == totalAmount ? 0 : 2)} ฿',
+                '${FormatUtils.formatCurrency(totalAmount, trimZero: true)} ฿',
                 style: const TextStyle(
                   color: MeowTheme.textLightPrimary,
                   fontSize: 22,

@@ -1,6 +1,7 @@
 import 'dart:math';
 import '../models/transaction_item.dart';
 import '../models/account_item.dart';
+import '../utils/format_utils.dart';
 
 class ForecastDayPoint {
  final DateTime date;
@@ -176,7 +177,7 @@ class CashflowForecastService {
    final isLow = runningBalance < 10000.0;
    if (isLow && !liquidityAlertTriggered) {
     liquidityAlertTriggered = true;
-    firstAlertMessage = ' สภาพคล่องเสี่ยงขาดแคลนในวันที่ ${forecastDate.day}/${forecastDate.month} (คงเหลือประมาณ ฿${runningBalance.toStringAsFixed(0)})';
+    firstAlertMessage = ' สภาพคล่องเสี่ยงขาดแคลนในวันที่ ${forecastDate.day}/${forecastDate.month} (คงเหลือประมาณ ฿${FormatUtils.formatCurrency(runningBalance, trimZero: true)})';
    }
 
    timeline.add(ForecastDayPoint(
@@ -199,9 +200,9 @@ class CashflowForecastService {
   // AI Financial Insights
   final List<String> insights = [];
   if (netCashFlow > 0) {
-   insights.add('กระแสเงินสดสุทธิเป็นบวก +฿${netCashFlow.toStringAsFixed(0)} ต่อเดือน เติบโตดี');
+   insights.add('กระแสเงินสดสุทธิเป็นบวก +฿${FormatUtils.formatCurrency(netCashFlow, trimZero: true)} ต่อเดือน เติบโตดี');
   } else {
-   insights.add(' อัตราการใช้จ่ายสูงกว่ารายได้ -฿${netCashFlow.abs().toStringAsFixed(0)} ควรควบคุมงบโฆษณาหรือค่ากินดื่ม');
+   insights.add(' อัตราการใช้จ่ายสูงกว่ารายได้ -฿${FormatUtils.formatCurrency(netCashFlow.abs(), trimZero: true)} ควรควบคุมงบโฆษณาหรือค่ากินดื่ม');
   }
 
   insights.add('มีเงินสำรองฉุกเฉินครอบคลุมค่าใช้จ่ายได้ประมาณ $runway เดือน');

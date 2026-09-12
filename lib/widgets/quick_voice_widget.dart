@@ -4,6 +4,7 @@ import '../models/transaction_item.dart';
 import '../models/category_item.dart';
 import '../models/account_item.dart';
 import '../services/nlp_parser_service.dart';
+import '../utils/format_utils.dart';
 
 class QuickVoiceWidget extends StatefulWidget {
   final ExpenseController controller;
@@ -132,7 +133,7 @@ class _QuickVoiceWidgetState extends State<QuickVoiceWidget>
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                '✨ บันทึกทันที: ${parsed.type == TransactionType.income ? "+" : "-"}฿${parsed.amount.toStringAsFixed(2)} (${cat.name})',
+                '✨ บันทึกทันที: ${parsed.type == TransactionType.income ? "+" : "-"}฿${FormatUtils.formatCurrency(parsed.amount)} (${cat.name})',
                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
               ),
             ),

@@ -162,7 +162,7 @@ class _CurrencyQuickConvertSheetState extends State<CurrencyQuickConvertSheet> {
                             ],
                           ),
                           trailing: Text(
-                            '1 ${item.code.toUpperCase()} ≈ ฿${rate.toStringAsFixed(2)}',
+                            '1 ${item.code.toUpperCase()} ≈ ฿${FormatUtils.formatCurrency(rate)}',
                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
                           ),
                         );
@@ -324,7 +324,7 @@ class _CurrencyQuickConvertSheetState extends State<CurrencyQuickConvertSheet> {
                         ],
                       ),
                       Text(
-                        '1 ${currencyInfo.code.toUpperCase()} ≈ ฿${rateToThb.toStringAsFixed(2)}',
+                        '1 ${currencyInfo.code.toUpperCase()} ≈ ฿${FormatUtils.formatCurrency(rateToThb)}',
                         style: const TextStyle(fontSize: 11, color: MeowTheme.actionBlue),
                       ),
                     ],
@@ -395,7 +395,7 @@ class _CurrencyQuickConvertSheetState extends State<CurrencyQuickConvertSheet> {
               ),
               onPressed: () {
                 HapticFeedback.mediumImpact();
-                final noteTag = '${_inputAmount.toStringAsFixed(2)} ${currencyInfo.code.toUpperCase()} (เรท ฿${rateToThb.toStringAsFixed(2)})';
+                final noteTag = '${FormatUtils.formatCurrency(_inputAmount)} ${currencyInfo.code.toUpperCase()} (เรท ฿${FormatUtils.formatCurrency(rateToThb)})';
                 widget.onConverted((thbAmount: calculatedThb, noteTag: noteTag));
                 Navigator.pop(context);
               },

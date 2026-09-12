@@ -4,6 +4,7 @@ import '../widgets/glass_container.dart';
 import '../widgets/cashflow_chart.dart';
 import '../widgets/ai_insight_card.dart';
 import '../widgets/bank_badge.dart';
+import '../utils/format_utils.dart';
 
 class PredictiveCashflowScreen extends StatelessWidget {
   final ExpenseController controller;
@@ -80,7 +81,7 @@ class PredictiveCashflowScreen extends StatelessWidget {
                         Text('Burn Rate รายเดือน', style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 11)),
                         const SizedBox(height: 4),
                         Text(
-                          '฿${forecast.estimatedMonthlyBurnRate.toStringAsFixed(0)}',
+                          '฿${FormatUtils.formatCurrency(forecast.estimatedMonthlyBurnRate, trimZero: true)}',
                           style: const TextStyle(color: Color(0xFFF87171), fontSize: 18, fontWeight: FontWeight.bold),
                         ),
                       ],
@@ -193,7 +194,7 @@ class PredictiveCashflowScreen extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        '฿${bill.expectedAmount.toStringAsFixed(0)}',
+                        '฿${FormatUtils.formatCurrency(bill.expectedAmount, trimZero: true)}',
                         style: const TextStyle(color: Color(0xFFF87171), fontWeight: FontWeight.bold, fontSize: 15),
                       ),
                     ],
@@ -232,7 +233,7 @@ class PredictiveCashflowScreen extends StatelessWidget {
         Text(label, style: const TextStyle(color: Colors.white54, fontSize: 11)),
         const SizedBox(height: 4),
         Text(
-          '฿${amount.toStringAsFixed(0)}',
+          '฿${FormatUtils.formatCurrency(amount, trimZero: true)}',
           style: TextStyle(
             color: amount >= 0 ? const Color(0xFF38BDF8) : const Color(0xFFEF4444),
             fontWeight: FontWeight.bold,
