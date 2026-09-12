@@ -85,7 +85,18 @@ class EasyOcrTesseractFusionService {
     text = text.replaceAll(RegExp(r'(?<=\b[โเแไใ])\s+(?=[\u0E01-\u0E2E])'), '');
     text = text.replaceAll(RegExp(r'(?<=[\u0E01-\u0E2E])\s+(?=[\u0E01-\u0E2E]\b)'), '');
 
-    // D. Apply Thai Banking Slip OCR Dictionary Corrections
+    // D. Fix broken comma and dot spacing inside numbers (e.g. "1, 500.00" -> "1,500.00")
+    text = text.replaceAllMapped(RegExp(r'([0-9]+),\s+([0-9]{3})'), (m) => '${m[1]},${m[2]}');
+    text = text.replaceAllMapped(RegExp(r'([0-9]+)\s*\.\s*([0-9]{2})\b'), (m) => '${m[1]}.${m[2]}');
+    text = text.replaceAllMapped(RegExp(r'([0-9]+)\s*,\s*([0-9]{2})\b'), (m) => '${m[1]}.${m[2]}');
+
+    // E. Normalize amount labels with currency brackets like "จำนวนเงิน (บาท)" -> "จำนวนเงิน: "
+    text = text.replaceAll(
+      RegExp(r'(?:จำนวนเงินที่ชำระ|ยอดเงินที่ชำระ|ยอดชำระ|จำนวนเงิน|จํานวนเงิน|ยอดเงิน|ยอดเงินโอน|ยอดโอน|จำนวนเงินโอน|จำนวนเงินสุทธิ|ยอดรวม)\s*\(\s*(?:บาท|thb|baht|บ\.)\s*\)', caseSensitive: false),
+      'จำนวนเงิน: ',
+    );
+
+    // F. Apply Thai Banking Slip OCR Dictionary Corrections
     _ocrCorrections.forEach((misread, correct) {
       text = text.replaceAll(misread, correct);
     });
@@ -94,50 +105,87 @@ class EasyOcrTesseractFusionService {
   }
 
   /// 2. Tesseract LSTM-style High Precision Monetary Amount Extraction
-  /// Finds numbers formatted like 1,234.56 or 1234.56 with keyword proximity weighting and strict fee exclusion
+  /// Finds numbers formatted like 1,234.56 or 1234.56 with keyword proximity weighting,
+  /// multi-line lookahead for long recipient names, column-split reconstruction, and strict fee exclusion
   static double extractAmount(String text) {
     final clean = normalizeOcrText(text);
-    final lines = clean.split('\n');
+    final lines = clean.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
 
-    // 1. High Priority: Look for amount keywords on individual lines with exclusions
-    for (final line in lines) {
-      final l = line.trim();
-      if (l.isEmpty) continue;
-      final lower = l.toLowerCase();
+    final amountKeywords = [
+      'จำนวนเงินที่ชำระ', 'ยอดเงินที่ชำระ', 'ยอดชำระ', 'จำนวนเงิน', 'จํานวนเงิน',
+      'จำนวน:', 'จํานวน:', 'จำนวน', 'จํานวน', 'ยอดเงิน', 'ยอดเงินโอน', 'ยอดโอน',
+      'เงินที่จ่าย', 'เงินที่โอน', 'ยอดหักบัญชี', 'จำนวนเงินสุทธิ', 'ยอดสุทธิ',
+      'รวมเงิน', 'ยอดรวม', 'รวมทั้งสิ้น', 'amount', 'total', 'net amount',
+      'transfer amount', 'payment amount', 'paid'
+    ];
 
-      // Skip lines that contain fee, reference numbers, merchant/biller IDs, or account numbers
-      if (lower.contains('ค่าธรรมเนียม') ||
-          lower.contains('fee') ||
-          lower.contains('รหัสอ้างอิง') ||
-          lower.contains('เลขที่อ้างอิง') ||
-          lower.contains('เลขอ้างอิง') ||
-          lower.contains('ref no') ||
-          lower.contains('ref id') ||
-          lower.contains('หมายเลขร้านค้า') ||
-          lower.contains('รหัสผู้รับเงิน') ||
-          lower.contains('รหัสร้านค้า') ||
-          lower.contains('เลขที่บัญชี') ||
-          lower.contains('หมายเลขบัญชี')) {
-        continue;
+    final feeKeywords = ['ค่าธรรมเนียม', 'fee', 'charge'];
+    final refKeywords = [
+      'รหัสอ้างอิง', 'เลขที่อ้างอิง', 'เลขอ้างอิง', 'ref no', 'ref id',
+      'หมายเลขร้านค้า', 'รหัสผู้รับเงิน', 'รหัสร้านค้า', 'เลขที่บัญชี',
+      'หมายเลขบัญชี', 'biller id', 'tax id', 'promptpay', 'พร้อมเพย์'
+    ];
+
+    final num2DecRegex = RegExp(r'([0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{2}|[0-9]+\.[0-9]{2})');
+
+    // Pass 1: Multi-line lookahead from Amount Keyword (line i to i+5)
+    // Solves slips where recipient name has 4-5 lines pushing or separating labels and amounts
+    for (int i = 0; i < lines.length; i++) {
+      final line = lines[i];
+      final lower = line.toLowerCase();
+      if (feeKeywords.any((fk) => lower.contains(fk))) continue;
+
+      if (amountKeywords.any((ak) => lower.contains(ak))) {
+        // 1A. Check line i itself
+        final mSelf = num2DecRegex.firstMatch(line);
+        if (mSelf != null) {
+          final rawNum = mSelf.group(1)?.replaceAll(',', '').trim();
+          final val = double.tryParse(rawNum ?? '');
+          if (val != null && val > 0 && val < 50000000) {
+            return val;
+          }
+        }
+
+        // 1B. Lookahead through the next 5 lines (e.g. line i is "จำนวนเงิน", line i+1 is "1,500.00")
+        for (int j = i + 1; j < lines.length && j <= i + 5; j++) {
+          final subLine = lines[j];
+          final subLower = subLine.toLowerCase();
+          if (feeKeywords.any((fk) => subLower.contains(fk))) continue;
+          if (refKeywords.any((rk) => subLower.contains(rk))) continue;
+
+          final mSub = num2DecRegex.firstMatch(subLine);
+          if (mSub != null) {
+            final rawNum = mSub.group(1)?.replaceAll(',', '').trim();
+            final val = double.tryParse(rawNum ?? '');
+            if (val != null && val > 0 && val < 50000000) {
+              return val;
+            }
+          }
+
+          // Also check for whole baht numbers without decimals (e.g. "1,500" or "500 บาท")
+          final mWhole = RegExp(r'([0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)\s*(?:บาท|thb|baht)?', caseSensitive: false).firstMatch(subLine);
+          if (mWhole != null) {
+            final rawNum = mWhole.group(1)?.replaceAll(',', '').trim();
+            final val = double.tryParse(rawNum ?? '');
+            if (val != null && val >= 1.0 && val < 50000000 && !rawNum!.startsWith('0')) {
+              // Ensure not a year or time
+              if (val != 2567 && val != 2568 && val != 2569 && val != 2024 && val != 2025 && val != 2026) {
+                return val;
+              }
+            }
+          }
+        }
       }
+    }
 
-      // Check for K PLUS "จำนวน:" or standard "จำนวนเงิน"
-      if (lower.contains('จำนวนเงินที่ชำระ') ||
-          lower.contains('ยอดเงินที่ชำระ') ||
-          lower.contains('ยอดชำระ') ||
-          lower.contains('จำนวนเงิน') ||
-          lower.contains('จํานวนเงิน') ||
-          lower.contains('จำนวน:') ||
-          lower.contains('จํานวน:') ||
-          lower.contains('จำนวน ') ||
-          lower.contains('จํานวน ') ||
-          lower.contains('ยอดเงิน') ||
-          lower.contains('ยอดเงินโอน') ||
-          lower.contains('ยอดโอน') ||
-          lower.contains('เงินที่จ่าย') ||
-          lower.contains('amount') ||
-          lower.contains('total')) {
-        final m = RegExp(r'([0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{2}|[0-9]+\.[0-9]{2})').firstMatch(l);
+    // Pass 2: Column-split reconstruction (Positive amount line immediately preceding 0.00 fee)
+    for (int i = 0; i < lines.length - 1; i++) {
+      final line = lines[i];
+      final nextLine = lines[i + 1];
+      if (feeKeywords.any((fk) => line.toLowerCase().contains(fk))) continue;
+
+      if (RegExp(r'\b0(?:\.00)?\s*(?:บาท|thb|baht|บ\.)?\b', caseSensitive: false).hasMatch(nextLine)) {
+        final m = num2DecRegex.firstMatch(line);
         if (m != null) {
           final rawNum = m.group(1)?.replaceAll(',', '').trim();
           final val = double.tryParse(rawNum ?? '');
@@ -148,10 +196,10 @@ class EasyOcrTesseractFusionService {
       }
     }
 
-    // 2. High priority: Context Regex matching keyword followed by 2-decimal number
+    // Pass 3: High priority Context Regex matching keyword followed by 2-decimal number
     final contextRegexes = [
       RegExp(
-        r'(?:จำนวนเงินที่ชำระ|ยอดเงินที่ชำระ|ยอดชำระ|จำนวนเงิน|จํานวนเงิน|จำนวน:|จํานวน:|จำนวน|จํานวน|ยอดเงิน|ยอดเงินโอน|ยอดโอน|โอนเงิน|สิทธิ์ที่ใช้|สิทธิที่ใช้|สิทธิ์คงเหลือ|สิทธิคนละครึ่ง|เงินที่จ่ายจริง|จำนวนเงินที่ได้รับ|เงินช่วยเหลือ|Total|Amount)[:\s\n]*([0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{2}|[0-9]+\.[0-9]{2})',
+        r'(?:จำนวนเงินที่ชำระ|ยอดเงินที่ชำระ|ยอดชำระ|จำนวนเงิน|จํานวนเงิน|จำนวน:|จํานวน:|จำนวน|จํานวน|ยอดเงิน|ยอดเงินโอน|ยอดโอน|โอนเงิน|สิทธิ์ที่ใช้|สิทธิที่ใช้|สิทธิ์คงเหลือ|สิทธิคนละครึ่ง|เงินที่จ่ายจริง|จำนวนเงินที่ได้รับ|เงินช่วยเหลือ|Total|Amount)(?:[:\s\n]|(?:(?:\(|\[)?\s*(?:บาท|THB|Baht|฿|B)\s*(?:\)|\])?))*([0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{2}|[0-9]+\.[0-9]{2})',
         caseSensitive: false,
       ),
       RegExp(r'(?:฿|B)\s*([0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{2}|[0-9]+\.[0-9]{2})'),
@@ -170,7 +218,7 @@ class EasyOcrTesseractFusionService {
       }
     }
 
-    // 3. Match numbers followed by บาท / THB / Baht / บ. (excluding 0.00 fee)
+    // Pass 4: Match numbers followed by บาท / THB / Baht / บ. (excluding 0.00 fee)
     final bahtMatches = RegExp(r'([0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{2}|[0-9]+\.[0-9]{2})\s*(?:บาท|THB|Baht|บ\.)', caseSensitive: false).allMatches(clean);
     for (final match in bahtMatches) {
       final startIdx = match.start > 25 ? match.start - 25 : 0;
@@ -187,30 +235,48 @@ class EasyOcrTesseractFusionService {
       }
     }
 
-    // 4. Any 2-decimal numbers on the slip (excluding dates/years e.g. 68, 69, 70, times e.g. 08.49)
+    // Pass 5: Any 2-decimal numbers on the slip (excluding dates/years e.g. 68, 69, 70, times e.g. 08.49)
     final generalRegex = RegExp(r'\b([0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{2}|[0-9]+\.[0-9]{2})\b');
     final matches = generalRegex.allMatches(clean);
     for (final match in matches) {
-      final startIdx = match.start > 20 ? match.start - 20 : 0;
+      final startIdx = match.start > 25 ? match.start - 25 : 0;
       final prefix = clean.substring(startIdx, match.start).toLowerCase();
-      // Exclude if prefix is date/month/time
+      // Exclude if prefix is date/month/time or fee
       if (prefix.contains('ม.ค') || prefix.contains('ก.พ') || prefix.contains('มี.ค') ||
           prefix.contains('เม.ย') || prefix.contains('พ.ค') || prefix.contains('มิ.ย') ||
           prefix.contains('ก.ค') || prefix.contains('ส.ค') || prefix.contains('ก.ย') ||
           prefix.contains('ต.ค') || prefix.contains('พ.ย') || prefix.contains('ธ.ค') ||
-          prefix.contains('เวลา') || prefix.contains('time') || prefix.contains('date')) {
+          prefix.contains('เวลา') || prefix.contains('time') || prefix.contains('date') ||
+          prefix.contains('วันที่') || prefix.contains('ค่าธรรมเนียม') || prefix.contains('fee')) {
         continue;
       }
 
       final rawNum = match.group(1)?.replaceAll(',', '').trim();
       if (rawNum != null) {
         // Exclude year fractions like 8.69, 9.69, 3.69
-        if (rawNum.endsWith('.69') || rawNum.endsWith('.68') || rawNum.endsWith('.70')) {
+        if (rawNum.endsWith('.69') || rawNum.endsWith('.68') || rawNum.endsWith('.70') || rawNum.endsWith('.67')) {
           continue;
         }
         final val = double.tryParse(rawNum);
         if (val != null && val > 0 && val < 50000000) {
           return val;
+        }
+      }
+    }
+
+    // Pass 6: Fallback for whole baht amounts with currency keyword
+    final wholeBahtMatches = RegExp(r'\b([0-9]{1,3}(?:,[0-9]{3})+|[0-9]{2,})\s*(?:บาท|THB|Baht)\b', caseSensitive: false).allMatches(clean);
+    for (final match in wholeBahtMatches) {
+      final startIdx = match.start > 25 ? match.start - 25 : 0;
+      final prefix = clean.substring(startIdx, match.start).toLowerCase();
+      if (prefix.contains('ค่าธรรมเนียม') || prefix.contains('fee')) continue;
+      final rawNum = match.group(1)?.replaceAll(',', '').trim();
+      if (rawNum != null) {
+        final val = double.tryParse(rawNum);
+        if (val != null && val >= 1.0 && val < 50000000) {
+          if (val != 2567 && val != 2568 && val != 2569 && val != 2024 && val != 2025 && val != 2026) {
+            return val;
+          }
         }
       }
     }

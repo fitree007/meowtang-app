@@ -74,13 +74,12 @@ class SlipDetectionService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        val catLargeIcon = BitmapFactory.decodeResource(resources, R.drawable.ic_notification_cat_large)
-            ?: BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher)
+        val catLargeIcon = BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher)
 
         val notification = NotificationCompat.Builder(this, SCAN_CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(message)
-            .setSmallIcon(R.drawable.ic_stat_cat)
+            .setSmallIcon(R.mipmap.ic_launcher)
             .setLargeIcon(catLargeIcon)
             .setColor(0xFFFF8A00.toInt())
             .setContentIntent(pendingIntent)
@@ -381,13 +380,12 @@ class SlipDetectionService : Service() {
         val title = if (isIncome) "💰 พบยอดเงินเข้าใหม่ (รายรับ)" else "🧾 พบสลิปใหม่ แตะเพื่อบันทึก"
         val desc = if (isIncome) "ตรวจพบยอดเงินเข้า: $bankName แตะเพื่อตรวจสอบและบันทึก" else "ตรวจพบ: $bankName แตะเพื่อตรวจสอบยอดเงินและบันทึก"
 
-        val catLargeIcon = BitmapFactory.decodeResource(resources, R.drawable.ic_notification_cat_large)
-            ?: BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher)
+        val catLargeIcon = BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher)
 
         val notification = NotificationCompat.Builder(this, HEADS_UP_CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(desc)
-            .setSmallIcon(R.drawable.ic_stat_cat)
+            .setSmallIcon(R.mipmap.ic_launcher)
             .setLargeIcon(catLargeIcon)
             .setColor(0xFFFF8A00.toInt())
             .setContentIntent(pendingIntent)
