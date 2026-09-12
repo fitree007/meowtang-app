@@ -4,6 +4,7 @@ import '../models/transaction_item.dart';
 import '../models/account_item.dart';
 import '../models/category_item.dart';
 import '../models/saving_goal_item.dart';
+import '../models/salary_auto_record_config.dart';
 import '../config/app_config.dart';
 
 class StorageService {
@@ -51,6 +52,7 @@ class StorageService {
   static const String _keySlipQuotaCount = 'meow_slip_quota_count_v1';
   static const String _keyWelcomeBonusSlips = 'meow_welcome_bonus_slips_v1';
   static const String _keyInitialDeviceScanCompleted = 'meow_initial_device_scan_completed_v2';
+  static const String _keySalaryAutoRecordConfig = 'meow_salary_auto_record_config_v1';
 
   late SharedPreferences _prefs;
 
@@ -171,6 +173,23 @@ class StorageService {
 
   Future<void> saveMonthlySalary(double salary) async {
     await _prefs.setDouble(_keyMonthlySalary, salary);
+  }
+
+  // SALARY AUTO-RECORD CONFIG
+  SalaryAutoRecordConfig getSalaryAutoRecordConfig() {
+    final raw = _prefs.getString(_keySalaryAutoRecordConfig);
+    if (raw == null || raw.isEmpty) {
+      final monthlySalary = getMonthlySalary();
+      return SalaryAutoRecordConfig(amount: monthlySalary);
+    }
+    return SalaryAutoRecordConfig.fromJson(raw);
+  }
+
+  Future<void> saveSalaryAutoRecordConfig(SalaryAutoRecordConfig config) async {
+    await _prefs.setString(_keySalaryAutoRecordConfig, config.toJson());
+    if (config.amount > 0) {
+      await saveMonthlySalary(config.amount);
+    }
   }
 
   Map<String, double> getCategoryBudgets() {
@@ -380,9 +399,40 @@ class StorageService {
     }
     try {
       final List<dynamic> list = jsonDecode(raw);
-      return list.map((e) => CategoryItem.fromJson(e as Map<String, dynamic>)).toList();
+      final cats = list.map((e) => CategoryItem.fromJson(e as Map<String, dynamic>)).toList();
+      _ensureStandardCategories(cats);
+      return cats;
     } catch (e) {
       return _getDefaultCategories();
+    }
+  }
+
+  void _ensureStandardCategories(List<CategoryItem> cats) {
+    if (!cats.any((c) => c.type == CategoryType.income && (c.name.contains('ยืม') || c.name.contains('กู้') || c.id == 'cat_borrow'))) {
+      cats.add(CategoryItem(
+        id: 'cat_borrow',
+        name: 'เงินกู้ยืม / ยืมเงิน',
+        iconKey: 'payments',
+        colorValue: 0xFF06B6D4,
+        type: CategoryType.income,
+        isDefault: true,
+      ));
+    }
+    if (!cats.any((c) => c.type == CategoryType.expense && (c.name.contains('คืนเงิน') || c.name.contains('ชำระหนี้') || c.id == 'cat_repay_debt'))) {
+      final otherExpIdx = cats.indexWhere((c) => c.id == 'cat_other_exp');
+      final newItem = CategoryItem(
+        id: 'cat_repay_debt',
+        name: 'คืนเงินยืม / ชำระหนี้',
+        iconKey: 'receipt_long',
+        colorValue: 0xFFEC4899,
+        type: CategoryType.expense,
+        isDefault: true,
+      );
+      if (otherExpIdx != -1) {
+        cats.insert(otherExpIdx, newItem);
+      } else {
+        cats.add(newItem);
+      }
     }
   }
 
@@ -665,6 +715,14 @@ class StorageService {
         isDefault: true,
       ),
       CategoryItem(
+        id: 'cat_repay_debt',
+        name: 'คืนเงินยืม / ชำระหนี้',
+        iconKey: 'receipt_long',
+        colorValue: 0xFFEC4899,
+        type: CategoryType.expense,
+        isDefault: true,
+      ),
+      CategoryItem(
         id: 'cat_other_exp',
         name: 'รายจ่ายอื่นๆ',
         iconKey: 'category',
@@ -679,6 +737,14 @@ class StorageService {
         name: 'เงินเดือน & ค่าจ้าง',
         iconKey: 'salary',
         colorValue: 0xFF10B981,
+        type: CategoryType.income,
+        isDefault: true,
+      ),
+      CategoryItem(
+        id: 'cat_borrow',
+        name: 'เงินกู้ยืม / ยืมเงิน',
+        iconKey: 'payments',
+        colorValue: 0xFF06B6D4,
         type: CategoryType.income,
         isDefault: true,
       ),

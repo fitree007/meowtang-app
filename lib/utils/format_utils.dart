@@ -37,4 +37,13 @@ class FormatUtils {
     final thaiYear = date.year > 2500 ? date.year : date.year + 543;
     return '${date.day} ${thaiMonths[date.month - 1]} $thaiYear';
   }
+
+  static String formatMonthYearThai(DateTime date) {
+    const thaiMonthsFull = [
+      'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+      'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+    ];
+    final thaiYear = date.year > 2500 ? date.year : date.year + 543;
+    return '${thaiMonthsFull[date.month - 1]} $thaiYear';
+  }
 }

@@ -17,6 +17,7 @@ import 'theme_shop_screen.dart';
 import 'saving_goals_screen.dart';
 import 'goal_calculator_screen.dart';
 import 'data_backup_restore_screen.dart';
+import 'salary_auto_record_screen.dart';
 import '../widgets/custom_photo_avatar_dialog.dart';
 import '../utils/format_utils.dart';
 
@@ -431,6 +432,29 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
              context,
              MaterialPageRoute(
               builder: (_) => CategoryManagementScreen(controller: widget.controller),
+             ),
+            );
+           },
+          ),
+          const Divider(height: 1),
+          _buildMenuItem(
+           icon: Icons.alarm_on_rounded,
+           iconBgColor: const Color(0xFF10B981),
+           title: isEn ? 'Auto-Record Salary' : 'บันทึกเงินเดือนอัตโนมัติ',
+           subtitle: widget.controller.salaryConfig.isEnabled
+               ? (widget.controller.salaryConfig.isLastDayOfMonth
+                   ? (isEn ? 'End of month (฿${CurrencyFormat.format(widget.controller.salaryConfig.amount, trimZero: true)})' : 'วันสิ้นเดือน (฿${CurrencyFormat.format(widget.controller.salaryConfig.amount, trimZero: true)})')
+                   : (isEn ? 'Day ${widget.controller.salaryConfig.dayOfMonth} (฿${CurrencyFormat.format(widget.controller.salaryConfig.amount, trimZero: true)})' : 'ทุกวันที่ ${widget.controller.salaryConfig.dayOfMonth} (฿${CurrencyFormat.format(widget.controller.salaryConfig.amount, trimZero: true)})'))
+               : (isEn ? 'Auto-records monthly salary offline' : 'กำหนดวันและยอดเงินเดือน แอพบันทึกให้อัตโนมัติ'),
+           trailingBadge: widget.controller.salaryConfig.isEnabled
+               ? (isEn ? 'Active' : 'เปิดใช้งาน')
+               : (isEn ? 'Off' : 'ปิด'),
+           isDark: isDark,
+           onTap: () {
+            Navigator.push(
+             context,
+             MaterialPageRoute(
+              builder: (_) => SalaryAutoRecordScreen(controller: widget.controller),
              ),
             );
            },

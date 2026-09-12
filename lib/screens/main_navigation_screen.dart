@@ -26,6 +26,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Widget
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAndShowSalaryNotice();
+    });
     _checkInitialNotificationSlip();
     NativeBridgeService.setOpenSlipFromNotificationListener((slipData) {
       final path = slipData['path'] as String? ?? '';
@@ -51,6 +54,36 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Widget
     if (state == AppLifecycleState.resumed) {
       // Instantly reload transactions, accounts and balances when app is resumed
       widget.controller.reloadFromStorage();
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) _checkAndShowSalaryNotice();
+      });
+    }
+  }
+
+  void _checkAndShowSalaryNotice() {
+    final notice = widget.controller.lastAutoSalaryRecordedNotice;
+    if (notice != null && notice.isNotEmpty && mounted) {
+      widget.controller.clearAutoSalaryNotice();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
+          backgroundColor: const Color(0xFF10B981),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          content: Row(
+            children: [
+              const Icon(Icons.paid_rounded, color: Colors.white, size: 24),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  notice,
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13.5),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
     }
   }
 

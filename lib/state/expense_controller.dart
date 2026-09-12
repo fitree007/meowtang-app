@@ -9,6 +9,7 @@ import '../models/project_budget.dart';
 import '../models/tax_profile.dart';
 import '../models/slip_extract_result.dart';
 import '../models/saving_goal_item.dart';
+import '../models/salary_auto_record_config.dart';
 import '../services/storage_service.dart';
 import '../services/ocr_engine_service.dart';
 import '../services/nlp_parser_service.dart';
@@ -42,6 +43,8 @@ class ExpenseController extends ChangeNotifier {
   List<AccountItem> _accounts = [];
   List<CategoryItem> _categories = [];
   List<SavingGoalItem> _savingGoals = [];
+  SalaryAutoRecordConfig _salaryConfig = const SalaryAutoRecordConfig();
+  String? _lastAutoSalaryRecordedNotice;
   final List<ProjectBudget> _projects = [];
   TaxProfile _taxProfile = TaxProfile();
 
@@ -187,6 +190,147 @@ class ExpenseController extends ChangeNotifier {
   await _storage.saveMonthlySalary(salary);
   notifyListeners();
  }
+
+  // RECURRING SALARY (OFFLINE AUTO-RECORD)
+  SalaryAutoRecordConfig get salaryConfig => _salaryConfig;
+  String? get lastAutoSalaryRecordedNotice => _lastAutoSalaryRecordedNotice;
+
+  void clearAutoSalaryNotice() {
+    _lastAutoSalaryRecordedNotice = null;
+    notifyListeners();
+  }
+
+  Future<void> updateSalaryAutoRecordConfig(SalaryAutoRecordConfig config) async {
+    _salaryConfig = config;
+    await _storage.saveSalaryAutoRecordConfig(config);
+    notifyListeners();
+    await checkAndProcessRecurringSalary();
+  }
+
+  /// Manually triggers recording salary for testing or immediate record
+  Future<bool> triggerManualSalaryRecord() async {
+    if (_salaryConfig.amount <= 0) return false;
+    final now = DateTime.now();
+    final currentMonthStr = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+
+    String targetAccId = _salaryConfig.accountId;
+    if (!_accounts.any((a) => a.id == targetAccId)) {
+      targetAccId = _accounts.isNotEmpty ? _accounts.first.id : 'acc_cash';
+    }
+
+    String targetCatId = _salaryConfig.categoryId;
+    if (!_categories.any((c) => c.id == targetCatId)) {
+      final salaryCat = _categories.firstWhere(
+        (c) => c.type == CategoryType.income && (c.name.contains('เงินเดือน') || c.id == 'cat_salary'),
+        orElse: () => _categories.firstWhere((c) => c.type == CategoryType.income, orElse: () => _categories.first),
+      );
+      targetCatId = salaryCat.id;
+    }
+
+    final monthLabel = FormatUtils.formatMonthYearThai(now);
+    final title = _salaryConfig.note.trim().isNotEmpty
+        ? '${_salaryConfig.note.trim()} ($monthLabel)'
+        : 'เงินเดือนประจำเดือน $monthLabel';
+
+    final catName = _categories.firstWhere((c) => c.id == targetCatId, orElse: () => _categories.first).name;
+    final salaryTx = TransactionItem(
+      id: 'salary_${now.year}_${now.month.toString().padLeft(2, '0')}_${now.millisecondsSinceEpoch}',
+      title: title,
+      amount: _salaryConfig.amount,
+      type: TransactionType.income,
+      categoryId: targetCatId,
+      categoryName: catName,
+      accountId: targetAccId,
+      date: now,
+      note: 'บันทึกเงินเดือนอัตโนมัติ 🐱💰',
+    );
+
+    final success = await addTransaction(salaryTx, allowManualOverride: true);
+    if (success) {
+      _salaryConfig = _salaryConfig.copyWith(
+        lastRecordedMonth: currentMonthStr,
+        lastRecordedDate: now,
+      );
+      await _storage.saveSalaryAutoRecordConfig(_salaryConfig);
+      _lastAutoSalaryRecordedNotice = 'น้องแมวบันทึกเงินเดือน ฿${FormatUtils.formatCurrency(_salaryConfig.amount)} เรียบร้อยแล้วน้า เหมียว~ 🐱💰';
+      notifyListeners();
+      return true;
+    }
+    return false;
+  }
+
+  /// Checks if recurring salary should be recorded automatically today (Offline 100%)
+  Future<bool> checkAndProcessRecurringSalary({DateTime? overrideNow}) async {
+    if (!_salaryConfig.isEnabled || _salaryConfig.amount <= 0) {
+      return false;
+    }
+    final now = overrideNow ?? DateTime.now();
+    final currentMonthStr = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+
+    // Already recorded for this month
+    if (_salaryConfig.lastRecordedMonth == currentMonthStr) {
+      return false;
+    }
+
+    // Calculate days in current month
+    final daysInCurrentMonth = DateTime(now.year, now.month + 1, 0).day;
+    final int scheduledDay = _salaryConfig.isLastDayOfMonth
+        ? daysInCurrentMonth
+        : _salaryConfig.dayOfMonth.clamp(1, daysInCurrentMonth);
+
+    // If today hasn't reached scheduled day yet, wait
+    if (now.day < scheduledDay) {
+      return false;
+    }
+
+    String targetAccId = _salaryConfig.accountId;
+    if (!_accounts.any((a) => a.id == targetAccId)) {
+      targetAccId = _accounts.isNotEmpty ? _accounts.first.id : 'acc_cash';
+    }
+
+    String targetCatId = _salaryConfig.categoryId;
+    if (!_categories.any((c) => c.id == targetCatId)) {
+      final salaryCat = _categories.firstWhere(
+        (c) => c.type == CategoryType.income && (c.name.contains('เงินเดือน') || c.id == 'cat_salary'),
+        orElse: () => _categories.firstWhere((c) => c.type == CategoryType.income, orElse: () => _categories.first),
+      );
+      targetCatId = salaryCat.id;
+    }
+
+    final monthLabel = FormatUtils.formatMonthYearThai(now);
+    final title = _salaryConfig.note.trim().isNotEmpty
+        ? '${_salaryConfig.note.trim()} ($monthLabel)'
+        : 'เงินเดือนประจำเดือน $monthLabel';
+
+    // Date stamped as of scheduled day at 09:00 AM
+    final txDate = DateTime(now.year, now.month, scheduledDay, 9, 0);
+
+    final autoCatName = _categories.firstWhere((c) => c.id == targetCatId, orElse: () => _categories.first).name;
+    final salaryTx = TransactionItem(
+      id: 'salary_${now.year}_${now.month.toString().padLeft(2, '0')}',
+      title: title,
+      amount: _salaryConfig.amount,
+      type: TransactionType.income,
+      categoryId: targetCatId,
+      categoryName: autoCatName,
+      accountId: targetAccId,
+      date: txDate,
+      note: 'บันทึกเงินเดือนอัตโนมัติ 🐱💰',
+    );
+
+    final success = await addTransaction(salaryTx, allowManualOverride: true);
+    if (success) {
+      _salaryConfig = _salaryConfig.copyWith(
+        lastRecordedMonth: currentMonthStr,
+        lastRecordedDate: now,
+      );
+      await _storage.saveSalaryAutoRecordConfig(_salaryConfig);
+      _lastAutoSalaryRecordedNotice = 'น้องแมวบันทึกเงินเดือน ฿${FormatUtils.formatCurrency(_salaryConfig.amount)} ประจำเดือน$monthLabel เข้าบัญชีให้เรียบร้อยแล้วน้า เหมียว~ 🐱💰';
+      notifyListeners();
+      return true;
+    }
+    return false;
+  }
 
  Map<String, double> get categoryBudgets => _storage.getCategoryBudgets();
 
@@ -823,12 +967,18 @@ class ExpenseController extends ChangeNotifier {
   _accounts = _storage.getAccounts();
   _categories = _storage.getCategories();
   _savingGoals = _storage.getSavingGoals();
+  _salaryConfig = _storage.getSalaryAutoRecordConfig();
 
   _deduplicateInMemoryTransactions();
 
   _isLoading = false;
   notifyListeners();
   syncAndroidWidget();
+
+  // Background auto check for recurring salary
+  Future.microtask(() {
+    checkAndProcessRecurringSalary();
+  });
 
   // Background migration for slips (prevents missing slips when user cleans gallery)
   Future.microtask(() {
@@ -848,8 +998,10 @@ class ExpenseController extends ChangeNotifier {
   _accounts = _storage.getAccounts();
   _categories = _storage.getCategories();
   _savingGoals = _storage.getSavingGoals();
+  _salaryConfig = _storage.getSalaryAutoRecordConfig();
   notifyListeners();
   await syncAndroidWidget();
+  await checkAndProcessRecurringSalary();
  }
 
  // ACCOUNT MANAGEMENT (Set/Edit Balances)
