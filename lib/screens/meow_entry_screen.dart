@@ -23,6 +23,7 @@ import '../widgets/currency_quick_convert_sheet.dart';
 import '../widgets/bank_badge.dart';
 import '../services/thai_bank_detector.dart';
 import '../widgets/meow_paywall_modal.dart';
+import 'salary_auto_record_screen.dart';
 
 class MeowEntryScreen extends StatefulWidget {
   final ExpenseController controller;
@@ -1105,6 +1106,54 @@ class _MeowEntryScreenState extends State<MeowEntryScreen> {
                 ],
               ),
             ),
+
+            // Auto-record salary quick button (Shown on Income tab)
+            if (_currentTab == 1)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+                child: Row(
+                  children: [
+                    TactileButton(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => SalaryAutoRecordScreen(controller: widget.controller),
+                          ),
+                        ).then((_) => setState(() {}));
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: const Color(0xFF10B981).withValues(alpha: 0.35),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.auto_awesome_rounded, size: 14, color: Color(0xFF10B981)),
+                            const SizedBox(width: 5),
+                            Text(
+                              isEn ? '⏰ Auto-record Salary' : '⏰ ตั้งค่าเงินเดือนอัตโนมัติ',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF10B981),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(Icons.chevron_right_rounded, size: 16, color: Color(0xFF10B981)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
             // Category Grid
             Expanded(

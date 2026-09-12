@@ -32,8 +32,8 @@ class BankNotificationListenerService : NotificationListenerService() {
 
     companion object {
         private const val TAG = "BankNotificationListener"
-        private const val CHANNEL_ID = "rizqi_income_channel"
-        private const val CHANNEL_NAME = "บันทึกเงินเข้าอัตโนมัติ"
+        private const val CHANNEL_ID = "meowtang_income_channel_v4"
+        private const val CHANNEL_NAME = "เหมียวตังค์: บันทึกเงินเข้าอัตโนมัติ"
 
         // Cache last detected notification to prevent duplicate recording within 60 seconds
         private var lastDetectedText: String = ""
@@ -298,7 +298,7 @@ class BankNotificationListenerService : NotificationListenerService() {
                 val formatted = String.format(Locale.getDefault(), "%.2f", amount)
                 Toast.makeText(
                     applicationContext,
-                    "✨ บันทึกริซกี: บันทึกเงินเข้า +฿$formatted จาก $bankName อัตโนมัติแล้ว!",
+                    "✨ เหมียวตังค์: บันทึกเงินเข้า +฿$formatted จาก $bankName อัตโนมัติแล้ว!",
                     Toast.LENGTH_LONG
                 ).show()
             }
@@ -324,10 +324,10 @@ class BankNotificationListenerService : NotificationListenerService() {
             )
 
             val formatted = String.format(Locale.getDefault(), "%.2f", amount)
-            val catLargeIcon = android.graphics.BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher)
+            val catLargeIcon = android.graphics.BitmapFactory.decodeResource(resources, R.drawable.ic_notification_cat_large)
 
             val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-                .setSmallIcon(R.mipmap.ic_launcher)
+                .setSmallIcon(R.drawable.ic_notification_cat)
                 .setLargeIcon(catLargeIcon)
                 .setColor(0xFFFF8A00.toInt())
                 .setContentTitle("✨ เหมียวตังค์: เงินเข้า +฿$formatted")

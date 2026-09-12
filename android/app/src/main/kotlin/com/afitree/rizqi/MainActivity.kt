@@ -1296,7 +1296,7 @@ class MainActivity : FlutterActivity() {
 
     private val SCAN_NOTIFICATION_ID = 2001
     private val SCAN_COMPLETED_NOTIFICATION_ID = 2002
-    private val SCAN_CHANNEL_ID = "meow_slip_sync_channel"
+    private val SCAN_CHANNEL_ID = "meow_slip_sync_channel_v4"
 
     private fun ensureScanNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -1343,12 +1343,12 @@ class MainActivity : FlutterActivity() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        val catLargeIcon = BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher)
+        val catLargeIcon = BitmapFactory.decodeResource(resources, R.drawable.ic_notification_cat_large)
 
         val notification = NotificationCompat.Builder(this, SCAN_CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(message)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_notification_cat)
             .setLargeIcon(catLargeIcon)
             .setColor(0xFFFF8A00.toInt())
             .setContentIntent(pendingIntent)
@@ -1375,12 +1375,12 @@ class MainActivity : FlutterActivity() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        val catLargeIcon = BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher)
+        val catLargeIcon = BitmapFactory.decodeResource(resources, R.drawable.ic_notification_cat_large)
 
         val notification = NotificationCompat.Builder(this, SCAN_CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(message)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_notification_cat)
             .setLargeIcon(catLargeIcon)
             .setColor(0xFFFF8A00.toInt())
             .setContentIntent(pendingIntent)

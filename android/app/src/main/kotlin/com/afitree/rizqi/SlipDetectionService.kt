@@ -33,8 +33,8 @@ class SlipDetectionService : Service() {
         const val EXTRA_SCAN_MESSAGE = "extra_scan_message"
 
         const val SCAN_NOTIFICATION_ID = 2001
-        const val HEADS_UP_CHANNEL_ID = "rizqi_slip_heads_up_channel"
-        const val SCAN_CHANNEL_ID = "meow_slip_sync_channel"
+        const val HEADS_UP_CHANNEL_ID = "meow_slip_heads_up_channel_v4"
+        const val SCAN_CHANNEL_ID = "meow_slip_sync_channel_v4"
     }
 
     private var mediaObserver: ContentObserver? = null
@@ -74,12 +74,12 @@ class SlipDetectionService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        val catLargeIcon = BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher)
+        val catLargeIcon = BitmapFactory.decodeResource(resources, R.drawable.ic_notification_cat_large)
 
         val notification = NotificationCompat.Builder(this, SCAN_CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(message)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_notification_cat)
             .setLargeIcon(catLargeIcon)
             .setColor(0xFFFF8A00.toInt())
             .setContentIntent(pendingIntent)
@@ -380,12 +380,12 @@ class SlipDetectionService : Service() {
         val title = if (isIncome) "💰 พบยอดเงินเข้าใหม่ (รายรับ)" else "🧾 พบสลิปใหม่ แตะเพื่อบันทึก"
         val desc = if (isIncome) "ตรวจพบยอดเงินเข้า: $bankName แตะเพื่อตรวจสอบและบันทึก" else "ตรวจพบ: $bankName แตะเพื่อตรวจสอบยอดเงินและบันทึก"
 
-        val catLargeIcon = BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher)
+        val catLargeIcon = BitmapFactory.decodeResource(resources, R.drawable.ic_notification_cat_large)
 
         val notification = NotificationCompat.Builder(this, HEADS_UP_CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(desc)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_notification_cat)
             .setLargeIcon(catLargeIcon)
             .setColor(0xFFFF8A00.toInt())
             .setContentIntent(pendingIntent)

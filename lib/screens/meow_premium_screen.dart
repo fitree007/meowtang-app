@@ -15,7 +15,6 @@ import 'islamic_baby_hair_charity_screen.dart';
 import 'currency_converter_screen.dart';
 import '../widgets/live_rates_dashboard_widget.dart';
 import '../widgets/meow_paywall_modal.dart';
-import '../config/app_config.dart';
 
 class MeowPremiumScreen extends StatefulWidget {
   final ExpenseController controller;
@@ -179,6 +178,120 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (!isVip) ...[
+                      // Prominent VIP Upgrade / Purchase Banner
+                      InkWell(
+                        onTap: () {
+                          MeowPaywallModal.show(
+                            context,
+                            controller: widget.controller,
+                            reason: 'สั่งซื้อแพ็กเกจพรีเมี่ยม VIP เพื่อปลดล็อคทุกฟีเจอร์อย่างสมบูรณ์แบบ ✨',
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(18),
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.5), width: 1.5),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFF59E0B).withValues(alpha: 0.18),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 46,
+                                height: 46,
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [Color(0xFFFBBF24), Color(0xFFD97706)],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: const Center(
+                                  child: Text('👑', style: TextStyle(fontSize: 24)),
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Text(
+                                          isEn ? 'Upgrade to VIP Premium' : 'สั่งซื้อแพ็กเกจพรีเมี่ยม VIP',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFF59E0B),
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: const Text(
+                                            'HOT ✨',
+                                            style: TextStyle(
+                                              color: Colors.black,
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.w900,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      isEn
+                                          ? 'Unlock all converters, budget tools & unlimited slips'
+                                          : 'ปลดล็อคเครื่องคิดเลขแปลงเงิน, งบ 50/30/20 & สแกนสลิปไม่จำกัด',
+                                      style: TextStyle(
+                                        color: Colors.white.withValues(alpha: 0.8),
+                                        fontSize: 11.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF59E0B),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  isEn ? 'Buy' : 'สั่งซื้อ',
+                                  style: const TextStyle(
+                                    color: Colors.black,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
                     // ==========================================================
                     // SECTION 1: GLOBAL CURRENCIES & COMMODITIES (3-in-1 COMPACT HUB)
                     // ==========================================================
@@ -273,12 +386,18 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                                         decoration: BoxDecoration(
-                                          color: const Color(0xFF0284C7).withValues(alpha: 0.15),
+                                          color: !isVip
+                                              ? const Color(0xFFF59E0B).withValues(alpha: 0.18)
+                                              : const Color(0xFF0284C7).withValues(alpha: 0.15),
                                           borderRadius: BorderRadius.circular(6),
                                         ),
-                                        child: const Text(
-                                          'สด ⚡',
-                                          style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Color(0xFF0284C7)),
+                                        child: Text(
+                                          !isVip ? '🔒 VIP' : 'สด ⚡',
+                                          style: TextStyle(
+                                            fontSize: 9.5,
+                                            fontWeight: FontWeight.bold,
+                                            color: !isVip ? const Color(0xFFF59E0B) : const Color(0xFF0284C7),
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -334,6 +453,7 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                           borderColor: borderColor,
                           textColor: textColor,
                           subTextColor: subTextColor,
+                          isLocked: !isVip,
                           onTap: () => _openFeature(SavingGoalsScreen(controller: widget.controller)),
                         ),
 
@@ -351,6 +471,7 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                           borderColor: borderColor,
                           textColor: textColor,
                           subTextColor: subTextColor,
+                          isLocked: !isVip,
                           onTap: () => _openFeature(BudgetManagementScreen(controller: widget.controller)),
                         ),
 
@@ -366,6 +487,7 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                           borderColor: borderColor,
                           textColor: textColor,
                           subTextColor: subTextColor,
+                          isLocked: !isVip,
                           onTap: () => _openFeature(GoalCalculatorScreen(controller: widget.controller)),
                         ),
 
@@ -381,6 +503,7 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                           borderColor: borderColor,
                           textColor: textColor,
                           subTextColor: subTextColor,
+                          isLocked: !isVip,
                           onTap: () => _openFeature(
                             ProjectsBudgetScreen(controller: widget.controller),
                             reason: 'งบโปรเจกต์ & ทุนวิจัย สำหรับสมาชิก VIP 👑',
@@ -422,6 +545,7 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                           borderColor: borderColor,
                           textColor: textColor,
                           subTextColor: subTextColor,
+                          isLocked: !isVip,
                           onTap: () => _openFeature(ZakatCalculatorScreen(controller: widget.controller)),
                         ),
 
@@ -437,6 +561,7 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                           borderColor: borderColor,
                           textColor: textColor,
                           subTextColor: subTextColor,
+                          isLocked: !isVip,
                           onTap: () => _openFeature(IslamicInheritanceScreen(controller: widget.controller)),
                         ),
                       ],
@@ -451,7 +576,12 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                         decoration: BoxDecoration(
                           color: cardBg,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4), width: 1.2),
+                          border: Border.all(
+                            color: !isVip
+                                ? const Color(0xFFF59E0B).withValues(alpha: 0.35)
+                                : const Color(0xFF10B981).withValues(alpha: 0.4),
+                            width: 1.2,
+                          ),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
@@ -466,10 +596,16 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                               width: 38,
                               height: 38,
                               decoration: BoxDecoration(
-                                color: const Color(0xFF10B981).withValues(alpha: 0.14),
+                                color: !isVip
+                                    ? const Color(0xFFF59E0B).withValues(alpha: 0.15)
+                                    : const Color(0xFF10B981).withValues(alpha: 0.14),
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: const Center(child: Text('👶', style: TextStyle(fontSize: 20))),
+                              child: Center(
+                                child: !isVip
+                                    ? const Icon(Icons.lock_outline_rounded, color: Color(0xFFF59E0B), size: 19)
+                                    : const Text('👶', style: TextStyle(fontSize: 20)),
+                              ),
                             ),
                             const SizedBox(width: 10),
                             Expanded(
@@ -490,12 +626,18 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                                         decoration: BoxDecoration(
-                                          color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                                          color: !isVip
+                                              ? const Color(0xFFF59E0B).withValues(alpha: 0.18)
+                                              : const Color(0xFF10B981).withValues(alpha: 0.15),
                                           borderRadius: BorderRadius.circular(6),
                                         ),
-                                        child: const Text(
-                                          'ซุนนะฮ์ ﷺ',
-                                          style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Color(0xFF047857)),
+                                        child: Text(
+                                          !isVip ? '🔒 VIP' : 'ซุนนะฮ์ ﷺ',
+                                          style: TextStyle(
+                                            fontSize: 9.5,
+                                            fontWeight: FontWeight.bold,
+                                            color: !isVip ? const Color(0xFFF59E0B) : const Color(0xFF047857),
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -565,6 +707,7 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
     required Color textColor,
     required Color subTextColor,
     required VoidCallback onTap,
+    bool isLocked = false,
   }) {
     return TactileButton(
       onTap: onTap,
@@ -573,7 +716,10 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
         decoration: BoxDecoration(
           color: cardBg,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: borderColor),
+          border: Border.all(
+            color: isLocked ? const Color(0xFFF59E0B).withValues(alpha: 0.35) : borderColor,
+            width: isLocked ? 1.2 : 1.0,
+          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.03),
@@ -593,21 +739,29 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                   width: 32,
                   height: 32,
                   decoration: BoxDecoration(
-                    color: iconColor.withValues(alpha: 0.12),
+                    color: isLocked
+                        ? const Color(0xFFF59E0B).withValues(alpha: 0.15)
+                        : iconColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(icon, color: iconColor, size: 17),
+                  child: Icon(
+                    isLocked ? Icons.lock_outline_rounded : icon,
+                    color: isLocked ? const Color(0xFFF59E0B) : iconColor,
+                    size: 17,
+                  ),
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: iconColor.withValues(alpha: 0.1),
+                    color: isLocked
+                        ? const Color(0xFFF59E0B).withValues(alpha: 0.15)
+                        : iconColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    badgeText,
+                    isLocked ? '🔒 VIP' : badgeText,
                     style: TextStyle(
-                      color: iconColor,
+                      color: isLocked ? const Color(0xFFF59E0B) : iconColor,
                       fontSize: 9.5,
                       fontWeight: FontWeight.bold,
                     ),
