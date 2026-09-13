@@ -1343,13 +1343,10 @@ class MainActivity : FlutterActivity() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        val catLargeIcon = BitmapFactory.decodeResource(resources, R.drawable.ic_notification_cat_large)
-
         val notification = NotificationCompat.Builder(this, SCAN_CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(message)
             .setSmallIcon(R.drawable.ic_notification_cat)
-            .setLargeIcon(catLargeIcon)
             .setColor(0xFFFF8A00.toInt())
             .setContentIntent(pendingIntent)
             .setOngoing(true)
@@ -1375,13 +1372,10 @@ class MainActivity : FlutterActivity() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        val catLargeIcon = BitmapFactory.decodeResource(resources, R.drawable.ic_notification_cat_large)
-
         val notification = NotificationCompat.Builder(this, SCAN_CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(message)
             .setSmallIcon(R.drawable.ic_notification_cat)
-            .setLargeIcon(catLargeIcon)
             .setColor(0xFFFF8A00.toInt())
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)

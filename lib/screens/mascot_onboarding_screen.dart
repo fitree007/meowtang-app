@@ -334,7 +334,7 @@ class _MascotOnboardingScreenState extends State<MascotOnboardingScreen> with Si
                         accessory: _selectedAccessory,
                         customPhotoPath: customPhoto,
                         isCustomPhoto: isCustomPhoto,
-                        withPen: true,
+                        withPen: false,
                         animate: true,
                       ),
                     ),

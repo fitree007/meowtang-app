@@ -107,6 +107,46 @@ class MascotCatalog {
       icon: Icons.military_tech,
     ),
     MascotInfo(
+      id: 'cat_siamese',
+      name: 'เหมี่ยววิเชียรมาศสยาม (Siamese Cat)',
+      subtitle: 'แมววิเชียรมาศแท้ แต้มช็อกโกแลตมงคล ตาสีฟ้าครามสดใส เรียกทรัพย์',
+      primaryColor: Color(0xFFD97706),
+      secondaryColor: Color(0xFF78350F),
+      icon: Icons.pets,
+    ),
+    MascotInfo(
+      id: 'cat_grey',
+      name: 'เหมี่ยวเทาสลิดบริติช (British Grey Tabby)',
+      subtitle: 'แมวสีเทาควันบุหรี่ ขนเงางาม สุขุม นิ่งสงบ บริหารเงินเนี๊ยบ',
+      primaryColor: Color(0xFF64748B),
+      secondaryColor: Color(0xFF475569),
+      icon: Icons.pets,
+    ),
+    MascotInfo(
+      id: 'cat_tuxedo',
+      name: 'เหมี่ยวทักซิโด้มาดคุณชาย (Gentleman Tuxedo)',
+      subtitle: 'แมวทักซิโด้สูทดำอกขาว มาดคุณชายผู้มั่งคั่ง สุภาพ รอบคอบ',
+      primaryColor: Color(0xFF0F172A),
+      secondaryColor: Color(0xFF334155),
+      icon: Icons.pets,
+    ),
+    MascotInfo(
+      id: 'cat_pink',
+      name: 'เหมี่ยวขาวซากุระหูชมพู (Sakura White Kitty)',
+      subtitle: 'แมวขาวปุกปุย หูชมพูพาสเทล น่ารักสดใส อ่อนโยน แจ่มใส',
+      primaryColor: Color(0xFFF472B6),
+      secondaryColor: Color(0xFFEC4899),
+      icon: Icons.favorite,
+    ),
+    MascotInfo(
+      id: 'cat_golden',
+      name: 'เหมี่ยวทองคำจักรพรรดิ (Imperial Golden Cat)',
+      subtitle: 'แมวสีทองคำอร่าม นำพาความมั่งคั่งและริซกีอันไพศาล',
+      primaryColor: Color(0xFFF59E0B),
+      secondaryColor: Color(0xFFB45309),
+      icon: Icons.auto_awesome,
+    ),
+    MascotInfo(
       id: 'shiba_gold',
       name: 'ชิบะนักออม (Saver Shiba)',
       subtitle: 'ผู้พิทักษ์เงินออมและวินัยการเงิน ซื่อสัตย์ภักดี',
@@ -257,6 +297,11 @@ class MascotCatalog {
     AccessoryInfo(id: 'halo', name: 'วงแหวนเทวดานำโชค', icon: Icons.circle_outlined),
     AccessoryInfo(id: 'wizard_hat', name: 'หมวกพ่อมดการเงิน', icon: Icons.auto_awesome_rounded),
     AccessoryInfo(id: 'headband', name: 'ผ้าคาดหัวนักสู้', icon: Icons.sports_martial_arts_rounded),
+    AccessoryInfo(id: 'wings_grand', name: 'ปีกเทวทูตคู่สีทองสยาย', icon: Icons.auto_awesome_rounded),
+    AccessoryInfo(id: 'aurora_halo', name: 'วงแหวนออโรร่าเรืองแสง', icon: Icons.wb_sunny_rounded),
+    AccessoryInfo(id: 'royal_cape', name: 'ผ้าคลุมราชันย์ทองคำ', icon: Icons.shield_rounded),
+    AccessoryInfo(id: 'phoenix_crown', name: 'มงกุฎฟีนิกซ์ประกายเพชร', icon: Icons.workspace_premium_rounded),
+    AccessoryInfo(id: 'magic_wand', name: 'คทาคริสตัลดวงดาว', icon: Icons.flare_rounded),
   ];
 }
 
@@ -277,7 +322,7 @@ class MeowMascotWidget extends StatefulWidget {
   const MeowMascotWidget({
     super.key,
     this.size = 80,
-    this.withPen = true,
+    this.withPen = false,
     this.isHeadOnly = false,
     this.mascotId,
     this.accessory,
@@ -636,9 +681,12 @@ class _UniversalMascotPainter extends CustomPainter {
     final w = size.width;
     final h = size.height;
 
-    // 1. Draw Wings under mascot if selected
-    if (accessory == 'wings' && withPen) {
-      _paintWingsUnder(canvas, w, h);
+    // 1. Draw Cape or Wings under mascot if selected
+    if (accessory == 'royal_cape') {
+      _paintRoyalCapeUnder(canvas, w, h);
+    }
+    if (accessory == 'wings' || accessory == 'wings_grand') {
+      _paintWingsUnder(canvas, w, h, isGrand: accessory == 'wings_grand');
     }
 
     // 2. Draw Mascot Body & Face
@@ -657,6 +705,21 @@ class _UniversalMascotPainter extends CustomPainter {
         break;
       case 'cat_samurai':
         _paintSamuraiCat(canvas, w, h);
+        break;
+      case 'cat_siamese':
+        _paintSiameseCat(canvas, w, h);
+        break;
+      case 'cat_grey':
+        _paintGreyTabbyCat(canvas, w, h);
+        break;
+      case 'cat_tuxedo':
+        _paintTuxedoCat(canvas, w, h);
+        break;
+      case 'cat_pink':
+        _paintSakuraCat(canvas, w, h);
+        break;
+      case 'cat_golden':
+        _paintGoldenCat(canvas, w, h);
         break;
       case 'shiba_gold':
         _paintShiba(canvas, w, h);
@@ -688,38 +751,81 @@ class _UniversalMascotPainter extends CustomPainter {
         break;
     }
 
-    // 2.5 Draw Wearable Outfit on Body
+    // 2.5 Draw Wearable Outfit on Body (if any)
     if (!isHeadOnly && outfit != 'none') {
       _paintOutfit(canvas, w, h, outfit);
     }
 
-    // 3. Draw Accessory Overlays (Headwear, Neckwear, Handheld)
-    if (withPen) {
+    // 3. Draw Accessory Overlays (Headwear, Neckwear, Handheld, Aurora Aura)
+    if (accessory.isNotEmpty && accessory != 'none') {
       _paintAccessoryOverlay(canvas, w, h);
+    }
+
+    // 4. Draw Pen only if explicitly requested via withPen and accessory wasn't already pen
+    if (withPen && accessory != 'pen') {
+      _paintPen(canvas, w, h);
     }
   }
 
-  void _paintWingsUnder(Canvas canvas, double w, double h) {
-    final goldPaint = Paint()..color = const Color(0xFFFBBF24);
-    final shadowGold = Paint()..color = const Color(0xFFD97706);
-
-    // Left Wing
-    final leftWing = Path()
-      ..moveTo(w * 0.30, h * 0.50)
-      ..quadraticBezierTo(w * 0.05, h * 0.20, -w * 0.15, h * 0.35)
-      ..quadraticBezierTo(w * 0.05, h * 0.60, w * 0.30, h * 0.70)
+  void _paintRoyalCapeUnder(Canvas canvas, double w, double h) {
+    final capePaint = Paint()..color = const Color(0xFFB91C1C);
+    final capeGoldTrim = Paint()..color = const Color(0xFFFBBF24)..style = PaintingStyle.stroke..strokeWidth = w * 0.025;
+    final capePath = Path()
+      ..moveTo(w * 0.26, h * 0.62)
+      ..quadraticBezierTo(w * 0.06, h * 0.85, w * 0.12, h * 1.05)
+      ..quadraticBezierTo(w * 0.50, h * 1.10, w * 0.88, h * 1.05)
+      ..quadraticBezierTo(w * 0.94, h * 0.85, w * 0.74, h * 0.62)
       ..close();
-    canvas.drawPath(leftWing, shadowGold);
-    canvas.drawPath(leftWing, goldPaint..style = PaintingStyle.fill);
+    canvas.drawPath(capePath, capePaint);
+    canvas.drawPath(capePath, capeGoldTrim);
+  }
 
-    // Right Wing
-    final rightWing = Path()
-      ..moveTo(w * 0.70, h * 0.50)
-      ..quadraticBezierTo(w * 0.95, h * 0.20, w * 1.15, h * 0.35)
-      ..quadraticBezierTo(w * 0.95, h * 0.60, w * 0.70, h * 0.70)
+  void _paintWingsUnder(Canvas canvas, double w, double h, {bool isGrand = false}) {
+    final goldBright = Paint()..color = const Color(0xFFFDE047);
+    final goldBase = Paint()..color = const Color(0xFFF59E0B);
+    final goldDeep = Paint()..color = const Color(0xFFD97706);
+    final whiteFeather = Paint()..color = Colors.white.withValues(alpha: 0.9);
+
+    final double spread = isGrand ? 1.45 : 1.15;
+    final double reachY = isGrand ? 0.05 : 0.22;
+
+    // LEFT WING (Grand Multi-layer)
+    final leftOuter = Path()
+      ..moveTo(w * 0.32, h * 0.56)
+      ..quadraticBezierTo(w * 0.02, h * reachY, -w * (spread - 1.0), h * 0.28)
+      ..quadraticBezierTo(-w * (spread - 1.15), h * 0.50, -w * (spread - 1.05), h * 0.62)
+      ..quadraticBezierTo(w * 0.05, h * 0.78, w * 0.32, h * 0.72)
       ..close();
-    canvas.drawPath(rightWing, shadowGold);
-    canvas.drawPath(rightWing, goldPaint..style = PaintingStyle.fill);
+    canvas.drawPath(leftOuter, goldDeep);
+    canvas.drawPath(leftOuter, goldBase);
+
+    // Left Inner Feathers Layer
+    final leftInner = Path()
+      ..moveTo(w * 0.30, h * 0.54)
+      ..quadraticBezierTo(w * 0.06, h * (reachY + 0.10), -w * (spread - 1.12), h * 0.38)
+      ..quadraticBezierTo(w * 0.05, h * 0.65, w * 0.30, h * 0.68)
+      ..close();
+    canvas.drawPath(leftInner, goldBright);
+    if (isGrand) canvas.drawPath(leftInner, whiteFeather);
+
+    // RIGHT WING (Grand Multi-layer)
+    final rightOuter = Path()
+      ..moveTo(w * 0.68, h * 0.56)
+      ..quadraticBezierTo(w * 0.98, h * reachY, w * spread, h * 0.28)
+      ..quadraticBezierTo(w * (spread - 0.15), h * 0.50, w * (spread - 0.05), h * 0.62)
+      ..quadraticBezierTo(w * 0.95, h * 0.78, w * 0.68, h * 0.72)
+      ..close();
+    canvas.drawPath(rightOuter, goldDeep);
+    canvas.drawPath(rightOuter, goldBase);
+
+    // Right Inner Feathers Layer
+    final rightInner = Path()
+      ..moveTo(w * 0.70, h * 0.54)
+      ..quadraticBezierTo(w * 0.94, h * (reachY + 0.10), w * (spread - 0.12), h * 0.38)
+      ..quadraticBezierTo(w * 0.95, h * 0.65, w * 0.70, h * 0.68)
+      ..close();
+    canvas.drawPath(rightInner, goldBright);
+    if (isGrand) canvas.drawPath(rightInner, whiteFeather);
   }
 
   /// 1. Ginger Tabby Cat (เหมี่ยวส้มจอมวางแผน)
@@ -1068,8 +1174,251 @@ class _UniversalMascotPainter extends CustomPainter {
     canvas.drawPath(Path()..moveTo(w * 0.50, h * 0.57)..quadraticBezierTo(w * 0.56, h * 0.63, w * 0.60, h * 0.59), mouthPaint);
   }
 
+  /// 7. Siamese Cat (เหมี่ยววิเชียรมาศสยาม)
+  void _paintSiameseCat(Canvas canvas, double w, double h) {
+    final creamCoat = Paint()..color = const Color(0xFFFEF3C7);
+    final darkSeal = Paint()..color = const Color(0xFF451A03);
+    final sapphireEyes = Paint()..color = const Color(0xFF0284C7);
+    final pinkNose = Paint()..color = const Color(0xFFF472B6);
+    final redCollar = Paint()..color = const Color(0xFFEF4444);
+    final goldBell = Paint()..color = const Color(0xFFFBBF24);
+    final whiteGlint = Paint()..color = Colors.white;
+
+    if (!isHeadOnly) {
+      final body = Path()
+        ..moveTo(w * 0.32, h * 0.65)
+        ..quadraticBezierTo(w * 0.20, h * 0.85, w * 0.25, h * 0.95)
+        ..quadraticBezierTo(w * 0.50, h * 0.99, w * 0.75, h * 0.95)
+        ..quadraticBezierTo(w * 0.80, h * 0.85, w * 0.68, h * 0.65)
+        ..close();
+      canvas.drawPath(body, creamCoat);
+      // Dark paws at bottom
+      canvas.drawCircle(Offset(w * 0.36, h * 0.93), w * 0.08, darkSeal);
+      canvas.drawCircle(Offset(w * 0.64, h * 0.93), w * 0.08, darkSeal);
+      // Red collar with gold bell
+      canvas.drawPath(Path()..moveTo(w * 0.30, h * 0.66)..quadraticBezierTo(w * 0.50, h * 0.74, w * 0.70, h * 0.66)..lineTo(w * 0.70, h * 0.70)..quadraticBezierTo(w * 0.50, h * 0.78, w * 0.30, h * 0.70)..close(), redCollar);
+      canvas.drawCircle(Offset(w * 0.50, h * 0.75), w * 0.05, goldBell);
+    }
+
+    // Seal point Ears
+    final leftEar = Path()..moveTo(w * 0.16, h * 0.44)..quadraticBezierTo(w * 0.16, h * 0.16, w * 0.30, h * 0.12)..quadraticBezierTo(w * 0.44, h * 0.26, w * 0.42, h * 0.40)..close();
+    canvas.drawPath(leftEar, darkSeal);
+    final rightEar = Path()..moveTo(w * 0.84, h * 0.44)..quadraticBezierTo(w * 0.84, h * 0.16, w * 0.70, h * 0.12)..quadraticBezierTo(w * 0.56, h * 0.26, w * 0.58, h * 0.40)..close();
+    canvas.drawPath(rightEar, darkSeal);
+
+    // Cream Head
+    canvas.drawCircle(Offset(w * 0.5, h * 0.52), w * 0.36, creamCoat);
+
+    // Seal Brown Mask in Center of Face
+    final mask = Path()
+      ..moveTo(w * 0.30, h * 0.44)
+      ..quadraticBezierTo(w * 0.50, h * 0.36, w * 0.70, h * 0.44)
+      ..quadraticBezierTo(w * 0.74, h * 0.64, w * 0.50, h * 0.68)
+      ..quadraticBezierTo(w * 0.26, h * 0.64, w * 0.30, h * 0.44)
+      ..close();
+    canvas.drawPath(mask, darkSeal);
+
+    // Beautiful Sapphire Blue Eyes
+    final eyeR = w * 0.055;
+    canvas.drawCircle(Offset(w * 0.35, h * 0.48), eyeR, sapphireEyes);
+    canvas.drawCircle(Offset(w * 0.65, h * 0.48), eyeR, sapphireEyes);
+    canvas.drawCircle(Offset(w * 0.335, h * 0.465), eyeR * 0.45, whiteGlint);
+    canvas.drawCircle(Offset(w * 0.635, h * 0.465), eyeR * 0.45, whiteGlint);
+
+    // Nose & Whiskers
+    final nose = Path()..moveTo(w * 0.47, h * 0.54)..lineTo(w * 0.53, h * 0.54)..lineTo(w * 0.50, h * 0.57)..close();
+    canvas.drawPath(nose, pinkNose);
+    final whiskerPaint = Paint()..color = Colors.white70..style = PaintingStyle.stroke..strokeWidth = w * 0.015..strokeCap = StrokeCap.round;
+    canvas.drawLine(Offset(w * 0.16, h * 0.54), Offset(w * 0.28, h * 0.56), whiskerPaint);
+    canvas.drawLine(Offset(w * 0.84, h * 0.54), Offset(w * 0.72, h * 0.56), whiskerPaint);
+  }
+
+  /// 8. British Grey Tabby Cat (เหมี่ยวเทาสลิดบริติช)
+  void _paintGreyTabbyCat(Canvas canvas, double w, double h) {
+    final greyCoat = Paint()..color = const Color(0xFF64748B);
+    final darkGrey = Paint()..color = const Color(0xFF334155);
+    final emeraldEyes = Paint()..color = const Color(0xFF10B981);
+    final whitePaint = Paint()..color = Colors.white;
+    final pinkPaint = Paint()..color = const Color(0xFFF472B6);
+    final yellowCollar = Paint()..color = const Color(0xFFEAB308);
+    final bell = Paint()..color = const Color(0xFFFBBF24);
+
+    if (!isHeadOnly) {
+      final body = Path()..moveTo(w * 0.32, h * 0.65)..quadraticBezierTo(w * 0.20, h * 0.85, w * 0.25, h * 0.95)..quadraticBezierTo(w * 0.50, h * 0.99, w * 0.75, h * 0.95)..quadraticBezierTo(w * 0.80, h * 0.85, w * 0.68, h * 0.65)..close();
+      canvas.drawPath(body, greyCoat);
+      // White chest bib
+      final bib = Path()..moveTo(w * 0.38, h * 0.68)..quadraticBezierTo(w * 0.32, h * 0.85, w * 0.36, h * 0.95)..lineTo(w * 0.64, h * 0.95)..quadraticBezierTo(w * 0.68, h * 0.85, w * 0.62, h * 0.68)..close();
+      canvas.drawPath(bib, whitePaint);
+      canvas.drawPath(Path()..moveTo(w * 0.30, h * 0.66)..quadraticBezierTo(w * 0.50, h * 0.74, w * 0.70, h * 0.66)..lineTo(w * 0.70, h * 0.70)..quadraticBezierTo(w * 0.50, h * 0.78, w * 0.30, h * 0.70)..close(), yellowCollar);
+      canvas.drawCircle(Offset(w * 0.50, h * 0.75), w * 0.05, bell);
+    }
+
+    // Ears
+    canvas.drawPath(Path()..moveTo(w * 0.16, h * 0.44)..quadraticBezierTo(w * 0.16, h * 0.16, w * 0.30, h * 0.12)..quadraticBezierTo(w * 0.44, h * 0.26, w * 0.42, h * 0.40)..close(), greyCoat);
+    canvas.drawPath(Path()..moveTo(w * 0.22, h * 0.38)..lineTo(w * 0.30, h * 0.18)..lineTo(w * 0.38, h * 0.35)..close(), pinkPaint);
+    canvas.drawPath(Path()..moveTo(w * 0.84, h * 0.44)..quadraticBezierTo(w * 0.84, h * 0.16, w * 0.70, h * 0.12)..quadraticBezierTo(w * 0.56, h * 0.26, w * 0.58, h * 0.40)..close(), greyCoat);
+    canvas.drawPath(Path()..moveTo(w * 0.78, h * 0.38)..lineTo(w * 0.70, h * 0.18)..lineTo(w * 0.62, h * 0.35)..close(), pinkPaint);
+
+    // Head
+    canvas.drawCircle(Offset(w * 0.5, h * 0.52), w * 0.36, greyCoat);
+
+    // Tabby Stripes
+    final stripe = Paint()..color = darkGrey.color..style = PaintingStyle.stroke..strokeWidth = w * 0.024..strokeCap = StrokeCap.round;
+    canvas.drawLine(Offset(w * 0.50, h * 0.22), Offset(w * 0.50, h * 0.34), stripe);
+    canvas.drawLine(Offset(w * 0.42, h * 0.24), Offset(w * 0.44, h * 0.33), stripe);
+    canvas.drawLine(Offset(w * 0.58, h * 0.24), Offset(w * 0.56, h * 0.33), stripe);
+
+    // White Muzzle
+    final muzzle = Path()..moveTo(w * 0.30, h * 0.56)..quadraticBezierTo(w * 0.50, h * 0.44, w * 0.70, h * 0.56)..quadraticBezierTo(w * 0.50, h * 0.74, w * 0.30, h * 0.56)..close();
+    canvas.drawPath(muzzle, whitePaint);
+    canvas.drawCircle(Offset(w * 0.28, h * 0.58), w * 0.055, pinkPaint);
+    canvas.drawCircle(Offset(w * 0.72, h * 0.58), w * 0.055, pinkPaint);
+
+    // Eyes
+    final eyeR = w * 0.055;
+    canvas.drawCircle(Offset(w * 0.35, h * 0.48), eyeR, emeraldEyes);
+    canvas.drawCircle(Offset(w * 0.65, h * 0.48), eyeR, emeraldEyes);
+    canvas.drawCircle(Offset(w * 0.335, h * 0.465), eyeR * 0.45, whitePaint);
+    canvas.drawCircle(Offset(w * 0.635, h * 0.465), eyeR * 0.45, whitePaint);
+
+    final nose = Path()..moveTo(w * 0.47, h * 0.54)..lineTo(w * 0.53, h * 0.54)..lineTo(w * 0.50, h * 0.57)..close();
+    canvas.drawPath(nose, pinkPaint);
+  }
+
+  /// 9. Gentleman Tuxedo Cat (เหมี่ยวทักซิโด้มาดคุณชาย)
+  void _paintTuxedoCat(Canvas canvas, double w, double h) {
+    final blackCoat = Paint()..color = const Color(0xFF0F172A);
+    final whiteShirt = Paint()..color = Colors.white;
+    final goldEyes = Paint()..color = const Color(0xFFFBBF24);
+    final pinkNose = Paint()..color = const Color(0xFFF472B6);
+    final greenBow = Paint()..color = const Color(0xFF059669);
+
+    if (!isHeadOnly) {
+      final body = Path()..moveTo(w * 0.32, h * 0.65)..quadraticBezierTo(w * 0.20, h * 0.85, w * 0.25, h * 0.95)..quadraticBezierTo(w * 0.50, h * 0.99, w * 0.75, h * 0.95)..quadraticBezierTo(w * 0.80, h * 0.85, w * 0.68, h * 0.65)..close();
+      canvas.drawPath(body, blackCoat);
+      // Pure white tuxedo V-chest
+      final vChest = Path()..moveTo(w * 0.38, h * 0.66)..lineTo(w * 0.50, h * 0.96)..lineTo(w * 0.62, h * 0.66)..close();
+      canvas.drawPath(vChest, whiteShirt);
+      // Mini bow tie
+      canvas.drawCircle(Offset(w * 0.50, h * 0.72), w * 0.04, greenBow);
+    }
+
+    // Ears
+    canvas.drawPath(Path()..moveTo(w * 0.16, h * 0.44)..quadraticBezierTo(w * 0.16, h * 0.16, w * 0.30, h * 0.12)..quadraticBezierTo(w * 0.44, h * 0.26, w * 0.42, h * 0.40)..close(), blackCoat);
+    canvas.drawPath(Path()..moveTo(w * 0.22, h * 0.38)..lineTo(w * 0.30, h * 0.18)..lineTo(w * 0.38, h * 0.35)..close(), pinkNose);
+    canvas.drawPath(Path()..moveTo(w * 0.84, h * 0.44)..quadraticBezierTo(w * 0.84, h * 0.16, w * 0.70, h * 0.12)..quadraticBezierTo(w * 0.56, h * 0.26, w * 0.58, h * 0.40)..close(), blackCoat);
+    canvas.drawPath(Path()..moveTo(w * 0.78, h * 0.38)..lineTo(w * 0.70, h * 0.18)..lineTo(w * 0.62, h * 0.35)..close(), pinkNose);
+
+    // Head
+    canvas.drawCircle(Offset(w * 0.5, h * 0.52), w * 0.36, blackCoat);
+
+    // White Chin & Mustache patch
+    final whiteChin = Path()..moveTo(w * 0.35, h * 0.56)..quadraticBezierTo(w * 0.50, h * 0.48, w * 0.65, h * 0.56)..quadraticBezierTo(w * 0.50, h * 0.74, w * 0.35, h * 0.56)..close();
+    canvas.drawPath(whiteChin, whiteShirt);
+
+    // Eyes
+    final eyeR = w * 0.055;
+    canvas.drawCircle(Offset(w * 0.35, h * 0.48), eyeR, goldEyes);
+    canvas.drawCircle(Offset(w * 0.65, h * 0.48), eyeR, goldEyes);
+    canvas.drawCircle(Offset(w * 0.335, h * 0.465), eyeR * 0.45, whiteShirt);
+    canvas.drawCircle(Offset(w * 0.635, h * 0.465), eyeR * 0.45, whiteShirt);
+
+    final nose = Path()..moveTo(w * 0.47, h * 0.54)..lineTo(w * 0.53, h * 0.54)..lineTo(w * 0.50, h * 0.57)..close();
+    canvas.drawPath(nose, pinkNose);
+  }
+
+  /// 10. Sakura White Kitty (เหมี่ยวขาวซากุระหูชมพู)
+  void _paintSakuraCat(Canvas canvas, double w, double h) {
+    final whiteCoat = Paint()..color = Colors.white;
+    final pinkSakura = Paint()..color = const Color(0xFFF472B6);
+    final skyBlueEyes = Paint()..color = const Color(0xFF38BDF8);
+
+    if (!isHeadOnly) {
+      final body = Path()..moveTo(w * 0.32, h * 0.65)..quadraticBezierTo(w * 0.20, h * 0.85, w * 0.25, h * 0.95)..quadraticBezierTo(w * 0.50, h * 0.99, w * 0.75, h * 0.95)..quadraticBezierTo(w * 0.80, h * 0.85, w * 0.68, h * 0.65)..close();
+      canvas.drawPath(body, whiteCoat);
+      // Pink ribbon collar
+      canvas.drawPath(Path()..moveTo(w * 0.30, h * 0.66)..quadraticBezierTo(w * 0.50, h * 0.74, w * 0.70, h * 0.66)..lineTo(w * 0.70, h * 0.70)..quadraticBezierTo(w * 0.50, h * 0.78, w * 0.30, h * 0.70)..close(), pinkSakura);
+      canvas.drawCircle(Offset(w * 0.50, h * 0.75), w * 0.045, Paint()..color = const Color(0xFFFBBF24));
+    }
+
+    // Ears
+    canvas.drawPath(Path()..moveTo(w * 0.16, h * 0.44)..quadraticBezierTo(w * 0.16, h * 0.16, w * 0.30, h * 0.12)..quadraticBezierTo(w * 0.44, h * 0.26, w * 0.42, h * 0.40)..close(), whiteCoat);
+    canvas.drawPath(Path()..moveTo(w * 0.22, h * 0.38)..lineTo(w * 0.30, h * 0.18)..lineTo(w * 0.38, h * 0.35)..close(), pinkSakura);
+    canvas.drawPath(Path()..moveTo(w * 0.84, h * 0.44)..quadraticBezierTo(w * 0.84, h * 0.16, w * 0.70, h * 0.12)..quadraticBezierTo(w * 0.56, h * 0.26, w * 0.58, h * 0.40)..close(), whiteCoat);
+    canvas.drawPath(Path()..moveTo(w * 0.78, h * 0.38)..lineTo(w * 0.70, h * 0.18)..lineTo(w * 0.62, h * 0.35)..close(), pinkSakura);
+
+    // Head
+    canvas.drawCircle(Offset(w * 0.5, h * 0.52), w * 0.36, whiteCoat);
+    final cheekPaint = Paint()..color = pinkSakura.color.withValues(alpha: 0.6);
+    canvas.drawCircle(Offset(w * 0.28, h * 0.58), w * 0.06, cheekPaint);
+    canvas.drawCircle(Offset(w * 0.72, h * 0.58), w * 0.06, cheekPaint);
+
+    // Eyes
+    final eyeR = w * 0.055;
+    canvas.drawCircle(Offset(w * 0.35, h * 0.48), eyeR, skyBlueEyes);
+    canvas.drawCircle(Offset(w * 0.65, h * 0.48), eyeR, skyBlueEyes);
+    canvas.drawCircle(Offset(w * 0.335, h * 0.465), eyeR * 0.45, whiteCoat);
+    canvas.drawCircle(Offset(w * 0.635, h * 0.465), eyeR * 0.45, whiteCoat);
+
+    final nose = Path()..moveTo(w * 0.47, h * 0.54)..lineTo(w * 0.53, h * 0.54)..lineTo(w * 0.50, h * 0.57)..close();
+    canvas.drawPath(nose, pinkSakura);
+  }
+
+  /// 11. Imperial Golden Cat (เหมี่ยวทองคำจักรพรรดิ)
+  void _paintGoldenCat(Canvas canvas, double w, double h) {
+    final goldCoat = Paint()..color = const Color(0xFFFBBF24);
+    final darkAmber = Paint()..color = const Color(0xFFB45309);
+    final rubyRed = Paint()..color = const Color(0xFFDC2626);
+    final whitePaint = Paint()..color = Colors.white;
+
+    if (!isHeadOnly) {
+      final body = Path()..moveTo(w * 0.32, h * 0.65)..quadraticBezierTo(w * 0.20, h * 0.85, w * 0.25, h * 0.95)..quadraticBezierTo(w * 0.50, h * 0.99, w * 0.75, h * 0.95)..quadraticBezierTo(w * 0.80, h * 0.85, w * 0.68, h * 0.65)..close();
+      canvas.drawPath(body, goldCoat);
+      // Royal golden belly
+      final belly = Path()..moveTo(w * 0.38, h * 0.68)..quadraticBezierTo(w * 0.32, h * 0.85, w * 0.36, h * 0.95)..lineTo(w * 0.64, h * 0.95)..quadraticBezierTo(w * 0.68, h * 0.85, w * 0.62, h * 0.68)..close();
+      canvas.drawPath(belly, Paint()..color = const Color(0xFFFEF08A));
+      // Red royal collar with gold medal
+      canvas.drawPath(Path()..moveTo(w * 0.30, h * 0.66)..quadraticBezierTo(w * 0.50, h * 0.74, w * 0.70, h * 0.66)..lineTo(w * 0.70, h * 0.70)..quadraticBezierTo(w * 0.50, h * 0.78, w * 0.30, h * 0.70)..close(), rubyRed);
+      canvas.drawCircle(Offset(w * 0.50, h * 0.75), w * 0.055, Paint()..color = const Color(0xFFF59E0B));
+    }
+
+    // Ears
+    canvas.drawPath(Path()..moveTo(w * 0.16, h * 0.44)..quadraticBezierTo(w * 0.16, h * 0.16, w * 0.30, h * 0.12)..quadraticBezierTo(w * 0.44, h * 0.26, w * 0.42, h * 0.40)..close(), goldCoat);
+    canvas.drawPath(Path()..moveTo(w * 0.22, h * 0.38)..lineTo(w * 0.30, h * 0.18)..lineTo(w * 0.38, h * 0.35)..close(), rubyRed);
+    canvas.drawPath(Path()..moveTo(w * 0.84, h * 0.44)..quadraticBezierTo(w * 0.84, h * 0.16, w * 0.70, h * 0.12)..quadraticBezierTo(w * 0.56, h * 0.26, w * 0.58, h * 0.40)..close(), goldCoat);
+    canvas.drawPath(Path()..moveTo(w * 0.78, h * 0.38)..lineTo(w * 0.70, h * 0.18)..lineTo(w * 0.62, h * 0.35)..close(), rubyRed);
+
+    // Head
+    canvas.drawCircle(Offset(w * 0.5, h * 0.52), w * 0.36, goldCoat);
+
+    // Golden Stripes
+    final stripe = Paint()..color = darkAmber.color..style = PaintingStyle.stroke..strokeWidth = w * 0.025..strokeCap = StrokeCap.round;
+    canvas.drawLine(Offset(w * 0.50, h * 0.22), Offset(w * 0.50, h * 0.34), stripe);
+    canvas.drawLine(Offset(w * 0.42, h * 0.24), Offset(w * 0.44, h * 0.33), stripe);
+    canvas.drawLine(Offset(w * 0.58, h * 0.24), Offset(w * 0.56, h * 0.33), stripe);
+
+    // Eyes
+    final eyeR = w * 0.055;
+    final dark = Paint()..color = const Color(0xFF1E293B);
+    canvas.drawCircle(Offset(w * 0.35, h * 0.48), eyeR, dark);
+    canvas.drawCircle(Offset(w * 0.65, h * 0.48), eyeR, dark);
+    canvas.drawCircle(Offset(w * 0.335, h * 0.465), eyeR * 0.45, whitePaint);
+    canvas.drawCircle(Offset(w * 0.635, h * 0.465), eyeR * 0.45, whitePaint);
+
+    final nose = Path()..moveTo(w * 0.47, h * 0.54)..lineTo(w * 0.53, h * 0.54)..lineTo(w * 0.50, h * 0.57)..close();
+    canvas.drawPath(nose, darkAmber);
+  }
+
   void _paintShiba(Canvas canvas, double w, double h) {
     final shibaGold = Paint()..color = const Color(0xFFEAB308);
+    if (!isHeadOnly) {
+      final body = Path()..moveTo(w * 0.32, h * 0.65)..quadraticBezierTo(w * 0.20, h * 0.85, w * 0.25, h * 0.95)..quadraticBezierTo(w * 0.50, h * 0.99, w * 0.75, h * 0.95)..quadraticBezierTo(w * 0.80, h * 0.85, w * 0.68, h * 0.65)..close();
+      canvas.drawPath(body, shibaGold);
+      final bib = Path()..moveTo(w * 0.38, h * 0.68)..quadraticBezierTo(w * 0.32, h * 0.85, w * 0.36, h * 0.95)..lineTo(w * 0.64, h * 0.95)..quadraticBezierTo(w * 0.68, h * 0.85, w * 0.62, h * 0.68)..close();
+      canvas.drawPath(bib, Paint()..color = Colors.white);
+      canvas.drawPath(Path()..moveTo(w * 0.30, h * 0.66)..quadraticBezierTo(w * 0.50, h * 0.74, w * 0.70, h * 0.66)..lineTo(w * 0.70, h * 0.70)..quadraticBezierTo(w * 0.50, h * 0.78, w * 0.30, h * 0.70)..close(), Paint()..color = const Color(0xFF0284C7));
+      canvas.drawCircle(Offset(w * 0.50, h * 0.75), w * 0.05, Paint()..color = const Color(0xFFFBBF24));
+    }
     final whitePaint = Paint()..color = const Color(0xFFFFFFFF);
     final darkPaint = Paint()..color = const Color(0xFF1E293B);
     final pinkPaint = Paint()..color = const Color(0xFFF472B6);
@@ -1093,6 +1442,12 @@ class _UniversalMascotPainter extends CustomPainter {
 
   void _paintLion(Canvas canvas, double w, double h) {
     final goldMane = Paint()..color = const Color(0xFFD97706);
+    if (!isHeadOnly) {
+      final body = Path()..moveTo(w * 0.32, h * 0.65)..quadraticBezierTo(w * 0.20, h * 0.85, w * 0.25, h * 0.95)..quadraticBezierTo(w * 0.50, h * 0.99, w * 0.75, h * 0.95)..quadraticBezierTo(w * 0.80, h * 0.85, w * 0.68, h * 0.65)..close();
+      canvas.drawPath(body, Paint()..color = const Color(0xFFF59E0B));
+      canvas.drawPath(Path()..moveTo(w * 0.38, h * 0.68)..quadraticBezierTo(w * 0.32, h * 0.85, w * 0.36, h * 0.95)..lineTo(w * 0.64, h * 0.95)..quadraticBezierTo(w * 0.68, h * 0.85, w * 0.62, h * 0.68)..close(), Paint()..color = const Color(0xFFFDE68A));
+      canvas.drawCircle(Offset(w * 0.50, h * 0.75), w * 0.05, Paint()..color = const Color(0xFFD97706));
+    }
     final lionFace = Paint()..color = const Color(0xFFFDE68A);
     final darkPaint = Paint()..color = const Color(0xFF1E293B);
 
@@ -1111,6 +1466,12 @@ class _UniversalMascotPainter extends CustomPainter {
   void _paintPanda(Canvas canvas, double w, double h) {
     final whitePaint = Paint()..color = const Color(0xFFFFFFFF);
     final darkPaint = Paint()..color = const Color(0xFF0F172A);
+    if (!isHeadOnly) {
+      final body = Path()..moveTo(w * 0.32, h * 0.65)..quadraticBezierTo(w * 0.20, h * 0.85, w * 0.25, h * 0.95)..quadraticBezierTo(w * 0.50, h * 0.99, w * 0.75, h * 0.95)..quadraticBezierTo(w * 0.80, h * 0.85, w * 0.68, h * 0.65)..close();
+      canvas.drawPath(body, darkPaint);
+      final whiteChest = Path()..moveTo(w * 0.36, h * 0.68)..quadraticBezierTo(w * 0.32, h * 0.85, w * 0.36, h * 0.95)..lineTo(w * 0.64, h * 0.95)..quadraticBezierTo(w * 0.68, h * 0.85, w * 0.64, h * 0.68)..close();
+      canvas.drawPath(whiteChest, whitePaint);
+    }
 
     canvas.drawCircle(Offset(w * 0.24, h * 0.26), w * 0.12, darkPaint);
     canvas.drawCircle(Offset(w * 0.76, h * 0.26), w * 0.12, darkPaint);
@@ -1124,6 +1485,12 @@ class _UniversalMascotPainter extends CustomPainter {
 
   void _paintFox(Canvas canvas, double w, double h) {
     final foxOrange = Paint()..color = const Color(0xFFEA580C);
+    if (!isHeadOnly) {
+      final body = Path()..moveTo(w * 0.32, h * 0.65)..quadraticBezierTo(w * 0.20, h * 0.85, w * 0.25, h * 0.95)..quadraticBezierTo(w * 0.50, h * 0.99, w * 0.75, h * 0.95)..quadraticBezierTo(w * 0.80, h * 0.85, w * 0.68, h * 0.65)..close();
+      canvas.drawPath(body, foxOrange);
+      final whiteChest = Path()..moveTo(w * 0.38, h * 0.68)..quadraticBezierTo(w * 0.32, h * 0.85, w * 0.36, h * 0.95)..lineTo(w * 0.64, h * 0.95)..quadraticBezierTo(w * 0.68, h * 0.85, w * 0.62, h * 0.68)..close();
+      canvas.drawPath(whiteChest, Paint()..color = Colors.white);
+    }
     final whitePaint = Paint()..color = const Color(0xFFFFFFFF);
     final darkPaint = Paint()..color = const Color(0xFF1E293B);
 
@@ -1142,6 +1509,12 @@ class _UniversalMascotPainter extends CustomPainter {
 
   void _paintOwl(Canvas canvas, double w, double h) {
     final purplePaint = Paint()..color = const Color(0xFF6366F1);
+    if (!isHeadOnly) {
+      final body = Path()..moveTo(w * 0.32, h * 0.65)..quadraticBezierTo(w * 0.20, h * 0.85, w * 0.25, h * 0.95)..quadraticBezierTo(w * 0.50, h * 0.99, w * 0.75, h * 0.95)..quadraticBezierTo(w * 0.80, h * 0.85, w * 0.68, h * 0.65)..close();
+      canvas.drawPath(body, purplePaint);
+      final chest = Path()..moveTo(w * 0.38, h * 0.68)..quadraticBezierTo(w * 0.32, h * 0.85, w * 0.36, h * 0.95)..lineTo(w * 0.64, h * 0.95)..quadraticBezierTo(w * 0.68, h * 0.85, w * 0.62, h * 0.68)..close();
+      canvas.drawPath(chest, Paint()..color = const Color(0xFFE0E7FF));
+    }
     final goldPaint = Paint()..color = const Color(0xFFFBBF24);
     final darkPaint = Paint()..color = const Color(0xFF1E293B);
     final whitePaint = Paint()..color = const Color(0xFFFFFFFF);
@@ -1159,6 +1532,12 @@ class _UniversalMascotPainter extends CustomPainter {
 
   void _paintRabbit(Canvas canvas, double w, double h) {
     final whitePaint = Paint()..color = const Color(0xFFFFFFFF);
+    if (!isHeadOnly) {
+      final body = Path()..moveTo(w * 0.32, h * 0.65)..quadraticBezierTo(w * 0.20, h * 0.85, w * 0.25, h * 0.95)..quadraticBezierTo(w * 0.50, h * 0.99, w * 0.75, h * 0.95)..quadraticBezierTo(w * 0.80, h * 0.85, w * 0.68, h * 0.65)..close();
+      canvas.drawPath(body, whitePaint);
+      final belly = Path()..moveTo(w * 0.38, h * 0.68)..quadraticBezierTo(w * 0.32, h * 0.85, w * 0.36, h * 0.95)..lineTo(w * 0.64, h * 0.95)..quadraticBezierTo(w * 0.68, h * 0.85, w * 0.62, h * 0.68)..close();
+      canvas.drawPath(belly, Paint()..color = const Color(0xFFFCE7F3));
+    }
     final pinkPaint = Paint()..color = const Color(0xFFF472B6);
     final darkPaint = Paint()..color = const Color(0xFF1E293B);
 
@@ -1176,6 +1555,12 @@ class _UniversalMascotPainter extends CustomPainter {
 
   void _paintBear(Canvas canvas, double w, double h) {
     final brownPaint = Paint()..color = const Color(0xFF854D0E);
+    if (!isHeadOnly) {
+      final body = Path()..moveTo(w * 0.32, h * 0.65)..quadraticBezierTo(w * 0.20, h * 0.85, w * 0.25, h * 0.95)..quadraticBezierTo(w * 0.50, h * 0.99, w * 0.75, h * 0.95)..quadraticBezierTo(w * 0.80, h * 0.85, w * 0.68, h * 0.65)..close();
+      canvas.drawPath(body, brownPaint);
+      final belly = Path()..moveTo(w * 0.38, h * 0.68)..quadraticBezierTo(w * 0.32, h * 0.85, w * 0.36, h * 0.95)..lineTo(w * 0.64, h * 0.95)..quadraticBezierTo(w * 0.68, h * 0.85, w * 0.62, h * 0.68)..close();
+      canvas.drawPath(belly, Paint()..color = const Color(0xFFFEF08A));
+    }
     final lightBrown = Paint()..color = const Color(0xFFFEF08A);
     final darkPaint = Paint()..color = const Color(0xFF1E293B);
 
@@ -1190,6 +1575,11 @@ class _UniversalMascotPainter extends CustomPainter {
 
   void _paintRobot(Canvas canvas, double w, double h) {
     final cyanPaint = Paint()..color = const Color(0xFF0EA5E9);
+    if (!isHeadOnly) {
+      final body = Path()..moveTo(w * 0.32, h * 0.65)..quadraticBezierTo(w * 0.20, h * 0.85, w * 0.25, h * 0.95)..quadraticBezierTo(w * 0.50, h * 0.99, w * 0.75, h * 0.95)..quadraticBezierTo(w * 0.80, h * 0.85, w * 0.68, h * 0.65)..close();
+      canvas.drawPath(body, Paint()..color = const Color(0xFF0F172A));
+      canvas.drawCircle(Offset(w * 0.50, h * 0.78), w * 0.04, Paint()..color = const Color(0xFF10B981));
+    }
     final darkNavy = Paint()..color = const Color(0xFF0F172A);
     final limePaint = Paint()..color = const Color(0xFF10B981);
 
@@ -1430,20 +1820,81 @@ class _UniversalMascotPainter extends CustomPainter {
         canvas.drawCircle(Offset(w * 0.74, h * 0.74), w * 0.07, paintWhite);
         break;
 
-      case 'pen':
-      default:
-        final penPath = Path()
-          ..moveTo(w * 0.56, h * 0.76)
-          ..lineTo(w * 0.92, h * 0.14)
-          ..lineTo(w * 0.98, h * 0.18)
-          ..lineTo(w * 0.62, h * 0.80)
+      case 'wings_grand':
+      case 'wings':
+      case 'royal_cape':
+        // Painted under mascot
+        break;
+
+      case 'aurora_halo':
+        final auraOuter = Paint()
+          ..color = const Color(0xFF38BDF8).withValues(alpha: 0.35)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = w * 0.08
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+        final auraInner = Paint()
+          ..color = const Color(0xFFFDE047)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = w * 0.035;
+        canvas.drawOval(Rect.fromCenter(center: Offset(w * 0.50, h * 0.06), width: w * 0.54, height: h * 0.16), auraOuter);
+        canvas.drawOval(Rect.fromCenter(center: Offset(w * 0.50, h * 0.06), width: w * 0.50, height: h * 0.14), auraInner);
+        // Sparkle stars
+        canvas.drawCircle(Offset(w * 0.22, h * 0.06), w * 0.025, paintWhite);
+        canvas.drawCircle(Offset(w * 0.78, h * 0.06), w * 0.025, paintWhite);
+        break;
+
+      case 'phoenix_crown':
+        final crownPath = Path()
+          ..moveTo(w * 0.24, h * 0.16)
+          ..lineTo(w * 0.32, -h * 0.04)
+          ..lineTo(w * 0.42, h * 0.08)
+          ..lineTo(w * 0.50, -h * 0.08)
+          ..lineTo(w * 0.58, h * 0.08)
+          ..lineTo(w * 0.68, -h * 0.04)
+          ..lineTo(w * 0.76, h * 0.16)
           ..close();
-        canvas.drawPath(penPath, Paint()..color = const Color(0xFF38BDF8));
-        canvas.drawLine(Offset(w * 0.58, h * 0.76), Offset(w * 0.94, h * 0.16), Paint()..color = paintGold.color..strokeWidth = w * 0.02);
-        final penTip = Path()..moveTo(w * 0.92, h * 0.14)..lineTo(w * 0.98, h * 0.06)..lineTo(w * 0.98, h * 0.18)..close();
-        canvas.drawPath(penTip, paintBlue);
+        canvas.drawPath(crownPath, paintGold);
+        canvas.drawCircle(Offset(w * 0.50, -h * 0.08), w * 0.04, paintRed);
+        canvas.drawCircle(Offset(w * 0.32, -h * 0.04), w * 0.035, paintBlue);
+        canvas.drawCircle(Offset(w * 0.68, -h * 0.04), w * 0.035, paintBlue);
+        canvas.drawCircle(Offset(w * 0.50, h * 0.06), w * 0.03, paintWhite);
+        break;
+
+      case 'magic_wand':
+        final wandPath = Path()
+          ..moveTo(w * 0.62, h * 0.84)
+          ..lineTo(w * 0.88, h * 0.36)
+          ..lineTo(w * 0.92, h * 0.38)
+          ..lineTo(w * 0.66, h * 0.86)
+          ..close();
+        canvas.drawPath(wandPath, Paint()..color = const Color(0xFFF59E0B));
+        canvas.drawCircle(Offset(w * 0.90, h * 0.35), w * 0.08, Paint()..color = const Color(0xFF38BDF8));
+        canvas.drawCircle(Offset(w * 0.90, h * 0.35), w * 0.04, paintWhite);
+        break;
+
+      case 'pen':
+        _paintPen(canvas, w, h);
+        break;
+
+      case 'none':
+      default:
         break;
     }
+  }
+
+  void _paintPen(Canvas canvas, double w, double h) {
+    final paintBlue = Paint()..color = const Color(0xFF0284C7);
+    final paintGold = Paint()..color = const Color(0xFFFBBF24);
+    final penPath = Path()
+      ..moveTo(w * 0.56, h * 0.76)
+      ..lineTo(w * 0.92, h * 0.14)
+      ..lineTo(w * 0.98, h * 0.18)
+      ..lineTo(w * 0.62, h * 0.80)
+      ..close();
+    canvas.drawPath(penPath, Paint()..color = const Color(0xFF38BDF8));
+    canvas.drawLine(Offset(w * 0.58, h * 0.76), Offset(w * 0.94, h * 0.16), Paint()..color = paintGold.color..strokeWidth = w * 0.02);
+    final penTip = Path()..moveTo(w * 0.92, h * 0.14)..lineTo(w * 0.98, h * 0.06)..lineTo(w * 0.98, h * 0.18)..close();
+    canvas.drawPath(penTip, paintBlue);
   }
 
   void _paintOutfit(Canvas canvas, double w, double h, String outfit) {
@@ -1706,6 +2157,16 @@ class AccessoryVisualWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final activeColor = color ?? const Color(0xFFF59E0B);
 
+    if (accessoryId == 'wings_grand') {
+      return SizedBox(
+        width: size,
+        height: size,
+        child: CustomPaint(
+          size: Size(size, size),
+          painter: _WingsIconPainter(const Color(0xFFF59E0B)),
+        ),
+      );
+    }
     if (accessoryId == 'gold_shades') {
       return SizedBox(
         width: size,

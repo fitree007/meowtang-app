@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../state/expense_controller.dart';
 import '../widgets/meow_mascot_widget.dart';
 import 'main_navigation_screen.dart';
+import 'theme_onboarding_screen.dart';
 
 class FeatureHighlightItem {
   final IconData icon;
@@ -206,10 +207,22 @@ class AppFeaturesShowcaseScreen extends StatelessWidget {
             HapticFeedback.selectionClick();
             if (isFromOverview) {
               Navigator.pop(context);
-            } else if (Navigator.canPop(context)) {
+              return;
+            }
+            await controller.revertToThemeOnboarding();
+            if (!context.mounted) return;
+            if (Navigator.canPop(context)) {
               Navigator.pop(context);
             } else {
-              await controller.revertToThemeOnboarding();
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ThemeOnboardingScreen(
+                    controller: controller,
+                    onCompleted: onCompleted ?? () {},
+                  ),
+                ),
+              );
             }
           },
         ),

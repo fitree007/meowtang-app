@@ -13,6 +13,7 @@ import 'zakat_calculator_screen.dart';
 import 'islamic_inheritance_screen.dart';
 import 'islamic_baby_hair_charity_screen.dart';
 import 'currency_converter_screen.dart';
+import 'gold_silver_calculator_screen.dart';
 import '../widgets/live_rates_dashboard_widget.dart';
 import '../widgets/meow_paywall_modal.dart';
 
@@ -334,12 +335,12 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                     LiveRatesDashboardWidget(controller: widget.controller),
                     const SizedBox(height: 8),
 
-                    // Dedicated Action Button: Currency & Gold Converter Calculator
+                    // 1. Dedicated Action Button: Currency Converter (เครื่องคิดเลขแปลงเงิน)
                     TactileButton(
                       onTap: () {
                         _openFeature(
                           CurrencyConverterScreen(controller: widget.controller),
-                          reason: 'เครื่องคิดเลขแปลงเงิน & คำนวณทอง สำหรับสมาชิก VIP 👑',
+                          reason: 'เครื่องคิดเลขแปลงเงิน & อัตราแลกเปลี่ยนสด สำหรับสมาชิก VIP 👑',
                         );
                       },
                       child: Container(
@@ -375,7 +376,7 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                                   Row(
                                     children: [
                                       Text(
-                                        isEn ? 'Currency & Gold Calculator' : 'เครื่องคิดเลขแปลงเงิน & คำนวณทอง',
+                                        isEn ? 'Currency Converter' : 'เครื่องคิดเลขแปลงเงิน',
                                         style: TextStyle(
                                           fontSize: 13,
                                           fontWeight: FontWeight.bold,
@@ -405,8 +406,8 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                                   const SizedBox(height: 1),
                                   Text(
                                     isEn
-                                        ? 'Convert THB ↔ USD, SAR, MYR, Gold, Silver'
-                                        : 'คำนวณแลกเปลี่ยนเงินบาท ↔ สกุลเงินทั่วโลก & คำนวณราคาทองคำ',
+                                        ? 'Convert THB ↔ USD, SAR, MYR, EUR, JPY and 30+ currencies'
+                                        : 'คำนวณแลกเปลี่ยนเงินบาท ↔ สกุลเงินทั่วโลกสดทันที (USD, EUR, SAR ฯลฯ)',
                                     style: TextStyle(fontSize: 10.5, color: subTextColor),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -415,6 +416,91 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                               ),
                             ),
                             const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFF0284C7), size: 13),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // 2. Dedicated Action Button: Gold & Silver Calculator (คำนวณแร่ทอง/แร่เงิน พร้อมกราฟ)
+                    TactileButton(
+                      onTap: () {
+                        _openFeature(
+                          GoldSilverCalculatorScreen(controller: widget.controller),
+                          reason: 'คำนวณแร่ทอง & แร่เงิน พร้อมกราฟแนวโน้ม สำหรับสมาชิก VIP 👑',
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: cardBg,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4), width: 1.2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFF59E0B).withValues(alpha: isDark ? 0.2 : 0.05),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Center(child: Text('🪙', style: TextStyle(fontSize: 19))),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Text(
+                                        isEn ? 'Gold & Silver Calculator' : 'คำนวณแร่ทอง & แร่เงิน',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.bold,
+                                          color: textColor,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF10B981).withValues(alpha: 0.16),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: const Text(
+                                          'กราฟสด 📈',
+                                          style: TextStyle(
+                                            fontSize: 9.5,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF10B981),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 1),
+                                  Text(
+                                    isEn
+                                        ? 'Calculate Gold Bar, Ornament & Silver with interactive trend charts'
+                                        : 'คำนวณทองคำแท่ง, รูปพรรณ, แร่เงิน พร้อมกราฟแนวโน้มขึ้น-ลง',
+                                    style: TextStyle(fontSize: 10.5, color: subTextColor),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFFF59E0B), size: 13),
                           ],
                         ),
                       ),

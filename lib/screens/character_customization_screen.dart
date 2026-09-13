@@ -18,7 +18,6 @@ class CharacterCustomizationScreen extends StatefulWidget {
 class _CharacterCustomizationScreenState extends State<CharacterCustomizationScreen> with SingleTickerProviderStateMixin {
   late String _selectedMascotId;
   late String _selectedAccessory;
-  late String _selectedOutfit;
   late TabController _tabController;
 
   @override
@@ -26,8 +25,7 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
     super.initState();
     _selectedMascotId = widget.controller.selectedMascotId;
     _selectedAccessory = widget.controller.selectedMascotAccessory;
-    _selectedOutfit = widget.controller.selectedMascotOutfit;
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
   }
 
   @override
@@ -41,7 +39,6 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
     await widget.controller.updateMascot(
       _selectedMascotId,
       _selectedAccessory,
-      outfit: _selectedOutfit,
     );
     if (!mounted) return;
 
@@ -53,8 +50,8 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
             const SizedBox(width: 10),
             Text(
               widget.controller.isEnglish
-                  ? 'Mascot & outfits updated successfully!'
-                  : 'บันทึกการแต่งตัวและมาสคอตเรียบร้อยแล้ว!',
+                  ? 'Mascot updated successfully!'
+                  : 'บันทึกมาสคอตและอุปกรณ์เรียบร้อยแล้ว!',
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ],
@@ -99,11 +96,6 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
     final currentAcc = MascotCatalog.accessories.firstWhere(
       (a) => a.id == _selectedAccessory,
       orElse: () => MascotCatalog.accessories.first,
-    );
-
-    final currentOutfit = MascotCatalog.outfits.firstWhere(
-      (o) => o.id == _selectedOutfit,
-      orElse: () => MascotCatalog.outfits.first,
     );
 
     return Scaffold(
@@ -180,10 +172,9 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
                               size: 80,
                               mascotId: _selectedMascotId,
                               accessory: _selectedAccessory,
-                              outfit: _selectedOutfit,
                               customPhotoPath: customPhoto,
                               isCustomPhoto: isCustomPhoto,
-                              withPen: true,
+                              withPen: false,
                               animate: true,
                             ),
                           ),
@@ -258,66 +249,32 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
                           ),
                         ),
                         const SizedBox(height: 6),
-                        // Badges for Active Outfit & Accessory (Wrapped to prevent any overflow)
-                        Wrap(
-                          spacing: 6,
-                          runSpacing: 4,
-                          children: [
-                            // Outfit Badge
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: currentOutfit.primaryColor.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(7),
-                                border: Border.all(
-                                  color: currentOutfit.primaryColor.withValues(alpha: 0.4),
-                                  width: 0.8,
+                        // Active Accessory Badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                          decoration: BoxDecoration(
+                            color: MeowTheme.mustardYellow.withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: MeowTheme.mustardYellowDark.withValues(alpha: 0.35),
+                              width: 0.8,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              AccessoryVisualWidget(accessoryId: _selectedAccessory, size: 13, color: MeowTheme.mustardYellowDark),
+                              const SizedBox(width: 5),
+                              Text(
+                                currentAcc.name,
+                                style: const TextStyle(
+                                  color: MeowTheme.mustardYellowDark,
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  OutfitVisualWidget(outfitId: _selectedOutfit, size: 12, color: currentOutfit.primaryColor),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    currentOutfit.name.split('(').first.trim(),
-                                    style: TextStyle(
-                                      color: isDark ? Colors.white : currentOutfit.primaryColor,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            // Accessory Badge
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: MeowTheme.mustardYellow.withValues(alpha: 0.18),
-                                borderRadius: BorderRadius.circular(7),
-                                border: Border.all(
-                                  color: MeowTheme.mustardYellowDark.withValues(alpha: 0.35),
-                                  width: 0.8,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  AccessoryVisualWidget(accessoryId: _selectedAccessory, size: 12, color: MeowTheme.mustardYellowDark),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    currentAcc.name,
-                                    style: const TextStyle(
-                                      color: MeowTheme.mustardYellowDark,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -359,16 +316,6 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
                         const Icon(Icons.pets_rounded, size: 15),
                         const SizedBox(width: 4),
                         Text(isEn ? 'Characters' : 'ตัวละคร (${MascotCatalog.characters.length})'),
-                      ],
-                    ),
-                  ),
-                  Tab(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.checkroom_rounded, size: 15),
-                        const SizedBox(width: 4),
-                        Text(isEn ? 'Outfits' : 'เสื้อผ้า & ชุด (${MascotCatalog.outfits.length})'),
                       ],
                     ),
                   ),
@@ -446,7 +393,8 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
                                   child: MeowMascotWidget(
                                     size: 44,
                                     mascotId: character.id,
-                                    isHeadOnly: true,
+                                    isHeadOnly: false,
+                                    withPen: false,
                                     animate: isSelected,
                                   ),
                                 ),
@@ -470,86 +418,7 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
                     ),
                   ),
 
-                  // Tab 2: Outfits & Clothes Grid (เสื้อผ้า & ชุด)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 6, 14, 6),
-                    child: GridView.builder(
-                      physics: const BouncingScrollPhysics(),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
-                        mainAxisSpacing: 8,
-                        crossAxisSpacing: 8,
-                        childAspectRatio: 0.88,
-                      ),
-                      itemCount: MascotCatalog.outfits.length,
-                      itemBuilder: (context, index) {
-                        final outfit = MascotCatalog.outfits[index];
-                        final isSelected = _selectedOutfit == outfit.id;
-
-                        return TactileButton(
-                          onTap: () {
-                            HapticFeedback.selectionClick();
-                            setState(() {
-                              _selectedOutfit = outfit.id;
-                            });
-                          },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 180),
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? (isDark ? const Color(0xFF1E3A5F) : const Color(0xFFEFF6FF))
-                                  : cardBg,
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                color: isSelected ? MeowTheme.actionBlue : borderColor,
-                                width: isSelected ? 2.0 : 1.0,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: isSelected
-                                      ? MeowTheme.actionBlue.withValues(alpha: 0.2)
-                                      : Colors.black.withValues(alpha: 0.03),
-                                  blurRadius: isSelected ? 8 : 2,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                SizedBox(
-                                  width: 38,
-                                  height: 38,
-                                  child: Center(
-                                    child: OutfitVisualWidget(
-                                      outfitId: outfit.id,
-                                      size: 36,
-                                      color: isSelected ? MeowTheme.actionBlue : outfit.primaryColor,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  outfit.name.split('(').first.trim(),
-                                  textAlign: TextAlign.center,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: isSelected ? MeowTheme.actionBlue : textPrimary,
-                                    fontSize: 10.5,
-                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-
-                  // Tab 3: Accessories Grid (อุปกรณ์คู่กาย)
+                  // Tab 2: Accessories Grid (อุปกรณ์คู่กาย)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(14, 6, 14, 6),
                     child: GridView.builder(

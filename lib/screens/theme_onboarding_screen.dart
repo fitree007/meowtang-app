@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../state/expense_controller.dart';
 import '../theme/app_theme_model.dart';
 import 'app_features_showcase_screen.dart';
+import 'mascot_onboarding_screen.dart';
 
 class ThemeOnboardingScreen extends StatefulWidget {
   final ExpenseController controller;
@@ -52,7 +53,7 @@ class _ThemeOnboardingScreenState extends State<ThemeOnboardingScreen> {
     HapticFeedback.heavyImpact();
     await widget.controller.completeThemeOnboarding(_selectedThemeId, _isDark);
     if (!mounted) return;
-    Navigator.pushReplacement(
+    Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => AppFeaturesShowcaseScreen(
@@ -88,10 +89,20 @@ class _ThemeOnboardingScreenState extends State<ThemeOnboardingScreen> {
                     tooltip: isEn ? 'Back' : 'ย้อนกลับ',
                     onPressed: () async {
                       HapticFeedback.selectionClick();
+                      await widget.controller.revertToMascotOnboarding();
+                      if (!context.mounted) return;
                       if (Navigator.canPop(context)) {
                         Navigator.pop(context);
                       } else {
-                        await widget.controller.revertToMascotOnboarding();
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => MascotOnboardingScreen(
+                              controller: widget.controller,
+                              onCompleted: widget.onCompleted,
+                            ),
+                          ),
+                        );
                       }
                     },
                   ),
