@@ -58,7 +58,26 @@ class _PermissionOnboardingScreenState extends State<PermissionOnboardingScreen>
     child: ListView(
      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
      children: [
-      const SizedBox(height: 10),
+      // Top Navigation / Back Button
+      Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded),
+            color: textPrimary,
+            iconSize: 20,
+            tooltip: widget.controller.isEnglish ? 'Back' : 'ย้อนกลับ',
+            onPressed: () {
+              if (Navigator.canPop(context)) {
+                Navigator.pop(context);
+              } else {
+                widget.onFinish();
+              }
+            },
+          ),
+          const Spacer(),
+        ],
+      ),
+      const SizedBox(height: 4),
       // Header with Mascot
       Center(
        child: Column(

@@ -80,12 +80,24 @@ class _ThemeOnboardingScreenState extends State<ThemeOnboardingScreen> {
           children: [
             // 1. Top Header Info with Step Badge & Skip
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 10, 20, 6),
+              padding: const EdgeInsets.fromLTRB(10, 10, 20, 6),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  IconButton(
+                    icon: Icon(Icons.arrow_back_ios_new_rounded, color: activeTheme.textColor, size: 20),
+                    tooltip: isEn ? 'Back' : 'ย้อนกลับ',
+                    onPressed: () async {
+                      HapticFeedback.selectionClick();
+                      if (Navigator.canPop(context)) {
+                        Navigator.pop(context);
+                      } else {
+                        await widget.controller.revertToMascotOnboarding();
+                      }
+                    },
+                  ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -121,20 +133,21 @@ class _ThemeOnboardingScreenState extends State<ThemeOnboardingScreen> {
                       ),
                     ],
                   ),
-                  TextButton(
-                    onPressed: _onFinish,
-                    child: Text(
-                      isEn ? 'Skip' : 'ข้าม',
-                      style: TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.bold,
-                        color: activeTheme.primaryColor,
-                      ),
+                ),
+                TextButton(
+                  onPressed: _onFinish,
+                  child: Text(
+                    isEn ? 'Skip' : 'ข้าม',
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.bold,
+                      color: activeTheme.primaryColor,
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
+          ),
 
             // 2. Light / Dark Mode Toggle Buttons (Dual Mode for all 18 themes)
             Padding(

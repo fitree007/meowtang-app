@@ -217,9 +217,21 @@ class _MascotOnboardingScreenState extends State<MascotOnboardingScreen> with Si
           children: [
             // 1. Top Header Bar with Step Badge
             Padding(
-              padding: const EdgeInsets.fromLTRB(18, 12, 18, 4),
+              padding: const EdgeInsets.fromLTRB(8, 12, 18, 4),
               child: Row(
                 children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back_ios_new_rounded, color: textPrimary, size: 20),
+                    tooltip: isEn ? 'Back' : 'ย้อนกลับ',
+                    onPressed: () async {
+                      HapticFeedback.selectionClick();
+                      if (Navigator.canPop(context)) {
+                        Navigator.pop(context);
+                      } else {
+                        await widget.controller.revertToLanguageSelection();
+                      }
+                    },
+                  ),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,

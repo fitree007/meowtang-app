@@ -837,21 +837,6 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
          borderColor: borderColor,
          children: [
           _buildMenuItem(
-           icon: Icons.camera_alt_rounded,
-           iconBgColor: const Color(0xFF2563EB),
-           title: isEn ? 'Change Profile Photo' : 'ใส่รูปตัวเอง / เปลี่ยนรูปโปรไฟล์',
-           trailingBadge: widget.controller.isCustomAvatarEnabled ? (isEn ? 'Active' : 'ใช้งานอยู่') : (isEn ? 'Choose' : 'เลือกรูป'),
-           isDark: isDark,
-           onTap: () {
-            CustomPhotoAvatarDialog.show(
-              context,
-              widget.controller,
-              onSaved: (_) => setState(() {}),
-            );
-           },
-          ),
-          const Divider(height: 1),
-          _buildMenuItem(
            icon: Icons.face_retouching_natural_rounded,
            iconBgColor: const Color(0xFF6366F1),
            title: isEn ? 'Character & Mascot' : 'ตัวละคร & มาสคอตประจำตัว',
@@ -1132,81 +1117,81 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
   );
  }
 
-  Widget _buildMenuItem({
-   required IconData icon,
-   required Color iconBgColor,
-   required String title,
-   String? subtitle,
-   String? trailingBadge,
-   Color? badgeColor,
-   required bool isDark,
-   required VoidCallback onTap,
-  }) {
-   final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
+   Widget _buildMenuItem({
+    required IconData icon,
+    required Color iconBgColor,
+    required String title,
+    String? subtitle,
+    String? trailingBadge,
+    Color? badgeColor,
+    required bool isDark,
+    required VoidCallback onTap,
+   }) {
+    final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
 
-   return Material(
-    color: Colors.transparent,
-    child: InkWell(
-     onTap: () {
-      HapticFeedback.selectionClick();
-      onTap();
-     },
-     child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
-       children: [
-        Container(
-         width: 38,
-         height: 38,
-         decoration: BoxDecoration(
-          color: iconBgColor.withValues(alpha: 0.14),
-          borderRadius: BorderRadius.circular(12),
-         ),
-         child: Icon(icon, color: iconBgColor, size: 20),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-         child: Text(
-          title,
-          style: TextStyle(
-           color: textColor,
-           fontSize: 14.5,
-           fontWeight: FontWeight.w600,
-           letterSpacing: -0.2,
-          ),
-         ),
-        ),
-        if (trailingBadge != null) ...[
-         const SizedBox(width: 8),
+    return Material(
+     color: Colors.transparent,
+     child: InkWell(
+      onTap: () {
+       HapticFeedback.selectionClick();
+       onTap();
+      },
+      child: Padding(
+       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10.5),
+       child: Row(
+        children: [
          Container(
-          constraints: const BoxConstraints(maxWidth: 130),
-          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+          width: 32,
+          height: 32,
           decoration: BoxDecoration(
-           color: (badgeColor ?? MeowTheme.actionBlue).withValues(alpha: 0.12),
-           borderRadius: BorderRadius.circular(9),
+           color: iconBgColor.withValues(alpha: 0.12),
+           borderRadius: BorderRadius.circular(10),
           ),
+          child: Icon(icon, color: iconBgColor, size: 17),
+         ),
+         const SizedBox(width: 12),
+         Expanded(
           child: Text(
-           trailingBadge,
-           maxLines: 1,
-           overflow: TextOverflow.ellipsis,
+           title,
            style: TextStyle(
-            color: badgeColor ?? MeowTheme.actionBlue,
-            fontSize: 11.5,
-            fontWeight: FontWeight.bold,
+            color: textColor,
+            fontSize: 13.5,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -0.2,
            ),
           ),
          ),
+         if (trailingBadge != null) ...[
+          const SizedBox(width: 8),
+          Container(
+           constraints: const BoxConstraints(maxWidth: 120),
+           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+           decoration: BoxDecoration(
+            color: (badgeColor ?? MeowTheme.actionBlue).withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(8),
+           ),
+           child: Text(
+            trailingBadge,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+             color: badgeColor ?? MeowTheme.actionBlue,
+             fontSize: 10.5,
+             fontWeight: FontWeight.bold,
+            ),
+           ),
+          ),
+         ],
+         const SizedBox(width: 4),
+         Icon(
+          Icons.chevron_right_rounded,
+          color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
+          size: 18,
+         ),
         ],
-        const SizedBox(width: 6),
-        Icon(
-         Icons.chevron_right_rounded,
-         color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
-         size: 20,
-        ),
-       ],
+       ),
       ),
      ),
-    ),
-   );
-  }
+    );
+   }
 }

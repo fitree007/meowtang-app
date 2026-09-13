@@ -199,12 +199,20 @@ class AppFeaturesShowcaseScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: isFromOverview
-            ? IconButton(
-                icon: Icon(Icons.arrow_back_ios_new_rounded, color: theme.textColor, size: 20),
-                onPressed: () => Navigator.pop(context),
-              )
-            : null,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: theme.textColor, size: 20),
+          tooltip: isEn ? 'Back' : 'ย้อนกลับ',
+          onPressed: () async {
+            HapticFeedback.selectionClick();
+            if (isFromOverview) {
+              Navigator.pop(context);
+            } else if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              await controller.revertToThemeOnboarding();
+            }
+          },
+        ),
         title: Text(
           isFromOverview
               ? (isEn ? 'MeowTang Features Guide' : 'คู่มือฟีเจอร์เด่นเหมียวตังค์')

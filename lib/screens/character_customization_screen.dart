@@ -18,6 +18,7 @@ class CharacterCustomizationScreen extends StatefulWidget {
 class _CharacterCustomizationScreenState extends State<CharacterCustomizationScreen> with SingleTickerProviderStateMixin {
   late String _selectedMascotId;
   late String _selectedAccessory;
+  late String _selectedOutfit;
   late TabController _tabController;
 
   @override
@@ -25,7 +26,8 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
     super.initState();
     _selectedMascotId = widget.controller.selectedMascotId;
     _selectedAccessory = widget.controller.selectedMascotAccessory;
-    _tabController = TabController(length: 2, vsync: this);
+    _selectedOutfit = widget.controller.selectedMascotOutfit;
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -35,19 +37,24 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
   }
 
   void _saveMascot() async {
-    await widget.controller.updateMascot(_selectedMascotId, _selectedAccessory);
+    HapticFeedback.mediumImpact();
+    await widget.controller.updateMascot(
+      _selectedMascotId,
+      _selectedAccessory,
+      outfit: _selectedOutfit,
+    );
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
-            const Icon(Icons.check_circle, color: Colors.white),
+            const Icon(Icons.check_circle_rounded, color: Colors.white),
             const SizedBox(width: 10),
             Text(
               widget.controller.isEnglish
-                  ? 'Mascot character updated successfully!'
-                  : 'ปรับแต่งตัวละครมาสคอตเรียบร้อยแล้ว!',
+                  ? 'Mascot & outfits updated successfully!'
+                  : 'บันทึกการแต่งตัวและมาสคอตเรียบร้อยแล้ว!',
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ],
@@ -61,6 +68,7 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
   }
 
   void _openCustomPhotoDialog() {
+    HapticFeedback.selectionClick();
     CustomPhotoAvatarDialog.show(
       context,
       widget.controller,
@@ -93,30 +101,37 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
       orElse: () => MascotCatalog.accessories.first,
     );
 
+    final currentOutfit = MascotCatalog.outfits.firstWhere(
+      (o) => o.id == _selectedOutfit,
+      orElse: () => MascotCatalog.outfits.first,
+    );
+
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
         backgroundColor: MeowTheme.mustardYellow,
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: MeowTheme.textDarkPrimary),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: MeowTheme.textDarkPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           isEn ? 'Dressing & Accessories' : 'แต่งตัวมาสคอต & อุปกรณ์คู่กาย',
           style: const TextStyle(
             color: MeowTheme.textDarkPrimary,
-            fontSize: 18,
+            fontSize: 17,
             fontWeight: FontWeight.bold,
           ),
         ),
+        centerTitle: true,
       ),
       body: SafeArea(
         child: Column(
           children: [
-            // 1. TOP SECTION: Fixed Live Mascot Stage (No vertical scrolling needed!)
+            // 1. TOP FIXED STAGE: Mascot Avatar + Real-time Preview (Never scrolls away)
             Container(
-              margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+              margin: const EdgeInsets.fromLTRB(14, 10, 14, 6),
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
@@ -125,15 +140,15 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
                       ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
                       : [const Color(0xFFFFFBEB), const Color(0xFFFEF3C7)],
                 ),
-                borderRadius: BorderRadius.circular(22),
+                borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color: MeowTheme.mustardYellow.withValues(alpha: isDark ? 0.4 : 0.6),
                   width: 1.5,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: MeowTheme.mustardYellow.withValues(alpha: 0.15),
-                    blurRadius: 14,
+                    color: MeowTheme.mustardYellow.withValues(alpha: 0.14),
+                    blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
                 ],
@@ -147,24 +162,25 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
                       alignment: Alignment.bottomRight,
                       children: [
                         Container(
-                          width: 96,
-                          height: 96,
+                          width: 88,
+                          height: 88,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: Colors.black.withValues(alpha: 0.08),
                             boxShadow: [
                               BoxShadow(
-                                color: currentMascot.primaryColor.withValues(alpha: 0.3),
-                                blurRadius: 14,
+                                color: currentMascot.primaryColor.withValues(alpha: 0.28),
+                                blurRadius: 12,
                                 spreadRadius: 1,
                               ),
                             ],
                           ),
                           child: Center(
                             child: MeowMascotWidget(
-                              size: 88,
+                              size: 80,
                               mascotId: _selectedMascotId,
                               accessory: _selectedAccessory,
+                              outfit: _selectedOutfit,
                               customPhotoPath: customPhoto,
                               isCustomPhoto: isCustomPhoto,
                               withPen: true,
@@ -173,7 +189,7 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.all(6),
+                          padding: const EdgeInsets.all(5),
                           decoration: BoxDecoration(
                             color: const Color(0xFF2563EB),
                             shape: BoxShape.circle,
@@ -181,19 +197,19 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withValues(alpha: 0.25),
-                                blurRadius: 6,
-                                offset: const Offset(0, 2),
+                                blurRadius: 4,
+                                offset: const Offset(0, 1),
                               ),
                             ],
                           ),
-                          child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 14),
+                          child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 12),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 12),
 
-                  // Mascot & Accessory Status
+                  // Mascot & Customization Summary
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -205,12 +221,12 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
                               child: Text(
                                 isCustomPhoto
                                     ? (isEn ? 'My Custom Avatar' : 'รูปถ่ายของฉัน')
-                                    : currentMascot.name,
+                                    : currentMascot.name.split('(').first.trim(),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   color: isDark ? Colors.white : MeowTheme.textDarkPrimary,
-                                  fontSize: 16,
+                                  fontSize: 15.5,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -224,83 +240,81 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
                                 ),
                                 child: Text(
                                   isEn ? 'Photo' : 'รูปถ่าย',
-                                  style: const TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold),
+                                  style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
                                 ),
                               ),
                           ],
                         ),
-                        const SizedBox(height: 3),
+                        const SizedBox(height: 2),
                         Text(
                           isCustomPhoto
-                              ? (isEn ? 'Custom user avatar active' : 'ใช้งานรูปโปรไฟล์ส่วนตัว')
+                              ? (isEn ? 'Tap photo to change avatar' : 'แตะรูปเพื่อเปลี่ยนภาพโปรไฟล์')
                               : currentMascot.subtitle,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: isDark ? Colors.white70 : MeowTheme.textDarkSecondary,
-                            fontSize: 12,
+                            fontSize: 11.5,
                           ),
                         ),
                         const SizedBox(height: 6),
-                        Row(
+                        // Badges for Active Outfit & Accessory (Wrapped to prevent any overflow)
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
                           children: [
+                            // Outfit Badge
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                               decoration: BoxDecoration(
-                                color: MeowTheme.mustardYellow.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(8),
+                                color: currentOutfit.primaryColor.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(7),
+                                border: Border.all(
+                                  color: currentOutfit.primaryColor.withValues(alpha: 0.4),
+                                  width: 0.8,
+                                ),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(currentAcc.icon, size: 12, color: MeowTheme.mustardYellowDark),
+                                  OutfitVisualWidget(outfitId: _selectedOutfit, size: 12, color: currentOutfit.primaryColor),
                                   const SizedBox(width: 4),
                                   Text(
-                                    currentAcc.name,
-                                    style: const TextStyle(
-                                      color: MeowTheme.mustardYellowDark,
-                                      fontSize: 10.5,
+                                    currentOutfit.name.split('(').first.trim(),
+                                    style: TextStyle(
+                                      color: isDark ? Colors.white : currentOutfit.primaryColor,
+                                      fontSize: 10,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-                            const Spacer(),
-                            // Quick button to pick custom photo
-                            InkWell(
-                              onTap: _openCustomPhotoDialog,
-                              borderRadius: BorderRadius.circular(10),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+                            // Accessory Badge
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: MeowTheme.mustardYellow.withValues(alpha: 0.18),
+                                borderRadius: BorderRadius.circular(7),
+                                border: Border.all(
+                                  color: MeowTheme.mustardYellowDark.withValues(alpha: 0.35),
+                                  width: 0.8,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  AccessoryVisualWidget(accessoryId: _selectedAccessory, size: 12, color: MeowTheme.mustardYellowDark),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    currentAcc.name,
+                                    style: const TextStyle(
+                                      color: MeowTheme.mustardYellowDark,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
-                                  borderRadius: BorderRadius.circular(10),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(0xFF2563EB).withValues(alpha: 0.3),
-                                      blurRadius: 6,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(Icons.camera_alt_rounded, size: 14, color: Colors.white),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      isEn ? 'Use My Photo' : 'ใส่รูปตัวเอง 📷',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                                ],
                               ),
                             ),
                           ],
@@ -312,20 +326,20 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
               ),
             ),
 
-            // 2. MIDDLE SECTION: Segmented Tab Bar (Characters vs Accessories)
+            // 2. SEGMENTED TAB BAR (3 Tabs: Characters, Outfits, Accessories)
             Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              height: 42,
+              margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+              height: 40,
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: TabBar(
                 controller: _tabController,
                 indicatorSize: TabBarIndicatorSize.tab,
                 indicator: BoxDecoration(
                   color: MeowTheme.mustardYellow,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                   boxShadow: [
                     BoxShadow(
                       color: MeowTheme.mustardYellow.withValues(alpha: 0.3),
@@ -336,15 +350,15 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
                 ),
                 labelColor: MeowTheme.textDarkPrimary,
                 unselectedLabelColor: textSecondary,
-                labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                 tabs: [
                   Tab(
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.pets, size: 16),
-                        const SizedBox(width: 6),
-                        Text(isEn ? '1. Mascot Characters' : '1. เลือกตัวละคร (${MascotCatalog.characters.length})'),
+                        const Icon(Icons.pets_rounded, size: 15),
+                        const SizedBox(width: 4),
+                        Text(isEn ? 'Characters' : 'ตัวละคร (${MascotCatalog.characters.length})'),
                       ],
                     ),
                   ),
@@ -352,9 +366,19 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.flare, size: 16),
-                        const SizedBox(width: 6),
-                        Text(isEn ? '2. Accessories' : '2. อุปกรณ์คู่กาย (${MascotCatalog.accessories.length})'),
+                        const Icon(Icons.checkroom_rounded, size: 15),
+                        const SizedBox(width: 4),
+                        Text(isEn ? 'Outfits' : 'เสื้อผ้า & ชุด (${MascotCatalog.outfits.length})'),
+                      ],
+                    ),
+                  ),
+                  Tab(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.stars_rounded, size: 15),
+                        const SizedBox(width: 4),
+                        Text(isEn ? 'Accessories' : 'อุปกรณ์ (${MascotCatalog.accessories.length})'),
                       ],
                     ),
                   ),
@@ -362,21 +386,21 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
               ),
             ),
 
-            // 3. TAB VIEW CONTENT (Fixed Viewport, Super Convenient Grid Selection without scrolling page)
+            // 3. TAB VIEWS CONTENT (Smooth Scrolling & Responsive Grid)
             Expanded(
               child: TabBarView(
                 controller: _tabController,
                 children: [
                   // Tab 1: Mascot Characters Grid
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                    padding: const EdgeInsets.fromLTRB(14, 6, 14, 6),
                     child: GridView.builder(
                       physics: const BouncingScrollPhysics(),
                       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 3,
-                        mainAxisSpacing: 10,
-                        crossAxisSpacing: 10,
-                        childAspectRatio: 0.96,
+                        mainAxisSpacing: 8,
+                        crossAxisSpacing: 8,
+                        childAspectRatio: 0.88,
                       ),
                       itemCount: MascotCatalog.characters.length,
                       itemBuilder: (context, index) {
@@ -393,21 +417,22 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
                           },
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 180),
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
                             decoration: BoxDecoration(
                               color: isSelected
                                   ? (isDark ? const Color(0xFF1E3A5F) : const Color(0xFFEFF6FF))
                                   : cardBg,
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(14),
                               border: Border.all(
                                 color: isSelected ? MeowTheme.actionBlue : borderColor,
-                                width: isSelected ? 2.5 : 1,
+                                width: isSelected ? 2.0 : 1.0,
                               ),
                               boxShadow: [
                                 BoxShadow(
                                   color: isSelected
-                                      ? MeowTheme.actionBlue.withValues(alpha: 0.25)
+                                      ? MeowTheme.actionBlue.withValues(alpha: 0.2)
                                       : Colors.black.withValues(alpha: 0.03),
-                                  blurRadius: isSelected ? 8 : 3,
+                                  blurRadius: isSelected ? 8 : 2,
                                   offset: const Offset(0, 2),
                                 ),
                               ],
@@ -433,7 +458,7 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
                                     color: isSelected ? MeowTheme.actionBlue : textPrimary,
-                                    fontSize: 11,
+                                    fontSize: 10.5,
                                     fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                                   ),
                                 ),
@@ -445,16 +470,95 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
                     ),
                   ),
 
-                  // Tab 2: Accessories Grid
+                  // Tab 2: Outfits & Clothes Grid (เสื้อผ้า & ชุด)
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                    padding: const EdgeInsets.fromLTRB(14, 6, 14, 6),
                     child: GridView.builder(
                       physics: const BouncingScrollPhysics(),
                       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 3,
-                        mainAxisSpacing: 10,
-                        crossAxisSpacing: 10,
-                        childAspectRatio: 1.05,
+                        mainAxisSpacing: 8,
+                        crossAxisSpacing: 8,
+                        childAspectRatio: 0.88,
+                      ),
+                      itemCount: MascotCatalog.outfits.length,
+                      itemBuilder: (context, index) {
+                        final outfit = MascotCatalog.outfits[index];
+                        final isSelected = _selectedOutfit == outfit.id;
+
+                        return TactileButton(
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            setState(() {
+                              _selectedOutfit = outfit.id;
+                            });
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? (isDark ? const Color(0xFF1E3A5F) : const Color(0xFFEFF6FF))
+                                  : cardBg,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: isSelected ? MeowTheme.actionBlue : borderColor,
+                                width: isSelected ? 2.0 : 1.0,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: isSelected
+                                      ? MeowTheme.actionBlue.withValues(alpha: 0.2)
+                                      : Colors.black.withValues(alpha: 0.03),
+                                  blurRadius: isSelected ? 8 : 2,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(
+                                  width: 38,
+                                  height: 38,
+                                  child: Center(
+                                    child: OutfitVisualWidget(
+                                      outfitId: outfit.id,
+                                      size: 36,
+                                      color: isSelected ? MeowTheme.actionBlue : outfit.primaryColor,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  outfit.name.split('(').first.trim(),
+                                  textAlign: TextAlign.center,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: isSelected ? MeowTheme.actionBlue : textPrimary,
+                                    fontSize: 10.5,
+                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+
+                  // Tab 3: Accessories Grid (อุปกรณ์คู่กาย)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 6, 14, 6),
+                    child: GridView.builder(
+                      physics: const BouncingScrollPhysics(),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        mainAxisSpacing: 8,
+                        crossAxisSpacing: 8,
+                        childAspectRatio: 0.88,
                       ),
                       itemCount: MascotCatalog.accessories.length,
                       itemBuilder: (context, index) {
@@ -470,22 +574,22 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
                           },
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 180),
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
                             decoration: BoxDecoration(
                               color: isSelected
                                   ? (isDark ? const Color(0xFF1E3A5F) : const Color(0xFFEFF6FF))
                                   : cardBg,
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(14),
                               border: Border.all(
                                 color: isSelected ? MeowTheme.actionBlue : borderColor,
-                                width: isSelected ? 2.5 : 1,
+                                width: isSelected ? 2.0 : 1.0,
                               ),
                               boxShadow: [
                                 BoxShadow(
                                   color: isSelected
-                                      ? MeowTheme.actionBlue.withValues(alpha: 0.25)
+                                      ? MeowTheme.actionBlue.withValues(alpha: 0.2)
                                       : Colors.black.withValues(alpha: 0.03),
-                                  blurRadius: isSelected ? 8 : 3,
+                                  blurRadius: isSelected ? 8 : 2,
                                   offset: const Offset(0, 2),
                                 ),
                               ],
@@ -493,10 +597,16 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(
-                                  acc.icon,
-                                  color: isSelected ? MeowTheme.actionBlue : const Color(0xFFF59E0B),
-                                  size: 24,
+                                SizedBox(
+                                  width: 38,
+                                  height: 38,
+                                  child: Center(
+                                    child: AccessoryVisualWidget(
+                                      accessoryId: acc.id,
+                                      size: 30,
+                                      color: isSelected ? MeowTheme.actionBlue : const Color(0xFFF59E0B),
+                                    ),
+                                  ),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
@@ -523,7 +633,7 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
 
             // 4. BOTTOM ACTION BAR (Pinned Save Button)
             Container(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
               decoration: BoxDecoration(
                 color: cardBg,
                 border: Border(top: BorderSide(color: borderColor, width: 0.8)),
@@ -539,15 +649,15 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
                 onTap: _saveMascot,
                 child: Container(
                   width: double.infinity,
-                  height: 50,
+                  height: 48,
                   decoration: BoxDecoration(
                     color: MeowTheme.mustardYellow,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(14),
                     boxShadow: [
                       BoxShadow(
                         color: MeowTheme.mustardYellow.withValues(alpha: 0.35),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
                       ),
                     ],
                   ),
@@ -560,7 +670,7 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
                         isEn ? 'Save Mascot Style' : 'บันทึกสไตล์มาสคอต',
                         style: const TextStyle(
                           color: MeowTheme.textDarkPrimary,
-                          fontSize: 15.5,
+                          fontSize: 15,
                           fontWeight: FontWeight.bold,
                         ),
                       ),

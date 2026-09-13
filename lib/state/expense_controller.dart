@@ -148,6 +148,7 @@ class ExpenseController extends ChangeNotifier {
  String get guideLanguage => _storage.getGuideLanguage();
  String get selectedMascotId => _storage.getMascotId();
  String get selectedMascotAccessory => _storage.getMascotAccessory();
+ String get selectedMascotOutfit => _storage.getMascotOutfit();
 
  // CUSTOM PHOTO AVATAR
  String? get customAvatarPath => _storage.getCustomAvatarPath();
@@ -601,18 +602,24 @@ class ExpenseController extends ChangeNotifier {
   notifyListeners();
  }
 
- Future<void> completeMascotOnboarding(String id, String accessory) async {
-  await _storage.saveMascotId(id);
-  await _storage.saveMascotAccessory(accessory);
-  await _storage.setHasChosenMascot(true);
-  notifyListeners();
- }
+  Future<void> completeMascotOnboarding(String id, String accessory, {String? outfit}) async {
+   await _storage.saveMascotId(id);
+   await _storage.saveMascotAccessory(accessory);
+   if (outfit != null) {
+     await _storage.saveMascotOutfit(outfit);
+   }
+   await _storage.setHasChosenMascot(true);
+   notifyListeners();
+  }
 
- Future<void> updateMascot(String id, String accessory) async {
-  await _storage.saveMascotId(id);
-  await _storage.saveMascotAccessory(accessory);
-  notifyListeners();
- }
+  Future<void> updateMascot(String id, String accessory, {String? outfit}) async {
+   await _storage.saveMascotId(id);
+   await _storage.saveMascotAccessory(accessory);
+   if (outfit != null) {
+     await _storage.saveMascotOutfit(outfit);
+   }
+   notifyListeners();
+  }
 
   // ==========================================
   // MONETIZATION & EDITION MANAGEMENT
@@ -806,6 +813,21 @@ class ExpenseController extends ChangeNotifier {
   await _storage.setHasCompletedShowcase(true);
   notifyListeners();
  }
+
+  Future<void> revertToLanguageSelection() async {
+    await _storage.setHasSelectedInitialLanguage(false);
+    notifyListeners();
+  }
+
+  Future<void> revertToMascotOnboarding() async {
+    await _storage.setHasChosenMascot(false);
+    notifyListeners();
+  }
+
+  Future<void> revertToThemeOnboarding() async {
+    await _storage.setHasChosenTheme(false);
+    notifyListeners();
+  }
 
  Future<void> toggleThemeMode(bool isDark) async {
   await setDarkMode(isDark);
@@ -1211,62 +1233,6 @@ class ExpenseController extends ChangeNotifier {
     }
   }
 
-  /// Batch adds multiple slip / imported transactions with 1 single storage write & 1 notifyListeners
-  Future<void> addTransactionsBatch(List<TransactionItem> items) async {
-    if (items.isEmpty) return;
-
-    final List<TransactionItem> toAdd = [];
-    final deletedSlips = _storage.getDeletedSlips();
-
-    for (final item in items) {
-      if (item.slipImageUrl != null || (item.slipRefId != null && !item.slipRefId!.startsWith('SLIP-'))) {
-        final isDup = DuplicateSlipChecker.isDuplicate(
-          existingTransactions: _transactions,
-          deletedSlipIdentifiers: deletedSlips,
-          filePath: item.slipImageUrl,
-          fileName: item.slipImageUrl != null ? DuplicateSlipChecker.extractBasename(item.slipImageUrl) : null,
-          refId: item.slipRefId,
-          amount: item.amount,
-          date: item.date,
-          bankName: item.bankName,
-        );
-        if (isDup) continue;
-      }
-
-      toAdd.add(item);
-
-      // Update account balance in memory
-      final accIndex = _accounts.indexWhere((a) => a.id == item.accountId);
-      if (accIndex != -1) {
-        final acc = _accounts[accIndex];
-        if (item.type == TransactionType.expense) {
-          _accounts[accIndex] = acc.copyWith(balance: acc.balance - item.amount);
-        } else if (item.type == TransactionType.income) {
-          _accounts[accIndex] = acc.copyWith(balance: acc.balance + item.amount);
-        } else if (item.type == TransactionType.transfer && item.targetAccountId != null) {
-          _accounts[accIndex] = acc.copyWith(balance: acc.balance - item.amount);
-          final targetIdx = _accounts.indexWhere((a) => a.id == item.targetAccountId);
-          if (targetIdx != -1) {
-            _accounts[targetIdx] = _accounts[targetIdx].copyWith(balance: _accounts[targetIdx].balance + item.amount);
-          }
-        }
-      }
-    }
-
-    if (toAdd.isEmpty) return;
-
-    _transactions.insertAll(0, toAdd);
-
-    // Single write to disk
-    await _storage.saveTransactions(_transactions);
-    await _storage.saveAccounts(_accounts);
-    if (toAdd.isNotEmpty) {
-      await _checkAndUpdateStreakOnNewTransaction(toAdd.first.date);
-    }
-    await syncAndroidWidget();
-    notifyListeners();
-  }
-
   // TRANSACTION ACTIONS
   Future<bool> addTransaction(TransactionItem item, {bool isRestore = false, bool allowManualOverride = false}) async {
     // Duplicate & Deleted Protection Guard (Bypass if restoring an undo transaction or user confirmed manual save)
@@ -1313,6 +1279,64 @@ class ExpenseController extends ChangeNotifier {
   notifyListeners();
   return true;
  }
+
+  /// High-performance batch transaction addition (used for 12-month initial scans)
+  /// Consolidates account balance calculations, storage writes, and UI notifications.
+  Future<int> addTransactionsBatch(List<TransactionItem> items, {bool isInitialImport = false}) async {
+    if (items.isEmpty) return 0;
+
+    final toAdd = <TransactionItem>[];
+    for (final item in items) {
+      final isDup = DuplicateSlipChecker.isDuplicate(
+        existingTransactions: _transactions,
+        deletedSlipIdentifiers: _storage.getDeletedSlips(),
+        importedSlipIdentifiers: _storage.getImportedSlipIdentifiers(),
+        filePath: item.slipImageUrl,
+        fileName: item.slipImageUrl != null ? DuplicateSlipChecker.extractBasename(item.slipImageUrl) : null,
+        refId: item.slipRefId,
+        amount: item.amount,
+        date: item.date,
+        bankName: item.bankName,
+      );
+      if (!isDup) {
+        toAdd.add(item);
+      }
+    }
+
+    if (toAdd.isEmpty) return 0;
+
+    // Prepend new transactions
+    _transactions.insertAll(0, toAdd);
+
+    // Update account balances in a single consolidated pass
+    for (final item in toAdd) {
+      final accIndex = _accounts.indexWhere((a) => a.id == item.accountId);
+      if (accIndex != -1) {
+        final acc = _accounts[accIndex];
+        if (item.type == TransactionType.expense) {
+          _accounts[accIndex] = acc.copyWith(balance: acc.balance - item.amount);
+        } else if (item.type == TransactionType.income) {
+          _accounts[accIndex] = acc.copyWith(balance: acc.balance + item.amount);
+        } else if (item.type == TransactionType.transfer && item.targetAccountId != null) {
+          _accounts[accIndex] = acc.copyWith(balance: acc.balance - item.amount);
+          final targetIdx = _accounts.indexWhere((a) => a.id == item.targetAccountId);
+          if (targetIdx != -1) {
+            _accounts[targetIdx] = _accounts[targetIdx].copyWith(balance: _accounts[targetIdx].balance + item.amount);
+          }
+        }
+      }
+    }
+
+    // Single storage write and single widget sync
+    await _storage.saveTransactions(_transactions);
+    await _storage.saveAccounts(_accounts);
+    for (final item in toAdd) {
+      await _checkAndUpdateStreakOnNewTransaction(item.date);
+    }
+    await syncAndroidWidget();
+    notifyListeners();
+    return toAdd.length;
+  }
 
   /// Updates an existing transaction in-place without triggering slip blacklisting
   Future<void> updateTransaction(TransactionItem updated) async {

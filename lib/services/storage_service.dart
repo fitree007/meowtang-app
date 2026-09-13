@@ -19,6 +19,7 @@ class StorageService {
   static const String _keyMainAlbum = 'rizqi_perm_main_album';
   static const String _keyMascotId = 'rizqi_mascot_id';
   static const String _keyMascotAccessory = 'rizqi_mascot_accessory';
+  static const String _keyMascotOutfit = 'rizqi_mascot_outfit';
   static const String _keyHasChosenMascot = 'rizqi_has_chosen_mascot';
   static const String _keyHasSeenAppGuide = 'rizqi_has_seen_app_guide';
   static const String _keyAppGuideLanguage = 'rizqi_guide_language';
@@ -127,6 +128,14 @@ class StorageService {
 
   Future<void> saveMascotAccessory(String acc) async {
     await _prefs.setString(_keyMascotAccessory, acc);
+  }
+
+  String getMascotOutfit() {
+    return _prefs.getString(_keyMascotOutfit) ?? 'none';
+  }
+
+  Future<void> saveMascotOutfit(String outfit) async {
+    await _prefs.setString(_keyMascotOutfit, outfit);
   }
 
   // CUSTOM PHOTO AVATAR

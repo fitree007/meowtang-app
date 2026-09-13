@@ -38,6 +38,24 @@ class AccessoryInfo {
   });
 }
 
+class OutfitInfo {
+  final String id;
+  final String name;
+  final String subtitle;
+  final Color primaryColor;
+  final Color accentColor;
+  final IconData icon;
+
+  const OutfitInfo({
+    required this.id,
+    required this.name,
+    required this.subtitle,
+    required this.primaryColor,
+    required this.accentColor,
+    this.icon = Icons.checkroom_rounded,
+  });
+}
+
 class MascotCatalog {
   static const List<MascotInfo> characters = [
     MascotInfo(
@@ -154,11 +172,70 @@ class MascotCatalog {
     ),
   ];
 
+  static const List<OutfitInfo> outfits = [
+    OutfitInfo(
+      id: 'none',
+      name: 'ไม่ใส่ชุด (Original)',
+      subtitle: 'ขนปุยแบบธรรมชาติเดิมๆ',
+      primaryColor: Color(0xFF94A3B8),
+      accentColor: Color(0xFFCBD5E1),
+      icon: Icons.block_rounded,
+    ),
+    OutfitInfo(
+      id: 'outfit_hoodie',
+      name: 'ฮู้ดดี้สตรีทเท่ (Street Hoodie)',
+      subtitle: 'เสื้อฮู้ดดี้สีแดงสดใส มีกระเป๋าหน้าและเชือกฮู้ด',
+      primaryColor: Color(0xFFEF4444),
+      accentColor: Colors.white,
+      icon: Icons.dry_cleaning_rounded,
+    ),
+    OutfitInfo(
+      id: 'outfit_suit',
+      name: 'สูททักซิโด้นักบริหาร (Executive Suit)',
+      subtitle: 'สูททักซิโด้สีดำสุดหรู เชิ้ตขาวและเนกไทสีทอง',
+      primaryColor: Color(0xFF0F172A),
+      accentColor: Color(0xFFF59E0B),
+      icon: Icons.business_center_rounded,
+    ),
+    OutfitInfo(
+      id: 'outfit_tshirt',
+      name: 'เสื้อยืดแคชชวลสบายๆ (Meow Casual)',
+      subtitle: 'เสื้อยืดคอกลมสีมินต์สดใส สกรีนรูปปลาทู',
+      primaryColor: Color(0xFF0D9488),
+      accentColor: Colors.white,
+      icon: Icons.checkroom_rounded,
+    ),
+    OutfitInfo(
+      id: 'outfit_sweater',
+      name: 'เสื้อไหมพรมกันหนาว (Cozy Sweater)',
+      subtitle: 'เสื้อถักไหมพรมลวดลายอบอุ่น นุ่มสบาย',
+      primaryColor: Color(0xFFC2410C),
+      accentColor: Color(0xFFFEF3C7),
+      icon: Icons.waves_rounded,
+    ),
+    OutfitInfo(
+      id: 'outfit_sport',
+      name: 'ชุดวอร์มนักกีฬา (Sport Jersey)',
+      subtitle: 'ชุดวอร์มสีน้ำเงินแถบขาว สไตล์นักกีฬาวิ่งเร็ว',
+      primaryColor: Color(0xFF2563EB),
+      accentColor: Colors.white,
+      icon: Icons.sports_score_rounded,
+    ),
+    OutfitInfo(
+      id: 'outfit_overalls',
+      name: 'ชุดเอี๊ยมยีนส์น่ารัก (Denim Overalls)',
+      subtitle: 'ชุดเอี๊ยมผ้ายีนส์สีฟ้า มีกระดุมทองและกระเป๋าหน้า',
+      primaryColor: Color(0xFF0284C7),
+      accentColor: Color(0xFFFBBF24),
+      icon: Icons.agriculture_rounded,
+    ),
+  ];
+
   static const List<AccessoryInfo> accessories = [
     AccessoryInfo(id: 'pen', name: 'ปากกาขนนกทองคำ', icon: Icons.edit_rounded),
-    AccessoryInfo(id: 'gold_shades', name: 'แว่นตาดำสุดคูล', icon: Icons.visibility_rounded),
+    AccessoryInfo(id: 'gold_shades', name: 'แว่นตาดำสุดคูล', icon: Icons.remove_red_eye_outlined),
     AccessoryInfo(id: 'crown', name: 'มงกุฎทองคำราชันย์', icon: Icons.workspace_premium_rounded),
-    AccessoryInfo(id: 'bowtie', name: 'โบว์ไทสีแดงสุดหล่อ', icon: Icons.straighten_rounded),
+    AccessoryInfo(id: 'bowtie', name: 'โบว์ไทสีแดงสุดหล่อ', icon: Icons.loyalty_rounded),
     AccessoryInfo(id: 'grad_cap', name: 'หมวกบัณฑิตนักคิด', icon: Icons.school_rounded),
     AccessoryInfo(id: 'headphones', name: 'หูฟังเกมเมอร์ไร้สาย', icon: Icons.headphones_rounded),
     AccessoryInfo(id: 'coin', name: 'เหรียญทองคำนำโชค', icon: Icons.monetization_on_rounded),
@@ -170,16 +247,16 @@ class MascotCatalog {
     AccessoryInfo(id: 'laptop', name: 'แล็ปท็อปทำงาน', icon: Icons.laptop_mac_rounded),
     AccessoryInfo(id: 'target', name: 'เป้าหมายการเงิน', icon: Icons.track_changes_rounded),
     AccessoryInfo(id: 'party_hat', name: 'หมวกปาร์ตี้ฉลอง', icon: Icons.celebration_rounded),
-    AccessoryInfo(id: 'wings', name: 'ปีกบินสู่อิสรภาพ', icon: Icons.flight_rounded),
+    AccessoryInfo(id: 'wings', name: 'ปีกบินสู่อิสรภาพ', icon: Icons.auto_awesome_rounded),
     AccessoryInfo(id: 'trophy', name: 'ถ้วยรางวัลยอดนักออม', icon: Icons.emoji_events_rounded),
     AccessoryInfo(id: 'songkok', name: 'หมวกกะปิเยาะห์มุสลิม', icon: Icons.mosque_rounded),
-    AccessoryInfo(id: 'scarf', name: 'ผ้าพันคอสีแดงอบอุ่น', icon: Icons.checkroom_rounded),
+    AccessoryInfo(id: 'scarf', name: 'ผ้าพันคอสีแดงอบอุ่น', icon: Icons.texture_rounded),
     AccessoryInfo(id: 'shield', name: 'โล่พิทักษ์เงินเก็บ', icon: Icons.shield_rounded),
     AccessoryInfo(id: 'diamond', name: 'เพชรน้ำงามมั่งคั่ง', icon: Icons.diamond_rounded),
     AccessoryInfo(id: 'flower', name: 'ดอกไม้ประดับหู', icon: Icons.local_florist_rounded),
-    AccessoryInfo(id: 'halo', name: 'วงแหวนเทวดานำโชค', icon: Icons.wb_sunny_rounded),
+    AccessoryInfo(id: 'halo', name: 'วงแหวนเทวดานำโชค', icon: Icons.circle_outlined),
     AccessoryInfo(id: 'wizard_hat', name: 'หมวกพ่อมดการเงิน', icon: Icons.auto_awesome_rounded),
-    AccessoryInfo(id: 'headband', name: 'ผ้าคาดหัวนักสู้', icon: Icons.sports_kabaddi_rounded),
+    AccessoryInfo(id: 'headband', name: 'ผ้าคาดหัวนักสู้', icon: Icons.sports_martial_arts_rounded),
   ];
 }
 
@@ -189,6 +266,7 @@ class MeowMascotWidget extends StatefulWidget {
   final bool isHeadOnly;
   final String? mascotId;
   final String? accessory;
+  final String? outfit;
   final String? customPhotoPath;
   final bool isCustomPhoto;
   final bool animate;
@@ -203,6 +281,7 @@ class MeowMascotWidget extends StatefulWidget {
     this.isHeadOnly = false,
     this.mascotId,
     this.accessory,
+    this.outfit,
     this.customPhotoPath,
     this.isCustomPhoto = false,
     this.animate = true,
@@ -256,6 +335,7 @@ class _MeowMascotWidgetState extends State<MeowMascotWidget> with SingleTickerPr
   Widget build(BuildContext context) {
     final activeId = widget.mascotId ?? 'cat_quill';
     final activeAcc = widget.accessory ?? 'pen';
+    final activeOutfit = widget.outfit ?? 'none';
 
     Widget mascotCore;
     if (widget.isCustomPhoto && widget.customPhotoPath != null && widget.customPhotoPath!.isNotEmpty) {
@@ -441,6 +521,7 @@ class _MeowMascotWidgetState extends State<MeowMascotWidget> with SingleTickerPr
         painter: _UniversalMascotPainter(
           mascotId: activeId,
           accessory: activeAcc,
+          outfit: activeOutfit,
           withPen: widget.withPen,
           isHeadOnly: widget.isHeadOnly,
         ),
@@ -538,12 +619,14 @@ class _MeowMascotWidgetState extends State<MeowMascotWidget> with SingleTickerPr
 class _UniversalMascotPainter extends CustomPainter {
   final String mascotId;
   final String accessory;
+  final String outfit;
   final bool withPen;
   final bool isHeadOnly;
 
   _UniversalMascotPainter({
     required this.mascotId,
     required this.accessory,
+    this.outfit = 'none',
     required this.withPen,
     required this.isHeadOnly,
   });
@@ -603,6 +686,11 @@ class _UniversalMascotPainter extends CustomPainter {
       default:
         _paintGingerTabbyCat(canvas, w, h);
         break;
+    }
+
+    // 2.5 Draw Wearable Outfit on Body
+    if (!isHeadOnly && outfit != 'none') {
+      _paintOutfit(canvas, w, h, outfit);
     }
 
     // 3. Draw Accessory Overlays (Headwear, Neckwear, Handheld)
@@ -1358,11 +1446,627 @@ class _UniversalMascotPainter extends CustomPainter {
     }
   }
 
+  void _paintOutfit(Canvas canvas, double w, double h, String outfit) {
+    switch (outfit) {
+      case 'outfit_hoodie':
+        final hoodiePaint = Paint()..color = const Color(0xFFEF4444);
+        final darkRed = Paint()..color = const Color(0xFFB91C1C);
+
+        final hoodieBody = Path()
+          ..moveTo(w * 0.28, h * 0.69)
+          ..quadraticBezierTo(w * 0.22, h * 0.85, w * 0.25, h * 0.96)
+          ..quadraticBezierTo(w * 0.50, h * 1.00, w * 0.75, h * 0.96)
+          ..quadraticBezierTo(w * 0.78, h * 0.85, w * 0.72, h * 0.69)
+          ..close();
+        canvas.drawPath(hoodieBody, hoodiePaint);
+
+        final hem = Path()
+          ..moveTo(w * 0.26, h * 0.93)
+          ..quadraticBezierTo(w * 0.50, h * 0.97, w * 0.74, h * 0.93)
+          ..lineTo(w * 0.75, h * 0.96)
+          ..quadraticBezierTo(w * 0.50, h * 1.00, w * 0.25, h * 0.96)
+          ..close();
+        canvas.drawPath(hem, darkRed);
+
+        final pocket = Path()
+          ..moveTo(w * 0.38, h * 0.83)
+          ..lineTo(w * 0.62, h * 0.83)
+          ..lineTo(w * 0.66, h * 0.93)
+          ..lineTo(w * 0.34, h * 0.93)
+          ..close();
+        canvas.drawPath(pocket, darkRed);
+
+        final hoodNeck = Path()
+          ..moveTo(w * 0.32, h * 0.67)
+          ..quadraticBezierTo(w * 0.50, h * 0.76, w * 0.68, h * 0.67)
+          ..quadraticBezierTo(w * 0.50, h * 0.72, w * 0.32, h * 0.67)
+          ..close();
+        canvas.drawPath(hoodNeck, darkRed);
+
+        final stringPaint = Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = w * 0.018..strokeCap = StrokeCap.round;
+        canvas.drawLine(Offset(w * 0.44, h * 0.71), Offset(w * 0.43, h * 0.81), stringPaint);
+        canvas.drawLine(Offset(w * 0.56, h * 0.71), Offset(w * 0.57, h * 0.81), stringPaint);
+        canvas.drawCircle(Offset(w * 0.43, h * 0.81), w * 0.015, Paint()..color = const Color(0xFFCBD5E1));
+        canvas.drawCircle(Offset(w * 0.57, h * 0.81), w * 0.015, Paint()..color = const Color(0xFFCBD5E1));
+        break;
+
+      case 'outfit_suit':
+        final suitDark = Paint()..color = const Color(0xFF0F172A);
+        final lapelDark = Paint()..color = const Color(0xFF1E293B);
+        final whiteShirt = Paint()..color = Colors.white;
+        final goldTie = Paint()..color = const Color(0xFFF59E0B);
+
+        final suitBody = Path()
+          ..moveTo(w * 0.28, h * 0.69)
+          ..quadraticBezierTo(w * 0.22, h * 0.85, w * 0.25, h * 0.96)
+          ..quadraticBezierTo(w * 0.50, h * 1.00, w * 0.75, h * 0.96)
+          ..quadraticBezierTo(w * 0.78, h * 0.85, w * 0.72, h * 0.69)
+          ..close();
+        canvas.drawPath(suitBody, suitDark);
+
+        final shirt = Path()
+          ..moveTo(w * 0.40, h * 0.68)
+          ..lineTo(w * 0.60, h * 0.68)
+          ..lineTo(w * 0.50, h * 0.86)
+          ..close();
+        canvas.drawPath(shirt, whiteShirt);
+
+        final tieKnot = Path()
+          ..moveTo(w * 0.47, h * 0.70)
+          ..lineTo(w * 0.53, h * 0.70)
+          ..lineTo(w * 0.52, h * 0.74)
+          ..lineTo(w * 0.48, h * 0.74)
+          ..close();
+        canvas.drawPath(tieKnot, goldTie);
+        final tieBlade = Path()
+          ..moveTo(w * 0.48, h * 0.74)
+          ..lineTo(w * 0.52, h * 0.74)
+          ..lineTo(w * 0.53, h * 0.86)
+          ..lineTo(w * 0.50, h * 0.90)
+          ..lineTo(w * 0.47, h * 0.86)
+          ..close();
+        canvas.drawPath(tieBlade, goldTie);
+
+        final leftLapel = Path()
+          ..moveTo(w * 0.34, h * 0.68)
+          ..lineTo(w * 0.42, h * 0.77)
+          ..lineTo(w * 0.48, h * 0.88)
+          ..lineTo(w * 0.36, h * 0.88)
+          ..close();
+        canvas.drawPath(leftLapel, lapelDark);
+        final rightLapel = Path()
+          ..moveTo(w * 0.66, h * 0.68)
+          ..lineTo(w * 0.58, h * 0.77)
+          ..lineTo(w * 0.52, h * 0.88)
+          ..lineTo(w * 0.64, h * 0.88)
+          ..close();
+        canvas.drawPath(rightLapel, lapelDark);
+
+        canvas.drawCircle(Offset(w * 0.50, h * 0.92), w * 0.018, goldTie);
+        break;
+
+      case 'outfit_tshirt':
+        final tShirtPaint = Paint()..color = const Color(0xFF0D9488);
+        final collarTeal = Paint()..color = const Color(0xFF115E59);
+        final printWhite = Paint()..color = Colors.white.withValues(alpha: 0.9);
+
+        final tBody = Path()
+          ..moveTo(w * 0.28, h * 0.69)
+          ..quadraticBezierTo(w * 0.22, h * 0.85, w * 0.25, h * 0.96)
+          ..quadraticBezierTo(w * 0.50, h * 1.00, w * 0.75, h * 0.96)
+          ..quadraticBezierTo(w * 0.78, h * 0.85, w * 0.72, h * 0.69)
+          ..close();
+        canvas.drawPath(tBody, tShirtPaint);
+
+        final crewCollar = Path()
+          ..moveTo(w * 0.36, h * 0.68)
+          ..quadraticBezierTo(w * 0.50, h * 0.76, w * 0.64, h * 0.68)
+          ..quadraticBezierTo(w * 0.50, h * 0.72, w * 0.36, h * 0.68)
+          ..close();
+        canvas.drawPath(crewCollar, collarTeal);
+
+        final fishBody = Path()
+          ..moveTo(w * 0.44, h * 0.82)
+          ..quadraticBezierTo(w * 0.50, h * 0.78, w * 0.56, h * 0.82)
+          ..quadraticBezierTo(w * 0.50, h * 0.86, w * 0.44, h * 0.82)
+          ..close();
+        canvas.drawPath(fishBody, printWhite);
+        final fishTail = Path()
+          ..moveTo(w * 0.55, h * 0.82)
+          ..lineTo(w * 0.60, h * 0.79)
+          ..lineTo(w * 0.60, h * 0.85)
+          ..close();
+        canvas.drawPath(fishTail, printWhite);
+        break;
+
+      case 'outfit_sweater':
+        final sweaterPaint = Paint()..color = const Color(0xFFC2410C);
+        final darkOrange = Paint()..color = const Color(0xFF9A3412);
+        final creamPaint = Paint()..color = const Color(0xFFFEF3C7);
+
+        final sBody = Path()
+          ..moveTo(w * 0.28, h * 0.69)
+          ..quadraticBezierTo(w * 0.22, h * 0.85, w * 0.25, h * 0.96)
+          ..quadraticBezierTo(w * 0.50, h * 1.00, w * 0.75, h * 0.96)
+          ..quadraticBezierTo(w * 0.78, h * 0.85, w * 0.72, h * 0.69)
+          ..close();
+        canvas.drawPath(sBody, sweaterPaint);
+
+        final sCollar = Path()
+          ..moveTo(w * 0.34, h * 0.68)
+          ..quadraticBezierTo(w * 0.50, h * 0.76, w * 0.66, h * 0.68)
+          ..quadraticBezierTo(w * 0.50, h * 0.72, w * 0.34, h * 0.68)
+          ..close();
+        canvas.drawPath(sCollar, darkOrange);
+
+        final patternBand = Path()
+          ..moveTo(w * 0.28, h * 0.79)
+          ..lineTo(w * 0.72, h * 0.79)
+          ..lineTo(w * 0.74, h * 0.85)
+          ..lineTo(w * 0.26, h * 0.85)
+          ..close();
+        canvas.drawPath(patternBand, darkOrange);
+
+        final chevronPaint = Paint()..color = creamPaint.color..style = PaintingStyle.stroke..strokeWidth = w * 0.02..strokeCap = StrokeCap.round;
+        for (double cx = 0.32; cx <= 0.68; cx += 0.08) {
+          canvas.drawLine(Offset(w * cx, h * 0.84), Offset(w * (cx + 0.04), h * 0.80), chevronPaint);
+          canvas.drawLine(Offset(w * (cx + 0.04), h * 0.80), Offset(w * (cx + 0.08), h * 0.84), chevronPaint);
+        }
+        break;
+
+      case 'outfit_sport':
+        final blueJersey = Paint()..color = const Color(0xFF2563EB);
+        final whiteStripe = Paint()..color = Colors.white;
+
+        final spBody = Path()
+          ..moveTo(w * 0.28, h * 0.69)
+          ..quadraticBezierTo(w * 0.22, h * 0.85, w * 0.25, h * 0.96)
+          ..quadraticBezierTo(w * 0.50, h * 1.00, w * 0.75, h * 0.96)
+          ..quadraticBezierTo(w * 0.78, h * 0.85, w * 0.72, h * 0.69)
+          ..close();
+        canvas.drawPath(spBody, blueJersey);
+
+        final stripePaint = Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = w * 0.022;
+        canvas.drawLine(Offset(w * 0.31, h * 0.72), Offset(w * 0.28, h * 0.94), stripePaint);
+        canvas.drawLine(Offset(w * 0.69, h * 0.72), Offset(w * 0.72, h * 0.94), stripePaint);
+
+        final vCollar = Path()
+          ..moveTo(w * 0.40, h * 0.68)
+          ..lineTo(w * 0.50, h * 0.75)
+          ..lineTo(w * 0.60, h * 0.68)
+          ..close();
+        canvas.drawPath(vCollar, whiteStripe);
+
+        final numStyle = TextStyle(color: Colors.white, fontSize: w * 0.12, fontWeight: FontWeight.w900);
+        final textSpan = TextSpan(text: '99', style: numStyle);
+        final textPainter = TextPainter(text: textSpan, textDirection: TextDirection.ltr);
+        textPainter.layout();
+        textPainter.paint(canvas, Offset(w * 0.50 - (textPainter.width / 2), h * 0.80));
+        break;
+
+      case 'outfit_overalls':
+        final innerYellow = Paint()..color = const Color(0xFFFBBF24);
+        final denimBlue = Paint()..color = const Color(0xFF0284C7);
+        final brassButton = Paint()..color = const Color(0xFFF59E0B);
+
+        final inBody = Path()
+          ..moveTo(w * 0.28, h * 0.69)
+          ..quadraticBezierTo(w * 0.22, h * 0.85, w * 0.25, h * 0.96)
+          ..quadraticBezierTo(w * 0.50, h * 1.00, w * 0.75, h * 0.96)
+          ..quadraticBezierTo(w * 0.78, h * 0.85, w * 0.72, h * 0.69)
+          ..close();
+        canvas.drawPath(inBody, innerYellow);
+
+        final overalls = Path()
+          ..moveTo(w * 0.36, h * 0.76)
+          ..lineTo(w * 0.64, h * 0.76)
+          ..lineTo(w * 0.68, h * 0.84)
+          ..quadraticBezierTo(w * 0.78, h * 0.88, w * 0.75, h * 0.96)
+          ..quadraticBezierTo(w * 0.50, h * 1.00, w * 0.25, h * 0.96)
+          ..quadraticBezierTo(w * 0.22, h * 0.88, w * 0.32, h * 0.84)
+          ..close();
+        canvas.drawPath(overalls, denimBlue);
+
+        final strapPaint = Paint()..color = denimBlue.color..style = PaintingStyle.stroke..strokeWidth = w * 0.045..strokeCap = StrokeCap.round;
+        canvas.drawLine(Offset(w * 0.34, h * 0.68), Offset(w * 0.38, h * 0.77), strapPaint);
+        canvas.drawLine(Offset(w * 0.66, h * 0.68), Offset(w * 0.62, h * 0.77), strapPaint);
+
+        canvas.drawCircle(Offset(w * 0.38, h * 0.78), w * 0.022, brassButton);
+        canvas.drawCircle(Offset(w * 0.62, h * 0.78), w * 0.022, brassButton);
+
+        final bibPocket = RRect.fromRectAndRadius(Rect.fromCenter(center: Offset(w * 0.50, h * 0.86), width: w * 0.20, height: h * 0.09), const Radius.circular(3));
+        canvas.drawRRect(bibPocket, Paint()..color = const Color(0xFF0369A1));
+        break;
+    }
+  }
+
   @override
   bool shouldRepaint(covariant _UniversalMascotPainter oldDelegate) {
     return oldDelegate.mascotId != mascotId ||
         oldDelegate.accessory != accessory ||
+        oldDelegate.outfit != outfit ||
         oldDelegate.withPen != withPen ||
         oldDelegate.isHeadOnly != isHeadOnly;
   }
+}
+
+class AccessoryVisualWidget extends StatelessWidget {
+  final String accessoryId;
+  final double size;
+  final Color? color;
+
+  const AccessoryVisualWidget({
+    super.key,
+    required this.accessoryId,
+    this.size = 24,
+    this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final activeColor = color ?? const Color(0xFFF59E0B);
+
+    if (accessoryId == 'gold_shades') {
+      return SizedBox(
+        width: size,
+        height: size,
+        child: CustomPaint(
+          size: Size(size, size),
+          painter: _GlassesIconPainter(activeColor),
+        ),
+      );
+    }
+
+    if (accessoryId == 'bowtie') {
+      return SizedBox(
+        width: size,
+        height: size,
+        child: CustomPaint(
+          size: Size(size, size),
+          painter: _BowtieIconPainter(activeColor),
+        ),
+      );
+    }
+
+    if (accessoryId == 'wings') {
+      return SizedBox(
+        width: size,
+        height: size,
+        child: CustomPaint(
+          size: Size(size, size),
+          painter: _WingsIconPainter(activeColor),
+        ),
+      );
+    }
+
+    if (accessoryId == 'scarf') {
+      return SizedBox(
+        width: size,
+        height: size,
+        child: CustomPaint(
+          size: Size(size, size),
+          painter: _ScarfIconPainter(activeColor),
+        ),
+      );
+    }
+
+    if (accessoryId == 'halo') {
+      return SizedBox(
+        width: size,
+        height: size,
+        child: CustomPaint(
+          size: Size(size, size),
+          painter: _HaloIconPainter(activeColor),
+        ),
+      );
+    }
+
+    if (accessoryId == 'headband') {
+      return SizedBox(
+        width: size,
+        height: size,
+        child: CustomPaint(
+          size: Size(size, size),
+          painter: _HeadbandIconPainter(activeColor),
+        ),
+      );
+    }
+
+    final acc = MascotCatalog.accessories.firstWhere(
+      (a) => a.id == accessoryId,
+      orElse: () => MascotCatalog.accessories.first,
+    );
+    return Icon(acc.icon, size: size, color: activeColor);
+  }
+}
+
+class OutfitVisualWidget extends StatelessWidget {
+  final String outfitId;
+  final double size;
+  final Color? color;
+
+  const OutfitVisualWidget({
+    super.key,
+    required this.outfitId,
+    this.size = 24,
+    this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (outfitId == 'none') {
+      return Icon(Icons.block_rounded, size: size, color: color ?? Colors.grey);
+    }
+    return SizedBox(
+      width: size,
+      height: size,
+      child: CustomPaint(
+        size: Size(size, size),
+        painter: _OutfitIconPainter(outfitId: outfitId, color: color),
+      ),
+    );
+  }
+}
+
+class _GlassesIconPainter extends CustomPainter {
+  final Color color;
+  _GlassesIconPainter(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final framePaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = w * 0.08
+      ..strokeCap = StrokeCap.round;
+    final lensPaint = Paint()..color = const Color(0xFF0F172A);
+
+    final leftRect = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: Offset(w * 0.28, h * 0.50), width: w * 0.40, height: h * 0.36),
+      Radius.circular(w * 0.08),
+    );
+    canvas.drawRRect(leftRect, lensPaint);
+    canvas.drawRRect(leftRect, framePaint);
+
+    final rightRect = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: Offset(w * 0.72, h * 0.50), width: w * 0.40, height: h * 0.36),
+      Radius.circular(w * 0.08),
+    );
+    canvas.drawRRect(rightRect, lensPaint);
+    canvas.drawRRect(rightRect, framePaint);
+
+    final bridge = Path()
+      ..moveTo(w * 0.46, h * 0.48)
+      ..quadraticBezierTo(w * 0.50, h * 0.42, w * 0.54, h * 0.48);
+    canvas.drawPath(bridge, framePaint);
+
+    final glarePaint = Paint()
+      ..color = Colors.white54
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = w * 0.04
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(Offset(w * 0.20, h * 0.42), Offset(w * 0.32, h * 0.56), glarePaint);
+    canvas.drawLine(Offset(w * 0.64, h * 0.42), Offset(w * 0.76, h * 0.56), glarePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _GlassesIconPainter oldDelegate) => oldDelegate.color != color;
+}
+
+class _BowtieIconPainter extends CustomPainter {
+  final Color color;
+  _BowtieIconPainter(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final bowPaint = Paint()..color = const Color(0xFFEF4444);
+    final knotPaint = Paint()..color = const Color(0xFFDC2626);
+    final goldRing = Paint()..color = const Color(0xFFFBBF24);
+
+    final leftWing = Path()
+      ..moveTo(w * 0.50, h * 0.50)
+      ..lineTo(w * 0.12, h * 0.26)
+      ..quadraticBezierTo(w * 0.08, h * 0.50, w * 0.12, h * 0.74)
+      ..close();
+    canvas.drawPath(leftWing, bowPaint);
+
+    final rightWing = Path()
+      ..moveTo(w * 0.50, h * 0.50)
+      ..lineTo(w * 0.88, h * 0.26)
+      ..quadraticBezierTo(w * 0.92, h * 0.50, w * 0.88, h * 0.74)
+      ..close();
+    canvas.drawPath(rightWing, bowPaint);
+
+    canvas.drawCircle(Offset(w * 0.50, h * 0.50), w * 0.14, knotPaint);
+    canvas.drawCircle(Offset(w * 0.50, h * 0.50), w * 0.08, goldRing);
+  }
+
+  @override
+  bool shouldRepaint(covariant _BowtieIconPainter oldDelegate) => oldDelegate.color != color;
+}
+
+class _WingsIconPainter extends CustomPainter {
+  final Color color;
+  _WingsIconPainter(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final wingPaint = Paint()..color = const Color(0xFFF59E0B);
+
+    final left = Path()
+      ..moveTo(w * 0.45, h * 0.60)
+      ..quadraticBezierTo(w * 0.10, h * 0.20, 0, h * 0.40)
+      ..quadraticBezierTo(w * 0.15, h * 0.75, w * 0.45, h * 0.70)
+      ..close();
+    canvas.drawPath(left, wingPaint);
+
+    final right = Path()
+      ..moveTo(w * 0.55, h * 0.60)
+      ..quadraticBezierTo(w * 0.90, h * 0.20, w, h * 0.40)
+      ..quadraticBezierTo(w * 0.85, h * 0.75, w * 0.55, h * 0.70)
+      ..close();
+    canvas.drawPath(right, wingPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _WingsIconPainter oldDelegate) => oldDelegate.color != color;
+}
+
+class _ScarfIconPainter extends CustomPainter {
+  final Color color;
+  _ScarfIconPainter(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final scarfPaint = Paint()..color = const Color(0xFFEF4444);
+
+    final wrap = Path()
+      ..moveTo(w * 0.15, h * 0.45)
+      ..quadraticBezierTo(w * 0.50, h * 0.60, w * 0.85, h * 0.45)
+      ..lineTo(w * 0.85, h * 0.60)
+      ..quadraticBezierTo(w * 0.50, h * 0.75, w * 0.15, h * 0.60)
+      ..close();
+    canvas.drawPath(wrap, scarfPaint);
+
+    final tail = RRect.fromRectAndRadius(
+      Rect.fromLTWH(w * 0.65, h * 0.50, w * 0.18, h * 0.40),
+      Radius.circular(w * 0.04),
+    );
+    canvas.drawRRect(tail, scarfPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _ScarfIconPainter oldDelegate) => oldDelegate.color != color;
+}
+
+class _HaloIconPainter extends CustomPainter {
+  final Color color;
+  _HaloIconPainter(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final haloPaint = Paint()
+      ..color = const Color(0xFFFBBF24)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = w * 0.12;
+    canvas.drawOval(Rect.fromCenter(center: Offset(w * 0.50, h * 0.50), width: w * 0.80, height: h * 0.42), haloPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _HaloIconPainter oldDelegate) => oldDelegate.color != color;
+}
+
+class _HeadbandIconPainter extends CustomPainter {
+  final Color color;
+  _HeadbandIconPainter(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final hbPaint = Paint()..color = const Color(0xFFEF4444);
+
+    final band = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: Offset(w * 0.50, h * 0.50), width: w * 0.84, height: h * 0.24),
+      Radius.circular(w * 0.04),
+    );
+    canvas.drawRRect(band, hbPaint);
+
+    final knotTail = Path()
+      ..moveTo(w * 0.80, h * 0.50)
+      ..lineTo(w * 0.98, h * 0.70)
+      ..lineTo(w * 0.88, h * 0.80)
+      ..close();
+    canvas.drawPath(knotTail, hbPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _HeadbandIconPainter oldDelegate) => oldDelegate.color != color;
+}
+
+class _OutfitIconPainter extends CustomPainter {
+  final String outfitId;
+  final Color? color;
+  _OutfitIconPainter({required this.outfitId, this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    switch (outfitId) {
+      case 'outfit_hoodie':
+        final p = Paint()..color = color ?? const Color(0xFFEF4444);
+        final body = RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.18, h * 0.25, w * 0.64, h * 0.65), Radius.circular(w * 0.10));
+        canvas.drawRRect(body, p);
+        canvas.drawCircle(Offset(w * 0.50, h * 0.22), w * 0.16, p);
+        canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.32, h * 0.58, w * 0.36, h * 0.22), Radius.circular(w * 0.04)), Paint()..color = const Color(0xFFB91C1C));
+        break;
+
+      case 'outfit_suit':
+        final p = Paint()..color = color ?? const Color(0xFF0F172A);
+        final body = RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.18, h * 0.25, w * 0.64, h * 0.65), Radius.circular(w * 0.08));
+        canvas.drawRRect(body, p);
+        final shirt = Path()..moveTo(w * 0.35, h * 0.25)..lineTo(w * 0.65, h * 0.25)..lineTo(w * 0.50, h * 0.65)..close();
+        canvas.drawPath(shirt, Paint()..color = Colors.white);
+        final tie = Path()..moveTo(w * 0.48, h * 0.30)..lineTo(w * 0.52, h * 0.30)..lineTo(w * 0.50, h * 0.60)..close();
+        canvas.drawPath(tie, Paint()..color = const Color(0xFFF59E0B));
+        break;
+
+      case 'outfit_tshirt':
+        final p = Paint()..color = color ?? const Color(0xFF0D9488);
+        final t = Path()
+          ..moveTo(w * 0.32, h * 0.24)
+          ..lineTo(w * 0.10, h * 0.45)
+          ..lineTo(w * 0.22, h * 0.55)
+          ..lineTo(w * 0.24, h * 0.48)
+          ..lineTo(w * 0.24, h * 0.88)
+          ..lineTo(w * 0.76, h * 0.88)
+          ..lineTo(w * 0.76, h * 0.48)
+          ..lineTo(w * 0.78, h * 0.55)
+          ..lineTo(w * 0.90, h * 0.45)
+          ..lineTo(w * 0.68, h * 0.24)
+          ..close();
+        canvas.drawPath(t, p);
+        canvas.drawCircle(Offset(w * 0.50, h * 0.55), w * 0.10, Paint()..color = Colors.white);
+        break;
+
+      case 'outfit_sweater':
+        final p = Paint()..color = color ?? const Color(0xFFC2410C);
+        final body = RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.18, h * 0.25, w * 0.64, h * 0.65), Radius.circular(w * 0.08));
+        canvas.drawRRect(body, p);
+        canvas.drawLine(Offset(w * 0.20, h * 0.55), Offset(w * 0.80, h * 0.55), Paint()..color = const Color(0xFFFEF3C7)..strokeWidth = 3);
+        break;
+
+      case 'outfit_sport':
+        final p = Paint()..color = color ?? const Color(0xFF2563EB);
+        final body = RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.18, h * 0.25, w * 0.64, h * 0.65), Radius.circular(w * 0.08));
+        canvas.drawRRect(body, p);
+        canvas.drawLine(Offset(w * 0.28, h * 0.28), Offset(w * 0.28, h * 0.86), Paint()..color = Colors.white..strokeWidth = 2);
+        canvas.drawLine(Offset(w * 0.72, h * 0.28), Offset(w * 0.72, h * 0.86), Paint()..color = Colors.white..strokeWidth = 2);
+        break;
+
+      case 'outfit_overalls':
+        final inner = Paint()..color = const Color(0xFFFBBF24);
+        canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.20, h * 0.25, w * 0.60, h * 0.65), Radius.circular(w * 0.08)), inner);
+        final denim = Paint()..color = color ?? const Color(0xFF0284C7);
+        canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.25, h * 0.45, w * 0.50, h * 0.45), Radius.circular(w * 0.06)), denim);
+        canvas.drawLine(Offset(w * 0.32, h * 0.25), Offset(w * 0.32, h * 0.48), Paint()..color = denim.color..strokeWidth = 4);
+        canvas.drawLine(Offset(w * 0.68, h * 0.25), Offset(w * 0.68, h * 0.48), Paint()..color = denim.color..strokeWidth = 4);
+        break;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _OutfitIconPainter oldDelegate) => oldDelegate.outfitId != outfitId || oldDelegate.color != color;
 }
