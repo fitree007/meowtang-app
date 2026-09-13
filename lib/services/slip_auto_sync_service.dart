@@ -302,8 +302,8 @@ class SlipAutoSyncService {
           }
           if (key.isNotEmpty) _processedKeys.add(key);
         }
-        // Yield to event loop to keep UI rendering in real-time
-        await Future.delayed(const Duration(milliseconds: 10));
+        // Yield to event loop to keep UI rendering smoothly at 60/120fps
+        await Future.delayed(const Duration(milliseconds: 35));
       } finally {
         if (key.isNotEmpty) _inFlightKeys.remove(key);
       }
@@ -642,31 +642,23 @@ class SlipAutoSyncService {
         extractedMemo.trim().isNotEmpty &&
         extractedMemo.trim() != 'โปรดระบุยอด';
 
-    CategoryItem matchedCat;
-    if (isIncome) {
-      if (hasMemo) {
-        matchedCat = CategoryMatcherService.matchCategory(
-          text: extractedMemo!,
-          availableCategories: targetCategories.isNotEmpty ? targetCategories : controller.categories,
-          customRules: customRules,
-          fallbackCategory: incomeFallback,
-        );
-      } else {
-        matchedCat = incomeFallback;
-      }
-    } else {
-      if (hasMemo) {
-        matchedCat = CategoryMatcherService.matchCategory(
-          text: extractedMemo!,
-          availableCategories: targetCategories.isNotEmpty ? targetCategories : controller.categories,
-          customRules: customRules,
-          fallbackCategory: expenseFallback,
-        );
-      } else {
-        // หากไม่มีบันทึกช่วยจำหรือโน้ต ให้จัดอยู่ใน "รายจ่ายอื่นๆ" ตามที่ผู้ใช้ระบุ
-        matchedCat = expenseFallback;
-      }
-    }
+    // Search context: combine memo, recipient name, sender name, and OCR text for keyword matching
+    final searchContext = [
+      if (hasMemo) extractedMemo!,
+      if (receiverName != 'ไม่ระบุผู้รับ' && receiverName.trim().isNotEmpty) receiverName.trim(),
+      if (senderName != 'ไม่ระบุผู้โอน' && senderName.trim().isNotEmpty) senderName.trim(),
+      rawOcrText,
+    ].join(' ');
+
+    final matchResult = CategoryMatcherService.matchCategoryWithResult(
+      text: searchContext,
+      availableCategories: targetCategories.isNotEmpty ? targetCategories : controller.categories,
+      customRules: customRules,
+      fallbackCategory: isIncome ? incomeFallback : expenseFallback,
+    );
+
+    CategoryItem matchedCat = matchResult.category;
+    String? matchedTag = matchResult.tag;
 
     // 7. Format Title to show Who transferred to Whom or Income Notification
     String cleanBank = bankIdent.cleanBank;
@@ -716,6 +708,25 @@ class SlipAutoSyncService {
       extractedMemo = null;
     }
 
+    // Prepare tags list
+    final List<String> itemTags = [];
+    if (matchedTag != null && matchedTag.trim().isNotEmpty) {
+      final cleanTag = matchedTag.trim().replaceAll('#', '');
+      if (cleanTag.isNotEmpty) {
+        itemTags.add(cleanTag);
+      }
+    }
+
+    String? finalNote = (extractedMemo != null && extractedMemo.trim().isNotEmpty) ? extractedMemo.trim() : null;
+    if (itemTags.isNotEmpty) {
+      final tagBadge = itemTags.map((t) => '#$t').join(' ');
+      if (finalNote == null || finalNote.isEmpty) {
+        finalNote = tagBadge;
+      } else if (!finalNote.contains(tagBadge)) {
+        finalNote = '$finalNote $tagBadge';
+      }
+    }
+
     final persistentSlipPath = await SlipStorageService.persistSlipImage(path);
 
     // Auto-link slip directly to the corresponding bank account (e.g. IBANK, KBank, SCB, KTB)
@@ -731,12 +742,13 @@ class SlipAutoSyncService {
       accountId: targetAccount.id,
       categoryId: matchedCat.id,
       categoryName: matchedCat.name,
-      note: (extractedMemo != null && extractedMemo.trim().isNotEmpty) ? extractedMemo.trim() : null,
+      note: finalNote,
       senderName: cleanSender,
       receiverName: cleanReceiver,
       bankName: cleanBank,
       slipRefId: refId,
       slipImageUrl: persistentSlipPath,
+      tags: itemTags,
     );
   }
 }

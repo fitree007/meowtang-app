@@ -39,6 +39,7 @@ class _KeywordRulesScreenState extends State<KeywordRulesScreen> {
 
  void _showAddKeywordDialog() {
   final keywordCtrl = TextEditingController();
+  final tagCtrl = TextEditingController();
   CategoryItem? selectedCat = widget.controller.categories.isNotEmpty
     ? widget.controller.categories.first
     : null;
@@ -56,43 +57,78 @@ class _KeywordRulesScreenState extends State<KeywordRulesScreen> {
        Text('เพิ่มคีย์เวิร์ดจัดหมวดหมู่อัตโนมัติ', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
       ],
      ),
-     content: Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-       const Text('คำสำคัญ (Keyword / ชื่อร้าน / ผู้รับโอน):', style: TextStyle(fontSize: 12)),
-       const SizedBox(height: 6),
-       TextField(
-        controller: keywordCtrl,
-        decoration: InputDecoration(
-         hintText: 'เช่น ชาตรามือ, ข้าวแกงป้าพร, Netflix',
-         filled: true,
-         fillColor: widget.controller.isDarkMode ? MeowTheme.navyCard : const Color(0xFFF1F5F9),
-         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+     content: SingleChildScrollView(
+      child: Column(
+       mainAxisSize: MainAxisSize.min,
+       crossAxisAlignment: CrossAxisAlignment.start,
+       children: [
+        const Text('คำสำคัญ (Keyword / ชื่อร้าน / บันทึกช่วยจำ):', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 6),
+        TextField(
+         controller: keywordCtrl,
+         decoration: InputDecoration(
+          hintText: 'เช่น 7-eleven, นม, ชาตรามือ, Netflix',
+          filled: true,
+          fillColor: widget.controller.isDarkMode ? MeowTheme.navyCard : const Color(0xFFF1F5F9),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+         ),
         ),
-       ),
-       const SizedBox(height: 14),
-       const Text('ให้จัดเข้าหมวดหมู่:', style: TextStyle(fontSize: 12)),
-       const SizedBox(height: 6),
-       DropdownButtonFormField<CategoryItem>(
-        value: selectedCat,
-        dropdownColor: widget.controller.isDarkMode ? MeowTheme.navyCard : Colors.white,
-        decoration: InputDecoration(
-         filled: true,
-         fillColor: widget.controller.isDarkMode ? MeowTheme.navyCard : const Color(0xFFF1F5F9),
-         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        const SizedBox(height: 14),
+        const Text('ให้จัดเข้าหมวดหมู่:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 6),
+        DropdownButtonFormField<CategoryItem>(
+         value: selectedCat,
+         dropdownColor: widget.controller.isDarkMode ? MeowTheme.navyCard : Colors.white,
+         decoration: InputDecoration(
+          filled: true,
+          fillColor: widget.controller.isDarkMode ? MeowTheme.navyCard : const Color(0xFFF1F5F9),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+         ),
+         items: widget.controller.categories.map((c) {
+          return DropdownMenuItem(
+           value: c,
+           child: Row(
+            children: [
+             Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+               color: Color(c.colorValue),
+               shape: BoxShape.circle,
+              ),
+             ),
+             const SizedBox(width: 8),
+             Text(c.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+             const SizedBox(width: 6),
+             Text(
+              c.type == CategoryType.income ? '(รายรับ)' : '(รายจ่าย)',
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
+             ),
+            ],
+           ),
+          );
+         }).toList(),
+         onChanged: (val) {
+          if (val != null) setDialogState(() => selectedCat = val);
+         },
         ),
-        items: widget.controller.categories.map((c) {
-         return DropdownMenuItem(
-          value: c,
-          child: Text('#${c.name}'),
-         );
-        }).toList(),
-        onChanged: (val) {
-         if (val != null) setDialogState(() => selectedCat = val);
-        },
-       ),
-      ],
+        const SizedBox(height: 14),
+        const Text('แท็กเสริม (#Tag) เช่น #ของกิน, #มื้อเช้า (ไม่บังคับ):', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 6),
+        TextField(
+         controller: tagCtrl,
+         decoration: InputDecoration(
+          hintText: 'เช่น #ของกินเล่น, #กาแฟเช้า',
+          filled: true,
+          fillColor: widget.controller.isDarkMode ? MeowTheme.navyCard : const Color(0xFFF1F5F9),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+         ),
+        ),
+       ],
+      ),
      ),
      actions: [
       TextButton(
@@ -102,13 +138,17 @@ class _KeywordRulesScreenState extends State<KeywordRulesScreen> {
       ElevatedButton(
        style: ElevatedButton.styleFrom(backgroundColor: MeowTheme.mustardYellow),
        onPressed: () {
-        if (keywordCtrl.text.trim().isNotEmpty && selectedCat != null) {
+        final kw = keywordCtrl.text.trim();
+        if (kw.isNotEmpty && selectedCat != null) {
+         final tagRaw = tagCtrl.text.trim().replaceAll('#', '');
          setState(() {
           _userRules.add(
            KeywordRule(
             id: 'usr_${DateTime.now().millisecondsSinceEpoch}',
-            keyword: keywordCtrl.text.trim(),
+            keyword: kw,
             categoryName: selectedCat!.name,
+            categoryId: selectedCat!.id,
+            tag: tagRaw.isNotEmpty ? tagRaw : null,
            ),
           );
           _saveCustomRules();
@@ -192,15 +232,51 @@ class _KeywordRulesScreenState extends State<KeywordRulesScreen> {
         ),
         child: Row(
          children: [
-          const Icon(Icons.tag, color: MeowTheme.actionBlue, size: 20),
-          const SizedBox(width: 10),
+          Container(
+           padding: const EdgeInsets.all(8),
+           decoration: BoxDecoration(
+            color: MeowTheme.mustardYellow.withOpacity(0.18),
+            borderRadius: BorderRadius.circular(10),
+           ),
+           child: const Icon(Icons.auto_awesome, color: MeowTheme.mustardYellow, size: 18),
+          ),
+          const SizedBox(width: 12),
           Expanded(
            child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
              Text(rule.keyword, style: TextStyle(color: textPrimary, fontWeight: FontWeight.bold, fontSize: 15)),
-             const SizedBox(height: 2),
-             Text(' จัดเข้าหมวด: #${rule.categoryName}', style: const TextStyle(color: MeowTheme.mustardYellow, fontSize: 12)),
+             const SizedBox(height: 4),
+             Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+               Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                 color: MeowTheme.actionBlue.withOpacity(0.12),
+                 borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                 '📁 ${rule.categoryName}',
+                 style: const TextStyle(color: MeowTheme.actionBlue, fontSize: 11.5, fontWeight: FontWeight.w600),
+                ),
+               ),
+               if (rule.tag != null && rule.tag!.trim().isNotEmpty)
+                Container(
+                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                 decoration: BoxDecoration(
+                  color: MeowTheme.incomeGreen.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(6),
+                 ),
+                 child: Text(
+                  '#${rule.tag!.trim()}',
+                  style: const TextStyle(color: MeowTheme.incomeGreen, fontSize: 11.5, fontWeight: FontWeight.bold),
+                 ),
+                ),
+              ],
+             ),
             ],
            ),
           ),
@@ -241,8 +317,8 @@ class _KeywordRulesScreenState extends State<KeywordRulesScreen> {
            crossAxisAlignment: CrossAxisAlignment.start,
            children: [
             Text(rule.keyword, style: TextStyle(color: textPrimary, fontWeight: FontWeight.bold, fontSize: 14)),
-            const SizedBox(height: 2),
-            Text(' หมวด: #${rule.categoryName}', style: const TextStyle(color: MeowTheme.textLightMuted, fontSize: 12)),
+            const SizedBox(height: 3),
+            Text('📁 หมวด: ${rule.categoryName}', style: const TextStyle(color: MeowTheme.textLightMuted, fontSize: 12)),
            ],
           ),
          ),

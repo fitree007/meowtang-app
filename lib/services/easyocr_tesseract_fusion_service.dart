@@ -55,6 +55,10 @@ class EasyOcrTesseractFusionService {
     'เลขที่ อ้างอิง': 'เลขที่อ้างอิง',
     'บันทึก ช่วยจำ': 'บันทึกช่วยจำ',
     'บันทึก ช่วยจํา': 'บันทึกช่วยจำ',
+    'บันทึกช่วยจํา': 'บันทึกช่วยจำ',
+    'บันทึกช่วยจ่า': 'บันทึกช่วยจำ',
+    'ข้อความช่วยจํา': 'ข้อความช่วยจำ',
+    'ช่วยจํา': 'ช่วยจำ',
     'ชำระ เงิน': 'ชำระเงิน',
     'ชําระเงิน': 'ชำระเงิน',
     'ค่ำบริกำร': 'ค่าบริการ',
@@ -310,50 +314,39 @@ class EasyOcrTesseractFusionService {
   static String extractMemo(String text) {
     final clean = normalizeOcrText(text);
 
-    // 1. Check direct inline pattern
-    final memoRegex = RegExp(
-      r'(?:บันทึกช่วยจำ|ข้อความช่วยจำ|ช่วยจำ|บันทึก|หมายเหตุ|Memo|Note|ข้อความ)[:\s]*([^\n\r]+)',
+    // 1. Check direct inline pattern (e.g. "บันทึกช่วยจำ: นม", "บันทึก: นม", "โน้ต: นม", "Memo: นม")
+    final inlineRegex = RegExp(
+      r'(?:บันทึกช่วยจำ|บันทึกช่วยจํา|ข้อความช่วยจำ|ช่วยจำ|บันทึก|หมายเหตุ|Memo|Note|ข้อความ|โน้ต|เพื่อ|รายละเอียด)\s*[:：-]?\s*([^\n\r]+)',
       caseSensitive: false,
     );
-    final match = memoRegex.firstMatch(clean);
+    final match = inlineRegex.firstMatch(clean);
     if (match != null && match.group(1) != null) {
       final memo = match.group(1)!.trim();
-      if (memo.isNotEmpty &&
-          !memo.toLowerCase().contains('รหัสอ้างอิง') &&
-          !memo.toLowerCase().contains('ref no') &&
-          !memo.toLowerCase().contains('ref:') &&
-          !memo.toLowerCase().contains('บาท')) {
+      if (_isValidMemoString(memo)) {
         return memo;
       }
     }
 
-    // 2. Check multi-line pattern (where "บันทึกช่วยจำ" is on its own line and the memo is on the next line)
+    // 2. Check multi-line pattern (where "บันทึกช่วยจำ" is on its own line and the memo is on the subsequent non-empty line)
     final lines = clean.split('\n');
     for (int i = 0; i < lines.length; i++) {
       final line = lines[i].trim();
       final memoKeyRegex = RegExp(
-        r'^(?:บันทึกช่วยจำ|ข้อความช่วยจำ|ช่วยจำ|บันทึก|หมายเหตุ|Memo|Note|ข้อความ)[:\s]*(.*)$',
+        r'^(?:บันทึกช่วยจำ|บันทึกช่วยจํา|ข้อความช่วยจำ|ช่วยจำ|บันทึก|หมายเหตุ|Memo|Note|ข้อความ|โน้ต|เพื่อ|รายละเอียด)\s*[:：-]?(.*)$',
         caseSensitive: false,
       );
       final m = memoKeyRegex.firstMatch(line);
       if (m != null) {
         final sameLine = m.group(1)?.trim() ?? '';
-        if (sameLine.isNotEmpty &&
-            !sameLine.contains('รหัสอ้างอิง') &&
-            !sameLine.contains('ref') &&
-            !sameLine.contains('บาท')) {
+        if (_isValidMemoString(sameLine)) {
           return sameLine;
         }
-        if (i + 1 < lines.length) {
-          final nextLine = lines[i + 1].trim();
-          if (nextLine.isNotEmpty &&
-              !nextLine.contains('รหัสอ้างอิง') &&
-              !nextLine.contains('ref') &&
-              !nextLine.contains('ค่าธรรมเนียม') &&
-              !nextLine.contains('บาท') &&
-              !nextLine.contains('สแกน') &&
-              !nextLine.contains('QR') &&
-              nextLine.length <= 100) {
+        // Look ahead up to 3 non-empty lines for the memo content
+        for (int j = i + 1; j < lines.length && j <= i + 4; j++) {
+          final nextLine = lines[j].trim();
+          if (nextLine.isEmpty) continue;
+          if (_isStopLine(nextLine)) break;
+          if (_isValidMemoString(nextLine)) {
             return nextLine;
           }
         }
@@ -361,6 +354,44 @@ class EasyOcrTesseractFusionService {
     }
 
     return '';
+  }
+
+  static bool _isValidMemoString(String str) {
+    final s = str.trim();
+    if (s.isEmpty) return false;
+    final lower = s.toLowerCase();
+    if (lower.contains('รหัสอ้างอิง') ||
+        lower.contains('ref no') ||
+        lower.contains('ref.') ||
+        lower.contains('ref:') ||
+        lower.contains('txid') ||
+        lower.contains('ค่าธรรมเนียม') ||
+        lower.contains('บาท') ||
+        lower.contains('baht') ||
+        lower.contains('สแกน') ||
+        lower.contains('qr code') ||
+        lower.contains('สำเร็จ') ||
+        lower.contains('จำนวนเงิน') ||
+        lower.contains('ยอดโอน') ||
+        lower.contains('วันที่') ||
+        s.length > 100) {
+      return false;
+    }
+    return true;
+  }
+
+  static bool _isStopLine(String str) {
+    final lower = str.toLowerCase();
+    return lower.contains('รหัสอ้างอิง') ||
+        lower.contains('ref no') ||
+        lower.contains('ref:') ||
+        lower.contains('ค่าธรรมเนียม') ||
+        lower.contains('จำนวนเงิน') ||
+        lower.contains('ยอดโอน') ||
+        lower.contains('สแกน') ||
+        lower.contains('qr') ||
+        lower.contains('จาก:') ||
+        lower.contains('ไปยัง:');
   }
 
   /// 5. Thai Bank Name Recognizer with Multi-Layer Directional & Album Fuzzy Matching

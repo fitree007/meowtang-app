@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ai_expense_tracker/services/easyocr_tesseract_fusion_service.dart';
+import 'package:ai_expense_tracker/services/category_matcher_service.dart';
+import 'package:ai_expense_tracker/models/category_item.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -31,6 +33,55 @@ void main() {
 
       final memo = EasyOcrTesseractFusionService.extractMemo(slipText);
       expect(memo, 'กาแฟ Amazon');
+    });
+
+    test('5. Extracts short memo "นม" on separate line even with blank lines', () {
+      const slipText = 'ธนาคารกสิกรไทย\nโอนเงินสำเร็จ\nจำนวนเงิน 45.00 บาท\nบันทึกช่วยจำ\n\nนม\n\nรหัสอ้างอิง: 20260913998877';
+
+      final memo = EasyOcrTesseractFusionService.extractMemo(slipText);
+      expect(memo, 'นม');
+    });
+
+    test('6. CategoryMatcherService matches "นม" to "เครื่องดื่ม"', () {
+      final userCategories = <CategoryItem>[
+        CategoryItem(id: 'cat_food', name: 'อาหาร', colorValue: 0xFF000000, type: CategoryType.expense),
+        CategoryItem(id: 'cat_drinks', name: 'เครื่องดื่ม', colorValue: 0xFF000000, type: CategoryType.expense),
+        CategoryItem(id: 'cat_travel', name: 'ค่าเดินทาง', colorValue: 0xFF000000, type: CategoryType.expense),
+      ];
+
+      final result = CategoryMatcherService.matchCategoryWithResult(
+        text: 'โอนเงิน 45 บาท บันทึกช่วยจำ นม',
+        availableCategories: userCategories,
+      );
+
+      expect(result.category.name, 'เครื่องดื่ม');
+    });
+
+    test('7. CategoryMatcherService matches custom keyword rule with custom category and tag', () {
+      final userCategories = <CategoryItem>[
+        CategoryItem(id: 'cat_food', name: 'อาหาร', colorValue: 0xFF000000, type: CategoryType.expense),
+        CategoryItem(id: 'cat_drinks', name: 'เครื่องดื่ม', colorValue: 0xFF000000, type: CategoryType.expense),
+        CategoryItem(id: 'cat_market', name: 'ของกินของใช้', colorValue: 0xFF000000, type: CategoryType.expense),
+      ];
+
+      final customRules = [
+        const KeywordRule(
+          id: 'rule_1',
+          keyword: '7-Eleven',
+          categoryName: 'ของกินของใช้',
+          categoryId: 'cat_market',
+          tag: 'เซเว่น',
+        ),
+      ];
+
+      final result = CategoryMatcherService.matchCategoryWithResult(
+        text: 'โอนชำระเงิน CP ALL 7-Eleven สาขา 1234',
+        availableCategories: userCategories,
+        customRules: customRules,
+      );
+
+      expect(result.category.name, 'ของกินของใช้');
+      expect(result.tag, 'เซเว่น');
     });
   });
 }

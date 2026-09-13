@@ -1,7 +1,6 @@
 import '../widgets/bank_badge.dart';
 import 'app_features_showcase_screen.dart';
 import '../widgets/meow_paywall_modal.dart';
-import '../widgets/custom_photo_avatar_dialog.dart';
 import 'dart:io';
 import 'dart:async';
 import 'dart:ui';
@@ -21,7 +20,6 @@ import 'meow_analytics_screen.dart';
 import 'calendar_overview_screen.dart';
 import 'slip_auto_record_screen.dart';
 import 'edit_transaction_screen.dart';
-import 'app_guide_screen.dart';
 import '../widgets/transaction_detail_sheet.dart';
 import '../widgets/daily_budget_quota_card.dart';
 import '../widgets/meow_wheel_date_picker.dart';
@@ -184,6 +182,20 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
 
   Future<void> _autoScanSlipsInBackground({bool showFeedback = true}) async {
     if (_isAutoScanning) return;
+    if (!widget.controller.canImportMoreSlips) {
+      if (showFeedback) {
+        if (widget.controller.canWatchRewardedAd) {
+          _showWatchAdBonusDialog(context);
+        } else {
+          MeowPaywallModal.show(
+            context,
+            controller: widget.controller,
+            reason: 'โควต้าสลิปฟรีเดือนนี้หมดแล้ว ปลดล็อค VIP เพื่อสแกนไม่จำกัด 👑',
+          );
+        }
+      }
+      return;
+    }
     if (showFeedback) {
       HapticFeedback.mediumImpact();
       setState(() {
@@ -669,20 +681,209 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
   _showMonthPickerModal();
  }
 
- Future<void> _openSlipAutoRecord() async {
-  final imagePath = await NativeBridgeService.pickImageFromGallery();
-  if (imagePath != null && imagePath.isNotEmpty && mounted) {
-   Navigator.push(
-    context,
-    MaterialPageRoute(
-     builder: (_) => SlipAutoRecordScreen(
-      controller: widget.controller,
-      initialImagePath: imagePath,
+  Future<void> _openSlipAutoRecord() async {
+   if (!widget.controller.canImportMoreSlips) {
+    if (widget.controller.canWatchRewardedAd) {
+      _showWatchAdBonusDialog(context);
+    } else {
+      MeowPaywallModal.show(
+        context,
+        controller: widget.controller,
+        reason: 'โควต้าสลิปฟรีเดือนนี้หมดแล้ว ปลดล็อค VIP เพื่อสแกนไม่จำกัด 👑',
+      );
+    }
+    return;
+   }
+   final imagePath = await NativeBridgeService.pickImageFromGallery();
+   if (imagePath != null && imagePath.isNotEmpty && mounted) {
+    Navigator.push(
+     context,
+     MaterialPageRoute(
+      builder: (_) => SlipAutoRecordScreen(
+       controller: widget.controller,
+       initialImagePath: imagePath,
+      ),
      ),
-    ),
-   );
+    );
+   }
   }
- }
+
+  void _showWatchAdBonusDialog(BuildContext ctx) {
+    final isDark = widget.controller.isDarkMode;
+    final isEn = widget.controller.isEnglish;
+    final used = widget.controller.currentMonthSlipCount;
+    final max = widget.controller.maxFreeSlipsPerMonth;
+    final remainingAds = widget.controller.maxMonthlyRewardedAds - widget.controller.currentMonthAdWatchesCount;
+
+    showModalBottomSheet(
+      context: ctx,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (bCtx) {
+        bool isWatching = false;
+        return StatefulBuilder(
+          builder: (modalCtx, setModalState) {
+            return Container(
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.3),
+                    blurRadius: 20,
+                    offset: const Offset(0, -4),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white24 : Colors.black12,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.movie_filter_rounded, color: Color(0xFFF59E0B), size: 36),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    isEn ? 'Free Slip Quota Reached ($used/$max)' : 'โควต้าสลิปฟรีเดือนนี้หมดแล้ว ($used/$max)',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    isEn
+                        ? 'Watch a quick rewarded video to get +2 extra slips for this month!\n(Remaining bonus: $remainingAds times this month)'
+                        : 'รับสิทธิ์สแกนเพิ่ม +2 สลิปทันทีสำหรับเดือนนี้ เพียงดูวิดีโอสั้นๆ\n(เหลือสิทธิ์ดูวิดีโอรับสลิปเดือนนี้: $remainingAds ครั้ง)',
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                      height: 1.4,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  // Watch Ad Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: isWatching
+                          ? null
+                          : () async {
+                              setModalState(() => isWatching = true);
+                              HapticFeedback.mediumImpact();
+                              await Future.delayed(const Duration(milliseconds: 1000));
+                              await widget.controller.watchRewardedAdForBonusSlips();
+                              if (ctx.mounted) {
+                                Navigator.pop(modalCtx);
+                                ScaffoldMessenger.of(ctx).showSnackBar(
+                                  SnackBar(
+                                    backgroundColor: const Color(0xFF059669),
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    content: Row(
+                                      children: [
+                                        const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                                        const SizedBox(width: 10),
+                                        Text(
+                                          isEn
+                                              ? 'Awesome! You got +2 slip quota for this month! 🎬✨'
+                                              : 'ยินดีด้วย! คุณได้รับสิทธิ์เพิ่ม +2 สลิปสำหรับเดือนนี้แล้ว 🎬✨',
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFF59E0B),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                      child: isWatching
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.white),
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.play_circle_fill_rounded, size: 20),
+                                const SizedBox(width: 8),
+                                Text(
+                                  isEn ? 'Watch Video (+2 Slips)' : 'ดูวิดีโอ (รับสิทธิ์ +2 สลิป)',
+                                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // VIP Unlock Option
+                  SizedBox(
+                    width: double.infinity,
+                    height: 46,
+                    child: OutlinedButton(
+                      onPressed: () {
+                        Navigator.pop(modalCtx);
+                        MeowPaywallModal.show(
+                          ctx,
+                          controller: widget.controller,
+                          reason: 'สแกนสลิปออโต้ไม่จำกัด ไร้โฆษณาตลอดชีพ 👑',
+                        );
+                      },
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(
+                          color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
+                          width: 1.2,
+                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.workspace_premium_rounded, color: Color(0xFFF59E0B), size: 18),
+                          const SizedBox(width: 6),
+                          Text(
+                            isEn ? 'Upgrade to VIP (Unlimited Slips)' : 'ปลดล็อค VIP (สแกนไม่จำกัด)',
+                            style: TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.white : const Color(0xFF334155),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 
  void _openVoiceRecording() {
   VoiceRecordModal.show(context, widget.controller);
@@ -717,21 +918,22 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
    barrierDismissible: true,
    barrierLabel: 'FloatingMenu',
    barrierColor: Colors.transparent,
-   transitionDuration: const Duration(milliseconds: 240),
-   pageBuilder: (ctx, anim1, anim2) {
+   transitionDuration: const Duration(milliseconds: 220),
+   transitionBuilder: (ctx, anim1, anim2, child) {
+    final curved = CurvedAnimation(parent: anim1, curve: Curves.easeOutCubic);
     return Stack(
      children: [
-      // 1. Blurred Backdrop Overlay
+      // 1. Soft blurred backdrop overlay
       Positioned.fill(
        child: GestureDetector(
         onTap: () => Navigator.pop(ctx),
         child: BackdropFilter(
          filter: ImageFilter.blur(
-          sigmaX: 10.0 * anim1.value,
-          sigmaY: 10.0 * anim1.value,
+          sigmaX: 3.5 * curved.value,
+          sigmaY: 3.5 * curved.value,
          ),
          child: Container(
-          color: Colors.black.withValues(alpha: 0.45 * anim1.value),
+          color: Colors.black.withValues(alpha: 0.25 * curved.value),
          ),
         ),
        ),
@@ -742,140 +944,123 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
        right: 20,
        bottom: bottomOffset,
        child: ScaleTransition(
-        scale: CurvedAnimation(
-         parent: anim1,
-         curve: Curves.easeOutBack,
-        ),
+        scale: Tween<double>(begin: 0.90, end: 1.0).animate(curved),
         alignment: const Alignment(0.85, 1.0),
         child: FadeTransition(
-         opacity: anim1,
-         child: Material(
-          color: Colors.transparent,
-          child: Container(
-           width: 300,
-           decoration: BoxDecoration(
-            color: cardBg,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: borderColor, width: 1.2),
-            boxShadow: [
-             BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.6 : 0.2),
-              blurRadius: 28,
-              offset: const Offset(0, 10),
-             ),
-            ],
-           ),
-           child: ClipRRect(
-            borderRadius: BorderRadius.circular(24),
-            child: Column(
-             mainAxisSize: MainAxisSize.min,
-             crossAxisAlignment: CrossAxisAlignment.start,
-             children: [
-              // Header
-              Padding(
-               padding: const EdgeInsets.fromLTRB(18, 14, 18, 10),
-               child: Row(
-                children: [
-                 const Icon(Icons.flash_on_rounded, color: MeowTheme.mustardYellow, size: 20),
-                 const SizedBox(width: 6),
-                 Text(
-                  isEn ? 'Quick Record Menu' : 'เมนูจดบันทึกด่วน',
-                  style: TextStyle(
-                   color: textPrimary,
-                   fontSize: 14.5,
-                   fontWeight: FontWeight.bold,
-                  ),
-                 ),
-                ],
-               ),
-              ),
-              const Divider(height: 1),
-
-              // Option 1: จดบันทึกรายรับ-รายจ่าย (Manual Entry)
-              _buildFloatingMenuItem(
-               ctx: ctx,
-               icon: Icons.edit_note_rounded,
-               iconBg: currentTheme.primaryColor.withValues(alpha: 0.15),
-               iconColor: currentTheme.primaryColor,
-               title: widget.controller.tr('btn_add_record'),
-               subtitle: isEn ? 'Manual record with calculator' : 'จดบันทึกด้วยแป้นคิดเลข',
-               textPrimary: textPrimary,
-               isDark: isDark,
-               onTap: () {
-                Navigator.pop(ctx);
-                Navigator.push(
-                 context,
-                 MaterialPageRoute(
-                  builder: (_) => MeowEntryScreen(controller: widget.controller),
-                 ),
-                );
-               },
-              ),
-
-
-
-              const Divider(height: 1),
-
-              // Option 3: Pick Slip Image (OCR)
-              _buildFloatingMenuItem(
-               ctx: ctx,
-               icon: Icons.receipt_long_rounded,
-               iconBg: MeowTheme.actionBlue.withValues(alpha: 0.15),
-               iconColor: MeowTheme.actionBlue,
-               title: widget.controller.tr('btn_upload_slip'),
-               subtitle: isEn ? 'Pick slip image from gallery' : 'เลือกรูปสลิปจากคลังภาพ (OCR)',
-               textPrimary: textPrimary,
-               isDark: isDark,
-               onTap: () {
-                Navigator.pop(ctx);
-                _openSlipAutoRecord();
-               },
-              ),
-
-              const Divider(height: 1),
-
-              // Option 4: Auto Pull Bank Slips
-              _buildFloatingMenuItem(
-               ctx: ctx,
-               icon: Icons.sync_rounded,
-               iconBg: MeowTheme.incomeGreen.withValues(alpha: 0.15),
-               iconColor: MeowTheme.incomeGreen,
-               title: widget.controller.tr('btn_auto_pull_slips'),
-               subtitle: isEn ? 'Scan slips from bank & PaoTang' : 'ดึงสลิปจากอัลบั้มธนาคาร & เป๋าตัง',
-               textPrimary: textPrimary,
-               isDark: isDark,
-               onTap: () {
-                Navigator.pop(ctx);
-                _autoScanSlipsInBackground();
-               },
-              ),
-
-              const Divider(height: 1),
-
-              // Option 4: Voice STT with AI
-              _buildFloatingMenuItem(
-               ctx: ctx,
-               icon: Icons.mic,
-               iconBg: const Color(0xFFF59E0B).withOpacity(0.15),
-               iconColor: const Color(0xFFF59E0B),
-               title: isEn ? 'Voice Record with AI' : 'พูดเพื่อจดบันทึกด้วย AI',
-               subtitle: isEn ? 'Speak expense e.g. "Lunch 60"' : 'พูดสั้นๆ เช่น "กินข้าว 60 บาท"',
-               textPrimary: textPrimary,
-               isDark: isDark,
-               onTap: () {
-                Navigator.pop(ctx);
-                _openVoiceRecording();
-               },
-              ),
-             ],
-            ),
-           ),
-          ),
-         ),
+         opacity: curved,
+         child: child,
         ),
        ),
       ),
      ],
+    );
+   },
+   pageBuilder: (ctx, anim1, anim2) {
+    return Material(
+     color: Colors.transparent,
+     child: Container(
+      width: 300,
+      decoration: BoxDecoration(
+       color: cardBg,
+       borderRadius: BorderRadius.circular(24),
+       border: Border.all(color: borderColor, width: 1.2),
+       boxShadow: [
+        BoxShadow(
+         color: Colors.black.withValues(alpha: isDark ? 0.6 : 0.2),
+         blurRadius: 28,
+         offset: const Offset(0, 10),
+        ),
+       ],
+      ),
+      child: ClipRRect(
+       borderRadius: BorderRadius.circular(24),
+       child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Column(
+         mainAxisSize: MainAxisSize.min,
+         crossAxisAlignment: CrossAxisAlignment.start,
+         children: [
+          // Option 1: จดบันทึกรายรับ-รายจ่าย (Manual Entry)
+          _buildFloatingMenuItem(
+           ctx: ctx,
+           icon: Icons.edit_note_rounded,
+           iconBg: currentTheme.primaryColor.withValues(alpha: 0.15),
+           iconColor: currentTheme.primaryColor,
+           title: widget.controller.tr('btn_add_record'),
+           subtitle: isEn ? 'Manual record with calculator' : 'จดบันทึกด้วยแป้นคิดเลข',
+           textPrimary: textPrimary,
+           isDark: isDark,
+           onTap: () {
+            Navigator.pop(ctx);
+            Navigator.push(
+             context,
+             MaterialPageRoute(
+              builder: (_) => MeowEntryScreen(controller: widget.controller),
+             ),
+            );
+           },
+          ),
+
+
+
+          const Divider(height: 1),
+
+          // Option 3: Pick Slip Image (OCR)
+          _buildFloatingMenuItem(
+           ctx: ctx,
+           icon: Icons.receipt_long_rounded,
+           iconBg: MeowTheme.actionBlue.withValues(alpha: 0.15),
+           iconColor: MeowTheme.actionBlue,
+           title: widget.controller.tr('btn_upload_slip'),
+           subtitle: isEn ? 'Pick slip image from gallery' : 'เลือกรูปสลิปจากคลังภาพ (OCR)',
+           textPrimary: textPrimary,
+           isDark: isDark,
+           onTap: () {
+            Navigator.pop(ctx);
+            _openSlipAutoRecord();
+           },
+          ),
+
+          const Divider(height: 1),
+
+          // Option 4: Auto Pull Bank Slips
+          _buildFloatingMenuItem(
+           ctx: ctx,
+           icon: Icons.sync_rounded,
+           iconBg: MeowTheme.incomeGreen.withValues(alpha: 0.15),
+           iconColor: MeowTheme.incomeGreen,
+           title: widget.controller.tr('btn_auto_pull_slips'),
+           subtitle: isEn ? 'Scan slips from bank & PaoTang' : 'ดึงสลิปจากอัลบั้มธนาคาร & เป๋าตัง',
+           textPrimary: textPrimary,
+           isDark: isDark,
+           onTap: () {
+            Navigator.pop(ctx);
+            _autoScanSlipsInBackground();
+           },
+          ),
+
+          const Divider(height: 1),
+
+          // Option 4: Voice STT with AI
+          _buildFloatingMenuItem(
+           ctx: ctx,
+           icon: Icons.mic,
+           iconBg: const Color(0xFFF59E0B).withOpacity(0.15),
+           iconColor: const Color(0xFFF59E0B),
+           title: isEn ? 'Voice Record with AI' : 'พูดเพื่อจดบันทึกด้วย AI',
+           subtitle: isEn ? 'Speak expense e.g. "Lunch 60"' : 'พูดสั้นๆ เช่น "กินข้าว 60 บาท"',
+           textPrimary: textPrimary,
+           isDark: isDark,
+           onTap: () {
+            Navigator.pop(ctx);
+            _openVoiceRecording();
+           },
+          ),
+         ],
+        ),
+       ),
+      ),
+     ),
     );
    },
   );
@@ -1101,13 +1286,60 @@ void _handleMascotPetting() {
              ),
              Row(
                children: [
-                // Quota capsule for free users (0/15)
+                // Quota capsule for free users (0/15) or Rewarded Ad Watch button when limit reached
                 if (!widget.controller.isPremium)
                   Builder(
                     builder: (context) {
                       final monthlyUsed = widget.controller.currentMonthSlipCount;
                       final monthlyMax = widget.controller.maxFreeSlipsPerMonth;
                       final isLimitReached = monthlyUsed >= monthlyMax;
+                      final canWatchAd = widget.controller.canWatchRewardedAd;
+
+                      if (isLimitReached && canWatchAd) {
+                        return InkWell(
+                          onTap: () {
+                            HapticFeedback.mediumImpact();
+                            _showWatchAdBonusDialog(context);
+                          },
+                          borderRadius: BorderRadius.circular(16),
+                          child: Container(
+                            margin: const EdgeInsets.only(right: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFFF59E0B).withValues(alpha: 0.35),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.play_circle_fill_rounded,
+                                  color: Colors.white,
+                                  size: 14,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  widget.controller.isEnglish ? 'Watch Ad +2' : 'ดูโฆษณา +2 สลิป',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }
 
                       final labelText = '$monthlyUsed/$monthlyMax';
                       final reasonText = 'โควต้าสลิปฟรีเดือนนี้: $monthlyUsed/$monthlyMax สลิป (รีเซ็ตเป็น 0/$monthlyMax ทุกวันที่ 1) ปลดล็อค VIP เพื่อสแกนไม่จำกัด 👑';
@@ -1115,11 +1347,15 @@ void _handleMascotPetting() {
                       return InkWell(
                         onTap: () {
                           HapticFeedback.lightImpact();
-                          MeowPaywallModal.show(
-                            context,
-                            controller: widget.controller,
-                            reason: reasonText,
-                          );
+                          if (isLimitReached && canWatchAd) {
+                            _showWatchAdBonusDialog(context);
+                          } else {
+                            MeowPaywallModal.show(
+                              context,
+                              controller: widget.controller,
+                              reason: reasonText,
+                            );
+                          }
                         },
                         borderRadius: BorderRadius.circular(16),
                         child: Container(
@@ -1511,51 +1747,16 @@ void _handleMascotPetting() {
                           ],
                         ),
                       ),
-                      // Right: Mascot Cat with visible Camera Badge
-                      Stack(
-                        alignment: Alignment.bottomRight,
-                        children: [
-                          MeowMascotWidget(
-                            size: 100,
-                            withPen: true,
-                            mascotId: widget.controller.selectedMascotId,
-                            accessory: widget.controller.selectedMascotAccessory,
-                            customPhotoPath: widget.controller.customAvatarPath,
-                            isCustomPhoto: widget.controller.isCustomAvatarEnabled,
-                            mood: widget.controller.mascotMood,
-                            onTap: _handleMascotPetting,
-                          ),
-                          Positioned(
-                            bottom: 6,
-                            right: 6,
-                            child: GestureDetector(
-                              onTap: () {
-                                HapticFeedback.selectionClick();
-                                CustomPhotoAvatarDialog.show(
-                                  context,
-                                  widget.controller,
-                                  onSaved: (_) => setState(() {}),
-                                );
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.all(5),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF2563EB),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: Colors.white, width: 2),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.35),
-                                      blurRadius: 6,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 14),
-                              ),
-                            ),
-                          ),
-                        ],
+                      // Right: Mascot Cat (clean without camera badge)
+                      MeowMascotWidget(
+                        size: 100,
+                        withPen: true,
+                        mascotId: widget.controller.selectedMascotId,
+                        accessory: widget.controller.selectedMascotAccessory,
+                        customPhotoPath: widget.controller.customAvatarPath,
+                        isCustomPhoto: widget.controller.isCustomAvatarEnabled,
+                        mood: widget.controller.mascotMood,
+                        onTap: _handleMascotPetting,
                       ),
                     ],
                   ),
