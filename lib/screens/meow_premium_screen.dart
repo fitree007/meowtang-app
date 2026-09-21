@@ -1046,9 +1046,15 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
     required VoidCallback onTap,
     bool isLocked = false,
   }) {
+    final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
+    final watermarkColor = isDarkTheme
+        ? Colors.white.withValues(alpha: 0.06)
+        : const Color(0xFF475569).withValues(alpha: 0.07);
+
     return TactileButton(
       onTap: onTap,
       child: Container(
+        clipBehavior: Clip.antiAlias,
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: cardBg,
@@ -1065,69 +1071,84 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
             ),
           ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: Stack(
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: isLocked
-                        ? const Color(0xFFF59E0B).withValues(alpha: 0.15)
-                        : iconColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    isLocked ? Icons.lock_outline_rounded : icon,
-                    color: isLocked ? const Color(0xFFF59E0B) : iconColor,
-                    size: 17,
-                  ),
+            Positioned(
+              right: -10,
+              bottom: -10,
+              child: IgnorePointer(
+                child: Icon(
+                  icon,
+                  size: 68,
+                  color: watermarkColor,
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: isLocked
-                        ? const Color(0xFFF59E0B).withValues(alpha: 0.15)
-                        : iconColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    isLocked ? '🔒 VIP' : badgeText,
-                    style: TextStyle(
-                      color: isLocked ? const Color(0xFFF59E0B) : iconColor,
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.bold,
-                    color: textColor,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: isLocked
+                            ? const Color(0xFFF59E0B).withValues(alpha: 0.15)
+                            : iconColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        isLocked ? Icons.lock_outline_rounded : icon,
+                        color: isLocked ? const Color(0xFFF59E0B) : iconColor,
+                        size: 17,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: isLocked
+                            ? const Color(0xFFF59E0B).withValues(alpha: 0.15)
+                            : iconColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        isLocked ? '🔒 VIP' : badgeText,
+                        style: TextStyle(
+                          color: isLocked ? const Color(0xFFF59E0B) : iconColor,
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 1),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    color: subTextColor,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        color: subTextColor,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
               ],
             ),
