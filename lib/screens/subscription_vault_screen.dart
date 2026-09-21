@@ -277,34 +277,81 @@ class _SubscriptionVaultScreenState extends State<SubscriptionVaultScreen> {
           icon: Icon(Icons.arrow_back_ios_new_rounded, color: textColor, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Row(
-          children: [
-            const Icon(Icons.auto_awesome_rounded, color: Color(0xFFF59E0B), size: 20),
-            const SizedBox(width: 8),
-            Text(
-              isEn ? 'Subscription Vault' : 'คุมค่า Subscription & รายจ่ายประจำ',
-              style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-          ],
+        title: Text(
+          isEn ? 'Subscription Vault' : 'คุมค่า Subscription & รายจ่ายประจำ',
+          style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16),
         ),
         actions: [
           PopupMenuButton<String>(
-            icon: Icon(Icons.sort_rounded, color: textColor),
-            onSelected: (val) => setState(() => _sortBy = val),
+            tooltip: 'จัดเรียง',
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            onSelected: (val) {
+              HapticFeedback.selectionClick();
+              setState(() => _sortBy = val);
+            },
             itemBuilder: (ctx) => [
               PopupMenuItem(
                 value: 'dueDate',
-                child: Text(isEn ? 'Sort by Next Due Date' : 'เรียงตามวันครบกำหนด'),
+                child: Row(
+                  children: [
+                    Icon(Icons.calendar_today_rounded, size: 16, color: _sortBy == 'dueDate' ? theme.primaryColor : subColor),
+                    const SizedBox(width: 8),
+                    Text(
+                      isEn ? 'Next Due Date' : 'วันครบกำหนด',
+                      style: TextStyle(fontSize: 13, fontWeight: _sortBy == 'dueDate' ? FontWeight.bold : FontWeight.normal),
+                    ),
+                  ],
+                ),
               ),
               PopupMenuItem(
                 value: 'price',
-                child: Text(isEn ? 'Sort by Price (High to Low)' : 'เรียงตามค่าบริการ (มากไปน้อย)'),
+                child: Row(
+                  children: [
+                    Icon(Icons.payments_rounded, size: 16, color: _sortBy == 'price' ? theme.primaryColor : subColor),
+                    const SizedBox(width: 8),
+                    Text(
+                      isEn ? 'Price (High to Low)' : 'ราคา (มากไปน้อย)',
+                      style: TextStyle(fontSize: 13, fontWeight: _sortBy == 'price' ? FontWeight.bold : FontWeight.normal),
+                    ),
+                  ],
+                ),
               ),
               PopupMenuItem(
                 value: 'name',
-                child: Text(isEn ? 'Sort by Name' : 'เรียงตามชื่อบริการ'),
+                child: Row(
+                  children: [
+                    Icon(Icons.sort_by_alpha_rounded, size: 16, color: _sortBy == 'name' ? theme.primaryColor : subColor),
+                    const SizedBox(width: 8),
+                    Text(
+                      isEn ? 'Name (A-Z)' : 'ชื่อบริการ (ก-ฮ)',
+                      style: TextStyle(fontSize: 13, fontWeight: _sortBy == 'name' ? FontWeight.bold : FontWeight.normal),
+                    ),
+                  ],
+                ),
               ),
             ],
+            child: Container(
+              margin: const EdgeInsets.only(right: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.04),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: borderColor.withOpacity(0.5)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.swap_vert_rounded, size: 16, color: theme.primaryColor),
+                  const SizedBox(width: 4),
+                  Text(
+                    _sortBy == 'price' ? 'เรียง: ราคา' : (_sortBy == 'name' ? 'เรียง: ชื่อ' : 'เรียง: วันครบ'),
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textColor),
+                  ),
+                  const SizedBox(width: 2),
+                  Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: subColor),
+                ],
+              ),
+            ),
           ),
         ],
       ),

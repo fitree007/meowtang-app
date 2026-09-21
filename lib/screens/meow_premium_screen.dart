@@ -573,10 +573,17 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                     const SizedBox(height: 12),
 
                     // ==========================================================
-                    // FEATURED HERO CARD: SUBSCRIPTION VAULT (คุมค่า Subscription & รายจ่ายประจำ)
+                    // SECTION 2: SMART WEALTH & BUDGET PLANNING
                     // ==========================================================
+                    _buildSectionHeader(
+                      title: isEn ? '2. Smart Wealth & Budgets' : '2. การวางแผนการเงินส่วนบุคคล',
+                      textColor: textColor,
+                    ),
+                    const SizedBox(height: 6),
+
+                    // FEATURED HERO CARD: SUBSCRIPTION VAULT (คุมค่า Subscription & รายจ่ายประจำ)
                     Container(
-                      margin: const EdgeInsets.only(bottom: 14),
+                      margin: const EdgeInsets.only(bottom: 12),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: isDark
@@ -599,21 +606,21 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                         ],
                       ),
                       child: Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(14),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(
                               children: [
                                 Container(
-                                  width: 44,
-                                  height: 44,
+                                  width: 42,
+                                  height: 42,
                                   decoration: BoxDecoration(
                                     color: const Color(0xFF10B981).withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(14),
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: const Center(
-                                    child: Text('📱', style: TextStyle(fontSize: 22)),
+                                    child: Text('📱', style: TextStyle(fontSize: 20)),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
@@ -621,42 +628,20 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Row(
-                                        children: [
-                                          Flexible(
-                                            child: Text(
-                                              isEn ? 'Subscription Vault' : 'ระบบคุมค่า Subscription & บิลประจำ',
-                                              style: TextStyle(
-                                                fontSize: 14.5,
-                                                fontWeight: FontWeight.bold,
-                                                color: textColor,
-                                              ),
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFF10B981),
-                                              borderRadius: BorderRadius.circular(6),
-                                            ),
-                                            child: const Text(
-                                              'NEW ✨',
-                                              style: TextStyle(
-                                                fontSize: 9,
-                                                fontWeight: FontWeight.w900,
-                                                color: Colors.white,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
+                                      Text(
+                                        isEn ? 'Subscription Vault' : 'คุมค่า Subscription & บิลประจำ',
+                                        style: TextStyle(
+                                          fontSize: 14.5,
+                                          fontWeight: FontWeight.bold,
+                                          color: textColor,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
                                         isEn
-                                            ? 'Track Netflix, YouTube, ChatGPT, Utilities + Free trial alert'
-                                            : 'คุม Netflix, YouTube, ChatGPT, ค่าน้ำไฟ พร้อมเตือนก่อนหมดช่วงทดลองฟรี',
+                                            ? 'Track Netflix, YouTube, ChatGPT, Utilities + Renewal Alert'
+                                            : 'คุม Netflix, YouTube, ChatGPT, ค่าน้ำไฟ พร้อมเตือนก่อนตัดเงิน',
                                         style: TextStyle(fontSize: 11, color: subTextColor),
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
@@ -666,23 +651,23 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 10),
                             // Logos preview row
                             Row(
                               children: [
                                 ...['netflix', 'youtube', 'spotify', 'gemini', 'chatgpt', 'ais'].map((logo) {
                                   return Container(
                                     margin: const EdgeInsets.only(right: 6),
-                                    width: 28,
-                                    height: 28,
+                                    width: 26,
+                                    height: 26,
                                     decoration: BoxDecoration(
                                       color: Colors.white,
-                                      borderRadius: BorderRadius.circular(8),
+                                      borderRadius: BorderRadius.circular(7),
                                       boxShadow: [
                                         BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 4),
                                       ],
                                     ),
-                                    padding: const EdgeInsets.all(4),
+                                    padding: const EdgeInsets.all(3.5),
                                     child: Image.asset(
                                       'assets/icons/subscriptions/$logo.png',
                                       fit: BoxFit.contain,
@@ -697,7 +682,7 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 12),
                             const Divider(height: 1),
                             const SizedBox(height: 10),
                             // Action button: เข้าสู่ระบบจัดการ Subscription
@@ -724,34 +709,26 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                                   }
                                 },
                                 icon: Icon(
-                                  isVip ? Icons.auto_awesome_rounded : Icons.lock_outline_rounded,
-                                  size: 16,
+                                  isVip ? Icons.arrow_forward_rounded : Icons.lock_outline_rounded,
+                                  size: 15,
                                   color: Colors.white,
                                 ),
                                 label: Text(
                                   isVip
-                                      ? (isEn ? 'Manage Subscriptions & Bills' : 'จัดการ Subscription & บิลประจำ ✨')
+                                      ? (isEn ? 'Manage Subscriptions & Bills' : 'จัดการ Subscription & บิลประจำ')
                                       : (isEn ? 'Unlock Subscription Vault' : 'ปลดล็อคใช้งาน (VIP) 👑'),
-                                  style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: Colors.white),
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
                                 ),
                                 style: FilledButton.styleFrom(
                                   backgroundColor: isVip ? const Color(0xFF6366F1) : const Color(0xFFF59E0B),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  padding: const EdgeInsets.symmetric(vertical: 9),
                                 ),
                               ),
                             ),
                           ],
                         ),
                       ),
-                    ),
-
-                    // ==========================================================
-                    // SECTION 2: SMART WEALTH & BUDGET PLANNING
-                    // ==========================================================
-                    _buildSectionHeader(
-                      title: isEn ? '2. Smart Wealth & Budgets' : '2. การวางแผนการเงินส่วนบุคคล',
-                      textColor: textColor,
                     ),
                     const SizedBox(height: 4),
 
