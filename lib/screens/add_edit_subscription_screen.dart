@@ -41,6 +41,7 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
   Color? _customColor;
   int _reminderDaysBefore = 3;
   bool _isActive = true;
+  String? _autoMatchedBrandName;
 
   final List<String> _categories = [
     'สตรีมมิ่ง & ดูหนัง',
@@ -103,15 +104,46 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
         _paymentMethod = widget.controller.accounts.first.name;
       }
     }
+    _nameController.addListener(_onNameChanged);
   }
 
   @override
   void dispose() {
+    _nameController.removeListener(_onNameChanged);
     _nameController.dispose();
     _priceController.dispose();
     _notesController.dispose();
     _websiteController.dispose();
     super.dispose();
+  }
+
+  void _onNameChanged() {
+    final text = _nameController.text;
+    final matched = SubscriptionPreset.findMatchingPreset(text);
+    if (matched != null) {
+      if (_logoAssetPath != matched.logoAssetPath) {
+        setState(() {
+          _logoAssetPath = matched.logoAssetPath;
+          _customLogoUrl = null;
+          _selectedCategory = matched.category;
+          _customColor = matched.brandColor;
+          _autoMatchedBrandName = matched.name;
+          if (_priceController.text.trim().isEmpty || _priceController.text.trim() == '0') {
+            _priceController.text = matched.defaultPrice.toStringAsFixed(
+              matched.defaultPrice.truncateToDouble() == matched.defaultPrice ? 0 : 2,
+            );
+            _selectedCurrency = matched.currency;
+            _billingCycle = matched.billingCycle;
+          }
+        });
+      }
+    } else {
+      if (_autoMatchedBrandName != null) {
+        setState(() {
+          _autoMatchedBrandName = null;
+        });
+      }
+    }
   }
 
   void _applyPreset(SubscriptionPreset preset) {
@@ -125,6 +157,7 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
       _logoAssetPath = preset.logoAssetPath;
       _customLogoUrl = null;
       _customColor = preset.brandColor;
+      _autoMatchedBrandName = preset.name;
     });
   }
 
@@ -479,6 +512,28 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
                               ),
                               validator: (val) => val == null || val.trim().isEmpty ? 'กรุณาระบุชื่อบริการ' : null,
                             ),
+                            if (_autoMatchedBrandName != null) ...[
+                              const SizedBox(height: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.auto_awesome_rounded, size: 12, color: Color(0xFF10B981)),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'ใส่โลโก้แท้ $_autoMatchedBrandName อัตโนมัติ ✨',
+                                      style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF10B981)),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                             const SizedBox(height: 6),
                             DropdownButtonHideUnderline(
                               child: DropdownButton<String>(

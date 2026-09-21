@@ -472,5 +472,209 @@ class SubscriptionPreset {
       logoAssetPath: 'assets/icons/subscriptions/shopee.png',
       brandColor: Color(0xFFEE4D2D),
     ),
+
+    // Additional Global AI & Creative Services
+    SubscriptionPreset(
+      name: 'Google Gemini Advanced',
+      category: 'AI & ซอฟต์แวร์',
+      defaultPrice: 750.0,
+      logoAssetPath: 'assets/icons/subscriptions/gemini.png',
+      brandColor: Color(0xFF1E88E5),
+    ),
+    SubscriptionPreset(
+      name: 'Perplexity Pro',
+      category: 'AI & ซอฟต์แวร์',
+      defaultPrice: 20.0,
+      currency: 'USD',
+      logoAssetPath: 'assets/icons/subscriptions/perplexity.png',
+      brandColor: Color(0xFF22B8CD),
+    ),
+    SubscriptionPreset(
+      name: 'Cursor Pro',
+      category: 'AI & ซอฟต์แวร์',
+      defaultPrice: 20.0,
+      currency: 'USD',
+      logoAssetPath: 'assets/icons/subscriptions/cursor.png',
+      brandColor: Color(0xFF000000),
+    ),
+    SubscriptionPreset(
+      name: 'CapCut Pro',
+      category: 'กราฟิก & ตัดต่อวิดีโอ',
+      defaultPrice: 249.0,
+      logoAssetPath: 'assets/icons/subscriptions/capcut.png',
+      brandColor: Color(0xFF000000),
+    ),
+    SubscriptionPreset(
+      name: 'DeepL Pro',
+      category: 'AI & การแปลภาษา',
+      defaultPrice: 8.74,
+      currency: 'USD',
+      logoAssetPath: 'assets/icons/subscriptions/deepl.png',
+      brandColor: Color(0xFF0F2B46),
+    ),
+    SubscriptionPreset(
+      name: 'ElevenLabs',
+      category: 'AI & เสียงสังเคราะห์',
+      defaultPrice: 5.0,
+      currency: 'USD',
+      logoAssetPath: 'assets/icons/subscriptions/elevenlabs.png',
+      brandColor: Color(0xFF000000),
+    ),
+    SubscriptionPreset(
+      name: 'Poe AI',
+      category: 'AI & ซอฟต์แวร์',
+      defaultPrice: 19.99,
+      currency: 'USD',
+      logoAssetPath: 'assets/icons/subscriptions/poe.png',
+      brandColor: Color(0xFF5B34EA),
+    ),
+    SubscriptionPreset(
+      name: 'Suno AI',
+      category: 'AI & ดนตรี',
+      defaultPrice: 10.0,
+      currency: 'USD',
+      logoAssetPath: 'assets/icons/subscriptions/suno.png',
+      brandColor: Color(0xFF000000),
+    ),
+    SubscriptionPreset(
+      name: 'Runway ML',
+      category: 'AI & ตัดต่อวิดีโอ',
+      defaultPrice: 15.0,
+      currency: 'USD',
+      logoAssetPath: 'assets/icons/subscriptions/runway.png',
+      brandColor: Color(0xFF000000),
+    ),
+
+    // Thai Popular Entertainment & Sports
+    SubscriptionPreset(
+      name: 'TrueID / TrueVisions Now',
+      category: 'สตรีมมิ่ง & กีฬา',
+      defaultPrice: 249.0,
+      logoAssetPath: 'assets/icons/subscriptions/trueid.png',
+      brandColor: Color(0xFFED1C24),
+    ),
+    SubscriptionPreset(
+      name: 'AIS PLAY',
+      category: 'สตรีมมิ่ง & กีฬา',
+      defaultPrice: 199.0,
+      logoAssetPath: 'assets/icons/subscriptions/aisplay.png',
+      brandColor: Color(0xFF83C326),
+    ),
+    SubscriptionPreset(
+      name: 'beIN SPORTS',
+      category: 'กีฬา & ฟุตบอล',
+      defaultPrice: 149.0,
+      logoAssetPath: 'assets/icons/subscriptions/beinsports.png',
+      brandColor: Color(0xFF672A99),
+    ),
+    SubscriptionPreset(
+      name: 'Bilibili Premium',
+      category: 'อนิเมะ & วิดีโอ',
+      defaultPrice: 99.0,
+      logoAssetPath: 'assets/icons/subscriptions/bilibili.png',
+      brandColor: Color(0xFF00AEEC),
+    ),
+    SubscriptionPreset(
+      name: 'CH3 Plus Premium',
+      category: 'สตรีมมิ่ง & ละคร',
+      defaultPrice: 99.0,
+      logoAssetPath: 'assets/icons/subscriptions/ch3plus.png',
+      brandColor: Color(0xFF003F87),
+    ),
+    SubscriptionPreset(
+      name: 'pandapro (Foodpanda)',
+      category: 'ส่งอาหาร & เดินทาง',
+      defaultPrice: 19.0,
+      logoAssetPath: 'assets/icons/subscriptions/pandapro.png',
+      brandColor: Color(0xFFD70F64),
+    ),
+    SubscriptionPreset(
+      name: 'Easy Pass / M-Flow',
+      category: 'สาธารณูปโภค & ทางด่วน',
+      defaultPrice: 500.0,
+      logoAssetPath: 'assets/icons/subscriptions/mflow.png',
+      brandColor: Color(0xFF003893),
+    ),
   ];
+
+  static final Map<String, List<String>> _aliasMap = {
+    'Netflix': ['netflix', 'เน็ตฟลิก', 'เนตฟลิก'],
+    'YouTube Premium': ['youtube', 'yt', 'ยูทูป', 'ยูทูบ'],
+    'Spotify': ['spotify', 'สปอติฟาย'],
+    'Disney+ Hotstar': ['disney', 'ดิสนีย์', 'hotstar'],
+    'Apple TV+ / One': ['apple', 'แอปเปิ้ล', 'apple tv', 'apple music', 'apple one', 'itunes'],
+    'Amazon Prime': ['prime', 'amazon prime', 'อเมซอน', 'ไพรม์'],
+    'HBO Max': ['hbo', 'hbomax', 'max'],
+    'Viu Premium': ['viu', 'วิว'],
+    'WeTV VIP': ['wetv', 'วีทีวี'],
+    'iQIYI VIP': ['iqiyi', 'อ้ายฉีอี้'],
+    'Monomax': ['monomax', 'โมโนแมกซ์'],
+    'Bilibili Premium': ['bilibili', 'บิลิบิลิ'],
+    'TrueID / TrueVisions Now': ['trueid', 'ทรูไอดี', 'truevisions', 'ทรูวิชั่น'],
+    'AIS PLAY': ['ais play', 'aisplay', 'เอไอเอสเพลย์'],
+    'beIN SPORTS': ['bein', 'beinsports', 'บีอิน'],
+    'CH3 Plus Premium': ['ch3', '3plus', 'ช่อง3', 'ch3plus'],
+    'ChatGPT Plus': ['chatgpt', 'gpt', 'openai', 'แชทจีพีที'],
+    'Claude Pro': ['claude', 'anthropic', 'โคลด'],
+    'Google Gemini Advanced': ['gemini', 'google gemini', 'bard', 'เจมินาย', 'กูเกิล'],
+    'Perplexity Pro': ['perplexity', 'pplx', 'เพอร์เพล็กซิตี้'],
+    'Cursor Pro': ['cursor', 'เคอร์เซอร์'],
+    'Canva Pro': ['canva', 'แคนวา'],
+    'Midjourney': ['midjourney', 'mj', 'มิดเจอร์นีย์'],
+    'Adobe Creative Cloud': ['adobe', 'photoshop', 'illustrator', 'อะโดบี'],
+    'CapCut Pro': ['capcut', 'แคปคัท'],
+    'DeepL Pro': ['deepl', 'ดีพแอล'],
+    'ElevenLabs': ['elevenlabs', '11labs', 'อีเลฟเวนแล็บ'],
+    'Poe AI': ['poe', 'โพ'],
+    'Suno AI': ['suno', 'ซูโน'],
+    'Runway ML': ['runway', 'รันเวย์'],
+    'Microsoft 365': ['microsoft', 'office', 'm365', 'ไมโครซอฟท์', 'word', 'excel'],
+    'Google One': ['google one', 'gsuite', 'google drive'],
+    'iCloud+': ['icloud', 'ไอคลาวด์'],
+    'Notion Plus': ['notion', 'โนชั่น'],
+    'GitHub Copilot': ['github', 'copilot', 'กิตฮับ'],
+    'Dropbox': ['dropbox', 'ดรอปบ็อกซ์'],
+    'AIS รายเดือน/ไฟเบอร์': ['ais', 'เอไอเอส', 'ais fibre', 'เน็ต ais'],
+    'True 5G / TrueOnline': ['true', 'ทรู', 'trueonline', 'เน็ตทรู', 'true 5g'],
+    'dtac รายเดือน': ['dtac', 'ดีแทค'],
+    '3BB Fibre': ['3bb', 'ทรีบีบี', 'สามบีบี'],
+    'NT Broadband': ['nt', 'nt broadband', 'ทีโอที', 'tot', 'cat'],
+    'กฟน. การไฟฟ้านครหลวง': ['mea', 'กฟน', 'ไฟฟ้านครหลวง', 'ค่าไฟ กฟน'],
+    'กฟภ. การไฟฟ้าส่วนภูมิภาค': ['pea', 'กฟภ', 'ไฟฟ้าส่วนภูมิภาค', 'ค่าไฟ กฟภ'],
+    'กปน. การประปานครหลวง': ['mwa', 'กปน', 'การประปา', 'ค่าน้ำ'],
+    'Easy Pass / M-Flow': ['easypass', 'easy pass', 'mflow', 'm-flow', 'm flow', 'ทางด่วน', 'เอ็มโฟลว์'],
+    'PlayStation Plus': ['playstation', 'ps plus', 'psn', 'เพลย์สเตชัน'],
+    'Nintendo Switch Online': ['nintendo', 'switch online', 'นินเทนโด'],
+    'Steam': ['steam', 'สตีม'],
+    'Discord Nitro': ['discord', 'ดิสคอร์ด'],
+    'GrabUnlimited': ['grab', 'แกร็บ', 'grabunlimited'],
+    'LINE MAN สมาชิก': ['lineman', 'ไลน์แมน', 'line man'],
+    'pandapro (Foodpanda)': ['pandapro', 'foodpanda', 'ฟู้ดแพนด้า', 'แพนด้าโปร'],
+    'Shopee VIP / สมาชิก': ['shopee', 'ช้อปปี้', 'spaylater'],
+  };
+
+  /// Intelligently matches user typing to an authentic preset
+  static SubscriptionPreset? findMatchingPreset(String input) {
+    final clean = input.trim().toLowerCase();
+    if (clean.length < 2) return null;
+
+    // 1. Direct name match
+    for (final p in popularPresets) {
+      final pName = p.name.toLowerCase();
+      if (pName == clean || pName.startsWith(clean) || clean.startsWith(pName)) {
+        return p;
+      }
+    }
+
+    // 2. Alias match
+    for (final entry in _aliasMap.entries) {
+      for (final alias in entry.value) {
+        if (clean == alias || clean.startsWith(alias) || clean.contains(alias)) {
+          return popularPresets.firstWhere((p) => p.name == entry.key, orElse: () => popularPresets.first);
+        }
+      }
+    }
+
+    return null;
+  }
 }

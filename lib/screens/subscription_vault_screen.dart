@@ -13,12 +13,10 @@ import 'add_edit_subscription_screen.dart';
 
 class SubscriptionVaultScreen extends StatefulWidget {
   final ExpenseController controller;
-  final bool isGuestMode;
 
   const SubscriptionVaultScreen({
     super.key,
     required this.controller,
-    this.isGuestMode = false,
   });
 
   @override
@@ -313,74 +311,7 @@ class _SubscriptionVaultScreenState extends State<SubscriptionVaultScreen> {
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         children: [
-          // TEST DRIVE / GUEST MODE BANNER
-          if (!isVip || widget.isGuestMode) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              margin: const EdgeInsets.only(bottom: 14),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFF38BDF8).withOpacity(0.5)),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF38BDF8).withOpacity(0.15),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  const Text('🚀', style: TextStyle(fontSize: 24)),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Text(
-                              isEn ? 'Test Drive Mode (Guest)' : 'โหมดลองใช้ก่อน ไม่ต้องสมัคร ✨',
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF38BDF8),
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF38BDF8).withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: const Text('FREE', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF38BDF8))),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          isEn
-                              ? 'Manage subscriptions freely! Data is stored 100% offline on this device.'
-                              : 'ทดลองเพิ่มและจัดการค่าบริการได้เต็มที่ บันทึกในเครื่องออฟไลน์ 100% ปลอดภัย ไม่ต้องผูกบัตร!',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.white.withOpacity(0.8),
-                            height: 1.35,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+
 
           // EXPIRING FREE TRIAL COUNTDOWN WARNING (If any)
           if (expiringTrials.isNotEmpty) ...[
@@ -401,7 +332,7 @@ class _SubscriptionVaultScreenState extends State<SubscriptionVaultScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          isEn ? 'Free Trial Expiring Soon! ⏰' : 'เตือนความจำ: กำลังจะหมดช่วงทดลองฟรี! ⏰',
+                          isEn ? 'Free Trial Expiring Soon! ⏰' : 'เตือนความจำ: กำลังจะหมดช่วงทดลองใช้! ⏰',
                           style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.bold,

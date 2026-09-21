@@ -670,7 +670,7 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                             // Logos preview row
                             Row(
                               children: [
-                                ...['netflix', 'youtube', 'spotify', 'chatgpt', 'disney_plus', 'ais'].map((logo) {
+                                ...['netflix', 'youtube', 'spotify', 'gemini', 'chatgpt', 'ais'].map((logo) {
                                   return Container(
                                     margin: const EdgeInsets.only(right: 6),
                                     width: 28,
@@ -692,7 +692,7 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                                 }),
                                 const SizedBox(width: 4),
                                 Text(
-                                  '+30 แบรนด์',
+                                  '+50 แบรนด์',
                                   style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: subTextColor),
                                 ),
                               ],
@@ -700,79 +700,46 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                             const SizedBox(height: 14),
                             const Divider(height: 1),
                             const SizedBox(height: 10),
-                            // Action buttons: "ลองใช้ก่อน ไม่ต้องสมัคร" and "เข้าสู่ระบบจัดการ"
-                            Row(
-                              children: [
-                                // "ลองใช้ก่อน ไม่ต้องสมัคร" (Guest / Test Drive Mode)
-                                Expanded(
-                                  child: OutlinedButton.icon(
-                                    onPressed: () {
-                                      HapticFeedback.lightImpact();
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => SubscriptionVaultScreen(
-                                            controller: widget.controller,
-                                            isGuestMode: true,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                    icon: const Icon(Icons.play_circle_outline_rounded, size: 16, color: Color(0xFF0284C7)),
-                                    label: Text(
-                                      isEn ? 'Try Free' : 'ลองใช้ก่อน ไม่ต้องสมัคร 🚀',
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xFF0284C7),
-                                      ),
-                                    ),
-                                    style: OutlinedButton.styleFrom(
-                                      side: const BorderSide(color: Color(0xFF0284C7), width: 1.2),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                      padding: const EdgeInsets.symmetric(vertical: 8),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                // Full VIP Access / Open Feature
-                                Expanded(
-                                  child: FilledButton.icon(
-                                    onPressed: () {
-                                      if (!isVip) {
-                                        MeowPaywallModal.show(
-                                          context,
+                            // Action button: เข้าสู่ระบบจัดการ Subscription
+                            SizedBox(
+                              width: double.infinity,
+                              child: FilledButton.icon(
+                                onPressed: () {
+                                  if (!isVip) {
+                                    MeowPaywallModal.show(
+                                      context,
+                                      controller: widget.controller,
+                                      reason: 'ระบบจัดการ Subscription & รายจ่ายประจำ สำหรับสมาชิก VIP 👑',
+                                    );
+                                  } else {
+                                    HapticFeedback.lightImpact();
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => SubscriptionVaultScreen(
                                           controller: widget.controller,
-                                          reason: 'ระบบจัดการ Subscription & รายจ่ายประจำ สำหรับสมาชิก VIP 👑',
-                                        );
-                                      } else {
-                                        HapticFeedback.lightImpact();
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) => SubscriptionVaultScreen(
-                                              controller: widget.controller,
-                                              isGuestMode: false,
-                                            ),
-                                          ),
-                                        );
-                                      }
-                                    },
-                                    icon: Icon(isVip ? Icons.lock_open_rounded : Icons.lock_outline_rounded, size: 15, color: Colors.white),
-                                    label: Text(
-                                      isVip
-                                          ? (isEn ? 'Open Vault' : 'เปิดใช้งาน')
-                                          : (isEn ? 'VIP Access' : 'ปลดล็อค VIP 👑'),
-                                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
-                                    ),
-                                    style: FilledButton.styleFrom(
-                                      backgroundColor: isVip ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                      padding: const EdgeInsets.symmetric(vertical: 8),
-                                    ),
-                                  ),
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                },
+                                icon: Icon(
+                                  isVip ? Icons.auto_awesome_rounded : Icons.lock_outline_rounded,
+                                  size: 16,
+                                  color: Colors.white,
                                 ),
-                              ],
+                                label: Text(
+                                  isVip
+                                      ? (isEn ? 'Manage Subscriptions & Bills' : 'จัดการ Subscription & บิลประจำ ✨')
+                                      : (isEn ? 'Unlock Subscription Vault' : 'ปลดล็อคใช้งาน (VIP) 👑'),
+                                  style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: Colors.white),
+                                ),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: isVip ? const Color(0xFF6366F1) : const Color(0xFFF59E0B),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                ),
+                              ),
                             ),
                           ],
                         ),

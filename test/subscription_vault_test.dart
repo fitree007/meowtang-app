@@ -127,5 +127,28 @@ void main() {
       expect(loaded.first.name, equals('AIS Fibre'));
       expect(loaded.first.price, equals(599.0));
     });
+
+    test('Auto-matches brand logos for AI and popular Thai services correctly', () {
+      // AI Services
+      expect(SubscriptionPreset.findMatchingPreset('Gemini Advanced')?.name, equals('Google Gemini Advanced'));
+      expect(SubscriptionPreset.findMatchingPreset('perplexity pro')?.name, equals('Perplexity Pro'));
+      expect(SubscriptionPreset.findMatchingPreset('cursor ide')?.name, equals('Cursor Pro'));
+      expect(SubscriptionPreset.findMatchingPreset('deepl pro')?.name, equals('DeepL Pro'));
+      expect(SubscriptionPreset.findMatchingPreset('capcut pro')?.name, equals('CapCut Pro'));
+      expect(SubscriptionPreset.findMatchingPreset('elevenlabs voice')?.name, equals('ElevenLabs'));
+      expect(SubscriptionPreset.findMatchingPreset('suno ai')?.name, equals('Suno AI'));
+
+      // Thai Services
+      expect(SubscriptionPreset.findMatchingPreset('TrueID')?.name, equals('TrueID / TrueVisions Now'));
+      expect(SubscriptionPreset.findMatchingPreset('ais play')?.name, equals('AIS PLAY'));
+      expect(SubscriptionPreset.findMatchingPreset('bilibili')?.name, equals('Bilibili Premium'));
+      expect(SubscriptionPreset.findMatchingPreset('ch3plus')?.name, equals('CH3 Plus Premium'));
+      expect(SubscriptionPreset.findMatchingPreset('pandapro')?.name, equals('pandapro (Foodpanda)'));
+      expect(SubscriptionPreset.findMatchingPreset('m flow')?.name, equals('Easy Pass / M-Flow'));
+
+      // Global Streaming & Services
+      expect(SubscriptionPreset.findMatchingPreset('netflix 4k')?.name, equals('Netflix'));
+      expect(SubscriptionPreset.findMatchingPreset('yt premium')?.name, equals('YouTube Premium'));
+    });
   });
 }
