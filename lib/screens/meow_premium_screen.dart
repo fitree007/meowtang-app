@@ -405,7 +405,7 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                       onTap: () {
                         _openFeature(
                           CurrencyConverterScreen(controller: widget.controller),
-                          reason: 'เครื่องคิดเลขแปลงเงิน & อัตราแลกเปลี่ยนสด สำหรับสมาชิก VIP 👑',
+                          reason: 'เครื่องคิดเลขแปลงค่าเงิน 30+ สกุลทั่วโลก สำหรับสมาชิก VIP 👑',
                         );
                       },
                       child: Container(
@@ -424,14 +424,16 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                         ),
                         child: Row(
                           children: [
-                            Container(
-                              width: 36,
-                              height: 36,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF0284C7).withValues(alpha: 0.14),
-                                borderRadius: BorderRadius.circular(12),
+                            const SizedBox(
+                              width: 28,
+                              height: 28,
+                              child: Center(
+                                child: Icon(
+                                  Icons.currency_exchange_rounded,
+                                  size: 22,
+                                  color: Color(0xFF0284C7),
+                                ),
                               ),
-                              child: const Center(child: Text('💱', style: TextStyle(fontSize: 19))),
                             ),
                             const SizedBox(width: 10),
                             Expanded(
@@ -511,14 +513,16 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                         ),
                         child: Row(
                           children: [
-                            Container(
-                              width: 36,
-                              height: 36,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(12),
+                            const SizedBox(
+                              width: 28,
+                              height: 28,
+                              child: Center(
+                                child: Icon(
+                                  Icons.monetization_on_outlined,
+                                  size: 22,
+                                  color: Color(0xFFD97706),
+                                ),
                               ),
-                              child: const Center(child: Text('🪙', style: TextStyle(fontSize: 19))),
                             ),
                             const SizedBox(width: 10),
                             Expanded(
@@ -581,21 +585,28 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                     ),
                     const SizedBox(height: 6),
 
-                    // FEATURED HERO CARD: SUBSCRIPTION VAULT (Minimalist & Entire Frame Clickable)
+                    // FEATURED HERO CARD: SUBSCRIPTION VAULT (Larger & with brand logos)
                     Container(
-                      margin: const EdgeInsets.only(bottom: 10),
+                      margin: const EdgeInsets.only(bottom: 12),
                       decoration: BoxDecoration(
                         color: cardBg,
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: borderColor.withValues(alpha: 0.5),
-                          width: 1,
+                          color: const Color(0xFF6366F1).withValues(alpha: isDark ? 0.35 : 0.25),
+                          width: 1.2,
                         ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF6366F1).withValues(alpha: isDark ? 0.12 : 0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
                       ),
                       child: Material(
                         color: Colors.transparent,
                         child: InkWell(
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(20),
                           onTap: () {
                             if (!isVip) {
                               MeowPaywallModal.show(
@@ -616,61 +627,149 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                             }
                           },
                           child: Padding(
-                            padding: const EdgeInsets.all(14),
-                            child: Row(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Container(
-                                  width: 40,
-                                  height: 40,
-                                  decoration: BoxDecoration(
-                                    color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: borderColor.withValues(alpha: 0.3)),
-                                  ),
-                                  child: Icon(
-                                    Icons.subscriptions_outlined,
-                                    size: 20,
-                                    color: textColor,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 44,
+                                      height: 44,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF6366F1).withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(14),
+                                        border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.25)),
+                                      ),
+                                      child: const Icon(
+                                        Icons.subscriptions_rounded,
+                                        size: 22,
+                                        color: Color(0xFF6366F1),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          Text(
-                                            isEn ? 'Subscription Vault' : 'คุมค่า Subscription & บิลประจำ',
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.bold,
-                                              color: textColor,
-                                            ),
+                                          Row(
+                                            children: [
+                                              Text(
+                                                isEn ? 'Subscription Vault' : 'คุมค่า Subscription & บิลประจำ',
+                                                style: TextStyle(
+                                                  fontSize: 15,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: textColor,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFF6366F1).withValues(alpha: 0.15),
+                                                  borderRadius: BorderRadius.circular(6),
+                                                ),
+                                                child: Text(
+                                                  isEn ? 'FEATURED' : 'แนะนำ 🌟',
+                                                  style: const TextStyle(
+                                                    fontSize: 9,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Color(0xFF6366F1),
+                                                  ),
+                                                ),
+                                              ),
+                                              if (!isVip) ...[
+                                                const SizedBox(width: 4),
+                                                Icon(Icons.lock_outline_rounded, size: 13, color: subTextColor),
+                                              ],
+                                            ],
                                           ),
-                                          if (!isVip) ...[
-                                            const SizedBox(width: 6),
-                                            Icon(Icons.lock_outline_rounded, size: 13, color: subTextColor),
-                                          ],
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            isEn
+                                                ? 'Manage Netflix, YouTube, ChatGPT, iCloud & bills'
+                                                : 'จัดระเบียบสตรีมมิ่ง, AI, ค่าน้ำไฟ จัดการรอบบิลและเตือนก่อนตัดเงิน',
+                                            style: TextStyle(fontSize: 11.5, color: subTextColor),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
                                         ],
                                       ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        isEn
-                                            ? 'Track Netflix, YouTube, ChatGPT, Utilities'
-                                            : 'คุม Netflix, YouTube, ChatGPT, ค่าน้ำไฟ พร้อมเตือนก่อนตัดเงิน',
-                                        style: TextStyle(fontSize: 11, color: subTextColor),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Icon(
+                                      Icons.arrow_forward_ios_rounded,
+                                      color: subTextColor.withValues(alpha: 0.6),
+                                      size: 14,
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? Colors.white.withValues(alpha: 0.03) : const Color(0xFFF8FAFC),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: borderColor.withValues(alpha: isDark ? 0.3 : 0.6),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      // Brand logos row
+                                      ...[
+                                        'assets/icons/subscriptions/netflix.png',
+                                        'assets/icons/subscriptions/youtube.png',
+                                        'assets/icons/subscriptions/chatgpt.png',
+                                        'assets/icons/subscriptions/spotify.png',
+                                        'assets/icons/subscriptions/disney_plus.png',
+                                        'assets/icons/subscriptions/claude.png',
+                                        'assets/icons/subscriptions/apple.png',
+                                      ].map((assetPath) {
+                                        return Container(
+                                          width: 26,
+                                          height: 26,
+                                          margin: const EdgeInsets.only(right: 6),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            shape: BoxShape.circle,
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withValues(alpha: 0.08),
+                                                blurRadius: 3,
+                                                offset: const Offset(0, 1),
+                                              ),
+                                            ],
+                                          ),
+                                          child: ClipOval(
+                                            child: Padding(
+                                              padding: const EdgeInsets.all(2.5),
+                                              child: Image.asset(
+                                                assetPath,
+                                                fit: BoxFit.contain,
+                                                errorBuilder: (_, _, _) => const Icon(Icons.circle, size: 14, color: Colors.grey),
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      }),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          '+อื่นๆ',
+                                          style: TextStyle(
+                                            fontSize: 9.5,
+                                            fontWeight: FontWeight.bold,
+                                            color: subTextColor,
+                                          ),
+                                        ),
                                       ),
                                     ],
                                   ),
-                                ),
-                                const SizedBox(width: 6),
-                                Icon(
-                                  Icons.chevron_right_rounded,
-                                  color: subTextColor.withValues(alpha: 0.6),
-                                  size: 20,
                                 ),
                               ],
                             ),

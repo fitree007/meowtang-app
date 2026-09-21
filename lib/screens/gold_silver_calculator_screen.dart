@@ -39,11 +39,13 @@ class _GoldSilverCalculatorScreenState extends State<GoldSilverCalculatorScreen>
   final TextEditingController _craftingFeeController = TextEditingController(text: '800');
   double _craftingFee = 800.0;
 
-  // Chart Timeframe: 7 days vs 30 days
+  // Chart Timeframe: 7, 15, 30, 90 days
   int _chartDays = 7;
 
   // Scrubber index on the interactive trend chart (-1 = not scrubbing, shows latest)
   int _scrubbedIndex = -1;
+
+  List<DailyPricePoint> _dailyHistoryPoints = [];
 
   bool _isLoading = false;
 
@@ -51,6 +53,7 @@ class _GoldSilverCalculatorScreenState extends State<GoldSilverCalculatorScreen>
   void initState() {
     super.initState();
     _refreshRates();
+    _loadHistoryData();
   }
 
   @override
@@ -60,9 +63,24 @@ class _GoldSilverCalculatorScreenState extends State<GoldSilverCalculatorScreen>
     super.dispose();
   }
 
+  String get _currentAssetKey {
+    if (_selectedAsset == 1) return 'silver';
+    return _goldType == 1 ? 'gold_ornament' : 'gold_bar';
+  }
+
+  Future<void> _loadHistoryData() async {
+    final points = await CurrencyExchangeService.getDailyAssetHistory(_currentAssetKey, _chartDays);
+    if (mounted) {
+      setState(() {
+        _dailyHistoryPoints = points;
+      });
+    }
+  }
+
   Future<void> _refreshRates() async {
     setState(() => _isLoading = true);
     await CurrencyExchangeService.fetchLatestRates();
+    await _loadHistoryData();
     if (mounted) setState(() => _isLoading = false);
   }
 
@@ -163,8 +181,10 @@ class _GoldSilverCalculatorScreenState extends State<GoldSilverCalculatorScreen>
     final double totalBuyPrice = effectiveWeightInStandardUnit * baseBuyPrice;
     final double spread = totalSellPrice - totalBuyPrice;
 
-    // Chart trend series
-    final trendPoints = _getTrendDataPoints(baseSellPrice, _chartDays);
+    // Chart trend series from daily history points
+    final List<double> trendPoints = _dailyHistoryPoints.isNotEmpty
+        ? _dailyHistoryPoints.map((p) => p.sellPrice).toList()
+        : _getTrendDataPoints(baseSellPrice, _chartDays);
     final minPrice = trendPoints.reduce(math.min);
     final maxPrice = trendPoints.reduce(math.max);
     final firstPrice = trendPoints.first;
@@ -176,6 +196,21 @@ class _GoldSilverCalculatorScreenState extends State<GoldSilverCalculatorScreen>
     final displayScrubbedPrice = (_scrubbedIndex >= 0 && _scrubbedIndex < trendPoints.length)
         ? trendPoints[_scrubbedIndex]
         : lastPrice;
+
+    final DailyPricePoint? scrubbedPoint = (_scrubbedIndex >= 0 && _scrubbedIndex < _dailyHistoryPoints.length)
+        ? _dailyHistoryPoints[_scrubbedIndex]
+        : null;
+
+    final String scrubbedDateText;
+    if (scrubbedPoint != null) {
+      const thaiMonths = [
+        'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+        'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
+      ];
+      scrubbedDateText = '${scrubbedPoint.date.day} ${thaiMonths[scrubbedPoint.date.month - 1]} ${scrubbedPoint.date.year + 543}';
+    } else {
+      scrubbedDateText = isEn ? 'Today (Live)' : 'วันนี้ (ล่าสุด)';
+    }
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -195,6 +230,11 @@ class _GoldSilverCalculatorScreenState extends State<GoldSilverCalculatorScreen>
           ),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.table_chart_outlined, color: Color(0xFFF59E0B)),
+            tooltip: isEn ? 'Daily Price History' : 'ประวัติราคารายวัน',
+            onPressed: () => _showHistorySheet(context),
+          ),
           IconButton(
             icon: _isLoading
                 ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
@@ -289,29 +329,24 @@ class _GoldSilverCalculatorScreenState extends State<GoldSilverCalculatorScreen>
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: isUpTrend
-                                      ? const Color(0xFF10B981).withValues(alpha: 0.15)
-                                      : const Color(0xFFEF4444).withValues(alpha: 0.15),
+                                  color: (_scrubbedIndex >= 0)
+                                      ? (isDark ? Colors.white12 : const Color(0xFFE2E8F0))
+                                      : (isUpTrend
+                                          ? const Color(0xFF10B981).withValues(alpha: 0.15)
+                                          : const Color(0xFFEF4444).withValues(alpha: 0.15)),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      isUpTrend ? Icons.trending_up_rounded : Icons.trending_down_rounded,
-                                      size: 13,
-                                      color: isUpTrend ? const Color(0xFF10B981) : const Color(0xFFEF4444),
-                                    ),
-                                    const SizedBox(width: 2),
-                                    Text(
-                                      '${isUpTrend ? '+' : ''}${percentChange.toStringAsFixed(2)}%',
-                                      style: TextStyle(
-                                        fontSize: 10.5,
-                                        fontWeight: FontWeight.bold,
-                                        color: isUpTrend ? const Color(0xFF10B981) : const Color(0xFFEF4444),
-                                      ),
-                                    ),
-                                  ],
+                                child: Text(
+                                  (_scrubbedIndex >= 0)
+                                      ? '📅 $scrubbedDateText'
+                                      : '${isUpTrend ? '+' : ''}${percentChange.toStringAsFixed(2)}%',
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: (_scrubbedIndex >= 0)
+                                        ? textPrimary
+                                        : (isUpTrend ? const Color(0xFF10B981) : const Color(0xFFEF4444)),
+                                  ),
                                 ),
                               ),
                             ],
@@ -339,32 +374,61 @@ class _GoldSilverCalculatorScreenState extends State<GoldSilverCalculatorScreen>
                         ],
                       ),
                       Container(
-                        height: 32,
+                        height: 30,
                         padding: const EdgeInsets.all(2),
                         decoration: BoxDecoration(
                           color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(8),
                         ),
                         child: Row(
                           children: [
-                            _buildTimeframeBtn(7, '7 วัน'),
-                            _buildTimeframeBtn(30, '30 วัน'),
+                            _buildTimeframeBtn(7, '7D'),
+                            _buildTimeframeBtn(15, '15D'),
+                            _buildTimeframeBtn(30, '1M'),
+                            _buildTimeframeBtn(90, '3M'),
                           ],
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 12),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'ต่ำสุด: ฿${FormatUtils.formatCurrency(minPrice)}',
-                        style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                      Row(
+                        children: [
+                          Text(
+                            'ต่ำสุด: ฿${FormatUtils.formatCurrency(minPrice)}',
+                            style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            'สูงสุด: ฿${FormatUtils.formatCurrency(maxPrice)}',
+                            style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                          ),
+                        ],
                       ),
-                      Text(
-                        'สูงสุด: ฿${FormatUtils.formatCurrency(maxPrice)}',
-                        style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                      InkWell(
+                        onTap: () => _showHistorySheet(context),
+                        borderRadius: BorderRadius.circular(6),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.history_rounded, size: 12, color: isGold ? const Color(0xFFD97706) : const Color(0xFF0284C7)),
+                              const SizedBox(width: 2),
+                              Text(
+                                isEn ? 'History' : 'ประวัติรายวัน',
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: isGold ? const Color(0xFFD97706) : const Color(0xFF0284C7),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -373,8 +437,8 @@ class _GoldSilverCalculatorScreenState extends State<GoldSilverCalculatorScreen>
                     height: 110,
                     width: double.infinity,
                     child: GestureDetector(
-                      onPanDown: (details) => _handleScrub(details.localPosition.dx, context),
-                      onPanUpdate: (details) => _handleScrub(details.localPosition.dx, context),
+                      onPanDown: (details) => _handleScrub(details.localPosition.dx, context, trendPoints.length),
+                      onPanUpdate: (details) => _handleScrub(details.localPosition.dx, context, trendPoints.length),
                       onPanEnd: (_) => setState(() => _scrubbedIndex = -1),
                       child: CustomPaint(
                         painter: _InteractiveTrendPainter(
@@ -392,8 +456,8 @@ class _GoldSilverCalculatorScreenState extends State<GoldSilverCalculatorScreen>
                   Center(
                     child: Text(
                       isEn
-                          ? 'Tap or drag on chart to inspect price trend'
-                          : 'แตะหรือลากนิ้วบนกราฟเพื่อดูแนวโน้มราคาขึ้น-ลง',
+                          ? 'Tap or drag on chart to inspect daily price history'
+                          : 'แตะหรือลากนิ้วบนกราฟเพื่อดูราคาย้อนหลังรายวัน',
                       style: TextStyle(fontSize: 10, color: textSecondary),
                     ),
                   ),
@@ -413,6 +477,7 @@ class _GoldSilverCalculatorScreenState extends State<GoldSilverCalculatorScreen>
                       onTap: () {
                         HapticFeedback.selectionClick();
                         setState(() => _goldType = 0);
+                        _loadHistoryData();
                       },
                       activeColor: const Color(0xFFF59E0B),
                       cardBg: cardBg,
@@ -427,6 +492,7 @@ class _GoldSilverCalculatorScreenState extends State<GoldSilverCalculatorScreen>
                       onTap: () {
                         HapticFeedback.selectionClick();
                         setState(() => _goldType = 1);
+                        _loadHistoryData();
                       },
                       activeColor: const Color(0xFFF59E0B),
                       cardBg: cardBg,
@@ -767,13 +833,12 @@ class _GoldSilverCalculatorScreenState extends State<GoldSilverCalculatorScreen>
     );
   }
 
-  void _handleScrub(double localX, BuildContext context) {
+  void _handleScrub(double localX, BuildContext context, int pointsCount) {
     final RenderBox? box = context.findRenderObject() as RenderBox?;
     if (box == null) return;
     final totalWidth = box.size.width - 32;
-    if (totalWidth <= 0) return;
+    if (totalWidth <= 0 || pointsCount < 2) return;
 
-    final pointsCount = _chartDays == 7 ? 7 : 15;
     final stepX = totalWidth / (pointsCount - 1);
     final index = (localX / stepX).round().clamp(0, pointsCount - 1);
 
@@ -781,6 +846,199 @@ class _GoldSilverCalculatorScreenState extends State<GoldSilverCalculatorScreen>
       HapticFeedback.selectionClick();
       setState(() => _scrubbedIndex = index);
     }
+  }
+
+  void _showHistorySheet(BuildContext context) {
+    HapticFeedback.lightImpact();
+    final isDark = widget.controller.isDarkMode;
+    final isEn = widget.controller.isEnglish;
+    final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
+    final textSecondary = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final cardBg = isDark ? MeowTheme.navySurface : Colors.white;
+    final isGold = _selectedAsset == 0;
+
+    final String assetName = isGold
+        ? (_goldType == 0 ? 'ทองคำแท่ง 96.5%' : 'ทองรูปพรรณ 96.5%')
+        : 'แร่เงิน 99.9%';
+
+    final reversedList = _dailyHistoryPoints.reversed.toList();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        height: MediaQuery.of(context).size.height * 0.72,
+        decoration: BoxDecoration(
+          color: cardBg,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: textSecondary.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isEn ? 'Daily Price History' : 'ประวัติราคาปิดรายวัน',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        assetName,
+                        style: TextStyle(fontSize: 12, color: textSecondary),
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.close_rounded, color: textSecondary),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            // Table Header
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              color: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF1F5F9),
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: Text(
+                      isEn ? 'Date' : 'วันที่',
+                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: textSecondary),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 3,
+                    child: Text(
+                      isEn ? 'Sell Price' : 'ราคาขายออก',
+                      textAlign: TextAlign.right,
+                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: textSecondary),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 3,
+                    child: Text(
+                      isEn ? 'Buy Price' : 'ราคารับซื้อ',
+                      textAlign: TextAlign.right,
+                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: textSecondary),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Daily rows
+            Expanded(
+              child: reversedList.isEmpty
+                  ? Center(
+                      child: Text(
+                        isEn ? 'No daily history recorded yet' : 'ยังไม่มีข้อมูลประวัติรายวัน',
+                        style: TextStyle(color: textSecondary, fontSize: 13),
+                      ),
+                    )
+                  : ListView.separated(
+                      itemCount: reversedList.length,
+                      separatorBuilder: (_, _) => Divider(
+                        height: 1,
+                        color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06),
+                      ),
+                      itemBuilder: (context, idx) {
+                        final item = reversedList[idx];
+                        final isToday = idx == 0;
+                        const thaiMonths = [
+                          'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+                          'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
+                        ];
+                        final dateStr = '${item.date.day} ${thaiMonths[item.date.month - 1]} ${item.date.year + 543}';
+
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                flex: 3,
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      dateStr,
+                                      style: TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: isToday ? FontWeight.bold : FontWeight.w500,
+                                        color: isToday
+                                            ? (isGold ? const Color(0xFFD97706) : const Color(0xFF0284C7))
+                                            : textPrimary,
+                                      ),
+                                    ),
+                                    if (isToday) ...[
+                                      const SizedBox(width: 4),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: const Text(
+                                          'วันนี้',
+                                          style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF10B981)),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              Expanded(
+                                flex: 3,
+                                child: Text(
+                                  '฿${FormatUtils.formatCurrency(item.sellPrice)}',
+                                  textAlign: TextAlign.right,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: isGold ? const Color(0xFFD97706) : const Color(0xFF0284C7),
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                flex: 3,
+                                child: Text(
+                                  '฿${FormatUtils.formatCurrency(item.buyPrice)}',
+                                  textAlign: TextAlign.right,
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    color: textSecondary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildAssetTab({
@@ -800,7 +1058,9 @@ class _GoldSilverCalculatorScreenState extends State<GoldSilverCalculatorScreen>
           _unitMode = index == 0 ? 0 : 1;
           _weightValue = index == 0 ? 1.0 : 100.0;
           _weightController.text = _weightValue.toString().replaceAll(RegExp(r'\.0$'), '');
+          _scrubbedIndex = -1;
         });
+        _loadHistoryData();
       },
       child: Container(
         decoration: BoxDecoration(
@@ -838,12 +1098,13 @@ class _GoldSilverCalculatorScreenState extends State<GoldSilverCalculatorScreen>
           _chartDays = days;
           _scrubbedIndex = -1;
         });
+        _loadHistoryData();
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
           color: isSelected ? const Color(0xFFF59E0B) : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(6),
         ),
         child: Text(
           label,
