@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import '../models/subscription_item.dart';
-import '../models/account_item.dart';
 import '../state/expense_controller.dart';
 import '../services/currency_exchange_service.dart';
-import '../services/native_bridge_service.dart';
 import '../utils/format_utils.dart';
 import '../widgets/tactile_button.dart';
 import '../widgets/bank_badge.dart';
 import '../widgets/meow_permission_dialog.dart';
+import '../widgets/meow_wheel_date_picker.dart';
 
 class AddEditSubscriptionScreen extends StatefulWidget {
   final ExpenseController controller;
@@ -250,24 +248,19 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
   Future<void> _pickDate({required bool isNextBilling, required bool isTrialEnd}) async {
     HapticFeedback.selectionClick();
     final initialDate = isTrialEnd ? _trialEndDate : _nextBillingDate;
-    final picked = await showDatePicker(
+    final isEn = widget.controller.isEnglish;
+    final isDark = widget.controller.isDarkMode;
+
+    final picked = await MeowWheelDatePicker.showWheelDatePicker(
       context: context,
       initialDate: initialDate,
       firstDate: DateTime(2020),
-      lastDate: DateTime(2035),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: widget.controller.currentTheme.primaryColor,
-              onPrimary: Colors.white,
-              surface: widget.controller.currentTheme.cardBackground,
-              onSurface: widget.controller.currentTheme.textColor,
-            ),
-          ),
-          child: child!,
-        );
-      },
+      lastDate: DateTime(2040),
+      isEnglish: isEn,
+      isDarkMode: isDark,
+      title: isTrialEnd
+          ? (isEn ? 'Select Free Trial End' : 'เลือกวันหมดช่วงทดลองใช้ฟรี')
+          : (isEn ? 'Select Next Billing Date' : 'เลือกวันตัดเงินรอบถัดไป'),
     );
 
     if (picked != null) {
@@ -1450,7 +1443,7 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
                           Row(
                             children: [
                               Text(
-                                DateFormat('d MMM yyyy').format(_nextBillingDate),
+                                FormatUtils.formatDate(_nextBillingDate, isEnglish: isEn),
                                 style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: theme.primaryColor),
                               ),
                               const SizedBox(width: 4),
@@ -1468,18 +1461,29 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        isEn ? 'Duration / End Rule' : 'ระยะเวลาสิ้นสุดของบริการ',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: textColor),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            isEn ? 'Subscription Duration' : 'กำหนดระยะเวลาของบริการ',
+                            style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: textColor),
+                          ),
+                          Text(
+                            isEn ? 'Select rule for recurring service' : 'เลือกเงื่อนไขการสิ้นสุดของบริการนี้',
+                            style: TextStyle(fontSize: 11, color: subColor),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
+
+                  // 3 Duration Rule Chips
                   Row(
                     children: [
-                      {'id': 'never', 'label': 'ไม่มีวันสิ้นสุด'},
-                      {'id': 'untilDate', 'label': 'ถึงวันที่'},
-                      {'id': 'fixedCycles', 'label': 'กำหนดจำนวนครั้ง'},
+                      {'id': 'never', 'label': isEn ? 'Ongoing' : 'ไม่มีวันสิ้นสุด'},
+                      {'id': 'untilDate', 'label': isEn ? 'Until Date' : 'ถึงวันที่'},
+                      {'id': 'fixedCycles', 'label': isEn ? 'Fixed Cycles' : 'กำหนดจำนวนครั้ง'},
                     ].map((opt) {
                       final isSelected = _endRuleType == opt['id'];
                       return Expanded(
@@ -1526,11 +1530,14 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
                     const SizedBox(height: 10),
                     InkWell(
                       onTap: () async {
-                        final picked = await showDatePicker(
+                        final picked = await MeowWheelDatePicker.showWheelDatePicker(
                           context: context,
                           initialDate: _endDate ?? _calculateEndDateFromCycles(_nextBillingDate, 6, _billingCycle),
                           firstDate: _nextBillingDate,
                           lastDate: DateTime(2040),
+                          isEnglish: isEn,
+                          isDarkMode: isDark,
+                          title: isEn ? 'Select End Date' : 'เลือกวันสิ้นสุดบริการ',
                         );
                         if (picked != null) {
                           setState(() => _endDate = picked);
@@ -1554,7 +1561,7 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
                             Row(
                               children: [
                                 Text(
-                                  DateFormat('d MMM yyyy').format(_endDate ?? _nextBillingDate),
+                                  FormatUtils.formatDate(_endDate ?? _nextBillingDate, isEnglish: isEn),
                                   style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: theme.primaryColor),
                                 ),
                                 const SizedBox(width: 4),
@@ -1609,7 +1616,9 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
                       return Padding(
                         padding: const EdgeInsets.only(top: 4, left: 4),
                         child: Text(
-                          'ครบ $count ครั้ง สิ้นสุดประมาณ ${DateFormat('d MMM yyyy').format(calcEnd)}',
+                          isEn
+                              ? 'Total $count cycles, ends approx ${FormatUtils.formatDate(calcEnd, isEnglish: isEn)}'
+                              : 'ครบ $count ครั้ง สิ้นสุดประมาณ ${FormatUtils.formatDate(calcEnd, isEnglish: isEn)}',
                           style: TextStyle(fontSize: 11, color: subColor),
                         ),
                       );
@@ -1679,7 +1688,7 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
                           Row(
                             children: [
                               Text(
-                                DateFormat('d MMM yyyy').format(_trialEndDate),
+                                FormatUtils.formatDate(_trialEndDate, isEnglish: isEn),
                                 style: const TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.bold,
@@ -1809,7 +1818,9 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'เมื่อถึงวันตัดเงิน ระบบจะลงบันทึกเป็นรายจ่าย:\n"ชำระบริการ ${_nameController.text.trim().isEmpty ? '...' : _nameController.text.trim()} ด้วยบัญชี ${_selectedAccountName ?? _paymentMethod}"',
+                              isEn
+                                  ? 'When due, an expense will be recorded with note:\n"Paid via: ${_selectedAccountName ?? _paymentMethod}"'
+                                  : 'เมื่อถึงวันตัดเงิน ระบบจะลงบันทึกเป็นรายจ่ายพร้อมโน้ต:\n"ชำระผ่าน: ${_selectedAccountName ?? _paymentMethod}"',
                               style: TextStyle(fontSize: 11.5, color: subColor, height: 1.35),
                             ),
                           ),

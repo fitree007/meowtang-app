@@ -32,7 +32,7 @@ enum MascotMood {
 }
 
 class ExpenseController extends ChangeNotifier {
-  static const String appVersion = '1.41.33';
+  static const String appVersion = '1.41.34';
 
   final StorageService _storage;
   final OcrEngineService _ocrEngine = OcrEngineService();
@@ -1600,7 +1600,7 @@ class ExpenseController extends ChangeNotifier {
           categoryName: cat.name,
           accountId: targetAcc?.id ?? (_accounts.isNotEmpty ? _accounts.first.id : 'default'),
           date: now,
-          note: 'ชำระบริการ ${sub.name} ด้วยบัญชี $accName',
+          note: isEnglish ? 'Paid via: $accName' : 'ชำระผ่าน: $accName',
         );
 
         await addTransaction(tx, allowManualOverride: true);

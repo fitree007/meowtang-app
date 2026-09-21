@@ -119,7 +119,7 @@ class _SubscriptionVaultScreenState extends State<SubscriptionVaultScreen> {
                 categoryName: cat.name,
                 accountId: accId,
                 date: DateTime.now(),
-                note: 'ชำระบริการ ${item.name} ด้วยบัญชี $accName',
+                note: isEn ? 'Paid via: $accName' : 'ชำระผ่าน: $accName',
               );
 
               await widget.controller.addTransaction(tx, allowManualOverride: true);
@@ -784,7 +784,7 @@ class _SubscriptionVaultScreenState extends State<SubscriptionVaultScreen> {
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    DateFormat('d MMM').format(item.nextBillingDate),
+                                    FormatUtils.formatDate(item.nextBillingDate, isEnglish: isEn, showYear: false),
                                     style: TextStyle(fontSize: 11, color: subColor),
                                   ),
                                   if (item.endRuleType == 'fixedCycles' && item.totalCycles != null) ...[
@@ -821,7 +821,7 @@ class _SubscriptionVaultScreenState extends State<SubscriptionVaultScreen> {
                                       child: Text(
                                         item.hasEnded
                                             ? (isEn ? 'Ended' : 'สิ้นสุดแล้ว')
-                                            : (isEn ? 'Until ${DateFormat('d MMM yy').format(item.endDate!)}' : 'ถึง ${DateFormat('d MMM yy').format(item.endDate!)}'),
+                                            : (isEn ? 'Until ${FormatUtils.formatDate(item.endDate!, isEnglish: isEn, shortYear: true)}' : 'ถึง ${FormatUtils.formatDate(item.endDate!, isEnglish: isEn, shortYear: true)}'),
                                         style: TextStyle(
                                           fontSize: 9.5,
                                           fontWeight: FontWeight.w600,

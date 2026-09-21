@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ai_expense_tracker/models/subscription_item.dart';
+import 'package:ai_expense_tracker/models/transaction_item.dart';
+import 'package:ai_expense_tracker/utils/format_utils.dart';
 import 'package:ai_expense_tracker/services/storage_service.dart';
 
 void main() {
@@ -238,6 +240,52 @@ void main() {
 
       final pastDateSub = futureDateSub.copyWith(endDate: DateTime(2025, 12, 31));
       expect(pastDateSub.hasEnded, isTrue);
+    });
+
+    test('Localizes dates properly and simplifies subscription notes', () {
+      final date = DateTime(2026, 9, 21);
+      // Thai format
+      final thFull = FormatUtils.formatDate(date, isEnglish: false);
+      expect(thFull, equals('21 ก.ย. 2569'));
+      final thShort = FormatUtils.formatDate(date, isEnglish: false, shortYear: true);
+      expect(thShort, equals('21 ก.ย. 69'));
+      final thNoYear = FormatUtils.formatDate(date, isEnglish: false, showYear: false);
+      expect(thNoYear, equals('21 ก.ย.'));
+
+      // English format
+      final enFull = FormatUtils.formatDate(date, isEnglish: true);
+      expect(enFull, equals('21 Sep 2026'));
+      final enShort = FormatUtils.formatDate(date, isEnglish: true, shortYear: true);
+      expect(enShort, equals('21 Sep 26'));
+      final enNoYear = FormatUtils.formatDate(date, isEnglish: true, showYear: false);
+      expect(enNoYear, equals('21 Sep'));
+
+      // Legacy subscription note parsing
+      final tx = TransactionItem(
+        id: 'tx_sub_1',
+        title: 'จ่ายค่าบริการ YouTube Premium',
+        amount: 1000.0,
+        type: TransactionType.expense,
+        categoryId: 'food',
+        categoryName: 'อาหาร',
+        accountId: 'cash',
+        date: date,
+        note: 'ชำระบริการ YouTube Premium ด้วยบัญชี เงินสด (Cash)',
+      );
+      expect(tx.cleanNote, equals('ชำระผ่าน: เงินสด (Cash)'));
+
+      final txDirect = TransactionItem(
+        id: 'tx_sub_2',
+        title: 'จ่ายค่าบริการ Netflix',
+        amount: 419.0,
+        type: TransactionType.expense,
+        categoryId: 'ent',
+        categoryName: 'บันเทิง',
+        accountId: 'credit',
+        date: date,
+        note: 'ชำระผ่าน: บัตรเครดิต',
+      );
+      expect(txDirect.cleanNote, equals('ชำระผ่าน: บัตรเครดิต'));
     });
   });
 }

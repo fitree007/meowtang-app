@@ -28,7 +28,6 @@ import '../utils/format_utils.dart';
 import '../services/thai_bank_detector.dart';
 import '../services/slip_storage_service.dart';
 import '../services/currency_exchange_service.dart';
-import '../models/subscription_item.dart';
 import 'subscription_vault_screen.dart';
 
 class MeowDashboardScreen extends StatefulWidget {
@@ -1269,12 +1268,19 @@ void _handleMascotPetting() {
       margin: const EdgeInsets.only(left: 16, right: 16, top: 4, bottom: 6),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E2028) : const Color(0xFFFAF9F6),
-        borderRadius: BorderRadius.circular(12),
+        color: isDark ? const Color(0xFF1E2330) : const Color(0xFFFFFBF5),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.08),
-          width: 0.8,
+          color: const Color(0xFFFF9800).withValues(alpha: isDark ? 0.35 : 0.3),
+          width: 1.0,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFFF9800).withValues(alpha: isDark ? 0.08 : 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: InkWell(
         onTap: () {
@@ -1286,20 +1292,31 @@ void _handleMascotPetting() {
             ),
           );
         },
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         child: Row(
           children: [
             Container(
-              width: 28,
-              height: 28,
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(
-                color: const Color(0xFFD97706).withValues(alpha: 0.12),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFFF5722), Color(0xFFFF9800)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
                 shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFFF6D00).withValues(alpha: 0.35),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: const Icon(
-                Icons.calendar_today_rounded,
-                color: Color(0xFFD97706),
-                size: 14,
+                Icons.campaign_rounded,
+                color: Colors.white,
+                size: 17,
               ),
             ),
             const SizedBox(width: 10),
@@ -1312,8 +1329,8 @@ void _handleMascotPetting() {
                     titleText,
                     style: TextStyle(
                       fontSize: 12.5,
-                      fontWeight: FontWeight.w600,
-                      color: currentTheme.textColor,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? const Color(0xFFFED7AA) : const Color(0xFFC2410C),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -1335,7 +1352,7 @@ void _handleMascotPetting() {
             Icon(
               Icons.chevron_right_rounded,
               size: 16,
-              color: currentTheme.textSecondaryColor.withValues(alpha: 0.5),
+              color: const Color(0xFFFF9800).withValues(alpha: 0.8),
             ),
             const SizedBox(width: 4),
             GestureDetector(
@@ -2630,7 +2647,9 @@ void _handleMascotPetting() {
                             const SizedBox(width: 4),
                             Flexible(
                              child: Text(
-                              cleanNote.startsWith('#') ? cleanNote : 'บันทึก: $cleanNote',
+                              cleanNote.startsWith('#') || cleanNote.startsWith('ชำระผ่าน:') || cleanNote.startsWith('Paid via:')
+                                  ? cleanNote
+                                  : (widget.controller.isEnglish ? 'Note: $cleanNote' : 'บันทึก: $cleanNote'),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(

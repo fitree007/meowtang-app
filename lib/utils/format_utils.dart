@@ -29,6 +29,24 @@ class FormatUtils {
     return CurrencyFormat.format(amount, trimZero: trimZero);
   }
 
+  static String formatDate(DateTime date, {required bool isEnglish, bool showYear = true, bool shortYear = false}) {
+    if (isEnglish) {
+      if (!showYear) return DateFormat('d MMM').format(date);
+      return shortYear ? DateFormat('d MMM yy').format(date) : DateFormat('d MMM yyyy').format(date);
+    } else {
+      const thaiMonths = [
+        'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+        'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
+      ];
+      final thaiYear = date.year > 2500 ? date.year : date.year + 543;
+      if (!showYear) {
+        return '${date.day} ${thaiMonths[date.month - 1]}';
+      }
+      final yr = shortYear ? '${thaiYear % 100}'.padLeft(2, '0') : '$thaiYear';
+      return '${date.day} ${thaiMonths[date.month - 1]} $yr';
+    }
+  }
+
   static String formatDateThai(DateTime date) {
     const thaiMonths = [
       'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',

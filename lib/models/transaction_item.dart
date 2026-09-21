@@ -108,6 +108,11 @@ class TransactionItem {
         return null;
       }
     }
+    final subLegacyMatch = RegExp(r'^(?:จ่ายค่าบริการ|ชำระบริการ)\s+.*?\s+ด้วยบัญชี\s+(.+)$').firstMatch(clean);
+    if (subLegacyMatch != null) {
+      final acc = subLegacyMatch.group(1);
+      return 'ชำระผ่าน: $acc';
+    }
     clean = clean.replaceAll(RegExp(r'^(?:บันทึกช่วยจำ|บันทึกช่วยจํา|ข้อความช่วยจำ|ช่วยจำ|บันทึก|หมายเหตุ|Memo|Note|ข้อความ|โน้ต)[:\s]*', caseSensitive: false), '').trim();
     return clean.isEmpty ? null : clean;
   }

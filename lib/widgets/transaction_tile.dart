@@ -160,7 +160,9 @@ class TransactionTile extends StatelessWidget {
                           if ((transaction.cleanNote ?? transaction.note) != null && (transaction.cleanNote ?? transaction.note)!.trim().isNotEmpty) ...[
                             Flexible(
                               child: Text(
-                                (transaction.cleanNote ?? transaction.note)!.startsWith('#')
+                                (transaction.cleanNote ?? transaction.note)!.startsWith('#') ||
+                                        (transaction.cleanNote ?? transaction.note)!.startsWith('ชำระผ่าน:') ||
+                                        (transaction.cleanNote ?? transaction.note)!.startsWith('Paid via:')
                                     ? (transaction.cleanNote ?? transaction.note)!
                                     : '📝 ${(transaction.cleanNote ?? transaction.note)!}',
                                 maxLines: 1,
