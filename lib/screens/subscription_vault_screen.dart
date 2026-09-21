@@ -281,79 +281,6 @@ class _SubscriptionVaultScreenState extends State<SubscriptionVaultScreen> {
           isEn ? 'Subscription Vault' : 'คุมค่า Subscription & รายจ่ายประจำ',
           style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16),
         ),
-        actions: [
-          PopupMenuButton<String>(
-            tooltip: 'จัดเรียง',
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            onSelected: (val) {
-              HapticFeedback.selectionClick();
-              setState(() => _sortBy = val);
-            },
-            itemBuilder: (ctx) => [
-              PopupMenuItem(
-                value: 'dueDate',
-                child: Row(
-                  children: [
-                    Icon(Icons.calendar_today_rounded, size: 16, color: _sortBy == 'dueDate' ? theme.primaryColor : subColor),
-                    const SizedBox(width: 8),
-                    Text(
-                      isEn ? 'Next Due Date' : 'วันครบกำหนด',
-                      style: TextStyle(fontSize: 13, fontWeight: _sortBy == 'dueDate' ? FontWeight.bold : FontWeight.normal),
-                    ),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: 'price',
-                child: Row(
-                  children: [
-                    Icon(Icons.payments_rounded, size: 16, color: _sortBy == 'price' ? theme.primaryColor : subColor),
-                    const SizedBox(width: 8),
-                    Text(
-                      isEn ? 'Price (High to Low)' : 'ราคา (มากไปน้อย)',
-                      style: TextStyle(fontSize: 13, fontWeight: _sortBy == 'price' ? FontWeight.bold : FontWeight.normal),
-                    ),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: 'name',
-                child: Row(
-                  children: [
-                    Icon(Icons.sort_by_alpha_rounded, size: 16, color: _sortBy == 'name' ? theme.primaryColor : subColor),
-                    const SizedBox(width: 8),
-                    Text(
-                      isEn ? 'Name (A-Z)' : 'ชื่อบริการ (ก-ฮ)',
-                      style: TextStyle(fontSize: 13, fontWeight: _sortBy == 'name' ? FontWeight.bold : FontWeight.normal),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-            child: Container(
-              margin: const EdgeInsets.only(right: 12),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.04),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: borderColor.withOpacity(0.5)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.swap_vert_rounded, size: 16, color: theme.primaryColor),
-                  const SizedBox(width: 4),
-                  Text(
-                    _sortBy == 'price' ? 'เรียง: ราคา' : (_sortBy == 'name' ? 'เรียง: ชื่อ' : 'เรียง: วันครบ'),
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textColor),
-                  ),
-                  const SizedBox(width: 2),
-                  Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: subColor),
-                ],
-              ),
-            ),
-          ),
-        ],
       ),
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -404,131 +331,185 @@ class _SubscriptionVaultScreenState extends State<SubscriptionVaultScreen> {
             ),
           ],
 
-          // HERO METRICS DASHBOARD (Billbau-style 3 Core Cards)
+          // HERO METRICS DASHBOARD (Billbau-style 3 Core Cards with Theme Color & Subtle Circular Watermark)
           Container(
-            padding: const EdgeInsets.all(16),
+            clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: isDark
-                    ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
-                    : [theme.primaryColor.withOpacity(0.08), theme.primaryColor.withOpacity(0.02)],
+                    ? [
+                        theme.primaryColor.withValues(alpha: 0.22),
+                        cardBg,
+                        cardBg,
+                      ]
+                    : [
+                        theme.primaryColor.withValues(alpha: 0.12),
+                        theme.primaryColor.withValues(alpha: 0.03),
+                        cardBg,
+                      ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: theme.primaryColor.withOpacity(0.2)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      isEn ? 'OVERVIEW METRICS' : 'ภาพรวมค่าบริการทั้งหมด',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.8,
-                        color: theme.primaryColor,
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: theme.primaryColor.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.check_circle_rounded, size: 12, color: theme.primaryColor),
-                          const SizedBox(width: 4),
-                          Text(
-                            isEn ? '${activeSubs.length} Active' : '${activeSubs.length} บริการที่เปิดอยู่',
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: theme.primaryColor),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+              border: Border.all(
+                color: theme.primaryColor.withValues(alpha: isDark ? 0.35 : 0.25),
+                width: 1.2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: theme.primaryColor.withValues(alpha: isDark ? 0.12 : 0.05),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
                 ),
-                const SizedBox(height: 14),
-                // Due This Month Hero Number
-                Text(
-                  '฿${FormatUtils.formatCurrency(dueThisMonthThb)}',
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: textColor,
-                    letterSpacing: -0.5,
+              ],
+            ),
+            child: Stack(
+              children: [
+                // Subtle elegant circular rings & watermark icon in background
+                Positioned(
+                  right: -30,
+                  top: -30,
+                  child: IgnorePointer(
+                    child: Container(
+                      width: 140,
+                      height: 140,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: theme.primaryColor.withValues(alpha: isDark ? 0.08 : 0.06),
+                          width: 18,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  isEn ? 'Due this month (${DateFormat('MMMM yyyy').format(now)})' : 'ยอดที่ต้องจ่ายในเดือนนี้ (${FormatUtils.formatMonthYearThai(now)})',
-                  style: TextStyle(fontSize: 12, color: subColor),
+                Positioned(
+                  right: -8,
+                  bottom: -12,
+                  child: IgnorePointer(
+                    child: Icon(
+                      Icons.subscriptions_rounded,
+                      size: 90,
+                      color: theme.primaryColor.withValues(alpha: isDark ? 0.07 : 0.06),
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 16),
-                const Divider(height: 1),
-                const SizedBox(height: 14),
-                // Monthly Average vs Annual Total
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.calendar_view_month_rounded, size: 14, color: Color(0xFF3B82F6)),
-                              const SizedBox(width: 4),
-                              Text(
-                                isEn ? 'Monthly Average' : 'เฉลี่ยต่อเดือน',
-                                style: TextStyle(fontSize: 11, color: subColor),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
                           Text(
-                            '฿${FormatUtils.formatCurrency(monthlyAverageThb)}',
+                            isEn ? 'OVERVIEW METRICS' : 'ภาพรวมค่าบริการทั้งหมด',
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: 11,
                               fontWeight: FontWeight.bold,
-                              color: textColor,
+                              letterSpacing: 0.8,
+                              color: theme.primaryColor,
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: theme.primaryColor.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.check_circle_rounded, size: 12, color: theme.primaryColor),
+                                const SizedBox(width: 4),
+                                Text(
+                                  isEn ? '${activeSubs.length} Active' : '${activeSubs.length} บริการที่เปิดอยู่',
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: theme.primaryColor),
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
-                    ),
-                    Container(width: 1, height: 32, color: borderColor.withOpacity(0.5)),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      const SizedBox(height: 14),
+                      // Due This Month Hero Number
+                      Text(
+                        '฿${FormatUtils.formatCurrency(dueThisMonthThb)}',
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: textColor,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        isEn ? 'Due this month (${DateFormat('MMMM yyyy').format(now)})' : 'ยอดที่ต้องจ่ายในเดือนนี้ (${FormatUtils.formatMonthYearThai(now)})',
+                        style: TextStyle(fontSize: 12, color: subColor),
+                      ),
+                      const SizedBox(height: 16),
+                      const Divider(height: 1),
+                      const SizedBox(height: 14),
+                      // Monthly Average vs Annual Total
+                      Row(
                         children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.calendar_today_rounded, size: 14, color: Color(0xFF10B981)),
-                              const SizedBox(width: 4),
-                              Text(
-                                isEn ? 'Annual Estimate' : 'ประมาณการทั้งปี',
-                                style: TextStyle(fontSize: 11, color: subColor),
-                              ),
-                            ],
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(Icons.calendar_view_month_rounded, size: 14, color: Color(0xFF3B82F6)),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      isEn ? 'Monthly Average' : 'เฉลี่ยต่อเดือน',
+                                      style: TextStyle(fontSize: 11, color: subColor),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '฿${FormatUtils.formatCurrency(monthlyAverageThb)}',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: textColor,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '฿${FormatUtils.formatCurrency(yearlyTotalThb)}',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: textColor,
+                          Container(width: 1, height: 32, color: borderColor.withOpacity(0.5)),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(Icons.calendar_today_rounded, size: 14, color: Color(0xFF10B981)),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      isEn ? 'Annual Estimate' : 'ประมาณการทั้งปี',
+                                      style: TextStyle(fontSize: 11, color: subColor),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '฿${FormatUtils.formatCurrency(yearlyTotalThb)}',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: textColor,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -573,7 +554,118 @@ class _SubscriptionVaultScreenState extends State<SubscriptionVaultScreen> {
               }).toList(),
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
+
+          // SERVICE LIST HEADER BAR (Title & Sort Dropdown)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      isEn ? 'Services' : 'รายการบริการ',
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                      decoration: BoxDecoration(
+                        color: theme.primaryColor.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '${filtered.length}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: theme.primaryColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                // Minimal Sort Dropdown Button
+                PopupMenuButton<String>(
+                  tooltip: isEn ? 'Sort by' : 'จัดเรียง',
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  onSelected: (val) {
+                    HapticFeedback.selectionClick();
+                    setState(() => _sortBy = val);
+                  },
+                  itemBuilder: (ctx) => [
+                    PopupMenuItem(
+                      value: 'dueDate',
+                      child: Row(
+                        children: [
+                          Icon(Icons.calendar_today_rounded, size: 16, color: _sortBy == 'dueDate' ? theme.primaryColor : subColor),
+                          const SizedBox(width: 8),
+                          Text(
+                            isEn ? 'Next Due Date' : 'วันครบกำหนด',
+                            style: TextStyle(fontSize: 13, fontWeight: _sortBy == 'dueDate' ? FontWeight.bold : FontWeight.normal),
+                          ),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'price',
+                      child: Row(
+                        children: [
+                          Icon(Icons.payments_rounded, size: 16, color: _sortBy == 'price' ? theme.primaryColor : subColor),
+                          const SizedBox(width: 8),
+                          Text(
+                            isEn ? 'Price (High to Low)' : 'ราคา (มากไปน้อย)',
+                            style: TextStyle(fontSize: 13, fontWeight: _sortBy == 'price' ? FontWeight.bold : FontWeight.normal),
+                          ),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'name',
+                      child: Row(
+                        children: [
+                          Icon(Icons.sort_by_alpha_rounded, size: 16, color: _sortBy == 'name' ? theme.primaryColor : subColor),
+                          const SizedBox(width: 8),
+                          Text(
+                            isEn ? 'Name (A-Z)' : 'ชื่อบริการ (ก-ฮ)',
+                            style: TextStyle(fontSize: 13, fontWeight: _sortBy == 'name' ? FontWeight.bold : FontWeight.normal),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.04),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: borderColor.withOpacity(0.5)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.swap_vert_rounded, size: 15, color: theme.primaryColor),
+                        const SizedBox(width: 4),
+                        Text(
+                          _sortBy == 'price' ? 'เรียง: ราคา' : (_sortBy == 'name' ? 'เรียง: ชื่อ' : 'เรียง: วันครบ'),
+                          style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: textColor),
+                        ),
+                        const SizedBox(width: 2),
+                        Icon(Icons.keyboard_arrow_down_rounded, size: 15, color: subColor),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 6),
 
           // EMPTY STATE OR LIST
           if (filtered.isEmpty) ...[

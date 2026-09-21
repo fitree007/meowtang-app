@@ -409,14 +409,14 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                         );
                       },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         decoration: BoxDecoration(
                           color: cardBg,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: const Color(0xFF0284C7).withValues(alpha: 0.35), width: 1.2),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF0284C7).withValues(alpha: isDark ? 0.2 : 0.05),
+                              color: const Color(0xFF0284C7).withValues(alpha: isDark ? 0.2 : 0.04),
                               blurRadius: 8,
                               offset: const Offset(0, 2),
                             ),
@@ -437,48 +437,51 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                             ),
                             const SizedBox(width: 10),
                             Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              child: Row(
                                 children: [
-                                  Row(
-                                    children: [
-                                      Text(
-                                        isEn ? 'Currency Converter' : 'เครื่องคิดเลขแปลงเงิน',
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.bold,
-                                          color: textColor,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                                        decoration: BoxDecoration(
-                                          color: !isVip
-                                              ? const Color(0xFFF59E0B).withValues(alpha: 0.18)
-                                              : const Color(0xFF0284C7).withValues(alpha: 0.15),
-                                          borderRadius: BorderRadius.circular(6),
-                                        ),
-                                        child: Text(
-                                          !isVip ? '🔒 VIP' : 'สด ⚡',
-                                          style: TextStyle(
-                                            fontSize: 9.5,
-                                            fontWeight: FontWeight.bold,
-                                            color: !isVip ? const Color(0xFFF59E0B) : const Color(0xFF0284C7),
+                                  Text(
+                                    isEn ? 'Currency Converter' : 'เครื่องคิดเลขแปลงเงิน',
+                                    style: TextStyle(
+                                      fontSize: 13.5,
+                                      fontWeight: FontWeight.bold,
+                                      color: textColor,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          width: 5,
+                                          height: 5,
+                                          decoration: const BoxDecoration(
+                                            color: Color(0xFF10B981),
+                                            shape: BoxShape.circle,
                                           ),
                                         ),
-                                      ),
-                                    ],
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          isEn ? 'LIVE' : 'เรียลไทม์',
+                                          style: const TextStyle(
+                                            fontSize: 9.5,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF10B981),
+                                            letterSpacing: 0.2,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                  const SizedBox(height: 1),
-                                  Text(
-                                    isEn
-                                        ? 'Convert THB ↔ USD, SAR, MYR, EUR, JPY and 30+ currencies'
-                                        : 'คำนวณแลกเปลี่ยนเงินบาท ↔ สกุลเงินทั่วโลกสดทันที (USD, EUR, SAR ฯลฯ)',
-                                    style: TextStyle(fontSize: 10.5, color: subTextColor),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
+                                  if (!isVip) ...[
+                                    const SizedBox(width: 5),
+                                    Icon(Icons.lock_outline_rounded, size: 13, color: subTextColor),
+                                  ],
                                 ],
                               ),
                             ),
@@ -498,7 +501,7 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                         );
                       },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         decoration: BoxDecoration(
                           color: cardBg,
                           borderRadius: BorderRadius.circular(16),
@@ -526,46 +529,51 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                             ),
                             const SizedBox(width: 10),
                             Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              child: Row(
                                 children: [
-                                  Row(
-                                    children: [
-                                      Text(
-                                        isEn ? 'Gold & Silver Calculator' : 'คำนวณแร่ทอง & แร่เงิน',
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.bold,
-                                          color: textColor,
+                                  Text(
+                                    isEn ? 'Gold & Silver Calculator' : 'คำนวณแร่ทอง & แร่เงิน',
+                                    style: TextStyle(
+                                      fontSize: 13.5,
+                                      fontWeight: FontWeight.bold,
+                                      color: textColor,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          width: 5,
+                                          height: 5,
+                                          decoration: const BoxDecoration(
+                                            color: Color(0xFF10B981),
+                                            shape: BoxShape.circle,
+                                          ),
                                         ),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFF10B981).withValues(alpha: 0.16),
-                                          borderRadius: BorderRadius.circular(6),
-                                        ),
-                                        child: const Text(
-                                          'กราฟสด 📈',
-                                          style: TextStyle(
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          isEn ? 'LIVE' : 'เรียลไทม์',
+                                          style: const TextStyle(
                                             fontSize: 9.5,
                                             fontWeight: FontWeight.bold,
                                             color: Color(0xFF10B981),
+                                            letterSpacing: 0.2,
                                           ),
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
-                                  const SizedBox(height: 1),
-                                  Text(
-                                    isEn
-                                        ? 'Calculate Gold Bar, Ornament & Silver with interactive trend charts'
-                                        : 'คำนวณทองคำแท่ง, รูปพรรณ, แร่เงิน พร้อมกราฟแนวโน้มขึ้น-ลง',
-                                    style: TextStyle(fontSize: 10.5, color: subTextColor),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
+                                  if (!isVip) ...[
+                                    const SizedBox(width: 5),
+                                    Icon(Icons.lock_outline_rounded, size: 13, color: subTextColor),
+                                  ],
                                 ],
                               ),
                             ),
@@ -662,25 +670,9 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                                                   color: textColor,
                                                 ),
                                               ),
-                                              const SizedBox(width: 6),
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                                                decoration: BoxDecoration(
-                                                  color: const Color(0xFF6366F1).withValues(alpha: 0.15),
-                                                  borderRadius: BorderRadius.circular(6),
-                                                ),
-                                                child: Text(
-                                                  isEn ? 'FEATURED' : 'แนะนำ 🌟',
-                                                  style: const TextStyle(
-                                                    fontSize: 9,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: Color(0xFF6366F1),
-                                                  ),
-                                                ),
-                                              ),
                                               if (!isVip) ...[
-                                                const SizedBox(width: 4),
-                                                Icon(Icons.lock_outline_rounded, size: 13, color: subTextColor),
+                                                const SizedBox(width: 6),
+                                                Icon(Icons.lock_outline_rounded, size: 14, color: subTextColor),
                                               ],
                                             ],
                                           ),
@@ -880,7 +872,7 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                       children: [
                         // Zakat Calculator
                         _buildCompactToolCard(
-                          title: isEn ? 'Zakat Calculator' : 'คำนวณซากาตสด',
+                          title: isEn ? 'Zakat Calculator' : 'คำนวณซากาต',
                           subtitle: isEn ? 'Gold & Wealth' : 'ทองแท่ง/รูปพรรณ/เงินสด',
                           badgeText: 'ซากาต',
                           icon: Icons.volunteer_activism_rounded,
@@ -949,7 +941,7 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                               child: Center(
                                 child: !isVip
                                     ? const Icon(Icons.lock_outline_rounded, color: Color(0xFFF59E0B), size: 19)
-                                    : const Text('👶', style: TextStyle(fontSize: 20)),
+                                    : const Icon(Icons.child_care_rounded, color: Color(0xFF10B981), size: 21),
                               ),
                             ),
                             const SizedBox(width: 10),
