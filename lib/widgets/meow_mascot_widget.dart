@@ -139,6 +139,22 @@ class MascotCatalog {
       icon: Icons.favorite,
     ),
     MascotInfo(
+      id: 'cat_egypt',
+      name: 'เหมี่ยวฟาโรห์อียิปต์โบราณ (Ancient Bastet)',
+      subtitle: 'เทพแมวบาสเตตแห่งไอยคุปต์ ปลอกคอทองคำและมงกุฎฟาโรห์ พิทักษ์ทรัพย์สมบัติ',
+      primaryColor: Color(0xFFD97706),
+      secondaryColor: Color(0xFF0F172A),
+      icon: Icons.auto_awesome,
+    ),
+    MascotInfo(
+      id: 'cat_sphynx',
+      name: 'เหมี่ยวสฟิงซ์ปราชญ์ทะเลทราย (Desert Sphynx)',
+      subtitle: 'แมวสฟิงซ์ไร้ขนหูใหญ่ สง่างาม ปราดเปรื่องเรื่องวางแผนการเงิน',
+      primaryColor: Color(0xFFF59E0B),
+      secondaryColor: Color(0xFFD97706),
+      icon: Icons.psychology,
+    ),
+    MascotInfo(
       id: 'cat_golden',
       name: 'เหมี่ยวทองคำจักรพรรดิ (Imperial Golden Cat)',
       subtitle: 'แมวสีทองคำอร่าม นำพาความมั่งคั่งและริซกีอันไพศาล',
@@ -717,6 +733,12 @@ class _UniversalMascotPainter extends CustomPainter {
         break;
       case 'cat_pink':
         _paintSakuraCat(canvas, w, h);
+        break;
+      case 'cat_egypt':
+        _paintAncientEgyptCat(canvas, w, h);
+        break;
+      case 'cat_sphynx':
+        _paintSphynxCat(canvas, w, h);
         break;
       case 'cat_golden':
         _paintGoldenCat(canvas, w, h);
@@ -1407,6 +1429,219 @@ class _UniversalMascotPainter extends CustomPainter {
 
     final nose = Path()..moveTo(w * 0.47, h * 0.54)..lineTo(w * 0.53, h * 0.54)..lineTo(w * 0.50, h * 0.57)..close();
     canvas.drawPath(nose, darkAmber);
+  }
+
+  void _paintAncientEgyptCat(Canvas canvas, double w, double h) {
+    final coatPaint = Paint()..color = const Color(0xFF0F172A);
+    final goldPaint = Paint()..color = const Color(0xFFF59E0B);
+    final darkGold = Paint()..color = const Color(0xFFD97706);
+    final lapisBlue = Paint()..color = const Color(0xFF0284C7);
+    final turquoise = Paint()..color = const Color(0xFF06B6D4);
+    final amberEye = Paint()..color = const Color(0xFFFBBF24);
+    final eyeBlack = Paint()..color = const Color(0xFF020617);
+    final whitePaint = Paint()..color = Colors.white;
+
+    if (!isHeadOnly) {
+      final body = Path()
+        ..moveTo(w * 0.32, h * 0.65)
+        ..quadraticBezierTo(w * 0.20, h * 0.85, w * 0.25, h * 0.95)
+        ..quadraticBezierTo(w * 0.50, h * 0.99, w * 0.75, h * 0.95)
+        ..quadraticBezierTo(w * 0.80, h * 0.85, w * 0.68, h * 0.65)
+        ..close();
+      canvas.drawPath(body, coatPaint);
+
+      final collarBand1 = Path()
+        ..moveTo(w * 0.28, h * 0.66)
+        ..quadraticBezierTo(w * 0.50, h * 0.76, w * 0.72, h * 0.66)
+        ..lineTo(w * 0.73, h * 0.72)
+        ..quadraticBezierTo(w * 0.50, h * 0.82, w * 0.27, h * 0.72)
+        ..close();
+      canvas.drawPath(collarBand1, goldPaint);
+
+      final collarBand2 = Path()
+        ..moveTo(w * 0.30, h * 0.72)
+        ..quadraticBezierTo(w * 0.50, h * 0.82, w * 0.70, h * 0.72)
+        ..lineTo(w * 0.68, h * 0.77)
+        ..quadraticBezierTo(w * 0.50, h * 0.86, w * 0.32, h * 0.77)
+        ..close();
+      canvas.drawPath(collarBand2, lapisBlue);
+
+      canvas.drawCircle(Offset(w * 0.50, h * 0.80), w * 0.05, darkGold);
+      canvas.drawCircle(Offset(w * 0.50, h * 0.80), w * 0.035, goldPaint);
+    }
+
+    final leftEar = Path()
+      ..moveTo(w * 0.16, h * 0.44)
+      ..quadraticBezierTo(w * 0.14, h * 0.14, w * 0.28, h * 0.10)
+      ..quadraticBezierTo(w * 0.44, h * 0.24, w * 0.42, h * 0.40)
+      ..close();
+    final rightEar = Path()
+      ..moveTo(w * 0.84, h * 0.44)
+      ..quadraticBezierTo(w * 0.86, h * 0.14, w * 0.72, h * 0.10)
+      ..quadraticBezierTo(w * 0.56, h * 0.24, w * 0.58, h * 0.40)
+      ..close();
+    canvas.drawPath(leftEar, coatPaint);
+    canvas.drawPath(rightEar, coatPaint);
+
+    final leftInner = Path()
+      ..moveTo(w * 0.22, h * 0.38)
+      ..lineTo(w * 0.28, h * 0.16)
+      ..lineTo(w * 0.38, h * 0.35)
+      ..close();
+    final rightInner = Path()
+      ..moveTo(w * 0.78, h * 0.38)
+      ..lineTo(w * 0.72, h * 0.16)
+      ..lineTo(w * 0.62, h * 0.35)
+      ..close();
+    canvas.drawPath(leftInner, darkGold);
+    canvas.drawPath(rightInner, darkGold);
+
+    canvas.drawCircle(Offset(w * 0.50, h * 0.52), w * 0.36, coatPaint);
+
+    final diadem = Path()
+      ..moveTo(w * 0.24, h * 0.34)
+      ..quadraticBezierTo(w * 0.50, h * 0.28, w * 0.76, h * 0.34)
+      ..lineTo(w * 0.74, h * 0.38)
+      ..quadraticBezierTo(w * 0.50, h * 0.32, w * 0.26, h * 0.38)
+      ..close();
+    canvas.drawPath(diadem, goldPaint);
+
+    canvas.drawCircle(Offset(w * 0.50, h * 0.30), w * 0.04, turquoise);
+    canvas.drawCircle(Offset(w * 0.50, h * 0.30), w * 0.02, goldPaint);
+
+    final linerPaint = Paint()
+      ..color = const Color(0xFFFBBF24)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = w * 0.025
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawLine(Offset(w * 0.22, h * 0.46), Offset(w * 0.38, h * 0.46), linerPaint);
+    canvas.drawLine(Offset(w * 0.28, h * 0.46), Offset(w * 0.24, h * 0.54), linerPaint);
+
+    canvas.drawLine(Offset(w * 0.78, h * 0.46), Offset(w * 0.62, h * 0.46), linerPaint);
+    canvas.drawLine(Offset(w * 0.72, h * 0.46), Offset(w * 0.76, h * 0.54), linerPaint);
+
+    final eyeR = w * 0.055;
+    canvas.drawOval(Rect.fromCenter(center: Offset(w * 0.35, h * 0.48), width: eyeR * 2.2, height: eyeR * 1.6), amberEye);
+    canvas.drawOval(Rect.fromCenter(center: Offset(w * 0.65, h * 0.48), width: eyeR * 2.2, height: eyeR * 1.6), amberEye);
+
+    canvas.drawOval(Rect.fromCenter(center: Offset(w * 0.35, h * 0.48), width: eyeR * 0.7, height: eyeR * 1.5), eyeBlack);
+    canvas.drawOval(Rect.fromCenter(center: Offset(w * 0.65, h * 0.48), width: eyeR * 0.7, height: eyeR * 1.5), eyeBlack);
+
+    canvas.drawCircle(Offset(w * 0.33, h * 0.45), eyeR * 0.35, whitePaint);
+    canvas.drawCircle(Offset(w * 0.63, h * 0.45), eyeR * 0.35, whitePaint);
+
+    final noseEgypt = Path()
+      ..moveTo(w * 0.47, h * 0.54)
+      ..lineTo(w * 0.53, h * 0.54)
+      ..lineTo(w * 0.50, h * 0.57)
+      ..close();
+    canvas.drawPath(noseEgypt, goldPaint);
+
+    final whiskerPaint = Paint()
+      ..color = darkGold.color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = w * 0.015
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(Offset(w * 0.20, h * 0.56), Offset(w * 0.32, h * 0.58), whiskerPaint);
+    canvas.drawLine(Offset(w * 0.18, h * 0.62), Offset(w * 0.32, h * 0.61), whiskerPaint);
+    canvas.drawLine(Offset(w * 0.80, h * 0.56), Offset(w * 0.68, h * 0.58), whiskerPaint);
+    canvas.drawLine(Offset(w * 0.82, h * 0.62), Offset(w * 0.68, h * 0.61), whiskerPaint);
+  }
+
+  void _paintSphynxCat(Canvas canvas, double w, double h) {
+    final skinPaint = Paint()..color = const Color(0xFFFDE68A);
+    final skinShade = Paint()..color = const Color(0xFFF59E0B);
+    final innerEar = Paint()..color = const Color(0xFFFCA5A5);
+    final turquoiseCollar = Paint()..color = const Color(0xFF0D9488);
+    final goldBell = Paint()..color = const Color(0xFFEAB308);
+    final jadeEye = Paint()..color = const Color(0xFF10B981);
+    final darkPupil = Paint()..color = const Color(0xFF0F172A);
+    final whitePaint = Paint()..color = Colors.white;
+
+    if (!isHeadOnly) {
+      final body = Path()
+        ..moveTo(w * 0.34, h * 0.65)
+        ..quadraticBezierTo(w * 0.22, h * 0.85, w * 0.27, h * 0.95)
+        ..quadraticBezierTo(w * 0.50, h * 0.99, w * 0.73, h * 0.95)
+        ..quadraticBezierTo(w * 0.78, h * 0.85, w * 0.66, h * 0.65)
+        ..close();
+      canvas.drawPath(body, skinPaint);
+
+      final collar = Path()
+        ..moveTo(w * 0.30, h * 0.66)
+        ..quadraticBezierTo(w * 0.50, h * 0.74, w * 0.70, h * 0.66)
+        ..lineTo(w * 0.70, h * 0.71)
+        ..quadraticBezierTo(w * 0.50, h * 0.79, w * 0.30, h * 0.71)
+        ..close();
+      canvas.drawPath(collar, turquoiseCollar);
+      canvas.drawCircle(Offset(w * 0.50, h * 0.76), w * 0.045, goldBell);
+    }
+
+    final leftEar = Path()
+      ..moveTo(w * 0.12, h * 0.46)
+      ..quadraticBezierTo(w * 0.06, h * 0.10, w * 0.24, h * 0.05)
+      ..quadraticBezierTo(w * 0.44, h * 0.20, w * 0.40, h * 0.38)
+      ..close();
+    final rightEar = Path()
+      ..moveTo(w * 0.88, h * 0.46)
+      ..quadraticBezierTo(w * 0.94, h * 0.10, w * 0.76, h * 0.05)
+      ..quadraticBezierTo(w * 0.56, h * 0.20, w * 0.60, h * 0.38)
+      ..close();
+    canvas.drawPath(leftEar, skinPaint);
+    canvas.drawPath(rightEar, skinPaint);
+
+    final leftInner = Path()
+      ..moveTo(w * 0.18, h * 0.42)
+      ..lineTo(w * 0.24, h * 0.10)
+      ..lineTo(w * 0.36, h * 0.34)
+      ..close();
+    final rightInner = Path()
+      ..moveTo(w * 0.82, h * 0.42)
+      ..lineTo(w * 0.76, h * 0.10)
+      ..lineTo(w * 0.64, h * 0.34)
+      ..close();
+    canvas.drawPath(leftInner, innerEar);
+    canvas.drawPath(rightInner, innerEar);
+
+    final head = Path()
+      ..moveTo(w * 0.50, h * 0.20)
+      ..quadraticBezierTo(w * 0.82, h * 0.24, w * 0.84, h * 0.48)
+      ..quadraticBezierTo(w * 0.76, h * 0.74, w * 0.50, h * 0.76)
+      ..quadraticBezierTo(w * 0.24, h * 0.74, w * 0.16, h * 0.48)
+      ..quadraticBezierTo(w * 0.18, h * 0.24, w * 0.50, h * 0.20)
+      ..close();
+    canvas.drawPath(head, skinPaint);
+
+    final wrinklePaint = Paint()
+      ..color = skinShade.color.withValues(alpha: 0.6)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = w * 0.016
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(Offset(w * 0.45, h * 0.26), Offset(w * 0.55, h * 0.26), wrinklePaint);
+    canvas.drawLine(Offset(w * 0.43, h * 0.30), Offset(w * 0.57, h * 0.30), wrinklePaint);
+
+    final eyeR = w * 0.06;
+    canvas.drawOval(Rect.fromCenter(center: Offset(w * 0.34, h * 0.48), width: eyeR * 2.2, height: eyeR * 1.6), jadeEye);
+    canvas.drawOval(Rect.fromCenter(center: Offset(w * 0.66, h * 0.48), width: eyeR * 2.2, height: eyeR * 1.6), jadeEye);
+
+    canvas.drawOval(Rect.fromCenter(center: Offset(w * 0.34, h * 0.48), width: eyeR * 0.6, height: eyeR * 1.5), darkPupil);
+    canvas.drawOval(Rect.fromCenter(center: Offset(w * 0.66, h * 0.48), width: eyeR * 0.6, height: eyeR * 1.5), darkPupil);
+
+    canvas.drawCircle(Offset(w * 0.32, h * 0.45), eyeR * 0.35, whitePaint);
+    canvas.drawCircle(Offset(w * 0.64, h * 0.45), eyeR * 0.35, whitePaint);
+
+    final noseSphynx = Path()
+      ..moveTo(w * 0.47, h * 0.55)
+      ..lineTo(w * 0.53, h * 0.55)
+      ..lineTo(w * 0.50, h * 0.58)
+      ..close();
+    canvas.drawPath(noseSphynx, innerEar);
+
+    canvas.drawCircle(Offset(w * 0.40, h * 0.62), w * 0.012, skinShade);
+    canvas.drawCircle(Offset(w * 0.36, h * 0.63), w * 0.012, skinShade);
+    canvas.drawCircle(Offset(w * 0.60, h * 0.62), w * 0.012, skinShade);
+    canvas.drawCircle(Offset(w * 0.64, h * 0.63), w * 0.012, skinShade);
   }
 
   void _paintShiba(Canvas canvas, double w, double h) {

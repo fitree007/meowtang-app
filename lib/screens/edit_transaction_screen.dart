@@ -46,14 +46,29 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
 
   // 3 Tabs: 0: รายจ่าย, 1: รายรับ, 2: บัตรเครดิต
   int _currentTab = 0;
+  int _ccMode = 0; // 0: รูดใช้จ่าย, 1: จ่ายบิลบัตรเครดิต
+  int _ccInstallmentMonths = 1; // 1: เต็มจำนวน, 3, 6, 10
 
   @override
   void initState() {
     super.initState();
     final tx = widget.transaction;
 
-    _selectedType = tx.type == TransactionType.income ? TransactionType.income : TransactionType.expense;
-    _currentTab = _selectedType == TransactionType.income ? 1 : 0;
+    final hasCCTag = tx.tags.contains('บัตรเครดิต') || tx.tags.contains('จ่ายบิลบัตรเครดิต') || tx.tags.contains('ผ่อนชำระ');
+
+    if (hasCCTag) {
+      _currentTab = 2;
+      _selectedType = TransactionType.expense;
+      if (tx.tags.contains('จ่ายบิลบัตรเครดิต')) {
+        _ccMode = 1;
+      }
+    } else if (tx.type == TransactionType.income) {
+      _currentTab = 1;
+      _selectedType = TransactionType.income;
+    } else {
+      _currentTab = 0;
+      _selectedType = TransactionType.expense;
+    }
     _selectedDate = tx.date;
 
     if (tx.amount > 0) {
@@ -107,6 +122,17 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
         _selectedType = TransactionType.income;
       } else if (index == 2) {
         _selectedType = TransactionType.expense; // บัตรเครดิต
+        final ccAccount = widget.controller.accounts.cast<AccountItem?>().firstWhere(
+          (acc) =>
+              acc != null &&
+              (acc.name.contains('บัตรเครดิต') ||
+                  acc.name.toLowerCase().contains('credit') ||
+                  acc.bankCode.toUpperCase() == 'CREDIT'),
+          orElse: () => null,
+        );
+        if (ccAccount != null) {
+          _selectedAccount = ccAccount;
+        }
       }
       _setDefaultCategory();
     });
@@ -853,16 +879,46 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
         ? await SlipStorageService.persistSlipImage(_slipImagePath!)
         : _slipImagePath;
 
+    final tagsList = <String>[];
+    if (_selectedTag.isNotEmpty) {
+      tagsList.add(_selectedTag);
+    }
+
+    var finalNote = _note;
+    var finalTitle = _selectedCategory?.name ?? widget.transaction.title;
+
+    if (_currentTab == 2) {
+      if (_ccMode == 0) {
+        if (!tagsList.contains('บัตรเครดิต')) tagsList.add('บัตรเครดิต');
+        if (_ccInstallmentMonths > 1) {
+          if (!tagsList.contains('ผ่อนชำระ')) tagsList.add('ผ่อนชำระ');
+          final perMonth = amount / _ccInstallmentMonths;
+          final installmentText = '[ผ่อน ${_ccInstallmentMonths} ด. @฿${FormatUtils.formatCurrency(perMonth)}/ด.]';
+          if (!finalNote.contains('[ผ่อน')) {
+            finalNote = finalNote.isEmpty ? installmentText : '$installmentText $finalNote';
+          }
+        }
+      } else {
+        if (!tagsList.contains('จ่ายบิลบัตรเครดิต')) tagsList.add('จ่ายบิลบัตรเครดิต');
+        if (finalTitle == 'รายการทั่วไป' || finalTitle.isEmpty) {
+          finalTitle = widget.controller.isEnglish ? 'Pay Credit Card Bill' : 'จ่ายบิลบัตรเครดิต';
+        }
+        if (finalNote.isEmpty) {
+          finalNote = widget.controller.isEnglish ? 'Credit card bill payment' : 'ชำระบิลบัตรเครดิต';
+        }
+      }
+    }
+
     final updated = widget.transaction.copyWith(
-      title: _selectedCategory?.name ?? widget.transaction.title,
+      title: finalTitle,
       amount: amount,
       type: _selectedType,
       date: _selectedDate,
       accountId: acc.id,
       categoryId: _selectedCategory?.id ?? widget.transaction.categoryId,
       categoryName: _selectedCategory?.name ?? widget.transaction.categoryName,
-      note: _note.isNotEmpty ? _note : null,
-      tags: _selectedTag.isNotEmpty ? [_selectedTag] : [],
+      note: finalNote.isNotEmpty ? finalNote : null,
+      tags: tagsList,
       slipImageUrl: persistentSlipPath,
     );
 
@@ -1022,6 +1078,173 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                 ],
               ),
             ),
+
+            // Credit Card Mode & Installment Controls (Shown on Credit Card tab)
+            if (_currentTab == 2)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF3B82F6).withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.25)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.credit_card_rounded, size: 16, color: Color(0xFF3B82F6)),
+                          const SizedBox(width: 6),
+                          Text(
+                            isEn ? 'Credit Card Mode' : 'รูปแบบบัตรเครดิต',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF3B82F6),
+                            ),
+                          ),
+                          const Spacer(),
+                          // Mode toggle: รูดซื้อสินค้า vs จ่ายบิลบัตร
+                          Container(
+                            decoration: BoxDecoration(
+                              color: currentTheme.surfaceBackground,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: currentTheme.borderColor),
+                            ),
+                            child: Row(
+                              children: [
+                                GestureDetector(
+                                  onTap: () {
+                                    HapticFeedback.selectionClick();
+                                    setState(() => _ccMode = 0);
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: _ccMode == 0 ? const Color(0xFF3B82F6) : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(
+                                      isEn ? 'Card Expense' : '💳 รูดใช้จ่าย',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: _ccMode == 0 ? Colors.white : currentTheme.textColor,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                GestureDetector(
+                                  onTap: () {
+                                    HapticFeedback.selectionClick();
+                                    setState(() => _ccMode = 1);
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: _ccMode == 1 ? const Color(0xFF3B82F6) : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(
+                                      isEn ? 'Pay Bill' : '🧾 จ่ายบิลบัตร',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: _ccMode == 1 ? Colors.white : currentTheme.textColor,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (_ccMode == 0) ...[
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Text(
+                              isEn ? 'Plan: ' : 'งวดชำระ: ',
+                              style: TextStyle(fontSize: 11, color: currentTheme.textSecondaryColor),
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: Row(
+                                  children: [1, 3, 6, 10].map((m) {
+                                    final isSel = _ccInstallmentMonths == m;
+                                    final label = m == 1
+                                        ? (isEn ? 'Full' : 'จ่ายเต็ม')
+                                        : (m == 10
+                                            ? (isEn ? '10 mo (0%)' : 'ผ่อน 10 ด. (0%)')
+                                            : (isEn ? '$m mo' : 'ผ่อน $m ด.'));
+                                    return Padding(
+                                      padding: const EdgeInsets.only(right: 6),
+                                      child: GestureDetector(
+                                        onTap: () {
+                                          HapticFeedback.selectionClick();
+                                          setState(() => _ccInstallmentMonths = m);
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: isSel ? const Color(0xFF3B82F6) : currentTheme.surfaceBackground,
+                                            borderRadius: BorderRadius.circular(10),
+                                            border: Border.all(
+                                              color: isSel ? const Color(0xFF3B82F6) : currentTheme.borderColor,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            label,
+                                            style: TextStyle(
+                                              fontSize: 10.5,
+                                              fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                                              color: isSel ? Colors.white : currentTheme.textColor,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (_ccInstallmentMonths > 1) ...[
+                          const SizedBox(height: 4),
+                          Builder(builder: (context) {
+                            final parsedAmount = double.tryParse(_calcInput.replaceAll(',', '')) ?? 0.0;
+                            final perMonth = parsedAmount > 0 ? (parsedAmount / _ccInstallmentMonths) : 0.0;
+                            return Text(
+                              isEn
+                                  ? '✨ Installment: ฿${FormatUtils.formatCurrency(perMonth)} / mo (${_ccInstallmentMonths} months)'
+                                  : '✨ ยอดผ่อนชำระ: ฿${FormatUtils.formatCurrency(perMonth)} / เดือน (รวม ${_ccInstallmentMonths} งวด)',
+                              style: const TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF2563EB),
+                              ),
+                            );
+                          }),
+                        ],
+                      ] else ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          isEn
+                              ? '💡 Record payment to settle credit card balance from your bank/cash'
+                              : '💡 บันทึกตัดยอดเงินเพื่อชำระหนี้/ยอดเรียกเก็บของบัตรเครดิต',
+                          style: TextStyle(fontSize: 10.5, color: currentTheme.textSecondaryColor),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
 
             // Category Grid
             Expanded(

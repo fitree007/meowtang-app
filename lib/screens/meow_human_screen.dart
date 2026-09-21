@@ -1074,14 +1074,15 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
    padding: const EdgeInsets.only(left: 4, bottom: 8),
    child: Row(
     children: [
-     Icon(icon, size: 18, color: iconColor),
+     Icon(icon, size: 17, color: iconColor),
      const SizedBox(width: 8),
      Text(
       title,
       style: TextStyle(
        color: isDark ? Colors.white : const Color(0xFF0F172A),
-       fontSize: 15,
+       fontSize: 14.5,
        fontWeight: FontWeight.bold,
+       letterSpacing: 0.1,
       ),
      ),
     ],
@@ -1127,7 +1128,7 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
     required bool isDark,
     required VoidCallback onTap,
    }) {
-    final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
+    final textColor = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF1E293B);
 
     return Material(
      color: Colors.transparent,
@@ -1156,8 +1157,8 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
            style: TextStyle(
             color: textColor,
             fontSize: 13.5,
-            fontWeight: FontWeight.w600,
-            letterSpacing: -0.2,
+            fontWeight: FontWeight.normal,
+            letterSpacing: -0.1,
            ),
           ),
          ),

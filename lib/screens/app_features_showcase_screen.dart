@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../state/expense_controller.dart';
 import '../widgets/meow_mascot_widget.dart';
+import '../widgets/tactile_button.dart';
+import '../widgets/onboarding_step_header.dart';
 import 'main_navigation_screen.dart';
 import 'theme_onboarding_screen.dart';
 
@@ -171,21 +173,12 @@ class AppFeaturesShowcaseScreen extends StatelessWidget {
 
   void _onFinish(BuildContext context) async {
     HapticFeedback.mediumImpact();
-    await controller.completeShowcase();
-    onCompleted?.call();
-
-    if (!context.mounted) return;
     if (isFromOverview) {
       Navigator.pop(context);
-    } else {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(
-          builder: (_) => MainNavigationScreen(controller: controller),
-        ),
-        (route) => false,
-      );
+      return;
     }
+    await controller.completeShowcase();
+    onCompleted?.call();
   }
 
   @override
@@ -197,64 +190,57 @@ class AppFeaturesShowcaseScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackground,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: theme.textColor, size: 20),
-          tooltip: isEn ? 'Back' : 'ย้อนกลับ',
-          onPressed: () async {
-            HapticFeedback.selectionClick();
-            if (isFromOverview) {
-              Navigator.pop(context);
-              return;
-            }
-            await controller.revertToThemeOnboarding();
-            if (!context.mounted) return;
-            if (Navigator.canPop(context)) {
-              Navigator.pop(context);
-            } else {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ThemeOnboardingScreen(
-                    controller: controller,
-                    onCompleted: onCompleted ?? () {},
-                  ),
-                ),
-              );
-            }
-          },
-        ),
-        title: Text(
-          isFromOverview
-              ? (isEn ? 'MeowTang Features Guide' : 'คู่มือฟีเจอร์เด่นเหมียวตังค์')
-              : (isEn ? 'Core Highlights (4/4)' : 'จุดเด่นของเหมียวตังค์ (4/4)'),
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: theme.textColor,
-          ),
-        ),
-        centerTitle: true,
-        actions: [
-          if (!isFromOverview)
-            TextButton(
-              onPressed: () => _onFinish(context),
-              child: Text(
-                isEn ? 'Skip' : 'ข้าม',
+      appBar: isFromOverview
+          ? AppBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              leading: IconButton(
+                icon: Icon(Icons.close_rounded, color: theme.textColor, size: 22),
+                tooltip: isEn ? 'Close' : 'ปิด',
+                onPressed: () => Navigator.pop(context),
+              ),
+              title: Text(
+                isEn ? 'MeowTang Features Guide' : 'คู่มือฟีเจอร์เด่นเหมียวตังค์',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: theme.primaryColor,
+                  color: theme.textColor,
                 ),
               ),
-            ),
-        ],
-      ),
+              centerTitle: true,
+            )
+          : null,
       body: SafeArea(
         child: Column(
           children: [
+            if (!isFromOverview)
+              OnboardingStepHeader(
+                badgeText: isEn ? 'Step 4/4 • Features' : 'ขั้นตอนที่ 4/4 • จุดเด่นของแอพ',
+                stepIcon: Icons.auto_awesome_rounded,
+                title: isEn ? 'MeowTang Highlights' : 'จุดเด่นของเหมียวตังค์',
+                subtitle: isEn
+                    ? 'Smart features to take control of your finances'
+                    : 'ฟีเจอร์อัจฉริยะที่จะช่วยให้คุณคุมเงินได้ง่ายขึ้น',
+                primaryColor: theme.primaryColor,
+                textColor: theme.textColor,
+                subtitleColor: theme.textSecondaryColor,
+                trailing: TextButton(
+                  onPressed: () => _onFinish(context),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: Text(
+                    isEn ? 'Skip' : 'ข้าม',
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.bold,
+                      color: theme.primaryColor,
+                    ),
+                  ),
+                ),
+              ),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -341,43 +327,123 @@ class AppFeaturesShowcaseScreen extends StatelessWidget {
               ),
             ),
 
-            // Bottom Confirm Button
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => _onFinish(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: theme.primaryColor,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 15),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    elevation: 3,
-                    shadowColor: theme.primaryColor.withValues(alpha: 0.4),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        isFromOverview
-                            ? (isEn ? 'Close Guide' : 'รับทราบและปิดหน้าต่าง')
-                            : (isEn ? 'Get Started with MeowTang 🐱✨' : 'เริ่มใช้งานเหมียวตังค์เลย 🐱✨'),
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.arrow_forward_rounded, size: 20),
-                    ],
-                  ),
-                ),
-              ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+        decoration: BoxDecoration(
+          color: theme.surfaceBackground,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
             ),
           ],
+        ),
+        child: SafeArea(
+          top: false,
+          child: SizedBox(
+            height: 50,
+            child: isFromOverview
+                ? TactileButton(
+                    onTap: () => _onFinish(context),
+                    child: Container(
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: theme.primaryColor,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Center(
+                        child: Text(
+                          isEn ? 'Close Guide' : 'รับทราบและปิดหน้าต่าง',
+                          style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  )
+                : Row(
+                    children: [
+                      // Back Button (35%)
+                      Expanded(
+                        flex: 35,
+                        child: TactileButton(
+                          onTap: () async {
+                            HapticFeedback.selectionClick();
+                            await controller.revertToThemeOnboarding();
+                          },
+                          child: Container(
+                            height: 50,
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: theme.borderColor),
+                            ),
+                            child: Center(
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.arrow_back_rounded, size: 16, color: theme.textColor),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    isEn ? 'Back' : 'ย้อนกลับ',
+                                    style: TextStyle(
+                                      color: theme.textColor,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      // Finish Button (65%)
+                      Expanded(
+                        flex: 65,
+                        child: TactileButton(
+                          onTap: () => _onFinish(context),
+                          child: Container(
+                            height: 50,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [theme.primaryColor, theme.secondaryColor],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: theme.primaryColor.withValues(alpha: 0.35),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: Center(
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    isEn ? 'Get Started 🐱✨' : 'เริ่มใช้งานเหมียวตังค์ 🐱✨',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
         ),
       ),
     );

@@ -10,6 +10,7 @@ import '../models/tax_profile.dart';
 import '../models/slip_extract_result.dart';
 import '../models/saving_goal_item.dart';
 import '../models/salary_auto_record_config.dart';
+import '../models/subscription_item.dart';
 import '../services/storage_service.dart';
 import '../services/ocr_engine_service.dart';
 import '../services/nlp_parser_service.dart';
@@ -30,7 +31,7 @@ enum MascotMood {
 }
 
 class ExpenseController extends ChangeNotifier {
-  static const String appVersion = '1.41.8';
+  static const String appVersion = '1.41.27';
 
   final StorageService _storage;
   final OcrEngineService _ocrEngine = OcrEngineService();
@@ -43,6 +44,7 @@ class ExpenseController extends ChangeNotifier {
   List<AccountItem> _accounts = [];
   List<CategoryItem> _categories = [];
   List<SavingGoalItem> _savingGoals = [];
+  List<SubscriptionItem> _subscriptions = [];
   SalaryAutoRecordConfig _salaryConfig = const SalaryAutoRecordConfig();
   String? _lastAutoSalaryRecordedNotice;
   final List<ProjectBudget> _projects = [];
@@ -81,6 +83,7 @@ class ExpenseController extends ChangeNotifier {
  List<TransactionItem> get allTransactions => _transactions;
  List<TransactionItem> get transactions => _transactions;
  List<SavingGoalItem> get savingGoals => _savingGoals;
+ List<SubscriptionItem> get subscriptions => _subscriptions;
  int get streakDays => _storage.getStreakDays();
  List<String> get unlockedAccessories => _storage.getUnlockedAccessories();
 
@@ -989,6 +992,7 @@ class ExpenseController extends ChangeNotifier {
   _accounts = _storage.getAccounts();
   _categories = _storage.getCategories();
   _savingGoals = _storage.getSavingGoals();
+  _subscriptions = _storage.getSubscriptions();
   _salaryConfig = _storage.getSalaryAutoRecordConfig();
 
   _deduplicateInMemoryTransactions();
@@ -1020,6 +1024,7 @@ class ExpenseController extends ChangeNotifier {
   _accounts = _storage.getAccounts();
   _categories = _storage.getCategories();
   _savingGoals = _storage.getSavingGoals();
+  _subscriptions = _storage.getSubscriptions();
   _salaryConfig = _storage.getSalaryAutoRecordConfig();
   notifyListeners();
   await syncAndroidWidget();
@@ -1470,6 +1475,66 @@ class ExpenseController extends ChangeNotifier {
   await _storage.saveSavingGoals(_savingGoals);
   notifyListeners();
  }
+
+  // SUBSCRIPTION & RECURRING BILL VAULT CRUD & METRICS
+  Future<void> addSubscription(SubscriptionItem item) async {
+    _subscriptions.insert(0, item);
+    await _storage.saveSubscriptions(_subscriptions);
+    notifyListeners();
+  }
+
+  Future<void> updateSubscription(SubscriptionItem item) async {
+    final idx = _subscriptions.indexWhere((s) => s.id == item.id);
+    if (idx != -1) {
+      _subscriptions[idx] = item;
+      await _storage.saveSubscriptions(_subscriptions);
+      notifyListeners();
+    }
+  }
+
+  Future<void> deleteSubscription(String id) async {
+    _subscriptions.removeWhere((s) => s.id == id);
+    await _storage.saveSubscriptions(_subscriptions);
+    notifyListeners();
+  }
+
+  Future<void> toggleSubscriptionActive(String id) async {
+    final idx = _subscriptions.indexWhere((s) => s.id == id);
+    if (idx != -1) {
+      _subscriptions[idx] = _subscriptions[idx].copyWith(isActive: !_subscriptions[idx].isActive);
+      await _storage.saveSubscriptions(_subscriptions);
+      notifyListeners();
+    }
+  }
+
+  double get totalSubscriptionMonthlyCost {
+    return _subscriptions
+        .where((s) => s.isActive)
+        .fold(0.0, (sum, s) => sum + s.monthlyCost);
+  }
+
+  double get totalSubscriptionYearlyCost {
+    return _subscriptions
+        .where((s) => s.isActive)
+        .fold(0.0, (sum, s) => sum + s.yearlyCost);
+  }
+
+  double get totalSubscriptionDueThisMonth {
+    final now = DateTime.now();
+    return _subscriptions
+        .where((s) => s.isActive && s.nextBillingDate.year == now.year && s.nextBillingDate.month == now.month)
+        .fold(0.0, (sum, s) => sum + s.price);
+  }
+
+  List<SubscriptionItem> get upcomingSubscriptions {
+    final list = _subscriptions.where((s) => s.isActive).toList();
+    list.sort((a, b) => a.daysUntilNextBilling.compareTo(b.daysUntilNextBilling));
+    return list;
+  }
+
+  List<SubscriptionItem> get expiringTrialSubscriptions {
+    return _subscriptions.where((s) => s.isActive && s.isTrialExpiringSoon).toList();
+  }
 
  Future<void> depositToSavingGoal(String goalId, double amount, {String? note, String? accountId}) async {
   final idx = _savingGoals.indexWhere((g) => g.id == goalId);

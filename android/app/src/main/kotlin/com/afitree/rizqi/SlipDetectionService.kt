@@ -33,8 +33,8 @@ class SlipDetectionService : Service() {
         const val EXTRA_SCAN_MESSAGE = "extra_scan_message"
 
         const val SCAN_NOTIFICATION_ID = 2001
-        const val HEADS_UP_CHANNEL_ID = "meow_slip_heads_up_channel_v4"
-        const val SCAN_CHANNEL_ID = "meow_slip_sync_channel_v4"
+        const val HEADS_UP_CHANNEL_ID = "meow_slip_heads_up_channel_v6"
+        const val SCAN_CHANNEL_ID = "meow_slip_sync_channel_v6"
     }
 
     private var mediaObserver: ContentObserver? = null
@@ -74,7 +74,13 @@ class SlipDetectionService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        val notification = NotificationCompat.Builder(this, SCAN_CHANNEL_ID)
+        val largeIcon = try {
+            BitmapFactory.decodeResource(resources, R.drawable.ic_notification_cat_large)
+        } catch (e: Exception) {
+            null
+        }
+
+        val builder = NotificationCompat.Builder(this, SCAN_CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(message)
             .setSmallIcon(R.drawable.ic_notification_cat)
@@ -85,7 +91,12 @@ class SlipDetectionService : Service() {
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .build()
+
+        if (largeIcon != null) {
+            builder.setLargeIcon(largeIcon)
+        }
+
+        val notification = builder.build()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(SCAN_NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
@@ -140,6 +151,17 @@ class SlipDetectionService : Service() {
     private fun createNotificationChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+            val oldChannels = listOf(
+                "meow_slip_sync_channel", "meow_slip_sync_channel_v2", "meow_slip_sync_channel_v3", "meow_slip_sync_channel_v4", "meow_slip_sync_channel_v5",
+                "meow_slip_heads_up_channel", "meow_slip_heads_up_channel_v2", "meow_slip_heads_up_channel_v3", "meow_slip_heads_up_channel_v4", "meow_slip_heads_up_channel_v5",
+                "slip_scan_channel", "slip_scan_channel_v2"
+            )
+            for (oldId in oldChannels) {
+                try {
+                    manager.deleteNotificationChannel(oldId)
+                } catch (e: Exception) {}
+            }
 
             // Scan status foreground channel (LOW importance so no annoying chime on updates)
             val scanChannel = NotificationChannel(
@@ -377,7 +399,13 @@ class SlipDetectionService : Service() {
         val title = if (isIncome) "💰 พบยอดเงินเข้าใหม่ (รายรับ)" else "🧾 พบสลิปใหม่ แตะเพื่อบันทึก"
         val desc = if (isIncome) "ตรวจพบยอดเงินเข้า: $bankName แตะเพื่อตรวจสอบและบันทึก" else "ตรวจพบ: $bankName แตะเพื่อตรวจสอบยอดเงินและบันทึก"
 
-        val notification = NotificationCompat.Builder(this, HEADS_UP_CHANNEL_ID)
+        val largeIcon = try {
+            BitmapFactory.decodeResource(resources, R.drawable.ic_notification_cat_large)
+        } catch (e: Exception) {
+            null
+        }
+
+        val builder = NotificationCompat.Builder(this, HEADS_UP_CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(desc)
             .setSmallIcon(R.drawable.ic_notification_cat)
@@ -387,7 +415,12 @@ class SlipDetectionService : Service() {
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .build()
+
+        if (largeIcon != null) {
+            builder.setLargeIcon(largeIcon)
+        }
+
+        val notification = builder.build()
 
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.notify((System.currentTimeMillis() % 10000).toInt() + 100, notification)

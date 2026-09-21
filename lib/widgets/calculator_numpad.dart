@@ -149,8 +149,32 @@ class CalculatorNumpad extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = currentTheme.isDark;
     final numBg = isDark ? const Color(0xFF1E293B) : Colors.white;
-    final opBg = isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9);
     final textCol = currentTheme.textColor;
+
+    // Minimalist operator colors - easily recognizable & modern pastel tints
+    // ⌫ Backspace & C: Soft Coral Red (ลบ)
+    final backspaceBg = isDark ? const Color(0xFF7F1D1D).withValues(alpha: 0.35) : const Color(0xFFFEE2E2);
+    final backspaceCol = isDark ? const Color(0xFFF87171) : const Color(0xFFDC2626);
+
+    // = Equals: Soft Ocean Cyan (ผลลัพธ์)
+    final eqBg = isDark ? const Color(0xFF0C4A6E).withValues(alpha: 0.40) : const Color(0xFFE0F2FE);
+    final eqCol = isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7);
+
+    // + Plus: Soft Mint Green (บวก)
+    final plusBg = isDark ? const Color(0xFF064E3B).withValues(alpha: 0.40) : const Color(0xFFDCFCE7);
+    final plusCol = isDark ? const Color(0xFF4ADE80) : const Color(0xFF16A34A);
+
+    // - Minus: Soft Amber Orange (ลบ)
+    final minusBg = isDark ? const Color(0xFF78350F).withValues(alpha: 0.40) : const Color(0xFFFEF3C7);
+    final minusCol = isDark ? const Color(0xFFFBBF24) : const Color(0xFFD97706);
+
+    // × Multiply: Soft Indigo/Sky Blue (คูณ)
+    final mulBg = isDark ? const Color(0xFF312E81).withValues(alpha: 0.40) : const Color(0xFFE0E7FF);
+    final mulCol = isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5);
+
+    // ÷ Divide: Soft Violet Purple (หาร)
+    final divBg = isDark ? const Color(0xFF581C87).withValues(alpha: 0.40) : const Color(0xFFF3E8FF);
+    final divCol = isDark ? const Color(0xFFC084FC) : const Color(0xFF9333EA);
 
     return Container(
       padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
@@ -173,15 +197,15 @@ class CalculatorNumpad extends StatelessWidget {
             children: [
               _buildKey(
                 child: const Text('=', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
-                bg: opBg,
-                color: textCol,
+                bg: eqBg,
+                color: eqCol,
                 onTap: () => _handleKey('='),
               ),
               const SizedBox(width: 6),
               _buildKey(
                 child: const Icon(Icons.backspace_outlined, size: 18),
-                bg: opBg,
-                color: textCol,
+                bg: backspaceBg,
+                color: backspaceCol,
                 onTap: () => _handleKey('BACKSPACE'),
               ),
               const SizedBox(width: 6),
@@ -224,7 +248,7 @@ class CalculatorNumpad extends StatelessWidget {
               const SizedBox(width: 6),
               _buildKey(child: const Text('9', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)), bg: numBg, color: textCol, onTap: () => _handleKey('9')),
               const SizedBox(width: 6),
-              _buildKey(child: const Text('+', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)), bg: opBg, color: textCol, onTap: () => _handleKey('+')),
+              _buildKey(child: const Text('+', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)), bg: plusBg, color: plusCol, onTap: () => _handleKey('+')),
             ],
           ),
           const SizedBox(height: 6),
@@ -238,7 +262,7 @@ class CalculatorNumpad extends StatelessWidget {
               const SizedBox(width: 6),
               _buildKey(child: const Text('6', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)), bg: numBg, color: textCol, onTap: () => _handleKey('6')),
               const SizedBox(width: 6),
-              _buildKey(child: const Text('-', style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold)), bg: opBg, color: textCol, onTap: () => _handleKey('-')),
+              _buildKey(child: const Text('-', style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold)), bg: minusBg, color: minusCol, onTap: () => _handleKey('-')),
             ],
           ),
           const SizedBox(height: 6),
@@ -252,7 +276,7 @@ class CalculatorNumpad extends StatelessWidget {
               const SizedBox(width: 6),
               _buildKey(child: const Text('3', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)), bg: numBg, color: textCol, onTap: () => _handleKey('3')),
               const SizedBox(width: 6),
-              _buildKey(child: const Text('×', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)), bg: opBg, color: textCol, onTap: () => _handleKey('×')),
+              _buildKey(child: const Text('×', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)), bg: mulBg, color: mulCol, onTap: () => _handleKey('×')),
             ],
           ),
           const SizedBox(height: 6),
@@ -264,9 +288,9 @@ class CalculatorNumpad extends StatelessWidget {
               const SizedBox(width: 6),
               _buildKey(child: const Text('0', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)), bg: numBg, color: textCol, onTap: () => _handleKey('0')),
               const SizedBox(width: 6),
-              _buildKey(child: const Text('C', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFEF4444))), bg: numBg, color: const Color(0xFFEF4444), onTap: () => _handleKey('C')),
+              _buildKey(child: const Text('C', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)), bg: backspaceBg, color: backspaceCol, onTap: () => _handleKey('C')),
               const SizedBox(width: 6),
-              _buildKey(child: const Text('÷', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)), bg: opBg, color: textCol, onTap: () => _handleKey('÷')),
+              _buildKey(child: const Text('÷', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)), bg: divBg, color: divCol, onTap: () => _handleKey('÷')),
             ],
           ),
         ],

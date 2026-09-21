@@ -93,7 +93,7 @@ class TransactionItem {
 
   String get categoryDisplayName => categoryName;
 
-  /// Returns clean user-written note, stripping any automated legacy metadata
+  /// Returns clean user-written note or slip memo, stripping any automated legacy metadata
   String? get cleanNote {
     if (note == null || note!.trim().isEmpty) return null;
     var clean = note!.trim();
@@ -108,6 +108,7 @@ class TransactionItem {
         return null;
       }
     }
+    clean = clean.replaceAll(RegExp(r'^(?:บันทึกช่วยจำ|บันทึกช่วยจํา|ข้อความช่วยจำ|ช่วยจำ|บันทึก|หมายเหตุ|Memo|Note|ข้อความ|โน้ต)[:\s]*', caseSensitive: false), '').trim();
     return clean.isEmpty ? null : clean;
   }
 

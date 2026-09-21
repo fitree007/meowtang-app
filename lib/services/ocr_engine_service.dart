@@ -1010,4 +1010,7 @@ class OcrEngineService {
       'receiver': receiverName ?? 'ไม่ระบุผู้รับ',
     };
   }
+
+  /// Extracts slip memo using high-accuracy fusion service
+  static String extractMemo(String text) => EasyOcrTesseractFusionService.extractMemo(text);
 }

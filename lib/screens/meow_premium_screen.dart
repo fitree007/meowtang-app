@@ -14,6 +14,7 @@ import 'islamic_inheritance_screen.dart';
 import 'islamic_baby_hair_charity_screen.dart';
 import 'currency_converter_screen.dart';
 import 'gold_silver_calculator_screen.dart';
+import 'subscription_vault_screen.dart';
 import '../widgets/live_rates_dashboard_widget.dart';
 import '../widgets/meow_paywall_modal.dart';
 
@@ -48,6 +49,88 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => screen),
+    );
+  }
+
+  void _restorePurchases(BuildContext context) {
+    HapticFeedback.lightImpact();
+    final isEn = widget.controller.isEnglish;
+    final theme = widget.controller.currentTheme;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: theme.cardBackground,
+        title: Row(
+          children: [
+            const Icon(Icons.history_edu_rounded, color: Color(0xFFF59E0B)),
+            const SizedBox(width: 8),
+            Text(
+              isEn ? 'Restore Purchases' : 'กู้คืนสิทธิ์การซื้อ (Restore)',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: theme.textColor,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              isEn
+                  ? 'MeowTang operates 100% offline. Your VIP license is tied directly to your Google Play Account.\n\n• If you previously purchased VIP or premium themes on this Google Account, Google Play automatically restores your license.\n• No server login or email registration required.'
+                  : 'เหมียวตังค์ทำงานแบบออฟไลน์ 100% โดยสิทธิ์ VIP จะผูกติดกับบัญชี Google Play Store ของเครื่องนี้โดยตรง\n\n• หากคุณเคยสั่งซื้อ VIP หรือธีมในบัญชี Google นี้ ระบบ Google Play จะคืนสิทธิ์ให้อัตโนมัติเมื่อติดตั้งใหม่\n• ใช้งานได้ตลอดชีพ ปลอดภัย ไม่ต้องมีเซิร์ฟเวอร์หรือสมัครสมาชิกใดๆ',
+              style: TextStyle(
+                fontSize: 13,
+                color: theme.textSecondaryColor,
+                height: 1.45,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(isEn ? 'Close' : 'ปิด'),
+          ),
+          FilledButton.icon(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  backgroundColor: const Color(0xFF0284C7),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  content: Row(
+                    children: [
+                      const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          isEn
+                              ? 'Google Play Purchase verification completed!'
+                              : 'ตรวจสอบและกู้คืนสิทธิ์จาก Google Play สำเร็จแล้ว! ✨',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(Icons.sync_rounded, size: 18),
+            label: Text(isEn ? 'Check Google Play' : 'ตรวจสอบสิทธิ์ Google Play'),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFF59E0B),
+              foregroundColor: Colors.black,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -99,50 +182,8 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          InkWell(
-                            onTap: () {
-                              if (!isVip) {
-                                MeowPaywallModal.show(
-                                  context,
-                                  controller: widget.controller,
-                                  reason: 'สมัคร VIP เพื่อปลดล็อคเครื่องมือพรีเมี่ยมทั้งหมด 👑',
-                                );
-                              }
-                            },
-                            borderRadius: BorderRadius.circular(16),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.22),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: Colors.white24),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    isVip ? Icons.stars_rounded : Icons.lock_outline_rounded,
-                                    size: 13,
-                                    color: const Color(0xFFFDE047),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    isVip
-                                        ? (isEn ? 'PREMIUM SUITE • VIP UNLOCKED 👑' : 'ศูนย์รวมเครื่องมือพรีเมี่ยม • สิทธิ์ VIP พรีเมี่ยม 👑')
-                                        : (isEn ? 'PREMIUM SUITE • VIP ONLY 🔒' : 'ศูนย์รวมเครื่องมือพรีเมี่ยม • สำหรับสมาชิก VIP 🔒'),
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 5),
                           Text(
-                            isEn ? 'Smart Financial Hub' : 'พรีเมี่ยม & ปัญญาการเงิน',
+                            isEn ? 'Advanced Financial Suite' : 'ศูนย์รวมเครื่องมือการเงินขั้นสูง',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 18,
@@ -152,8 +193,8 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                           const SizedBox(height: 2),
                           Text(
                             isEn
-                                ? 'Live Exchange, Budgets & Islamic Tools'
-                                : 'เรทเงินโลกสด, วางแผนการเงิน และหลักการอิสลาม',
+                                ? 'Live FX rates, wealth budgets, compound interest & Islamic finance'
+                                : 'เรทเงินโลกสด, ดอกเบี้ยทบต้น, วางแผนการเงิน & การเงินอิสลาม',
                             style: const TextStyle(
                               color: Colors.white70,
                               fontSize: 11,
@@ -290,50 +331,74 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 6),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: InkWell(
+                          onTap: () => _restorePurchases(context),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.restore_rounded, size: 15, color: Color(0xFF94A3B8)),
+                                const SizedBox(width: 4),
+                                Text(
+                                  isEn ? 'Already bought VIP? Restore' : 'เคยสั่งซื้อ VIP แล้ว? กู้คืนสิทธิ์ (Restore)',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF94A3B8),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ] else ...[
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: InkWell(
+                          onTap: () => _restorePurchases(context),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.verified_user_rounded, size: 15, color: Color(0xFF10B981)),
+                                const SizedBox(width: 4),
+                                Text(
+                                  isEn ? 'VIP License Active • Info' : 'สิทธิ์ VIP สมบูรณ์ (ตลอดชีพ) • ตรวจสอบ',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF10B981),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
                     ],
 
                     // ==========================================================
                     // SECTION 1: GLOBAL CURRENCIES & COMMODITIES (3-in-1 COMPACT HUB)
                     // ==========================================================
                     _buildSectionHeader(
-                      title: isEn ? 'Global Currencies & Metals' : '1. เรททองคำ & อัตราแลกเปลี่ยนสด 💱',
-                      icon: Icons.currency_exchange_rounded,
-                      iconColor: const Color(0xFF0284C7),
+                      title: isEn ? '1. Global Currencies & Metals' : '1. เรททองคำ & อัตราแลกเปลี่ยนสด',
                       textColor: textColor,
-                      trailing: InkWell(
-                        onTap: () {
-                          _openFeature(
-                            CurrencyConverterScreen(controller: widget.controller),
-                            reason: 'เครื่องคิดเลขแปลงเงิน & อัตราแลกเปลี่ยนสด สำหรับสมาชิก VIP 👑',
-                          );
-                        },
-                        borderRadius: BorderRadius.circular(8),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF0284C7).withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                'เครื่องคิดเลขแปลงเงิน',
-                                style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF0284C7)),
-                              ),
-                              SizedBox(width: 2),
-                              Icon(Icons.chevron_right_rounded, size: 14, color: Color(0xFF0284C7)),
-                            ],
-                          ),
-                        ),
-                      ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
 
                     // Ultra Compact 3-in-1 Dashboard (Gold / Silver / Currencies)
                     LiveRatesDashboardWidget(controller: widget.controller),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
 
                     // 1. Dedicated Action Button: Currency Converter (เครื่องคิดเลขแปลงเงิน)
                     TactileButton(
@@ -505,18 +570,223 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 12),
+
+                    // ==========================================================
+                    // FEATURED HERO CARD: SUBSCRIPTION VAULT (คุมค่า Subscription & รายจ่ายประจำ)
+                    // ==========================================================
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 14),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: isDark
+                              ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
+                              : [const Color(0xFFF0FDF4), const Color(0xFFDCFCE7)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: const Color(0xFF10B981).withValues(alpha: 0.5),
+                          width: 1.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF10B981).withValues(alpha: isDark ? 0.18 : 0.08),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  child: const Center(
+                                    child: Text('📱', style: TextStyle(fontSize: 22)),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Flexible(
+                                            child: Text(
+                                              isEn ? 'Subscription Vault' : 'ระบบคุมค่า Subscription & บิลประจำ',
+                                              style: TextStyle(
+                                                fontSize: 14.5,
+                                                fontWeight: FontWeight.bold,
+                                                color: textColor,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF10B981),
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: const Text(
+                                              'NEW ✨',
+                                              style: TextStyle(
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.w900,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        isEn
+                                            ? 'Track Netflix, YouTube, ChatGPT, Utilities + Free trial alert'
+                                            : 'คุม Netflix, YouTube, ChatGPT, ค่าน้ำไฟ พร้อมเตือนก่อนหมดช่วงทดลองฟรี',
+                                        style: TextStyle(fontSize: 11, color: subTextColor),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            // Logos preview row
+                            Row(
+                              children: [
+                                ...['netflix', 'youtube', 'spotify', 'chatgpt', 'disney_plus', 'ais'].map((logo) {
+                                  return Container(
+                                    margin: const EdgeInsets.only(right: 6),
+                                    width: 28,
+                                    height: 28,
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(8),
+                                      boxShadow: [
+                                        BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 4),
+                                      ],
+                                    ),
+                                    padding: const EdgeInsets.all(4),
+                                    child: Image.asset(
+                                      'assets/icons/subscriptions/$logo.png',
+                                      fit: BoxFit.contain,
+                                      errorBuilder: (_, __, ___) => const SizedBox(),
+                                    ),
+                                  );
+                                }),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '+30 แบรนด์',
+                                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: subTextColor),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 14),
+                            const Divider(height: 1),
+                            const SizedBox(height: 10),
+                            // Action buttons: "ลองใช้ก่อน ไม่ต้องสมัคร" and "เข้าสู่ระบบจัดการ"
+                            Row(
+                              children: [
+                                // "ลองใช้ก่อน ไม่ต้องสมัคร" (Guest / Test Drive Mode)
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: () {
+                                      HapticFeedback.lightImpact();
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => SubscriptionVaultScreen(
+                                            controller: widget.controller,
+                                            isGuestMode: true,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    icon: const Icon(Icons.play_circle_outline_rounded, size: 16, color: Color(0xFF0284C7)),
+                                    label: Text(
+                                      isEn ? 'Try Free' : 'ลองใช้ก่อน ไม่ต้องสมัคร 🚀',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF0284C7),
+                                      ),
+                                    ),
+                                    style: OutlinedButton.styleFrom(
+                                      side: const BorderSide(color: Color(0xFF0284C7), width: 1.2),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                // Full VIP Access / Open Feature
+                                Expanded(
+                                  child: FilledButton.icon(
+                                    onPressed: () {
+                                      if (!isVip) {
+                                        MeowPaywallModal.show(
+                                          context,
+                                          controller: widget.controller,
+                                          reason: 'ระบบจัดการ Subscription & รายจ่ายประจำ สำหรับสมาชิก VIP 👑',
+                                        );
+                                      } else {
+                                        HapticFeedback.lightImpact();
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => SubscriptionVaultScreen(
+                                              controller: widget.controller,
+                                              isGuestMode: false,
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    },
+                                    icon: Icon(isVip ? Icons.lock_open_rounded : Icons.lock_outline_rounded, size: 15, color: Colors.white),
+                                    label: Text(
+                                      isVip
+                                          ? (isEn ? 'Open Vault' : 'เปิดใช้งาน')
+                                          : (isEn ? 'VIP Access' : 'ปลดล็อค VIP 👑'),
+                                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                                    ),
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: isVip ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
 
                     // ==========================================================
                     // SECTION 2: SMART WEALTH & BUDGET PLANNING
                     // ==========================================================
                     _buildSectionHeader(
-                      title: isEn ? 'Smart Wealth & Budgets' : '2. การวางแผนการเงินส่วนบุคคล 🎯',
-                      icon: Icons.track_changes_rounded,
-                      iconColor: const Color(0xFF10B981),
+                      title: isEn ? '2. Smart Wealth & Budgets' : '2. การวางแผนการเงินส่วนบุคคล',
                       textColor: textColor,
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
 
                     // 2x2 Square Grid
                     GridView.count(
@@ -597,18 +867,16 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 10),
 
                     // ==========================================================
                     // SECTION 3: ISLAMIC FINANCE & FARAID
                     // ==========================================================
                     _buildSectionHeader(
-                      title: isEn ? 'Islamic Wealth & Sunnah' : '3. การเงินตามหลักการอิสลาม 🕌',
-                      icon: Icons.mosque_rounded,
-                      iconColor: const Color(0xFFF59E0B),
+                      title: isEn ? '3. Islamic Wealth & Sunnah' : '3. การเงินตามหลักการอิสลาม',
                       textColor: textColor,
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
 
                     // 3 Islamic Tools (Compact Grid / Cards)
                     GridView.count(
@@ -757,27 +1025,19 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
 
   Widget _buildSectionHeader({
     required String title,
-    required IconData icon,
-    required Color iconColor,
     required Color textColor,
-    Widget? trailing,
   }) {
-    return Row(
-      children: [
-        Icon(icon, size: 16, color: iconColor),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Text(
-            title,
-            style: TextStyle(
-              fontSize: 13.5,
-              fontWeight: FontWeight.bold,
-              color: textColor,
-            ),
-          ),
+    return Padding(
+      padding: const EdgeInsets.only(left: 2, bottom: 4),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          color: textColor,
+          letterSpacing: -0.2,
         ),
-        ?trailing,
-      ],
+      ),
     );
   }
 

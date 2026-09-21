@@ -320,6 +320,11 @@ class CurrencyExchangeService {
     return amountInThb * thbToTarget;
   }
 
+  /// Converts an amount in foreign currency directly to THB
+  static double convertToThb(double amount, String fromCode) {
+    return convert(amount, fromCode, 'thb');
+  }
+
   /// Price of 1 Baht Weight of Gold Bar (ขายออกทองคำแท่ง 96.5%)
   static double getGoldBarSellPrice() {
     return _goldBarSell > 0 ? _goldBarSell : getGoldPricePerBahtWeight();

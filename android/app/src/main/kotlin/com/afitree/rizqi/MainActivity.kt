@@ -1296,11 +1296,20 @@ class MainActivity : FlutterActivity() {
 
     private val SCAN_NOTIFICATION_ID = 2001
     private val SCAN_COMPLETED_NOTIFICATION_ID = 2002
-    private val SCAN_CHANNEL_ID = "meow_slip_sync_channel_v4"
+    private val SCAN_CHANNEL_ID = "meow_slip_sync_channel_v6"
 
     private fun ensureScanNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val oldChannels = listOf(
+                "meow_slip_sync_channel", "meow_slip_sync_channel_v2", "meow_slip_sync_channel_v3", "meow_slip_sync_channel_v4", "meow_slip_sync_channel_v5",
+                "slip_scan_channel", "slip_scan_channel_v2"
+            )
+            for (oldId in oldChannels) {
+                try {
+                    manager.deleteNotificationChannel(oldId)
+                } catch (e: Exception) {}
+            }
             val channel = NotificationChannel(
                 SCAN_CHANNEL_ID,
                 "สถานะการดึงสลิป (Slip Scan Status)",
@@ -1343,7 +1352,13 @@ class MainActivity : FlutterActivity() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        val notification = NotificationCompat.Builder(this, SCAN_CHANNEL_ID)
+        val largeIcon = try {
+            BitmapFactory.decodeResource(resources, R.drawable.ic_notification_cat_large)
+        } catch (e: Exception) {
+            null
+        }
+
+        val builder = NotificationCompat.Builder(this, SCAN_CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(message)
             .setSmallIcon(R.drawable.ic_notification_cat)
@@ -1352,8 +1367,12 @@ class MainActivity : FlutterActivity() {
             .setOngoing(true)
             .setProgress(0, 0, true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .build()
 
+        if (largeIcon != null) {
+            builder.setLargeIcon(largeIcon)
+        }
+
+        val notification = builder.build()
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.notify(SCAN_NOTIFICATION_ID, notification)
     }
@@ -1372,7 +1391,13 @@ class MainActivity : FlutterActivity() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        val notification = NotificationCompat.Builder(this, SCAN_CHANNEL_ID)
+        val largeIcon = try {
+            BitmapFactory.decodeResource(resources, R.drawable.ic_notification_cat_large)
+        } catch (e: Exception) {
+            null
+        }
+
+        val builder = NotificationCompat.Builder(this, SCAN_CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(message)
             .setSmallIcon(R.drawable.ic_notification_cat)
@@ -1381,8 +1406,12 @@ class MainActivity : FlutterActivity() {
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setDefaults(NotificationCompat.DEFAULT_ALL)
-            .build()
 
+        if (largeIcon != null) {
+            builder.setLargeIcon(largeIcon)
+        }
+
+        val notification = builder.build()
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.notify(SCAN_COMPLETED_NOTIFICATION_ID, notification)
     }

@@ -4,6 +4,7 @@ import '../models/transaction_item.dart';
 import '../models/account_item.dart';
 import '../models/category_item.dart';
 import '../models/saving_goal_item.dart';
+import '../models/subscription_item.dart';
 import '../models/salary_auto_record_config.dart';
 import '../config/app_config.dart';
 
@@ -13,6 +14,7 @@ class StorageService {
   static const String _keyCategories = 'rizqi_categories_v2';
   static const String _keyKeywordRules = 'rizqi_keyword_rules_v2';
   static const String _keyIsDarkMode = 'rizqi_is_dark_mode';
+  static const String _keySubscriptions = 'meow_subscriptions_vault_v1';
   static const String _keyPermissionConfigured = 'rizqi_perm_configured';
   static const String _keyBankAlbum = 'rizqi_perm_bank_album';
   static const String _keyInstalledApps = 'rizqi_perm_installed_apps';
@@ -803,6 +805,17 @@ class StorageService {
 
   Future<void> saveSavingGoals(List<SavingGoalItem> goals) async {
     await _prefs.setString(_keySavingGoals, SavingGoalItem.encodeList(goals));
+  }
+
+  // SUBSCRIPTION & RECURRING BILL VAULT
+  List<SubscriptionItem> getSubscriptions() {
+    final raw = _prefs.getString(_keySubscriptions);
+    if (raw == null || raw.isEmpty) return [];
+    return SubscriptionItem.decodeList(raw);
+  }
+
+  Future<void> saveSubscriptions(List<SubscriptionItem> items) async {
+    await _prefs.setString(_keySubscriptions, SubscriptionItem.encodeList(items));
   }
 
   // RECORDING STREAK

@@ -608,11 +608,17 @@ class SlipAutoSyncService {
         ? ocrParsed.receiverName
         : (extractedParties['receiver'] != 'ไม่ระบุผู้รับ' ? extractedParties['receiver']! : 'ไม่ระบุผู้รับ');
 
-    // 5. Extract Memo / Note using RegEx
+    // 5. Extract Memo / Note using EasyOcrTesseractFusionService & RegEx
     String? extractedMemo = ocrParsed?.memo;
     if (extractedMemo == null || extractedMemo.isEmpty) {
+      final fusionMemo = EasyOcrTesseractFusionService.extractMemo(rawOcrText);
+      if (fusionMemo.isNotEmpty) {
+        extractedMemo = fusionMemo;
+      }
+    }
+    if (extractedMemo == null || extractedMemo.isEmpty) {
       final memoRegex = RegExp(
-        r'(?:บันทึกช่วยจำ|บันทึก|หมายเหตุ|Memo|Note|ข้อความ|รายละเอียด)[:\s]*([^\n\r]+)',
+        r'(?:บันทึกช่วยจำ|บันทึกช่วยจํา|ข้อความช่วยจำ|ช่วยจำ|บันทึก|หมายเหตุ|Memo|Note|ข้อความ|รายละเอียด)[:\s]*([^\n\r]+)',
         caseSensitive: false,
       );
       final memoMatch = memoRegex.firstMatch(rawOcrText);

@@ -10,6 +10,7 @@ import android.os.Handler
 import android.os.Looper
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
+import android.graphics.BitmapFactory
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.CoroutineScope
@@ -32,7 +33,7 @@ class BankNotificationListenerService : NotificationListenerService() {
 
     companion object {
         private const val TAG = "BankNotificationListener"
-        private const val CHANNEL_ID = "meowtang_income_channel_v4"
+        private const val CHANNEL_ID = "meowtang_income_channel_v6"
         private const val CHANNEL_NAME = "เหมียวตังค์: บันทึกเงินเข้าอัตโนมัติ"
 
         // Cache last detected notification to prevent duplicate recording within 60 seconds
@@ -305,6 +306,15 @@ class BankNotificationListenerService : NotificationListenerService() {
 
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val oldChannels = listOf(
+                    "meowtang_income_channel", "meowtang_income_channel_v2", "meowtang_income_channel_v3", "meowtang_income_channel_v4", "meowtang_income_channel_v5",
+                    "bank_notification_listener", "bank_notification_listener_v2"
+                )
+                for (oldId in oldChannels) {
+                    try {
+                        notificationManager.deleteNotificationChannel(oldId)
+                    } catch (e: Exception) {}
+                }
                 val channel = NotificationChannel(
                     CHANNEL_ID,
                     CHANNEL_NAME,
@@ -325,7 +335,13 @@ class BankNotificationListenerService : NotificationListenerService() {
 
             val formatted = String.format(Locale.getDefault(), "%.2f", amount)
 
-            val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+            val largeIcon = try {
+                BitmapFactory.decodeResource(resources, R.drawable.ic_notification_cat_large)
+            } catch (e: Exception) {
+                null
+            }
+
+            val builder = NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_notification_cat)
                 .setColor(0xFFFF8A00.toInt())
                 .setContentTitle("✨ เหมียวตังค์: เงินเข้า +฿$formatted")
@@ -333,8 +349,12 @@ class BankNotificationListenerService : NotificationListenerService() {
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .build()
 
+            if (largeIcon != null) {
+                builder.setLargeIcon(largeIcon)
+            }
+
+            val notification = builder.build()
             notificationManager.notify(1001, notification)
         } catch (e: Exception) {
             e.printStackTrace()

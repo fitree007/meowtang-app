@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../state/expense_controller.dart';
 import '../theme/app_theme_model.dart';
+import '../widgets/tactile_button.dart';
+import '../widgets/onboarding_step_header.dart';
 import 'app_features_showcase_screen.dart';
 import 'mascot_onboarding_screen.dart';
 
@@ -52,16 +54,7 @@ class _ThemeOnboardingScreenState extends State<ThemeOnboardingScreen> {
   void _onFinish() async {
     HapticFeedback.heavyImpact();
     await widget.controller.completeThemeOnboarding(_selectedThemeId, _isDark);
-    if (!mounted) return;
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => AppFeaturesShowcaseScreen(
-          controller: widget.controller,
-          onCompleted: widget.onCompleted,
-        ),
-      ),
-    );
+    widget.onCompleted();
   }
 
   List<AppThemeModel> get _filteredThemes {
@@ -79,86 +72,34 @@ class _ThemeOnboardingScreenState extends State<ThemeOnboardingScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // 1. Top Header Info with Step Badge & Skip
-            Padding(
-              padding: const EdgeInsets.fromLTRB(10, 10, 20, 6),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: Icon(Icons.arrow_back_ios_new_rounded, color: activeTheme.textColor, size: 20),
-                    tooltip: isEn ? 'Back' : 'ย้อนกลับ',
-                    onPressed: () async {
-                      HapticFeedback.selectionClick();
-                      await widget.controller.revertToMascotOnboarding();
-                      if (!context.mounted) return;
-                      if (Navigator.canPop(context)) {
-                        Navigator.pop(context);
-                      } else {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => MascotOnboardingScreen(
-                              controller: widget.controller,
-                              onCompleted: widget.onCompleted,
-                            ),
-                          ),
-                        );
-                      }
-                    },
-                  ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: activeTheme.primaryColor.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: activeTheme.primaryColor.withValues(alpha: 0.3)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.palette_rounded, color: activeTheme.primaryColor, size: 13),
-                            const SizedBox(width: 4),
-                            Text(
-                              isEn ? 'Step 3/4 • Theme' : 'ขั้นตอนที่ 3/4 • เลือกธีมแอพ',
-                              style: TextStyle(
-                                color: activeTheme.primaryColor,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        isEn ? 'Choose Your Style & Mode' : 'เลือกสไตล์และโหมดการแสดงผล',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: activeTheme.textColor,
-                        ),
-                      ),
-                    ],
+            // 1. Top Header Info with Step Badge (Unified Minimalist)
+            OnboardingStepHeader(
+              badgeText: isEn ? 'Step 3/4 • Theme' : 'ขั้นตอนที่ 3/4 • เลือกธีมแอพ',
+              stepIcon: Icons.palette_rounded,
+              title: isEn ? 'Choose Your Style & Mode' : 'เลือกสไตล์และโหมดการแสดงผล',
+              subtitle: isEn
+                  ? 'Customize colors and display themes'
+                  : 'ปรับแต่งสีสันและธีมที่เข้ากับตัวคุณ',
+              primaryColor: activeTheme.primaryColor,
+              textColor: activeTheme.textColor,
+              subtitleColor: activeTheme.textSecondaryColor,
+              trailing: TextButton(
+                onPressed: _onFinish,
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(
+                  isEn ? 'Skip' : 'ข้าม',
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.bold,
+                    color: activeTheme.primaryColor,
                   ),
                 ),
-                TextButton(
-                  onPressed: _onFinish,
-                  child: Text(
-                    isEn ? 'Skip' : 'ข้าม',
-                    style: TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.bold,
-                      color: activeTheme.primaryColor,
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
 
             // 2. Light / Dark Mode Toggle Buttons (Dual Mode for all 18 themes)
             Padding(
@@ -397,30 +338,101 @@ class _ThemeOnboardingScreenState extends State<ThemeOnboardingScreen> {
               ),
             ),
 
-            // 6. Bottom Confirm Button
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 6, 20, 14),
-              child: SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton.icon(
-                  onPressed: _onFinish,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: activeTheme.primaryColor,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    elevation: 0,
-                  ),
-                  icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-                  iconAlignment: IconAlignment.end,
-                  label: Text(
-                    isEn ? 'Confirm Theme & Continue' : 'ใช้ธีมนี้และไปต่อ (4/4)',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                  ),
-                ),
-              ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+        decoration: BoxDecoration(
+          color: activeTheme.surfaceBackground,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: _isDark ? 0.2 : 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
             ),
           ],
+        ),
+        child: SafeArea(
+          top: false,
+          child: SizedBox(
+            height: 50,
+            child: Row(
+              children: [
+                // Back Button (35%)
+                Expanded(
+                  flex: 35,
+                  child: TactileButton(
+                    onTap: () async {
+                      HapticFeedback.selectionClick();
+                      await widget.controller.revertToMascotOnboarding();
+                    },
+                    child: Container(
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: _isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: activeTheme.borderColor),
+                      ),
+                      child: Center(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.arrow_back_rounded, size: 16, color: activeTheme.textColor),
+                            const SizedBox(width: 4),
+                            Text(
+                              isEn ? 'Back' : 'ย้อนกลับ',
+                              style: TextStyle(
+                                color: activeTheme.textColor,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                // Next Button (65%)
+                Expanded(
+                  flex: 65,
+                  child: TactileButton(
+                    onTap: _onFinish,
+                    child: Container(
+                      height: 50,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [activeTheme.primaryColor, activeTheme.secondaryColor],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: activeTheme.primaryColor.withValues(alpha: 0.35),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: Text(
+                          isEn ? 'Next: Features (4/4) →' : 'ขั้นตอนถัดไป (4/4) →',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

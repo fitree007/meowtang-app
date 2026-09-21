@@ -6,6 +6,7 @@ import '../widgets/meow_mascot_widget.dart';
 import '../widgets/tactile_button.dart';
 import '../widgets/custom_photo_avatar_dialog.dart';
 import '../widgets/meow_paywall_modal.dart';
+import '../widgets/onboarding_step_header.dart';
 import '../config/app_config.dart';
 
 class MascotOnboardingScreen extends StatefulWidget {
@@ -215,77 +216,17 @@ class _MascotOnboardingScreenState extends State<MascotOnboardingScreen> with Si
       body: SafeArea(
         child: Column(
           children: [
-            // 1. Top Header Bar with Step Badge
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 12, 18, 4),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded, color: textPrimary, size: 20),
-                    tooltip: isEn ? 'Back' : 'ย้อนกลับ',
-                    onPressed: () async {
-                      HapticFeedback.selectionClick();
-                      if (Navigator.canPop(context)) {
-                        Navigator.pop(context);
-                      } else {
-                        await widget.controller.revertToLanguageSelection();
-                      }
-                    },
-                  ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: MeowTheme.mustardYellow.withValues(alpha: 0.18),
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: MeowTheme.mustardYellow.withValues(alpha: 0.5)),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.stars_rounded, color: MeowTheme.mustardYellowDark, size: 13),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    isEn ? 'Step 2/4 • Mascot' : 'ขั้นตอนที่ 2/4 • เลือกคู่หู',
-                                    style: const TextStyle(
-                                      color: MeowTheme.mustardYellowDark,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          isEn ? 'Choose Your Mascot' : 'เลือกคู่หูมาสคอตประจำตัว',
-                          style: const TextStyle(
-                            color: textPrimary,
-                            fontSize: 19,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: -0.3,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          isEn ? 'Pick a character & customize outfit' : 'เลือกตัวละครและอุปกรณ์คู่กายได้ตามใจชอบ',
-                          style: const TextStyle(color: textSecondary, fontSize: 12),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+            // 1. Top Header Bar with Step Badge (Unified Minimalist)
+            OnboardingStepHeader(
+              badgeText: isEn ? 'Step 2/4 • Mascot' : 'ขั้นตอนที่ 2/4 • เลือกคู่หู',
+              stepIcon: Icons.pets_rounded,
+              title: isEn ? 'Choose Your Mascot' : 'เลือกคู่หูมาสคอตประจำตัว',
+              subtitle: isEn
+                  ? 'Pick a character & customize outfit'
+                  : 'เลือกตัวละครและอุปกรณ์คู่กายได้ตามใจชอบ',
+              primaryColor: MeowTheme.mustardYellowDark,
+              textColor: textPrimary,
+              subtitleColor: textSecondary,
             ),
 
             // 2. Interactive Live Mascot Stage (No text overflow)
@@ -687,57 +628,102 @@ class _MascotOnboardingScreenState extends State<MascotOnboardingScreen> with Si
               ),
             ),
 
-            // 5. Pinned Finish Button
-            Container(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-              decoration: const BoxDecoration(
-                color: cardBg,
-                border: Border(top: BorderSide(color: borderColor, width: 0.8)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 6,
-                    offset: Offset(0, -2),
-                  ),
-                ],
-              ),
-              child: TactileButton(
-                onTap: _onFinish,
-                child: Container(
-                  width: double.infinity,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF0284C7), Color(0xFF0369A1)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF0284C7).withValues(alpha: 0.35),
-                        blurRadius: 10,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        isEn ? 'Next: Choose Theme (3/4) →' : 'ขั้นตอนถัดไป: เลือกธีมแอพ (3/4) →',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+        decoration: const BoxDecoration(
+          color: cardBg,
+          border: Border(top: BorderSide(color: borderColor, width: 0.8)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 10,
+              offset: Offset(0, -2),
             ),
           ],
+        ),
+        child: SafeArea(
+          top: false,
+          child: SizedBox(
+            height: 50,
+            child: Row(
+              children: [
+                // Back Button (35%)
+                Expanded(
+                  flex: 35,
+                  child: TactileButton(
+                    onTap: () async {
+                      HapticFeedback.selectionClick();
+                      await widget.controller.revertToLanguageSelection();
+                    },
+                    child: Container(
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFCBD5E1)),
+                      ),
+                      child: Center(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.arrow_back_rounded, size: 16, color: Color(0xFF475569)),
+                            const SizedBox(width: 4),
+                            Text(
+                              isEn ? 'Back' : 'ย้อนกลับ',
+                              style: const TextStyle(
+                                color: Color(0xFF475569),
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                // Next Button (65%)
+                Expanded(
+                  flex: 65,
+                  child: TactileButton(
+                    onTap: _onFinish,
+                    child: Container(
+                      height: 50,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF0284C7), Color(0xFF0369A1)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF0284C7).withValues(alpha: 0.35),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: Text(
+                          isEn ? 'Next: Theme (3/4) →' : 'ขั้นตอนถัดไป (3/4) →',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

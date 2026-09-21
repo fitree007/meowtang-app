@@ -2495,13 +2495,13 @@ void _handleMascotPetting() {
                             const SizedBox(width: 4),
                             Flexible(
                              child: Text(
-                              cleanNote,
+                              cleanNote.startsWith('#') ? cleanNote : 'บันทึก: $cleanNote',
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                color: isDark ? const Color(0xFFBAE6FD) : const Color(0xFF0369A1),
                                fontSize: 11,
-                               fontWeight: FontWeight.w500,
+                               fontWeight: FontWeight.w600,
                                height: 1.2,
                               ),
                              ),
@@ -2829,7 +2829,7 @@ void _handleMascotPetting() {
         ),
       ),
 
-      // Minimal + Modern Floating Arrow Up Action Button (Bottom Right)
+      // Minimal + Modern Floating Quick Actions Lightning Button (Bottom Right)
       Positioned(
        right: 20,
        bottom: 24,
@@ -2874,9 +2874,9 @@ void _handleMascotPetting() {
           ),
           child: const Center(
            child: Icon(
-            Icons.keyboard_arrow_up_rounded,
+            Icons.bolt_rounded,
             color: Colors.white,
-            size: 36,
+            size: 34,
            ),
           ),
          ),

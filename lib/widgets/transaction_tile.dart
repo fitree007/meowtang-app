@@ -157,10 +157,12 @@ class TransactionTile extends StatelessWidget {
                       const SizedBox(height: 3),
                       Row(
                         children: [
-                          if (transaction.note != null && transaction.note!.trim().isNotEmpty) ...[
+                          if ((transaction.cleanNote ?? transaction.note) != null && (transaction.cleanNote ?? transaction.note)!.trim().isNotEmpty) ...[
                             Flexible(
                               child: Text(
-                                transaction.note!,
+                                (transaction.cleanNote ?? transaction.note)!.startsWith('#')
+                                    ? (transaction.cleanNote ?? transaction.note)!
+                                    : '📝 ${(transaction.cleanNote ?? transaction.note)!}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
