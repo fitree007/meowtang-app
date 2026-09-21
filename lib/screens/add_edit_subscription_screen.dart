@@ -43,12 +43,20 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
   String? _selectedAccountId;
   String? _selectedAccountName;
   bool _enableReminder = true;
+  bool _showInOverview = false;
   bool _autoRecordExpense = false;
   String? _logoAssetPath;
   String? _customLogoUrl;
   Color? _customColor;
   int _reminderDaysBefore = 3;
   bool _isActive = true;
+
+  // Duration / End rule state
+  String _endRuleType = 'never'; // 'never', 'untilDate', 'fixedCycles'
+  DateTime? _endDate;
+  int? _totalCycles;
+  late TextEditingController _totalCyclesController;
+  int _completedCycles = 0;
 
   List<SubscriptionPreset> _autocompleteSuggestions = [];
 
@@ -75,8 +83,50 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
 
   List<CurrencyInfo> get _allCurrencies {
     return CurrencyExchangeService.supportedCurrencies.values
-        .where((c) => !c.isCommodity)
+        .where((c) => !c.isCommodity || c.code == 'btc')
         .toList();
+  }
+
+  DateTime _calculateEndDateFromCycles(DateTime startDate, int cycles, String cycle) {
+    if (cycles <= 0) return startDate;
+    DateTime d = startDate;
+    for (int i = 0; i < cycles; i++) {
+      if (cycle == 'yearly') {
+        d = DateTime(d.year + 1, d.month, d.day);
+      } else if (cycle == 'weekly') {
+        d = d.add(const Duration(days: 7));
+      } else if (cycle == 'quarterly') {
+        d = DateTime(d.year, d.month + 3, d.day);
+      } else {
+        final nextMonth = d.month + 1;
+        final nextYear = d.year + (nextMonth > 12 ? 1 : 0);
+        final adjustedMonth = nextMonth > 12 ? 1 : nextMonth;
+        d = DateTime(nextYear, adjustedMonth, d.day);
+      }
+    }
+    return d;
+  }
+
+  int _calculateCyclesBetween(DateTime startDate, DateTime endDate, String cycle) {
+    if (endDate.isBefore(startDate)) return 0;
+    int count = 0;
+    DateTime d = startDate;
+    while (!d.isAfter(endDate)) {
+      count++;
+      if (cycle == 'yearly') {
+        d = DateTime(d.year + 1, d.month, d.day);
+      } else if (cycle == 'weekly') {
+        d = d.add(const Duration(days: 7));
+      } else if (cycle == 'quarterly') {
+        d = DateTime(d.year, d.month + 3, d.day);
+      } else {
+        final nextMonth = d.month + 1;
+        final nextYear = d.year + (nextMonth > 12 ? 1 : 0);
+        final adjustedMonth = nextMonth > 12 ? 1 : nextMonth;
+        d = DateTime(nextYear, adjustedMonth, d.day);
+      }
+    }
+    return count;
   }
 
   @override
@@ -86,9 +136,10 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
     if (item != null) {
       _nameController = TextEditingController(text: item.name);
       _priceController = TextEditingController(
-        text: item.price > 0 ? item.price.toStringAsFixed(item.price.truncateToDouble() == item.price ? 0 : 2) : '',
+        text: item.price > 0 ? (item.currency.toUpperCase() == 'BTC' ? item.price.toString() : item.price.toStringAsFixed(item.price.truncateToDouble() == item.price ? 0 : 2)) : '',
       );
       _notesController = TextEditingController(text: item.notes ?? '');
+      _totalCyclesController = TextEditingController(text: item.totalCycles?.toString() ?? '6');
       _selectedCategory = item.category;
       _selectedCurrency = item.currency.toUpperCase();
       _billingCycle = item.billingCycle;
@@ -100,18 +151,28 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
       _selectedAccountId = item.accountId;
       _selectedAccountName = item.accountName ?? item.paymentMethod;
       _enableReminder = item.enableReminder;
+      _showInOverview = item.showInOverview;
       _autoRecordExpense = item.autoRecordExpense;
       _logoAssetPath = item.logoAssetPath;
       _customLogoUrl = item.logoUrl;
       _customColor = item.customColor;
       _reminderDaysBefore = item.reminderDaysBefore;
       _isActive = item.isActive;
+      _endRuleType = item.endRuleType;
+      _endDate = item.endDate;
+      _totalCycles = item.totalCycles;
+      _completedCycles = item.completedCycles;
     } else {
       _nameController = TextEditingController();
       _priceController = TextEditingController();
       _notesController = TextEditingController();
+      _totalCyclesController = TextEditingController(text: '6');
+      _totalCycles = 6;
       _enableReminder = true;
+      _showInOverview = false;
       _autoRecordExpense = false;
+      _endRuleType = 'never';
+      _completedCycles = 0;
       if (widget.controller.accounts.isNotEmpty) {
         final defAcc = widget.controller.accounts.first;
         _selectedAccountId = defAcc.id;
@@ -128,6 +189,7 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
     _nameController.dispose();
     _priceController.dispose();
     _notesController.dispose();
+    _totalCyclesController.dispose();
     _nameFocusNode.dispose();
     super.dispose();
   }
@@ -412,8 +474,13 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
       logoUrl: _customLogoUrl,
       reminderDaysBefore: _reminderDaysBefore,
       enableReminder: _enableReminder,
+      showInOverview: _showInOverview,
       autoRecordExpense: _autoRecordExpense,
       lastAutoRecordedDate: widget.existingItem?.lastAutoRecordedDate,
+      endRuleType: _endRuleType,
+      endDate: _endRuleType == 'untilDate' ? _endDate : null,
+      totalCycles: _endRuleType == 'fixedCycles' ? (int.tryParse(_totalCyclesController.text.trim()) ?? _totalCycles ?? 6) : null,
+      completedCycles: _completedCycles,
       notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
       isActive: _isActive,
       customColor: _customColor,
@@ -639,82 +706,177 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
                 ],
               ),
             ),
-            if (accounts.isEmpty)
-              Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text('ไม่มีบัญชีในระบบ สามารถใช้ชื่อบัตรเครดิต/เดบิตทั่วไปได้', style: TextStyle(color: subColor)),
-              )
-            else
-              Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  itemCount: accounts.length,
-                  itemBuilder: (context, index) {
-                    final acc = accounts[index];
-                    final isSelected = _selectedAccountId == acc.id || (_selectedAccountId == null && _paymentMethod == acc.name);
-
-                    return InkWell(
-                      onTap: () {
-                        HapticFeedback.selectionClick();
-                        setState(() {
-                          _selectedAccountId = acc.id;
-                          _selectedAccountName = acc.name;
-                          _paymentMethod = acc.name;
-                        });
-                        Navigator.pop(ctx);
-                      },
-                      borderRadius: BorderRadius.circular(16),
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: isSelected ? theme.primaryColor.withOpacity(0.08) : Colors.transparent,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: isSelected ? theme.primaryColor : theme.borderColor.withOpacity(0.4),
-                            width: isSelected ? 1.5 : 1,
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                children: [
+                  if (accounts.isNotEmpty) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4, bottom: 8, top: 4),
+                      child: Text(
+                        'บัญชีธนาคารของฉัน',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: subColor),
+                      ),
+                    ),
+                    ...accounts.map((acc) {
+                      final isSelected = _selectedAccountId == acc.id;
+                      return InkWell(
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          setState(() {
+                            _selectedAccountId = acc.id;
+                            _selectedAccountName = acc.name;
+                            _paymentMethod = acc.name;
+                          });
+                          Navigator.pop(ctx);
+                        },
+                        borderRadius: BorderRadius.circular(14),
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: isSelected ? theme.primaryColor.withOpacity(0.08) : Colors.transparent,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: isSelected ? theme.primaryColor : theme.borderColor.withOpacity(0.35),
+                              width: isSelected ? 1.5 : 1,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              BankBadge(bankCode: acc.bankCode, size: 34),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      acc.name,
+                                      style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: textColor),
+                                    ),
+                                    Text(
+                                      acc.bankDisplayName,
+                                      style: TextStyle(fontSize: 11, color: subColor),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Text(
+                                '฿${FormatUtils.formatCurrency(acc.balance)}',
+                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: theme.primaryColor),
+                              ),
+                              if (isSelected) ...[
+                                const SizedBox(width: 6),
+                                Icon(Icons.check_circle_rounded, size: 16, color: theme.primaryColor),
+                              ],
+                            ],
                           ),
                         ),
-                        child: Row(
-                          children: [
-                            BankBadge(bankCode: acc.bankCode, size: 38),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    acc.name,
-                                    style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: textColor),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    acc.bankDisplayName,
-                                    style: TextStyle(fontSize: 11.5, color: subColor),
-                                  ),
-                                ],
+                      );
+                    }),
+                    const SizedBox(height: 10),
+                  ],
+
+                  // Preset Categories from User Images:
+                  ...[
+                    {
+                      'title': 'บัตรเครดิต/เดบิต',
+                      'icon': Icons.credit_card_rounded,
+                      'items': ['Visa', 'Mastercard', 'JCB', 'American Express', 'UnionPay'],
+                    },
+                    {
+                      'title': 'กระเป๋าเงิน',
+                      'icon': Icons.account_balance_wallet_rounded,
+                      'items': ['TrueMoney Wallet', 'Apple Pay', 'Google Pay', 'PayPal', 'LINE Pay', 'ShopeePay'],
+                    },
+                    {
+                      'title': 'บิลมือถือ',
+                      'icon': Icons.phone_android_rounded,
+                      'items': ['บิล AIS', 'บิล True', 'บิล dtac'],
+                    },
+                    {
+                      'title': 'แอปสโตร์',
+                      'icon': Icons.storefront_rounded,
+                      'items': ['App Store', 'Google Play'],
+                    },
+                  ].map((group) {
+                    final title = group['title'] as String;
+                    final icon = group['icon'] as IconData;
+                    final items = group['items'] as List<String>;
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(left: 4, bottom: 6, top: 8),
+                          child: Row(
+                            children: [
+                              Icon(icon, size: 14, color: subColor),
+                              const SizedBox(width: 6),
+                              Text(
+                                title,
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: subColor),
                               ),
-                            ),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  '฿${FormatUtils.formatCurrency(acc.balance)}',
-                                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: theme.primaryColor),
-                                ),
-                                if (isSelected) ...[
-                                  const SizedBox(height: 2),
-                                  Icon(Icons.check_circle_rounded, size: 16, color: theme.primaryColor),
-                                ],
-                              ],
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          decoration: BoxDecoration(
+                            color: theme.cardBackground,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: theme.borderColor.withOpacity(0.35)),
+                          ),
+                          child: Column(
+                            children: items.map((methodName) {
+                              final isSelected = _selectedAccountId == null && _paymentMethod == methodName;
+                              return InkWell(
+                                onTap: () {
+                                  HapticFeedback.selectionClick();
+                                  setState(() {
+                                    _selectedAccountId = null;
+                                    _selectedAccountName = methodName;
+                                    _paymentMethod = methodName;
+                                  });
+                                  Navigator.pop(ctx);
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                                  decoration: BoxDecoration(
+                                    color: isSelected ? theme.primaryColor.withOpacity(0.08) : Colors.transparent,
+                                    border: Border(
+                                      bottom: items.last == methodName
+                                          ? BorderSide.none
+                                          : BorderSide(color: theme.borderColor.withOpacity(0.2), width: 0.5),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        methodName,
+                                        style: TextStyle(
+                                          fontSize: 13.5,
+                                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                          color: isSelected ? theme.primaryColor : textColor,
+                                        ),
+                                      ),
+                                      if (isSelected)
+                                        Icon(Icons.check_circle_rounded, size: 16, color: theme.primaryColor),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ],
                     );
-                  },
-                ),
+                  }),
+                  const SizedBox(height: 20),
+                ],
               ),
+            ),
           ],
         ),
       ),
@@ -1299,6 +1461,160 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
                       ),
                     ),
                   ),
+
+                  const Divider(height: 22),
+
+                  // Duration / End Rule Section
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        isEn ? 'Duration / End Rule' : 'ระยะเวลาสิ้นสุดของบริการ',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: textColor),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      {'id': 'never', 'label': 'ไม่มีวันสิ้นสุด'},
+                      {'id': 'untilDate', 'label': 'ถึงวันที่'},
+                      {'id': 'fixedCycles', 'label': 'กำหนดจำนวนครั้ง'},
+                    ].map((opt) {
+                      final isSelected = _endRuleType == opt['id'];
+                      return Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            setState(() {
+                              _endRuleType = opt['id']!;
+                              if (_endRuleType == 'untilDate' && _endDate == null) {
+                                _endDate = _calculateEndDateFromCycles(_nextBillingDate, 6, _billingCycle);
+                              }
+                              if (_endRuleType == 'fixedCycles' && _totalCycles == null) {
+                                _totalCycles = int.tryParse(_totalCyclesController.text.trim()) ?? 6;
+                              }
+                            });
+                          },
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 2),
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            decoration: BoxDecoration(
+                              color: isSelected ? theme.primaryColor : (isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.03)),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: isSelected ? theme.primaryColor : borderColor.withOpacity(0.35),
+                              ),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              opt['label']!,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                color: isSelected ? Colors.white : subColor,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+
+                  // Detail for untilDate
+                  if (_endRuleType == 'untilDate') ...[
+                    const SizedBox(height: 10),
+                    InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: _endDate ?? _calculateEndDateFromCycles(_nextBillingDate, 6, _billingCycle),
+                          firstDate: _nextBillingDate,
+                          lastDate: DateTime(2040),
+                        );
+                        if (picked != null) {
+                          setState(() => _endDate = picked);
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white.withOpacity(0.04) : const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: borderColor.withOpacity(0.35)),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              isEn ? 'End Date' : 'สิ้นสุดในวันที่',
+                              style: TextStyle(fontSize: 12.5, color: subColor),
+                            ),
+                            Row(
+                              children: [
+                                Text(
+                                  DateFormat('d MMM yyyy').format(_endDate ?? _nextBillingDate),
+                                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: theme.primaryColor),
+                                ),
+                                const SizedBox(width: 4),
+                                const Icon(Icons.edit_calendar_rounded, size: 15),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Builder(builder: (_) {
+                      final cycles = _calculateCyclesBetween(_nextBillingDate, _endDate ?? _nextBillingDate, _billingCycle);
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 4, left: 4),
+                        child: Text(
+                          'ชำระทั้งหมดประมาณ $cycles รอบ จนถึงวันสิ้นสุด',
+                          style: TextStyle(fontSize: 11, color: subColor),
+                        ),
+                      );
+                    }),
+                  ],
+
+                  // Detail for fixedCycles
+                  if (_endRuleType == 'fixedCycles') ...[
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _totalCyclesController,
+                            keyboardType: TextInputType.number,
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: textColor),
+                            decoration: InputDecoration(
+                              labelText: isEn ? 'Total number of payments' : 'จำนวนครั้งที่ต้องการจ่าย',
+                              labelStyle: TextStyle(fontSize: 12, color: subColor),
+                              suffixText: isEn ? 'times' : 'ครั้ง',
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                              isDense: true,
+                            ),
+                            onChanged: (val) {
+                              final num = int.tryParse(val.trim());
+                              if (num != null) setState(() => _totalCycles = num);
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    Builder(builder: (_) {
+                      final count = int.tryParse(_totalCyclesController.text.trim()) ?? _totalCycles ?? 6;
+                      final calcEnd = _calculateEndDateFromCycles(_nextBillingDate, count, _billingCycle);
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 4, left: 4),
+                        child: Text(
+                          'ครบ $count ครั้ง สิ้นสุดประมาณ ${DateFormat('d MMM yyyy').format(calcEnd)}',
+                          style: TextStyle(fontSize: 11, color: subColor),
+                        ),
+                      );
+                    }),
+                  ],
                 ],
               ),
             ),
@@ -1400,10 +1716,10 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.account_balance_wallet_rounded, size: 18, color: Color(0xFF10B981)),
+                          const Icon(Icons.account_balance_wallet_rounded, size: 18, color: Color(0xFF64748B)),
                           const SizedBox(width: 8),
                           Text(
-                            isEn ? 'Payment Account' : 'เลือกบัญชีที่จะจ่าย',
+                            isEn ? 'Payment Account' : 'ช่องทางที่ใช้ชำระเงิน',
                             style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: textColor),
                           ),
                         ],
@@ -1438,27 +1754,27 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
                   ),
                   const Divider(height: 20),
 
-                  // 2. Auto-Record Expense Switch
+                  // 2. Auto-Record Expense Switch (Clean wording, no 'ออโต้')
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
                         child: Row(
                           children: [
-                            const Icon(Icons.receipt_long_rounded, size: 18, color: Color(0xFF6366F1)),
+                            const Icon(Icons.receipt_long_rounded, size: 18, color: Color(0xFF64748B)),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    isEn ? 'Auto-Record Expense' : 'บันทึกลงรายจ่ายอัตโนมัติ',
+                                    isEn ? 'Record When Due' : 'บันทึกลงรายจ่ายเมื่อถึงรอบบิล',
                                     style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: textColor),
                                   ),
                                   Text(
                                     isEn
-                                        ? 'Auto-log expense when billing date arrives'
-                                        : 'บันทึกเป็นรายจ่ายให้อัตโนมัติเมื่อถึงรอบบิล',
+                                        ? 'Log expense entry on scheduled billing date'
+                                        : 'ลงบันทึกในสมุดรายรับ-รายจ่ายเมื่อถึงวันตัดเงิน',
                                     style: TextStyle(fontSize: 11, color: subColor),
                                   ),
                                 ],
@@ -1469,7 +1785,7 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
                       ),
                       Switch(
                         value: _autoRecordExpense,
-                        activeColor: const Color(0xFF6366F1),
+                        activeColor: theme.primaryColor,
                         onChanged: (val) {
                           HapticFeedback.selectionClick();
                           setState(() => _autoRecordExpense = val);
@@ -1482,19 +1798,19 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
                       margin: const EdgeInsets.only(top: 8),
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF6366F1).withOpacity(0.06),
+                        color: isDark ? Colors.white.withOpacity(0.04) : const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.15)),
+                        border: Border.all(color: borderColor.withOpacity(0.35)),
                       ),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.info_outline_rounded, size: 15, color: Color(0xFF6366F1)),
+                          Icon(Icons.info_outline_rounded, size: 15, color: subColor),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'เมื่อถึงวันตัดเงิน ระบบจะจดเป็นรายจ่าย:\n"ชำระบริการ ${_nameController.text.trim().isEmpty ? '...' : _nameController.text.trim()} ด้วยบัญชี ${_selectedAccountName ?? _paymentMethod}"',
-                              style: const TextStyle(fontSize: 11.5, color: Color(0xFF4F46E5), height: 1.35),
+                              'เมื่อถึงวันตัดเงิน ระบบจะลงบันทึกเป็นรายจ่าย:\n"ชำระบริการ ${_nameController.text.trim().isEmpty ? '...' : _nameController.text.trim()} ด้วยบัญชี ${_selectedAccountName ?? _paymentMethod}"',
+                              style: TextStyle(fontSize: 11.5, color: subColor, height: 1.35),
                             ),
                           ),
                         ],
@@ -1510,18 +1826,18 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
                       Expanded(
                         child: Row(
                           children: [
-                            const Icon(Icons.notifications_active_rounded, size: 18, color: Color(0xFFF59E0B)),
+                            const Icon(Icons.notifications_active_rounded, size: 18, color: Color(0xFF64748B)),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    isEn ? 'Due Date Reminders' : 'เปิดการแจ้งเตือนเตือนความจำ',
+                                    isEn ? 'Due Date Reminders' : 'เปิดการแจ้งเตือนความจำ',
                                     style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: textColor),
                                   ),
                                   Text(
-                                    isEn ? 'Alert on phone before charge' : 'เตือนล่วงหน้าทางมือถือและในแอพ',
+                                    isEn ? 'Alert on phone before charge' : 'เตือนล่วงหน้าทางมือถือ',
                                     style: TextStyle(fontSize: 11, color: subColor),
                                   ),
                                 ],
@@ -1532,7 +1848,7 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
                       ),
                       Switch(
                         value: _enableReminder,
-                        activeColor: const Color(0xFFF59E0B),
+                        activeColor: theme.primaryColor,
                         onChanged: _handleReminderToggle,
                       ),
                     ],
@@ -1565,6 +1881,47 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
                       ],
                     ),
                   ],
+                  const Divider(height: 20),
+
+                  // 4. Overview Screen Banner Toggle
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Row(
+                          children: [
+                            const Icon(Icons.dashboard_customize_rounded, size: 18, color: Color(0xFF64748B)),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    isEn ? 'Show on Overview' : 'แสดงเตือนในหน้าภาพรวม',
+                                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: textColor),
+                                  ),
+                                  Text(
+                                    isEn
+                                        ? 'Show compact banner on main overview when bill is due'
+                                        : 'แสดงแถบเตือนบนหน้าภาพรวมเมื่อใกล้ถึงกำหนดชำระ',
+                                    style: TextStyle(fontSize: 11, color: subColor),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Switch(
+                        value: _showInOverview,
+                        activeColor: theme.primaryColor,
+                        onChanged: (val) {
+                          HapticFeedback.selectionClick();
+                          setState(() => _showInOverview = val);
+                        },
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),

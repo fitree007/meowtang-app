@@ -17,10 +17,15 @@ class SubscriptionItem {
   final String? logoUrl;
   final int reminderDaysBefore; // default 3 days
   final bool enableReminder; // toggle push & in-app reminder
+  final bool showInOverview; // toggle show in dashboard overview banner (default false)
   final String? accountId; // linked account ID
   final String? accountName; // linked account name e.g. KBank, SCB, etc.
   final bool autoRecordExpense; // auto-create expense on billing due date
   final DateTime? lastAutoRecordedDate; // prevents duplicate recording in same cycle
+  final String endRuleType; // 'never', 'untilDate', 'fixedCycles'
+  final DateTime? endDate; // if untilDate
+  final int? totalCycles; // if fixedCycles e.g. 6, 12
+  final int completedCycles; // number of times charged so far
   final String? notes;
   final bool isActive;
   final Color? customColor;
@@ -41,10 +46,15 @@ class SubscriptionItem {
     this.logoUrl,
     this.reminderDaysBefore = 3,
     this.enableReminder = true,
+    this.showInOverview = false,
     this.accountId,
     this.accountName,
     this.autoRecordExpense = false,
     this.lastAutoRecordedDate,
+    this.endRuleType = 'never',
+    this.endDate,
+    this.totalCycles,
+    this.completedCycles = 0,
     this.notes,
     this.isActive = true,
     this.customColor,
@@ -105,6 +115,25 @@ class SubscriptionItem {
     return days >= 0 && days <= 3;
   }
 
+  bool get hasEnded {
+    if (endRuleType == 'untilDate' && endDate != null) {
+      final now = DateTime.now();
+      return DateTime(now.year, now.month, now.day).isAfter(DateTime(endDate!.year, endDate!.month, endDate!.day));
+    }
+    if (endRuleType == 'fixedCycles' && totalCycles != null) {
+      return completedCycles >= totalCycles!;
+    }
+    return false;
+  }
+
+  int? get remainingCycles {
+    if (endRuleType == 'fixedCycles' && totalCycles != null) {
+      final left = totalCycles! - completedCycles;
+      return left > 0 ? left : 0;
+    }
+    return null;
+  }
+
   SubscriptionItem copyWith({
     String? id,
     String? name,
@@ -121,10 +150,15 @@ class SubscriptionItem {
     String? logoUrl,
     int? reminderDaysBefore,
     bool? enableReminder,
+    bool? showInOverview,
     String? accountId,
     String? accountName,
     bool? autoRecordExpense,
     DateTime? lastAutoRecordedDate,
+    String? endRuleType,
+    DateTime? endDate,
+    int? totalCycles,
+    int? completedCycles,
     String? notes,
     bool? isActive,
     Color? customColor,
@@ -145,10 +179,15 @@ class SubscriptionItem {
       logoUrl: logoUrl ?? this.logoUrl,
       reminderDaysBefore: reminderDaysBefore ?? this.reminderDaysBefore,
       enableReminder: enableReminder ?? this.enableReminder,
+      showInOverview: showInOverview ?? this.showInOverview,
       accountId: accountId ?? this.accountId,
       accountName: accountName ?? this.accountName,
       autoRecordExpense: autoRecordExpense ?? this.autoRecordExpense,
       lastAutoRecordedDate: lastAutoRecordedDate ?? this.lastAutoRecordedDate,
+      endRuleType: endRuleType ?? this.endRuleType,
+      endDate: endDate ?? this.endDate,
+      totalCycles: totalCycles ?? this.totalCycles,
+      completedCycles: completedCycles ?? this.completedCycles,
       notes: notes ?? this.notes,
       isActive: isActive ?? this.isActive,
       customColor: customColor ?? this.customColor,
@@ -172,10 +211,15 @@ class SubscriptionItem {
       'logoUrl': logoUrl,
       'reminderDaysBefore': reminderDaysBefore,
       'enableReminder': enableReminder,
+      'showInOverview': showInOverview,
       'accountId': accountId,
       'accountName': accountName,
       'autoRecordExpense': autoRecordExpense,
       'lastAutoRecordedDate': lastAutoRecordedDate?.toIso8601String(),
+      'endRuleType': endRuleType,
+      'endDate': endDate?.toIso8601String(),
+      'totalCycles': totalCycles,
+      'completedCycles': completedCycles,
       'notes': notes,
       'isActive': isActive,
       'customColor': customColor?.value,
@@ -199,10 +243,15 @@ class SubscriptionItem {
       logoUrl: json['logoUrl'] as String?,
       reminderDaysBefore: json['reminderDaysBefore'] as int? ?? 3,
       enableReminder: json['enableReminder'] as bool? ?? true,
+      showInOverview: json['showInOverview'] as bool? ?? false,
       accountId: json['accountId'] as String?,
       accountName: json['accountName'] as String?,
       autoRecordExpense: json['autoRecordExpense'] as bool? ?? false,
       lastAutoRecordedDate: json['lastAutoRecordedDate'] != null ? DateTime.parse(json['lastAutoRecordedDate'] as String) : null,
+      endRuleType: json['endRuleType'] as String? ?? 'never',
+      endDate: json['endDate'] != null ? DateTime.parse(json['endDate'] as String) : null,
+      totalCycles: json['totalCycles'] as int?,
+      completedCycles: json['completedCycles'] as int? ?? 0,
       notes: json['notes'] as String?,
       isActive: json['isActive'] as bool? ?? true,
       customColor: json['customColor'] != null ? Color(json['customColor'] as int) : null,

@@ -32,7 +32,7 @@ enum MascotMood {
 }
 
 class ExpenseController extends ChangeNotifier {
-  static const String appVersion = '1.41.31';
+  static const String appVersion = '1.41.32';
 
   final StorageService _storage;
   final OcrEngineService _ocrEngine = OcrEngineService();
@@ -1520,25 +1520,25 @@ class ExpenseController extends ChangeNotifier {
 
   double get totalSubscriptionYearlyCost {
     return _subscriptions
-        .where((s) => s.isActive)
+        .where((s) => s.isActive && !s.hasEnded)
         .fold(0.0, (sum, s) => sum + s.yearlyCost);
   }
 
   double get totalSubscriptionDueThisMonth {
     final now = DateTime.now();
     return _subscriptions
-        .where((s) => s.isActive && s.nextBillingDate.year == now.year && s.nextBillingDate.month == now.month)
+        .where((s) => s.isActive && !s.hasEnded && s.nextBillingDate.year == now.year && s.nextBillingDate.month == now.month)
         .fold(0.0, (sum, s) => sum + s.price);
   }
 
   List<SubscriptionItem> get upcomingSubscriptions {
-    final list = _subscriptions.where((s) => s.isActive).toList();
+    final list = _subscriptions.where((s) => s.isActive && !s.hasEnded).toList();
     list.sort((a, b) => a.daysUntilNextBilling.compareTo(b.daysUntilNextBilling));
     return list;
   }
 
   List<SubscriptionItem> get expiringTrialSubscriptions {
-    return _subscriptions.where((s) => s.isActive && s.isTrialExpiringSoon).toList();
+    return _subscriptions.where((s) => s.isActive && !s.hasEnded && s.isTrialExpiringSoon).toList();
   }
 
   /// Checks and automatically records expenses for subscriptions due today with autoRecordExpense enabled
@@ -1550,7 +1550,7 @@ class ExpenseController extends ChangeNotifier {
     final updatedSubs = <SubscriptionItem>[];
 
     for (final sub in _subscriptions) {
-      if (!sub.isActive || !sub.autoRecordExpense) {
+      if (!sub.isActive || !sub.autoRecordExpense || sub.hasEnded) {
         updatedSubs.add(sub);
         continue;
       }
@@ -1626,6 +1626,7 @@ class ExpenseController extends ChangeNotifier {
         final updatedSub = sub.copyWith(
           nextBillingDate: nextDate,
           lastAutoRecordedDate: now,
+          completedCycles: sub.completedCycles + 1,
         );
         updatedSubs.add(updatedSub);
         hasUpdates = true;

@@ -1231,7 +1231,7 @@ void _handleMascotPetting() {
   Widget _buildSubscriptionDueBanner() {
     if (_isSubscriptionBannerDismissed) return const SizedBox.shrink();
 
-    final activeSubs = widget.controller.subscriptions.where((s) => s.isActive && s.enableReminder).toList();
+    final activeSubs = widget.controller.subscriptions.where((s) => s.isActive && s.enableReminder && s.showInOverview && !s.hasEnded).toList();
     final dueSoonSubs = activeSubs.where((s) {
       final days = s.daysUntilNextBilling;
       return days >= 0 && days <= 3;
@@ -1252,36 +1252,29 @@ void _handleMascotPetting() {
 
     String daysText;
     if (first.daysUntilNextBilling == 0) {
-      daysText = isEn ? 'Due today!' : 'ตัดเงินวันนี้!';
+      daysText = isEn ? 'Due today' : 'ตัดเงินวันนี้';
     } else {
       daysText = isEn ? 'in ${first.daysUntilNextBilling}d' : 'อีก ${first.daysUntilNextBilling} วัน';
     }
 
     final titleText = otherCount > 0
-        ? (isEn ? '${first.name} ($daysText) +$otherCount' : '${first.name} ($daysText) และอีก $otherCount รายการ')
-        : (isEn ? '${first.name} ($daysText)' : '${first.name} ($daysText)');
+        ? '${first.name} ($daysText) +$otherCount'
+        : '${first.name} ($daysText)';
 
     final subtitleText = first.accountName != null
-        ? (isEn ? 'Pay via ${first.accountName} • ฿${FormatUtils.formatCurrency(priceInThb)}' : 'ตัดผ่าน ${first.accountName} • ฿${FormatUtils.formatCurrency(priceInThb)}')
-        : (isEn ? '฿${FormatUtils.formatCurrency(priceInThb)}' : 'ยอดชำระ ฿${FormatUtils.formatCurrency(priceInThb)}');
+        ? '${first.accountName} • ฿${FormatUtils.formatCurrency(priceInThb)}'
+        : '฿${FormatUtils.formatCurrency(priceInThb)}';
 
     return Container(
-      margin: const EdgeInsets.only(left: 20, right: 20, top: 4, bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      margin: const EdgeInsets.only(left: 16, right: 16, top: 4, bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E2230) : const Color(0xFFFFFBEB),
-        borderRadius: BorderRadius.circular(16),
+        color: isDark ? const Color(0xFF1E2028) : const Color(0xFFFAF9F6),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: const Color(0xFFF59E0B).withValues(alpha: isDark ? 0.45 : 0.6),
-          width: 1,
+          color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.08),
+          width: 0.8,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFF59E0B).withValues(alpha: isDark ? 0.12 : 0.08),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
       child: InkWell(
         onTap: () {
@@ -1293,20 +1286,20 @@ void _handleMascotPetting() {
             ),
           );
         },
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         child: Row(
           children: [
             Container(
-              width: 36,
-              height: 36,
+              width: 28,
+              height: 28,
               decoration: BoxDecoration(
-                color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                color: const Color(0xFFD97706).withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
-                Icons.notifications_active_rounded,
+                Icons.calendar_today_rounded,
                 color: Color(0xFFD97706),
-                size: 20,
+                size: 14,
               ),
             ),
             const SizedBox(width: 10),
@@ -1315,52 +1308,22 @@ void _handleMascotPetting() {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Row(
-                    children: [
-                      Text(
-                        isEn ? 'Upcoming Bill' : 'เตือนบิลใกล้ถึงกำหนด',
-                        style: const TextStyle(
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFFD97706),
-                        ),
-                      ),
-                      if (first.autoRecordExpense) ...[
-                        const SizedBox(width: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF10B981).withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Text(
-                            '⚡ ออโต้',
-                            style: TextStyle(
-                              fontSize: 8.5,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF059669),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 1),
                   Text(
                     titleText,
                     style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
                       color: currentTheme.textColor,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  const SizedBox(height: 1),
                   Text(
                     subtitleText,
                     style: TextStyle(
                       fontSize: 11,
-                      color: currentTheme.textSecondaryColor,
+                      color: currentTheme.textSecondaryColor.withValues(alpha: 0.85),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -1369,30 +1332,10 @@ void _handleMascotPetting() {
               ),
             ),
             const SizedBox(width: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    isEn ? 'View' : 'ดูบิล',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFFD97706),
-                    ),
-                  ),
-                  const Icon(
-                    Icons.chevron_right_rounded,
-                    size: 14,
-                    color: Color(0xFFD97706),
-                  ),
-                ],
-              ),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 16,
+              color: currentTheme.textSecondaryColor.withValues(alpha: 0.5),
             ),
             const SizedBox(width: 4),
             GestureDetector(
@@ -1404,8 +1347,8 @@ void _handleMascotPetting() {
                 padding: const EdgeInsets.all(4.0),
                 child: Icon(
                   Icons.close_rounded,
-                  size: 16,
-                  color: currentTheme.textSecondaryColor.withValues(alpha: 0.6),
+                  size: 15,
+                  color: currentTheme.textSecondaryColor.withValues(alpha: 0.5),
                 ),
               ),
             ),

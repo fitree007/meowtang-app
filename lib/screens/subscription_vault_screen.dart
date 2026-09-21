@@ -623,15 +623,18 @@ class _SubscriptionVaultScreenState extends State<SubscriptionVaultScreen> {
 
               Color dueBadgeColor = const Color(0xFF10B981);
               String dueText = 'อีก $daysLeft วัน';
-              if (daysLeft < 0) {
+              if (item.hasEnded) {
+                dueBadgeColor = subColor;
+                dueText = isEn ? 'Ended' : 'ครบกำหนดแล้ว';
+              } else if (daysLeft < 0) {
                 dueBadgeColor = Colors.redAccent;
-                dueText = 'เลยกำหนด ${-daysLeft} วัน';
+                dueText = isEn ? '${-daysLeft}d overdue' : 'เลยกำหนด ${-daysLeft} วัน';
               } else if (daysLeft == 0) {
                 dueBadgeColor = const Color(0xFFF59E0B);
-                dueText = 'ตัดเงินวันนี้!';
+                dueText = isEn ? 'Due today' : 'ตัดเงินวันนี้';
               } else if (daysLeft <= 3) {
                 dueBadgeColor = const Color(0xFFF59E0B);
-                dueText = 'อีก $daysLeft วัน (ใกล้ถึง)';
+                dueText = isEn ? 'in ${daysLeft}d (soon)' : 'อีก $daysLeft วัน';
               }
 
               return Container(
@@ -640,12 +643,14 @@ class _SubscriptionVaultScreenState extends State<SubscriptionVaultScreen> {
                   color: cardBg,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: item.isDueSoon ? const Color(0xFFF59E0B).withOpacity(0.5) : borderColor.withOpacity(0.6),
-                    width: item.isDueSoon ? 1.5 : 1,
+                    color: (item.isDueSoon && !item.hasEnded)
+                        ? const Color(0xFFF59E0B).withValues(alpha: 0.5)
+                        : borderColor.withValues(alpha: 0.6),
+                    width: (item.isDueSoon && !item.hasEnded) ? 1.5 : 1,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(isDark ? 0.2 : 0.03),
+                      color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
                       blurRadius: 8,
                       offset: const Offset(0, 3),
                     ),
@@ -678,6 +683,8 @@ class _SubscriptionVaultScreenState extends State<SubscriptionVaultScreen> {
                                               fontWeight: FontWeight.bold,
                                               color: textColor,
                                             ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
                                         ),
                                         if (item.hasTrial)
@@ -725,7 +732,9 @@ class _SubscriptionVaultScreenState extends State<SubscriptionVaultScreen> {
                                   Text(
                                     item.currency == 'THB'
                                         ? '฿${FormatUtils.formatCurrency(item.price)}'
-                                        : '${item.currency} ${item.price.toStringAsFixed(2)}',
+                                        : (item.currency == 'BTC'
+                                            ? '₿ ${item.price.toStringAsFixed(item.price < 0.01 ? 6 : 4)}'
+                                            : '${item.currency} ${item.price.toStringAsFixed(2)}'),
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
@@ -759,7 +768,7 @@ class _SubscriptionVaultScreenState extends State<SubscriptionVaultScreen> {
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                     decoration: BoxDecoration(
-                                      color: dueBadgeColor.withOpacity(0.12),
+                                      color: dueBadgeColor.withValues(alpha: 0.12),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Row(
@@ -778,27 +787,52 @@ class _SubscriptionVaultScreenState extends State<SubscriptionVaultScreen> {
                                     DateFormat('d MMM').format(item.nextBillingDate),
                                     style: TextStyle(fontSize: 11, color: subColor),
                                   ),
-                                  if (item.autoRecordExpense) ...[
+                                  if (item.endRuleType == 'fixedCycles' && item.totalCycles != null) ...[
                                     const SizedBox(width: 6),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFF10B981).withOpacity(0.12),
+                                        color: item.hasEnded
+                                            ? subColor.withValues(alpha: 0.12)
+                                            : theme.primaryColor.withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(6),
                                       ),
-                                      child: const Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(Icons.bolt_rounded, size: 10, color: Color(0xFF10B981)),
-                                          SizedBox(width: 2),
-                                          Text('ออโต้', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF10B981))),
-                                        ],
+                                      child: Text(
+                                        item.hasEnded
+                                            ? (isEn ? 'Completed' : 'ครบกำหนด')
+                                            : (isEn ? 'Cycle ${item.completedCycles}/${item.totalCycles}' : 'รอบ ${item.completedCycles}/${item.totalCycles}'),
+                                        style: TextStyle(
+                                          fontSize: 9.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: item.hasEnded ? subColor : theme.primaryColor,
+                                        ),
+                                      ),
+                                    ),
+                                  ] else if (item.endRuleType == 'untilDate' && item.endDate != null) ...[
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: item.hasEnded
+                                            ? subColor.withValues(alpha: 0.12)
+                                            : theme.primaryColor.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        item.hasEnded
+                                            ? (isEn ? 'Ended' : 'สิ้นสุดแล้ว')
+                                            : (isEn ? 'Until ${DateFormat('d MMM yy').format(item.endDate!)}' : 'ถึง ${DateFormat('d MMM yy').format(item.endDate!)}'),
+                                        style: TextStyle(
+                                          fontSize: 9.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: item.hasEnded ? subColor : theme.primaryColor,
+                                        ),
                                       ),
                                     ),
                                   ],
                                   if (!item.enableReminder) ...[
                                     const SizedBox(width: 6),
-                                    Icon(Icons.notifications_off_outlined, size: 12, color: subColor.withOpacity(0.6)),
+                                    Icon(Icons.notifications_off_outlined, size: 12, color: subColor.withValues(alpha: 0.6)),
                                   ],
                                 ],
                               ),

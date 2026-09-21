@@ -182,5 +182,62 @@ void main() {
       final netflixResults = SubscriptionPreset.searchPresets('netf');
       expect(netflixResults.any((p) => p.name == 'Netflix'), isTrue);
     });
+
+    test('SubscriptionItem duration rules, cycles, and overview display work accurately', () {
+      // 1. Ongoing / Never ends
+      final ongoing = SubscriptionItem(
+        id: 'sub_never',
+        name: 'Ongoing Sub',
+        category: 'อื่นๆ',
+        price: 100.0,
+        billingCycle: 'monthly',
+        firstChargeDate: DateTime(2026, 1, 1),
+        nextBillingDate: DateTime(2026, 2, 1),
+        showInOverview: false,
+        endRuleType: 'never',
+      );
+      expect(ongoing.showInOverview, isFalse);
+      expect(ongoing.hasEnded, isFalse);
+      expect(ongoing.remainingCycles, isNull);
+
+      // 2. Fixed cycles
+      final fixed = SubscriptionItem(
+        id: 'sub_cycles',
+        name: 'Installment Sub',
+        category: 'อื่นๆ',
+        price: 500.0,
+        billingCycle: 'monthly',
+        firstChargeDate: DateTime(2026, 1, 1),
+        nextBillingDate: DateTime(2026, 4, 1),
+        showInOverview: true,
+        endRuleType: 'fixedCycles',
+        totalCycles: 6,
+        completedCycles: 4,
+      );
+      expect(fixed.showInOverview, isTrue);
+      expect(fixed.remainingCycles, equals(2));
+      expect(fixed.hasEnded, isFalse);
+
+      final completedFixed = fixed.copyWith(completedCycles: 6);
+      expect(completedFixed.remainingCycles, equals(0));
+      expect(completedFixed.hasEnded, isTrue);
+
+      // 3. Until date
+      final futureDateSub = SubscriptionItem(
+        id: 'sub_future',
+        name: 'Future End Sub',
+        category: 'อื่นๆ',
+        price: 200.0,
+        billingCycle: 'monthly',
+        firstChargeDate: DateTime(2026, 1, 1),
+        nextBillingDate: DateTime(2026, 5, 1),
+        endRuleType: 'untilDate',
+        endDate: DateTime(2026, 12, 31),
+      );
+      expect(futureDateSub.hasEnded, isFalse);
+
+      final pastDateSub = futureDateSub.copyWith(endDate: DateTime(2025, 12, 31));
+      expect(pastDateSub.hasEnded, isTrue);
+    });
   });
 }

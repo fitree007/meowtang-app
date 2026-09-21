@@ -581,46 +581,56 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                     ),
                     const SizedBox(height: 6),
 
-                    // FEATURED HERO CARD: SUBSCRIPTION VAULT (คุมค่า Subscription & รายจ่ายประจำ)
+                    // FEATURED HERO CARD: SUBSCRIPTION VAULT (Minimalist & Entire Frame Clickable)
                     Container(
-                      margin: const EdgeInsets.only(bottom: 12),
+                      margin: const EdgeInsets.only(bottom: 10),
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: isDark
-                              ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
-                              : [const Color(0xFFF0FDF4), const Color(0xFFDCFCE7)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(20),
+                        color: cardBg,
+                        borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: const Color(0xFF10B981).withValues(alpha: 0.5),
-                          width: 1.5,
+                          color: borderColor.withValues(alpha: 0.5),
+                          width: 1,
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF10B981).withValues(alpha: isDark ? 0.18 : 0.08),
-                            blurRadius: 10,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
                       ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(14),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: () {
+                            if (!isVip) {
+                              MeowPaywallModal.show(
+                                context,
+                                controller: widget.controller,
+                                reason: 'ระบบจัดการ Subscription & รายจ่ายประจำ สำหรับสมาชิก VIP 👑',
+                              );
+                            } else {
+                              HapticFeedback.lightImpact();
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => SubscriptionVaultScreen(
+                                    controller: widget.controller,
+                                  ),
+                                ),
+                              );
+                            }
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.all(14),
+                            child: Row(
                               children: [
                                 Container(
-                                  width: 42,
-                                  height: 42,
+                                  width: 40,
+                                  height: 40,
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                                    color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9),
                                     borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: borderColor.withValues(alpha: 0.3)),
                                   ),
-                                  child: const Center(
-                                    child: Text('📱', style: TextStyle(fontSize: 20)),
+                                  child: Icon(
+                                    Icons.subscriptions_outlined,
+                                    size: 20,
+                                    color: textColor,
                                   ),
                                 ),
                                 const SizedBox(width: 12),
@@ -628,105 +638,43 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        isEn ? 'Subscription Vault' : 'คุมค่า Subscription & บิลประจำ',
-                                        style: TextStyle(
-                                          fontSize: 14.5,
-                                          fontWeight: FontWeight.bold,
-                                          color: textColor,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
+                                      Row(
+                                        children: [
+                                          Text(
+                                            isEn ? 'Subscription Vault' : 'คุมค่า Subscription & บิลประจำ',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.bold,
+                                              color: textColor,
+                                            ),
+                                          ),
+                                          if (!isVip) ...[
+                                            const SizedBox(width: 6),
+                                            Icon(Icons.lock_outline_rounded, size: 13, color: subTextColor),
+                                          ],
+                                        ],
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
                                         isEn
-                                            ? 'Track Netflix, YouTube, ChatGPT, Utilities + Renewal Alert'
+                                            ? 'Track Netflix, YouTube, ChatGPT, Utilities'
                                             : 'คุม Netflix, YouTube, ChatGPT, ค่าน้ำไฟ พร้อมเตือนก่อนตัดเงิน',
                                         style: TextStyle(fontSize: 11, color: subTextColor),
-                                        maxLines: 2,
+                                        maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ],
                                   ),
                                 ),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                            // Logos preview row
-                            Row(
-                              children: [
-                                ...['netflix', 'youtube', 'spotify', 'gemini', 'chatgpt', 'ais'].map((logo) {
-                                  return Container(
-                                    margin: const EdgeInsets.only(right: 6),
-                                    width: 26,
-                                    height: 26,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(7),
-                                      boxShadow: [
-                                        BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 4),
-                                      ],
-                                    ),
-                                    padding: const EdgeInsets.all(3.5),
-                                    child: Image.asset(
-                                      'assets/icons/subscriptions/$logo.png',
-                                      fit: BoxFit.contain,
-                                      errorBuilder: (_, __, ___) => const SizedBox(),
-                                    ),
-                                  );
-                                }),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '+50 แบรนด์',
-                                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: subTextColor),
+                                const SizedBox(width: 6),
+                                Icon(
+                                  Icons.chevron_right_rounded,
+                                  color: subTextColor.withValues(alpha: 0.6),
+                                  size: 20,
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 12),
-                            const Divider(height: 1),
-                            const SizedBox(height: 10),
-                            // Action button: เข้าสู่ระบบจัดการ Subscription
-                            SizedBox(
-                              width: double.infinity,
-                              child: FilledButton.icon(
-                                onPressed: () {
-                                  if (!isVip) {
-                                    MeowPaywallModal.show(
-                                      context,
-                                      controller: widget.controller,
-                                      reason: 'ระบบจัดการ Subscription & รายจ่ายประจำ สำหรับสมาชิก VIP 👑',
-                                    );
-                                  } else {
-                                    HapticFeedback.lightImpact();
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => SubscriptionVaultScreen(
-                                          controller: widget.controller,
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                },
-                                icon: Icon(
-                                  isVip ? Icons.arrow_forward_rounded : Icons.lock_outline_rounded,
-                                  size: 15,
-                                  color: Colors.white,
-                                ),
-                                label: Text(
-                                  isVip
-                                      ? (isEn ? 'Manage Subscriptions & Bills' : 'จัดการ Subscription & บิลประจำ')
-                                      : (isEn ? 'Unlock Subscription Vault' : 'ปลดล็อคใช้งาน (VIP) 👑'),
-                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
-                                ),
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: isVip ? const Color(0xFF6366F1) : const Color(0xFFF59E0B),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  padding: const EdgeInsets.symmetric(vertical: 9),
-                                ),
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                       ),
                     ),
