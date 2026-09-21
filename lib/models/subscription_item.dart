@@ -545,6 +545,23 @@ class SubscriptionPreset {
       brandColor: Color(0xFF000000),
     ),
 
+    SubscriptionPreset(
+      name: 'Higgsfield AI',
+      category: 'AI & ตัดต่อวิดีโอ',
+      defaultPrice: 15.0,
+      currency: 'USD',
+      logoAssetPath: 'assets/icons/subscriptions/higgsfield.png',
+      brandColor: Color(0xFF000000),
+    ),
+    SubscriptionPreset(
+      name: 'Kling AI',
+      category: 'AI & ตัดต่อวิดีโอ',
+      defaultPrice: 10.0,
+      currency: 'USD',
+      logoAssetPath: 'assets/icons/subscriptions/kling.png',
+      brandColor: Color(0xFF1E88E5),
+    ),
+
     // Thai Popular Entertainment & Sports
     SubscriptionPreset(
       name: 'TrueID / TrueVisions Now',
@@ -615,7 +632,7 @@ class SubscriptionPreset {
     'beIN SPORTS': ['bein', 'beinsports', 'บีอิน'],
     'CH3 Plus Premium': ['ch3', '3plus', 'ช่อง3', 'ch3plus'],
     'ChatGPT Plus': ['chatgpt', 'gpt', 'openai', 'แชทจีพีที'],
-    'Claude Pro': ['claude', 'anthropic', 'โคลด'],
+    'Claude Pro': ['claude', 'cloud ai', 'cloud', 'clou', 'anthropic', 'โคลด', 'คลาวด์', 'คลาว'],
     'Google Gemini Advanced': ['gemini', 'google gemini', 'bard', 'เจมินาย', 'กูเกิล'],
     'Perplexity Pro': ['perplexity', 'pplx', 'เพอร์เพล็กซิตี้'],
     'Cursor Pro': ['cursor', 'เคอร์เซอร์'],
@@ -628,6 +645,8 @@ class SubscriptionPreset {
     'Poe AI': ['poe', 'โพ'],
     'Suno AI': ['suno', 'ซูโน'],
     'Runway ML': ['runway', 'รันเวย์'],
+    'Higgsfield AI': ['higgsfield', 'higgs', 'higg', 'ฮิกส์ฟิลด์', 'ฮิกส์'],
+    'Kling AI': ['kling', 'kling ai', 'klin', 'kli', 'คลิง', 'klingai'],
     'Microsoft 365': ['microsoft', 'office', 'm365', 'ไมโครซอฟท์', 'word', 'excel'],
     'Google One': ['google one', 'gsuite', 'google drive'],
     'iCloud+': ['icloud', 'ไอคลาวด์'],
@@ -654,27 +673,92 @@ class SubscriptionPreset {
   };
 
   /// Intelligently matches user typing to an authentic preset
+  /// Supports prefix/near-matching (e.g. typing 3+ characters when almost complete)
   static SubscriptionPreset? findMatchingPreset(String input) {
     final clean = input.trim().toLowerCase();
     if (clean.length < 2) return null;
 
-    // 1. Direct name match
+    // 1. Direct exact name match
     for (final p in popularPresets) {
-      final pName = p.name.toLowerCase();
-      if (pName == clean || pName.startsWith(clean) || clean.startsWith(pName)) {
+      if (p.name.toLowerCase() == clean) {
         return p;
       }
     }
 
-    // 2. Alias match
+    // 2. Exact alias match
     for (final entry in _aliasMap.entries) {
       for (final alias in entry.value) {
-        if (clean == alias || clean.startsWith(alias) || clean.contains(alias)) {
+        if (clean == alias) {
+          return popularPresets.firstWhere((p) => p.name == entry.key, orElse: () => popularPresets.first);
+        }
+      }
+    }
+
+    // 3. Alias prefix / startsWith match (e.g. "higg" matching "higgsfield", "klin" matching "kling")
+    for (final entry in _aliasMap.entries) {
+      for (final alias in entry.value) {
+        if (alias.startsWith(clean)) {
+          return popularPresets.firstWhere((p) => p.name == entry.key, orElse: () => popularPresets.first);
+        }
+      }
+    }
+
+    // 4. Name startsWith / contains match
+    for (final p in popularPresets) {
+      final pName = p.name.toLowerCase();
+      if (pName.startsWith(clean)) {
+        return p;
+      }
+    }
+
+    // 5. Clean startsWith alias
+    for (final entry in _aliasMap.entries) {
+      for (final alias in entry.value) {
+        if (clean.startsWith(alias) || clean.contains(alias)) {
           return popularPresets.firstWhere((p) => p.name == entry.key, orElse: () => popularPresets.first);
         }
       }
     }
 
     return null;
+  }
+
+  /// Autocomplete suggestions for Google-like search dropdown
+  static List<SubscriptionPreset> searchPresets(String query, {int limit = 6}) {
+    final clean = query.trim().toLowerCase();
+    if (clean.isEmpty) return [];
+
+    final results = <SubscriptionPreset>[];
+    final addedNames = <String>{};
+
+    void addPreset(SubscriptionPreset p) {
+      if (!addedNames.contains(p.name)) {
+        addedNames.add(p.name);
+        results.add(p);
+      }
+    }
+
+    // 1. Check direct prefix/contains
+    for (final p in popularPresets) {
+      final pName = p.name.toLowerCase();
+      if (pName.startsWith(clean) || pName.contains(clean)) {
+        addPreset(p);
+        if (results.length >= limit) return results;
+      }
+    }
+
+    // 2. Check aliases
+    for (final entry in _aliasMap.entries) {
+      for (final alias in entry.value) {
+        if (alias.startsWith(clean) || clean.startsWith(alias) || alias.contains(clean)) {
+          final found = popularPresets.firstWhere((p) => p.name == entry.key, orElse: () => popularPresets.first);
+          addPreset(found);
+          if (results.length >= limit) return results;
+          break;
+        }
+      }
+    }
+
+    return results;
   }
 }

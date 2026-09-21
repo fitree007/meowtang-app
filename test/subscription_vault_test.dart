@@ -138,6 +138,14 @@ void main() {
       expect(SubscriptionPreset.findMatchingPreset('elevenlabs voice')?.name, equals('ElevenLabs'));
       expect(SubscriptionPreset.findMatchingPreset('suno ai')?.name, equals('Suno AI'));
 
+      // New AI Services & Near-Match Detection
+      expect(SubscriptionPreset.findMatchingPreset('Higgsfield AI')?.name, equals('Higgsfield AI'));
+      expect(SubscriptionPreset.findMatchingPreset('higg')?.name, equals('Higgsfield AI'));
+      expect(SubscriptionPreset.findMatchingPreset('Kling AI')?.name, equals('Kling AI'));
+      expect(SubscriptionPreset.findMatchingPreset('klin')?.name, equals('Kling AI'));
+      expect(SubscriptionPreset.findMatchingPreset('cloud ai')?.name, equals('Claude Pro'));
+      expect(SubscriptionPreset.findMatchingPreset('clou')?.name, equals('Claude Pro'));
+
       // Thai Services
       expect(SubscriptionPreset.findMatchingPreset('TrueID')?.name, equals('TrueID / TrueVisions Now'));
       expect(SubscriptionPreset.findMatchingPreset('ais play')?.name, equals('AIS PLAY'));
@@ -149,6 +157,20 @@ void main() {
       // Global Streaming & Services
       expect(SubscriptionPreset.findMatchingPreset('netflix 4k')?.name, equals('Netflix'));
       expect(SubscriptionPreset.findMatchingPreset('yt premium')?.name, equals('YouTube Premium'));
+    });
+
+    test('SearchPresets autocomplete returns matching suggestions for Google-like dropdown', () {
+      final klingResults = SubscriptionPreset.searchPresets('kli');
+      expect(klingResults.any((p) => p.name == 'Kling AI'), isTrue);
+
+      final higgsResults = SubscriptionPreset.searchPresets('hig');
+      expect(higgsResults.any((p) => p.name == 'Higgsfield AI'), isTrue);
+
+      final cloudResults = SubscriptionPreset.searchPresets('clou');
+      expect(cloudResults.any((p) => p.name == 'Claude Pro'), isTrue);
+
+      final netflixResults = SubscriptionPreset.searchPresets('netf');
+      expect(netflixResults.any((p) => p.name == 'Netflix'), isTrue);
     });
   });
 }
