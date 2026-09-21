@@ -52,6 +52,11 @@ void main() {
         notes: 'Personal account',
         reminderDaysBefore: 3,
         isActive: true,
+        enableReminder: true,
+        accountId: 'acc_kbank_1',
+        accountName: 'KBank ออมทรัพย์',
+        autoRecordExpense: true,
+        lastAutoRecordedDate: DateTime(2026, 3, 1),
       );
 
       final json = original.toJson();
@@ -65,6 +70,11 @@ void main() {
       expect(restored.hasTrial, isTrue);
       expect(restored.logoAssetPath, equals(original.logoAssetPath));
       expect(restored.notes, equals('Personal account'));
+      expect(restored.enableReminder, isTrue);
+      expect(restored.accountId, equals('acc_kbank_1'));
+      expect(restored.accountName, equals('KBank ออมทรัพย์'));
+      expect(restored.autoRecordExpense, isTrue);
+      expect(restored.lastAutoRecordedDate, equals(DateTime(2026, 3, 1)));
     });
 
     test('Encodes and decodes list correctly', () {

@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../models/subscription_item.dart';
+import '../models/account_item.dart';
 import '../state/expense_controller.dart';
 import '../services/currency_exchange_service.dart';
+import '../services/native_bridge_service.dart';
 import '../utils/format_utils.dart';
 import '../widgets/tactile_button.dart';
+import '../widgets/bank_badge.dart';
+import '../widgets/meow_permission_dialog.dart';
 
 class AddEditSubscriptionScreen extends StatefulWidget {
   final ExpenseController controller;
@@ -36,6 +40,10 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
   bool _hasTrial = false;
   DateTime _trialEndDate = DateTime.now().add(const Duration(days: 7));
   String _paymentMethod = 'บัตรเครดิต/เดบิต';
+  String? _selectedAccountId;
+  String? _selectedAccountName;
+  bool _enableReminder = true;
+  bool _autoRecordExpense = false;
   String? _logoAssetPath;
   String? _customLogoUrl;
   Color? _customColor;
@@ -65,7 +73,11 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
     'อื่นๆ',
   ];
 
-  final List<String> _currencies = ['THB', 'USD', 'JPY', 'EUR', 'GBP', 'SGD'];
+  List<CurrencyInfo> get _allCurrencies {
+    return CurrencyExchangeService.supportedCurrencies.values
+        .where((c) => !c.isCommodity)
+        .toList();
+  }
 
   @override
   void initState() {
@@ -78,13 +90,17 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
       );
       _notesController = TextEditingController(text: item.notes ?? '');
       _selectedCategory = item.category;
-      _selectedCurrency = item.currency;
+      _selectedCurrency = item.currency.toUpperCase();
       _billingCycle = item.billingCycle;
       _firstChargeDate = item.firstChargeDate;
       _nextBillingDate = item.nextBillingDate;
       _hasTrial = item.hasTrial;
       _trialEndDate = item.trialEndDate ?? DateTime.now().add(const Duration(days: 7));
       _paymentMethod = item.paymentMethod;
+      _selectedAccountId = item.accountId;
+      _selectedAccountName = item.accountName ?? item.paymentMethod;
+      _enableReminder = item.enableReminder;
+      _autoRecordExpense = item.autoRecordExpense;
       _logoAssetPath = item.logoAssetPath;
       _customLogoUrl = item.logoUrl;
       _customColor = item.customColor;
@@ -94,8 +110,13 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
       _nameController = TextEditingController();
       _priceController = TextEditingController();
       _notesController = TextEditingController();
+      _enableReminder = true;
+      _autoRecordExpense = false;
       if (widget.controller.accounts.isNotEmpty) {
-        _paymentMethod = widget.controller.accounts.first.name;
+        final defAcc = widget.controller.accounts.first;
+        _selectedAccountId = defAcc.id;
+        _selectedAccountName = defAcc.name;
+        _paymentMethod = defAcc.name;
       }
     }
     _nameController.addListener(_onNameChanged);
@@ -384,10 +405,15 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
       nextBillingDate: _nextBillingDate,
       hasTrial: _hasTrial,
       trialEndDate: _hasTrial ? _trialEndDate : null,
-      paymentMethod: _paymentMethod,
+      paymentMethod: _selectedAccountName ?? _paymentMethod,
+      accountId: _selectedAccountId,
+      accountName: _selectedAccountName,
       logoAssetPath: _logoAssetPath,
       logoUrl: _customLogoUrl,
       reminderDaysBefore: _reminderDaysBefore,
+      enableReminder: _enableReminder,
+      autoRecordExpense: _autoRecordExpense,
+      lastAutoRecordedDate: widget.existingItem?.lastAutoRecordedDate,
       notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
       isActive: _isActive,
       customColor: _customColor,
@@ -400,6 +426,299 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
     }
 
     Navigator.pop(context, true);
+  }
+
+  Future<void> _handleReminderToggle(bool val) async {
+    HapticFeedback.selectionClick();
+    if (val) {
+      if (!mounted) return;
+      await MeowPermissionDialog.requestWithExplanation(
+        context,
+        type: MeowPermissionType.notification,
+      );
+    }
+    setState(() => _enableReminder = val);
+  }
+
+  void _showCurrencyPickerModal() {
+    HapticFeedback.selectionClick();
+    final theme = widget.controller.currentTheme;
+    final isDark = widget.controller.isDarkMode;
+    final textColor = theme.textColor;
+    final subColor = theme.textSecondaryColor;
+    final cardBg = theme.cardBackground;
+
+    String searchQuery = '';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (modalContext, setModalState) {
+          final allList = _allCurrencies;
+          final filtered = allList.where((c) {
+            if (searchQuery.trim().isEmpty) return true;
+            final q = searchQuery.toLowerCase();
+            return c.code.toLowerCase().contains(q) ||
+                c.nameTh.toLowerCase().contains(q) ||
+                c.nameEn.toLowerCase().contains(q);
+          }).toList();
+
+          return Container(
+            height: MediaQuery.of(context).size.height * 0.75,
+            decoration: BoxDecoration(
+              color: cardBg,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  margin: const EdgeInsets.only(top: 10, bottom: 8),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'เลือกสกุลเงิน (แปลงเป็นเงินบาทอัตโนมัติ)',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: textColor),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, size: 20),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: TextField(
+                    onChanged: (val) => setModalState(() => searchQuery = val),
+                    style: TextStyle(fontSize: 14, color: textColor),
+                    decoration: InputDecoration(
+                      hintText: 'ค้นหา เช่น USD, JPY, EUR, ดอลลาร์, เยน...',
+                      hintStyle: TextStyle(fontSize: 13, color: subColor),
+                      prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                      filled: true,
+                      fillColor: isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.03),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: filtered.length,
+                    itemBuilder: (context, index) {
+                      final c = filtered[index];
+                      final codeUpper = c.code.toUpperCase();
+                      final isSelected = _selectedCurrency.toUpperCase() == codeUpper;
+                      final rate = CurrencyExchangeService.getRateToThb(c.code);
+
+                      return InkWell(
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          setState(() => _selectedCurrency = codeUpper);
+                          Navigator.pop(ctx);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: isSelected ? theme.primaryColor.withOpacity(0.08) : Colors.transparent,
+                            border: Border(bottom: BorderSide(color: theme.borderColor.withOpacity(0.3), width: 0.5)),
+                          ),
+                          child: Row(
+                            children: [
+                              Text(c.flag, style: const TextStyle(fontSize: 24)),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Text(
+                                          codeUpper,
+                                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: textColor),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          c.symbol,
+                                          style: TextStyle(fontSize: 13, color: subColor, fontWeight: FontWeight.w600),
+                                        ),
+                                      ],
+                                    ),
+                                    Text(
+                                      c.nameTh,
+                                      style: TextStyle(fontSize: 12, color: subColor),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    codeUpper == 'THB' ? 'สกุลเงินหลัก' : '1 $codeUpper ≈ ฿${rate.toStringAsFixed(2)}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: isSelected ? theme.primaryColor : subColor,
+                                    ),
+                                  ),
+                                  if (isSelected)
+                                    Icon(Icons.check_circle_rounded, color: theme.primaryColor, size: 18),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _showAccountPickerModal() {
+    HapticFeedback.selectionClick();
+    final theme = widget.controller.currentTheme;
+    final textColor = theme.textColor;
+    final subColor = theme.textSecondaryColor;
+    final cardBg = theme.cardBackground;
+    final accounts = widget.controller.accounts;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        height: MediaQuery.of(context).size.height * 0.65,
+        decoration: BoxDecoration(
+          color: cardBg,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 10, bottom: 8),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'เลือกบัญชีที่จะตัดเงิน',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 20),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+            ),
+            if (accounts.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text('ไม่มีบัญชีในระบบ สามารถใช้ชื่อบัตรเครดิต/เดบิตทั่วไปได้', style: TextStyle(color: subColor)),
+              )
+            else
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  itemCount: accounts.length,
+                  itemBuilder: (context, index) {
+                    final acc = accounts[index];
+                    final isSelected = _selectedAccountId == acc.id || (_selectedAccountId == null && _paymentMethod == acc.name);
+
+                    return InkWell(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        setState(() {
+                          _selectedAccountId = acc.id;
+                          _selectedAccountName = acc.name;
+                          _paymentMethod = acc.name;
+                        });
+                        Navigator.pop(ctx);
+                      },
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: isSelected ? theme.primaryColor.withOpacity(0.08) : Colors.transparent,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isSelected ? theme.primaryColor : theme.borderColor.withOpacity(0.4),
+                            width: isSelected ? 1.5 : 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            BankBadge(bankCode: acc.bankCode, size: 38),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    acc.name,
+                                    style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: textColor),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    acc.bankDisplayName,
+                                    style: TextStyle(fontSize: 11.5, color: subColor),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  '฿${FormatUtils.formatCurrency(acc.balance)}',
+                                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: theme.primaryColor),
+                                ),
+                                if (isSelected) ...[
+                                  const SizedBox(height: 2),
+                                  Icon(Icons.check_circle_rounded, size: 16, color: theme.primaryColor),
+                                ],
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildLogoAvatar() {
@@ -758,25 +1077,34 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
                         style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: textColor),
                       ),
                       // Currency Picker Pill
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: theme.primaryColor.withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: theme.primaryColor.withOpacity(0.2)),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: _selectedCurrency,
-                            isDense: true,
-                            icon: const Icon(Icons.arrow_drop_down_rounded, size: 18),
-                            items: _currencies.map((curr) => DropdownMenuItem(
-                              value: curr,
-                              child: Text(curr, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                            )).toList(),
-                            onChanged: (val) {
-                              if (val != null) setState(() => _selectedCurrency = val);
-                            },
+                      GestureDetector(
+                        onTap: _showCurrencyPickerModal,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: theme.primaryColor.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: theme.primaryColor.withOpacity(0.3)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                CurrencyExchangeService.supportedCurrencies[_selectedCurrency.toLowerCase()]?.flag ?? '🌐',
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                _selectedCurrency,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: theme.primaryColor,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Icon(Icons.arrow_drop_down_rounded, size: 18, color: theme.primaryColor),
+                            ],
                           ),
                         ),
                       ),
@@ -796,7 +1124,9 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
                     decoration: InputDecoration(
                       hintText: '0.00',
                       hintStyle: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: subColor.withOpacity(0.3)),
-                      prefixText: _selectedCurrency == 'THB' ? '฿ ' : (_selectedCurrency == 'USD' ? '\$ ' : ''),
+                      prefixText: _selectedCurrency == 'THB'
+                          ? '฿ '
+                          : '${CurrencyExchangeService.supportedCurrencies[_selectedCurrency.toLowerCase()]?.symbol ?? _selectedCurrency} ',
                       prefixStyle: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: theme.primaryColor),
                       filled: true,
                       fillColor: isDark ? Colors.white.withOpacity(0.03) : Colors.black.withOpacity(0.02),
@@ -817,6 +1147,46 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
                     validator: (val) => val == null || val.trim().isEmpty ? 'กรุณาระบุจำนวนเงิน' : null,
                     onChanged: (_) => setState(() {}),
                   ),
+
+                  // Live Foreign Currency to THB conversion pill
+                  Builder(builder: (context) {
+                    final price = double.tryParse(_priceController.text.trim()) ?? 0.0;
+                    if (_selectedCurrency.toUpperCase() == 'THB' || price <= 0) {
+                      return const SizedBox.shrink();
+                    }
+                    final rateToThb = CurrencyExchangeService.getRateToThb(_selectedCurrency);
+                    final convertedThb = price * rateToThb;
+                    final currInfo = CurrencyExchangeService.supportedCurrencies[_selectedCurrency.toLowerCase()];
+
+                    return Container(
+                      margin: const EdgeInsets.only(top: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF6366F1).withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.2)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Text(currInfo?.flag ?? '🌐', style: const TextStyle(fontSize: 14)),
+                              const SizedBox(width: 6),
+                              Text(
+                                'แปลงเป็นเงินไทย (1 $_selectedCurrency ≈ ฿${rateToThb.toStringAsFixed(2)})',
+                                style: const TextStyle(fontSize: 11.5, color: Color(0xFF4F46E5), fontWeight: FontWeight.w500),
+                              ),
+                            ],
+                          ),
+                          Text(
+                            '≈ ฿${FormatUtils.formatCurrency(convertedThb)}',
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF4338CA)),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
 
                   const SizedBox(height: 12),
 
@@ -1013,7 +1383,7 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
             ),
             const SizedBox(height: 14),
 
-            // Payment Source & Reminders
+            // Payment Source, Auto-Record & Reminders Card
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -1024,68 +1394,177 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // 1. Account Selector
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.credit_card_rounded, size: 18, color: Color(0xFF10B981)),
+                          const Icon(Icons.account_balance_wallet_rounded, size: 18, color: Color(0xFF10B981)),
                           const SizedBox(width: 8),
                           Text(
-                            isEn ? 'Payment Source' : 'ตัดเงินจากบัญชี/บัตร',
-                            style: TextStyle(fontSize: 13.5, color: textColor),
+                            isEn ? 'Payment Account' : 'เลือกบัญชีที่จะจ่าย',
+                            style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: textColor),
                           ),
                         ],
                       ),
-                      DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: _paymentMethod,
-                          isDense: true,
-                          items: [
-                            const DropdownMenuItem(value: 'บัตรเครดิต/เดบิต', child: Text('บัตรเครดิต/เดบิต', style: TextStyle(fontSize: 13))),
-                            const DropdownMenuItem(value: 'พร้อมเพย์ / สแกน QR', child: Text('พร้อมเพย์ / สแกน QR', style: TextStyle(fontSize: 13))),
-                            ...widget.controller.accounts.map((a) {
-                              return DropdownMenuItem(value: a.name, child: Text(a.name, style: const TextStyle(fontSize: 13)));
-                            }),
-                          ],
-                          onChanged: (val) {
-                            if (val != null) setState(() => _paymentMethod = val);
-                          },
+                      GestureDetector(
+                        onTap: _showAccountPickerModal,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: theme.primaryColor.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: theme.primaryColor.withOpacity(0.25)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _selectedAccountName ?? _paymentMethod,
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: theme.primaryColor,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: theme.primaryColor),
+                            ],
+                          ),
                         ),
                       ),
                     ],
                   ),
                   const Divider(height: 20),
+
+                  // 2. Auto-Record Expense Switch
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.notifications_active_rounded, size: 18, color: Color(0xFFF59E0B)),
-                          const SizedBox(width: 8),
-                          Text(
-                            isEn ? 'Remind Me' : 'เตือนล่วงหน้า',
-                            style: TextStyle(fontSize: 13.5, color: textColor),
-                          ),
-                        ],
-                      ),
-                      DropdownButtonHideUnderline(
-                        child: DropdownButton<int>(
-                          value: _reminderDaysBefore,
-                          isDense: true,
-                          items: const [
-                            DropdownMenuItem(value: 1, child: Text('1 วันก่อน', style: TextStyle(fontSize: 13))),
-                            DropdownMenuItem(value: 3, child: Text('3 วันก่อน (แนะนำ)', style: TextStyle(fontSize: 13))),
-                            DropdownMenuItem(value: 5, child: Text('5 วันก่อน', style: TextStyle(fontSize: 13))),
-                            DropdownMenuItem(value: 7, child: Text('7 วันก่อน', style: TextStyle(fontSize: 13))),
+                      Expanded(
+                        child: Row(
+                          children: [
+                            const Icon(Icons.receipt_long_rounded, size: 18, color: Color(0xFF6366F1)),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    isEn ? 'Auto-Record Expense' : 'บันทึกลงรายจ่ายอัตโนมัติ',
+                                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: textColor),
+                                  ),
+                                  Text(
+                                    isEn
+                                        ? 'Auto-log expense when billing date arrives'
+                                        : 'บันทึกเป็นรายจ่ายให้อัตโนมัติเมื่อถึงรอบบิล',
+                                    style: TextStyle(fontSize: 11, color: subColor),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ],
-                          onChanged: (val) {
-                            if (val != null) setState(() => _reminderDaysBefore = val);
-                          },
                         ),
+                      ),
+                      Switch(
+                        value: _autoRecordExpense,
+                        activeColor: const Color(0xFF6366F1),
+                        onChanged: (val) {
+                          HapticFeedback.selectionClick();
+                          setState(() => _autoRecordExpense = val);
+                        },
                       ),
                     ],
                   ),
+                  if (_autoRecordExpense) ...[
+                    Container(
+                      margin: const EdgeInsets.only(top: 8),
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF6366F1).withOpacity(0.06),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.15)),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.info_outline_rounded, size: 15, color: Color(0xFF6366F1)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'เมื่อถึงวันตัดเงิน ระบบจะจดเป็นรายจ่าย:\n"ชำระบริการ ${_nameController.text.trim().isEmpty ? '...' : _nameController.text.trim()} ด้วยบัญชี ${_selectedAccountName ?? _paymentMethod}"',
+                              style: const TextStyle(fontSize: 11.5, color: Color(0xFF4F46E5), height: 1.35),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const Divider(height: 20),
+
+                  // 3. Reminder Toggle & Days Before
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Row(
+                          children: [
+                            const Icon(Icons.notifications_active_rounded, size: 18, color: Color(0xFFF59E0B)),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    isEn ? 'Due Date Reminders' : 'เปิดการแจ้งเตือนเตือนความจำ',
+                                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: textColor),
+                                  ),
+                                  Text(
+                                    isEn ? 'Alert on phone before charge' : 'เตือนล่วงหน้าทางมือถือและในแอพ',
+                                    style: TextStyle(fontSize: 11, color: subColor),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Switch(
+                        value: _enableReminder,
+                        activeColor: const Color(0xFFF59E0B),
+                        onChanged: _handleReminderToggle,
+                      ),
+                    ],
+                  ),
+                  if (_enableReminder) ...[
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          isEn ? 'Remind Before' : 'เตือนล่วงหน้าก่อนตัดเงิน',
+                          style: TextStyle(fontSize: 12.5, color: subColor),
+                        ),
+                        DropdownButtonHideUnderline(
+                          child: DropdownButton<int>(
+                            value: _reminderDaysBefore,
+                            isDense: true,
+                            items: const [
+                              DropdownMenuItem(value: 0, child: Text('ในวันตัดบิล', style: TextStyle(fontSize: 12.5))),
+                              DropdownMenuItem(value: 1, child: Text('1 วันก่อน', style: TextStyle(fontSize: 12.5))),
+                              DropdownMenuItem(value: 3, child: Text('3 วันก่อน (แนะนำ)', style: TextStyle(fontSize: 12.5))),
+                              DropdownMenuItem(value: 5, child: Text('5 วันก่อน', style: TextStyle(fontSize: 12.5))),
+                              DropdownMenuItem(value: 7, child: Text('7 วันก่อน', style: TextStyle(fontSize: 12.5))),
+                            ],
+                            onChanged: (val) {
+                              if (val != null) setState(() => _reminderDaysBefore = val);
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),

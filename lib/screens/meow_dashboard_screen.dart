@@ -27,6 +27,9 @@ import '../widgets/app_logo_widget.dart';
 import '../utils/format_utils.dart';
 import '../services/thai_bank_detector.dart';
 import '../services/slip_storage_service.dart';
+import '../services/currency_exchange_service.dart';
+import '../models/subscription_item.dart';
+import 'subscription_vault_screen.dart';
 
 class MeowDashboardScreen extends StatefulWidget {
   final ExpenseController controller;
@@ -43,6 +46,7 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
   final GlobalKey _arrowButtonKey = GlobalKey();
   final ScrollController _scrollController = ScrollController();
   bool _showScrollToTop = false;
+  bool _isSubscriptionBannerDismissed = false;
 
   // Batch delete & undo countdown state (3.5s)
   final List<TransactionItem> _pendingDeletedItems = [];
@@ -1224,8 +1228,195 @@ void _handleMascotPetting() {
   );
  }
 
- @override
- Widget build(BuildContext context) {
+  Widget _buildSubscriptionDueBanner() {
+    if (_isSubscriptionBannerDismissed) return const SizedBox.shrink();
+
+    final activeSubs = widget.controller.subscriptions.where((s) => s.isActive && s.enableReminder).toList();
+    final dueSoonSubs = activeSubs.where((s) {
+      final days = s.daysUntilNextBilling;
+      return days >= 0 && days <= 3;
+    }).toList();
+
+    if (dueSoonSubs.isEmpty) return const SizedBox.shrink();
+
+    dueSoonSubs.sort((a, b) => a.daysUntilNextBilling.compareTo(b.daysUntilNextBilling));
+    final first = dueSoonSubs.first;
+    final otherCount = dueSoonSubs.length - 1;
+    final isEn = widget.controller.isEnglish;
+    final currentTheme = widget.controller.currentTheme;
+    final isDark = widget.controller.isDarkMode;
+
+    final priceInThb = first.currency == 'THB'
+        ? first.price
+        : CurrencyExchangeService.convertToThb(first.price, first.currency);
+
+    String daysText;
+    if (first.daysUntilNextBilling == 0) {
+      daysText = isEn ? 'Due today!' : 'ตัดเงินวันนี้!';
+    } else {
+      daysText = isEn ? 'in ${first.daysUntilNextBilling}d' : 'อีก ${first.daysUntilNextBilling} วัน';
+    }
+
+    final titleText = otherCount > 0
+        ? (isEn ? '${first.name} ($daysText) +$otherCount' : '${first.name} ($daysText) และอีก $otherCount รายการ')
+        : (isEn ? '${first.name} ($daysText)' : '${first.name} ($daysText)');
+
+    final subtitleText = first.accountName != null
+        ? (isEn ? 'Pay via ${first.accountName} • ฿${FormatUtils.formatCurrency(priceInThb)}' : 'ตัดผ่าน ${first.accountName} • ฿${FormatUtils.formatCurrency(priceInThb)}')
+        : (isEn ? '฿${FormatUtils.formatCurrency(priceInThb)}' : 'ยอดชำระ ฿${FormatUtils.formatCurrency(priceInThb)}');
+
+    return Container(
+      margin: const EdgeInsets.only(left: 20, right: 20, top: 4, bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E2230) : const Color(0xFFFFFBEB),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFF59E0B).withValues(alpha: isDark ? 0.45 : 0.6),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFF59E0B).withValues(alpha: isDark ? 0.12 : 0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => SubscriptionVaultScreen(controller: widget.controller),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.notifications_active_rounded,
+                color: Color(0xFFD97706),
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        isEn ? 'Upcoming Bill' : 'เตือนบิลใกล้ถึงกำหนด',
+                        style: const TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFFD97706),
+                        ),
+                      ),
+                      if (first.autoRecordExpense) ...[
+                        const SizedBox(width: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            '⚡ ออโต้',
+                            style: TextStyle(
+                              fontSize: 8.5,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF059669),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    titleText,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: currentTheme.textColor,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    subtitleText,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: currentTheme.textSecondaryColor,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    isEn ? 'View' : 'ดูบิล',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFFD97706),
+                    ),
+                  ),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    size: 14,
+                    color: Color(0xFFD97706),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 4),
+            GestureDetector(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                setState(() => _isSubscriptionBannerDismissed = true);
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(4.0),
+                child: Icon(
+                  Icons.close_rounded,
+                  size: 16,
+                  color: currentTheme.textSecondaryColor.withValues(alpha: 0.6),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
   final currentTheme = widget.controller.currentTheme;
   final isDark = widget.controller.isDarkMode;
   final bgColor = currentTheme.scaffoldBackground;
@@ -1862,7 +2053,8 @@ void _handleMascotPetting() {
             ),
           ),
         ),
-        const SizedBox(height: 12),
+        _buildSubscriptionDueBanner(),
+        const SizedBox(height: 8),
 
         // Quick Action Bar (Voice + Auto-Sync)
         Padding(

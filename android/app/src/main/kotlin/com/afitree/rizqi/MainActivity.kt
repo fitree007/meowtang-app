@@ -315,6 +315,13 @@ class MainActivity : FlutterActivity() {
                     showScanCompletedNotification(title, message)
                     result.success(true)
                 }
+                "showSubscriptionDueNotification" -> {
+                    val title = call.argument<String>("title") ?: "เหมียวตังค์: เตือนครบกำหนดชำระ"
+                    val message = call.argument<String>("message") ?: "มีรายการค่าบริการรอบบิลใกล้ครบกำหนด"
+                    val id = call.argument<Int>("id") ?: 3001
+                    showSubscriptionDueNotification(title, message, id)
+                    result.success(true)
+                }
                 "cancelScanProgressNotification" -> {
                     cancelScanProgressNotification()
                     result.success(true)
@@ -1414,6 +1421,44 @@ class MainActivity : FlutterActivity() {
         val notification = builder.build()
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.notify(SCAN_COMPLETED_NOTIFICATION_ID, notification)
+    }
+
+    private fun showSubscriptionDueNotification(title: String, message: String, notificationId: Int) {
+        ensureScanNotificationChannel()
+
+        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            notificationId,
+            launchIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val largeIcon = try {
+            BitmapFactory.decodeResource(resources, R.drawable.ic_notification_cat_large)
+        } catch (e: Exception) {
+            null
+        }
+
+        val builder = NotificationCompat.Builder(this, SCAN_CHANNEL_ID)
+            .setContentTitle(title)
+            .setContentText(message)
+            .setSmallIcon(R.drawable.ic_notification_cat)
+            .setColor(0xFFFF8A00.toInt())
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+
+        if (largeIcon != null) {
+            builder.setLargeIcon(largeIcon)
+        }
+
+        val notification = builder.build()
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.notify(notificationId, notification)
     }
 
     private fun cancelScanProgressNotification() {

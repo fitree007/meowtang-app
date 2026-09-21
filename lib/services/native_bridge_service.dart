@@ -331,6 +331,24 @@ class NativeBridgeService {
     }
   }
 
+  /// Displays notification reminding user of an upcoming or due subscription
+  static Future<bool> showSubscriptionDueNotification({
+    required String title,
+    required String message,
+    int id = 3001,
+  }) async {
+    try {
+      final res = await _channel.invokeMethod('showSubscriptionDueNotification', {
+        'title': title,
+        'message': message,
+        'id': id,
+      });
+      return res == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Cancels the ongoing scan progress notification
   static Future<bool> cancelScanProgressNotification() async {
     try {

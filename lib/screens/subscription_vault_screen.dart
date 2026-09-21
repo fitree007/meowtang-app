@@ -7,8 +7,6 @@ import '../models/category_item.dart';
 import '../state/expense_controller.dart';
 import '../services/currency_exchange_service.dart';
 import '../utils/format_utils.dart';
-import '../widgets/tactile_button.dart';
-import '../widgets/meow_paywall_modal.dart';
 import 'add_edit_subscription_screen.dart';
 
 class SubscriptionVaultScreen extends StatefulWidget {
@@ -104,10 +102,13 @@ class _SubscriptionVaultScreenState extends State<SubscriptionVaultScreen> {
                 (c) => c.name.toLowerCase().contains('บันเทิง') || c.name.toLowerCase().contains('บิล') || c.type == CategoryType.expense,
                 orElse: () => categories.first,
               );
-              final acc = accounts.firstWhere(
-                (a) => a.name == item.paymentMethod,
-                orElse: () => accounts.isNotEmpty ? accounts.first : null!,
-              );
+              final acc = accounts.isNotEmpty
+                  ? ((item.accountId != null && item.accountId!.isNotEmpty)
+                      ? accounts.firstWhere((a) => a.id == item.accountId, orElse: () => accounts.first)
+                      : accounts.firstWhere((a) => a.name == item.paymentMethod, orElse: () => accounts.first))
+                  : null;
+              final accId = acc?.id ?? 'cash';
+              final accName = acc?.name ?? item.paymentMethod;
 
               final tx = TransactionItem(
                 id: 'sub_tx_${DateTime.now().millisecondsSinceEpoch}',
@@ -116,9 +117,9 @@ class _SubscriptionVaultScreenState extends State<SubscriptionVaultScreen> {
                 type: TransactionType.expense,
                 categoryId: cat.id,
                 categoryName: cat.name,
-                accountId: acc.id,
+                accountId: accId,
                 date: DateTime.now(),
-                note: 'บันทึกอัตโนมัติจาก Subscription Vault 🐱💳',
+                note: 'ชำระบริการ ${item.name} ด้วยบัญชี $accName',
               );
 
               await widget.controller.addTransaction(tx, allowManualOverride: true);
@@ -226,7 +227,6 @@ class _SubscriptionVaultScreenState extends State<SubscriptionVaultScreen> {
     final textColor = theme.textColor;
     final subColor = theme.textSecondaryColor;
     final borderColor = theme.borderColor;
-    final isVip = widget.controller.isPremium;
 
     final allSubs = widget.controller.subscriptions;
     final activeSubs = allSubs.where((s) => s.isActive).toList();
@@ -696,9 +696,23 @@ class _SubscriptionVaultScreenState extends State<SubscriptionVaultScreen> {
                                       ],
                                     ),
                                     const SizedBox(height: 3),
-                                    Text(
-                                      '${item.category} • ${item.paymentMethod}',
-                                      style: TextStyle(fontSize: 11, color: subColor),
+                                    Row(
+                                      children: [
+                                        Text(
+                                          item.category,
+                                          style: TextStyle(fontSize: 11, color: subColor),
+                                        ),
+                                        Text(' • ', style: TextStyle(fontSize: 11, color: subColor)),
+                                        Icon(Icons.account_balance_wallet_outlined, size: 11, color: subColor),
+                                        const SizedBox(width: 3),
+                                        Flexible(
+                                          child: Text(
+                                            item.accountName ?? item.paymentMethod,
+                                            style: TextStyle(fontSize: 11, color: subColor, fontWeight: FontWeight.w500),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
@@ -764,6 +778,28 @@ class _SubscriptionVaultScreenState extends State<SubscriptionVaultScreen> {
                                     DateFormat('d MMM').format(item.nextBillingDate),
                                     style: TextStyle(fontSize: 11, color: subColor),
                                   ),
+                                  if (item.autoRecordExpense) ...[
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF10B981).withOpacity(0.12),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: const Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.bolt_rounded, size: 10, color: Color(0xFF10B981)),
+                                          SizedBox(width: 2),
+                                          Text('ออโต้', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF10B981))),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                  if (!item.enableReminder) ...[
+                                    const SizedBox(width: 6),
+                                    Icon(Icons.notifications_off_outlined, size: 12, color: subColor.withOpacity(0.6)),
+                                  ],
                                 ],
                               ),
                               // Quick action: record as expense into MeowTang

@@ -16,6 +16,11 @@ class SubscriptionItem {
   final String? logoAssetPath; // e.g. 'assets/icons/subscriptions/netflix.png'
   final String? logoUrl;
   final int reminderDaysBefore; // default 3 days
+  final bool enableReminder; // toggle push & in-app reminder
+  final String? accountId; // linked account ID
+  final String? accountName; // linked account name e.g. KBank, SCB, etc.
+  final bool autoRecordExpense; // auto-create expense on billing due date
+  final DateTime? lastAutoRecordedDate; // prevents duplicate recording in same cycle
   final String? notes;
   final bool isActive;
   final Color? customColor;
@@ -35,6 +40,11 @@ class SubscriptionItem {
     this.logoAssetPath,
     this.logoUrl,
     this.reminderDaysBefore = 3,
+    this.enableReminder = true,
+    this.accountId,
+    this.accountName,
+    this.autoRecordExpense = false,
+    this.lastAutoRecordedDate,
     this.notes,
     this.isActive = true,
     this.customColor,
@@ -110,6 +120,11 @@ class SubscriptionItem {
     String? logoAssetPath,
     String? logoUrl,
     int? reminderDaysBefore,
+    bool? enableReminder,
+    String? accountId,
+    String? accountName,
+    bool? autoRecordExpense,
+    DateTime? lastAutoRecordedDate,
     String? notes,
     bool? isActive,
     Color? customColor,
@@ -129,6 +144,11 @@ class SubscriptionItem {
       logoAssetPath: logoAssetPath ?? this.logoAssetPath,
       logoUrl: logoUrl ?? this.logoUrl,
       reminderDaysBefore: reminderDaysBefore ?? this.reminderDaysBefore,
+      enableReminder: enableReminder ?? this.enableReminder,
+      accountId: accountId ?? this.accountId,
+      accountName: accountName ?? this.accountName,
+      autoRecordExpense: autoRecordExpense ?? this.autoRecordExpense,
+      lastAutoRecordedDate: lastAutoRecordedDate ?? this.lastAutoRecordedDate,
       notes: notes ?? this.notes,
       isActive: isActive ?? this.isActive,
       customColor: customColor ?? this.customColor,
@@ -151,6 +171,11 @@ class SubscriptionItem {
       'logoAssetPath': logoAssetPath,
       'logoUrl': logoUrl,
       'reminderDaysBefore': reminderDaysBefore,
+      'enableReminder': enableReminder,
+      'accountId': accountId,
+      'accountName': accountName,
+      'autoRecordExpense': autoRecordExpense,
+      'lastAutoRecordedDate': lastAutoRecordedDate?.toIso8601String(),
       'notes': notes,
       'isActive': isActive,
       'customColor': customColor?.value,
@@ -173,6 +198,11 @@ class SubscriptionItem {
       logoAssetPath: json['logoAssetPath'] as String?,
       logoUrl: json['logoUrl'] as String?,
       reminderDaysBefore: json['reminderDaysBefore'] as int? ?? 3,
+      enableReminder: json['enableReminder'] as bool? ?? true,
+      accountId: json['accountId'] as String?,
+      accountName: json['accountName'] as String?,
+      autoRecordExpense: json['autoRecordExpense'] as bool? ?? false,
+      lastAutoRecordedDate: json['lastAutoRecordedDate'] != null ? DateTime.parse(json['lastAutoRecordedDate'] as String) : null,
       notes: json['notes'] as String?,
       isActive: json['isActive'] as bool? ?? true,
       customColor: json['customColor'] != null ? Color(json['customColor'] as int) : null,

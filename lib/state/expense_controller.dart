@@ -22,6 +22,7 @@ import '../services/slip_storage_service.dart';
 import '../localization/app_strings.dart';
 import '../theme/app_theme_model.dart';
 import '../services/thai_bank_detector.dart';
+import '../services/currency_exchange_service.dart';
 import '../utils/format_utils.dart';
 
 enum MascotMood {
@@ -31,7 +32,7 @@ enum MascotMood {
 }
 
 class ExpenseController extends ChangeNotifier {
-  static const String appVersion = '1.41.30';
+  static const String appVersion = '1.41.31';
 
   final StorageService _storage;
   final OcrEngineService _ocrEngine = OcrEngineService();
@@ -1001,9 +1002,11 @@ class ExpenseController extends ChangeNotifier {
   notifyListeners();
   syncAndroidWidget();
 
-  // Background auto check for recurring salary
+  // Background auto check for recurring salary & subscriptions
   Future.microtask(() {
     checkAndProcessRecurringSalary();
+    checkAndProcessAutoSubscriptions();
+    checkAndSendSubscriptionReminders();
   });
 
   // Background migration for slips (prevents missing slips when user cleans gallery)
@@ -1029,6 +1032,8 @@ class ExpenseController extends ChangeNotifier {
   notifyListeners();
   await syncAndroidWidget();
   await checkAndProcessRecurringSalary();
+  await checkAndProcessAutoSubscriptions();
+  await checkAndSendSubscriptionReminders();
  }
 
  // ACCOUNT MANAGEMENT (Set/Edit Balances)
@@ -1534,6 +1539,140 @@ class ExpenseController extends ChangeNotifier {
 
   List<SubscriptionItem> get expiringTrialSubscriptions {
     return _subscriptions.where((s) => s.isActive && s.isTrialExpiringSoon).toList();
+  }
+
+  /// Checks and automatically records expenses for subscriptions due today with autoRecordExpense enabled
+  Future<void> checkAndProcessAutoSubscriptions() async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    bool hasUpdates = false;
+
+    final updatedSubs = <SubscriptionItem>[];
+
+    for (final sub in _subscriptions) {
+      if (!sub.isActive || !sub.autoRecordExpense) {
+        updatedSubs.add(sub);
+        continue;
+      }
+
+      final targetDue = DateTime(sub.nextBillingDate.year, sub.nextBillingDate.month, sub.nextBillingDate.day);
+      final lastRecorded = sub.lastAutoRecordedDate != null
+          ? DateTime(sub.lastAutoRecordedDate!.year, sub.lastAutoRecordedDate!.month, sub.lastAutoRecordedDate!.day)
+          : null;
+
+      // If today is on or after nextBillingDate, and hasn't been recorded today
+      if ((today.isAfter(targetDue) || today.isAtSameMomentAs(targetDue)) &&
+          (lastRecorded == null || !lastRecorded.isAtSameMomentAs(today))) {
+        // Calculate THB amount
+        final priceInThb = CurrencyExchangeService.convertToThb(sub.price, sub.currency);
+
+        // Find matching or fallback category
+        final cat = _categories.firstWhere(
+          (c) => c.name.toLowerCase().contains(sub.category.toLowerCase()) ||
+                 c.name.toLowerCase().contains('บันเทิง') ||
+                 c.name.toLowerCase().contains('บิล') ||
+                 c.type == CategoryType.expense,
+          orElse: () => _categories.first,
+        );
+
+        // Find matching account
+        AccountItem? targetAcc;
+        if (sub.accountId != null) {
+          targetAcc = _accounts.cast<AccountItem?>().firstWhere(
+            (a) => a?.id == sub.accountId,
+            orElse: () => null,
+          );
+        }
+        if (targetAcc == null && _accounts.isNotEmpty) {
+          targetAcc = _accounts.cast<AccountItem?>().firstWhere(
+            (a) => a?.name == sub.paymentMethod,
+            orElse: () => _accounts.first,
+          );
+        }
+
+        final accName = targetAcc?.name ?? sub.accountName ?? sub.paymentMethod;
+        final tx = TransactionItem(
+          id: 'sub_auto_${sub.id}_${now.millisecondsSinceEpoch}',
+          title: 'ชำระบริการ ${sub.name}',
+          amount: priceInThb,
+          type: TransactionType.expense,
+          categoryId: cat.id,
+          categoryName: cat.name,
+          accountId: targetAcc?.id ?? (_accounts.isNotEmpty ? _accounts.first.id : 'default'),
+          date: now,
+          note: 'ชำระบริการ ${sub.name} ด้วยบัญชี $accName',
+        );
+
+        await addTransaction(tx, allowManualOverride: true);
+
+        // Advance nextBillingDate according to cycle
+        DateTime nextDate;
+        switch (sub.billingCycle) {
+          case 'yearly':
+            nextDate = DateTime(sub.nextBillingDate.year + 1, sub.nextBillingDate.month, sub.nextBillingDate.day);
+            break;
+          case 'weekly':
+            nextDate = sub.nextBillingDate.add(const Duration(days: 7));
+            break;
+          case 'quarterly':
+            nextDate = DateTime(sub.nextBillingDate.year, sub.nextBillingDate.month + 3, sub.nextBillingDate.day);
+            break;
+          case 'monthly':
+          default:
+            nextDate = DateTime(sub.nextBillingDate.year, sub.nextBillingDate.month + 1, sub.nextBillingDate.day);
+            break;
+        }
+
+        final updatedSub = sub.copyWith(
+          nextBillingDate: nextDate,
+          lastAutoRecordedDate: now,
+        );
+        updatedSubs.add(updatedSub);
+        hasUpdates = true;
+
+        // Also fire mobile system notification
+        if (sub.enableReminder) {
+          NativeBridgeService.showSubscriptionDueNotification(
+            title: 'เหมียวตังค์: ชำระบริการ ${sub.name} แล้ว',
+            message: 'บันทึกรายจ่าย ฿${FormatUtils.formatCurrency(priceInThb)} ด้วยบัญชี $accName เรียบร้อยแล้ว 🐱💳',
+            id: sub.id.hashCode,
+          );
+        }
+      } else {
+        updatedSubs.add(sub);
+      }
+    }
+
+    if (hasUpdates) {
+      _subscriptions = updatedSubs;
+      await _storage.saveSubscriptions(_subscriptions);
+      notifyListeners();
+    }
+  }
+
+  /// Sends device notifications for upcoming subscriptions
+  Future<void> checkAndSendSubscriptionReminders() async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    for (final sub in _subscriptions) {
+      if (!sub.isActive || !sub.enableReminder) continue;
+
+      final targetDue = DateTime(sub.nextBillingDate.year, sub.nextBillingDate.month, sub.nextBillingDate.day);
+      final daysDiff = targetDue.difference(today).inDays;
+
+      if (daysDiff == sub.reminderDaysBefore || daysDiff == 0) {
+        final priceInThb = CurrencyExchangeService.convertToThb(sub.price, sub.currency);
+        final accName = sub.accountName ?? sub.paymentMethod;
+        final timing = daysDiff == 0 ? 'วันนี้' : 'อีก $daysDiff วัน';
+
+        NativeBridgeService.showSubscriptionDueNotification(
+          title: 'เหมียวตังค์: เตือนครบกำหนดชำระ ($timing)',
+          message: '${sub.name} ฿${FormatUtils.formatCurrency(priceInThb)} (ตัดผ่าน $accName)',
+          id: sub.id.hashCode,
+        );
+      }
+    }
   }
 
  Future<void> depositToSavingGoal(String goalId, double amount, {String? note, String? accountId}) async {
