@@ -906,12 +906,15 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
             trailingBadge: 'PRO ⚡',
             isDark: isDark,
             onTap: () {
-             Navigator.push(
-              context,
-              MaterialPageRoute(
-               builder: (_) => AppFeaturesShowcaseScreen(controller: widget.controller),
-              ),
-             );
+              Navigator.push(
+               context,
+               MaterialPageRoute(
+                builder: (_) => AppFeaturesShowcaseScreen(
+                  controller: widget.controller,
+                  isFromMenu: true,
+                ),
+               ),
+              );
             },
            ),
            const Divider(height: 1),

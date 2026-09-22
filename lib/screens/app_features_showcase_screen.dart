@@ -25,13 +25,17 @@ class AppFeaturesShowcaseScreen extends StatelessWidget {
   final ExpenseController controller;
   final VoidCallback? onCompleted;
   final bool isFromOverview;
+  final bool isFromMenu;
 
   const AppFeaturesShowcaseScreen({
     super.key,
     required this.controller,
     this.onCompleted,
     this.isFromOverview = false,
+    this.isFromMenu = false,
   });
+
+  bool get _isStandalone => isFromOverview || isFromMenu;
 
   List<FeatureHighlightItem> _getItems(bool isEn) {
     if (isEn) {
@@ -165,7 +169,7 @@ class AppFeaturesShowcaseScreen extends StatelessWidget {
 
   void _onFinish(BuildContext context) async {
     HapticFeedback.mediumImpact();
-    if (isFromOverview) {
+    if (_isStandalone) {
       Navigator.pop(context);
       return;
     }
@@ -182,12 +186,12 @@ class AppFeaturesShowcaseScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackground,
-      appBar: isFromOverview
+      appBar: _isStandalone
           ? AppBar(
               backgroundColor: Colors.transparent,
               elevation: 0,
               leading: IconButton(
-                icon: Icon(Icons.close_rounded, color: theme.textColor, size: 22),
+                icon: Icon(Icons.close_rounded, color: theme.textColor, size: 24),
                 tooltip: isEn ? 'Close' : 'ปิด',
                 onPressed: () => Navigator.pop(context),
               ),
@@ -205,7 +209,7 @@ class AppFeaturesShowcaseScreen extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            if (!isFromOverview)
+            if (!_isStandalone)
               OnboardingStepHeader(
                 badgeText: isEn ? 'Step 4/4 • Features' : 'ขั้นตอนที่ 4/4 • จุดเด่นของแอพ',
                 stepIcon: Icons.auto_awesome_rounded,
@@ -338,18 +342,25 @@ class AppFeaturesShowcaseScreen extends StatelessWidget {
           top: false,
           child: SizedBox(
             height: 50,
-            child: isFromOverview
+            child: _isStandalone
                 ? TactileButton(
-                    onTap: () => _onFinish(context),
+                    onTap: () => Navigator.pop(context),
                     child: Container(
                       height: 50,
                       decoration: BoxDecoration(
                         color: theme.primaryColor,
                         borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: theme.primaryColor.withValues(alpha: 0.35),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
                       ),
                       child: Center(
                         child: Text(
-                          isEn ? 'Close Guide' : 'รับทราบและปิดหน้าต่าง',
+                          isEn ? 'Close' : 'ปิดหน้าต่าง',
                           style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
                         ),
                       ),
