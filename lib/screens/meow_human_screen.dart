@@ -402,18 +402,21 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
              },
              borderRadius: BorderRadius.circular(18),
              child: Container(
-               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
                decoration: BoxDecoration(
                  gradient: const LinearGradient(
                    colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
                    begin: Alignment.topLeft,
                    end: Alignment.bottomRight,
                  ),
-                 borderRadius: BorderRadius.circular(18),
-                 border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.45), width: 1.2),
+                 borderRadius: BorderRadius.circular(16),
+                 border: Border.all(
+                   color: const Color(0xFFF59E0B).withValues(alpha: 0.35),
+                   width: 1.0,
+                 ),
                  boxShadow: [
                    BoxShadow(
-                     color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                     color: const Color(0xFFF59E0B).withValues(alpha: 0.10),
                      blurRadius: 10,
                      offset: const Offset(0, 3),
                    ),
@@ -422,71 +425,62 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
                child: Row(
                  children: [
                    Container(
-                     width: 42,
-                     height: 42,
+                     width: 40,
+                     height: 40,
                      decoration: BoxDecoration(
                        gradient: const LinearGradient(
                          colors: [Color(0xFFFBBF24), Color(0xFFD97706)],
                          begin: Alignment.topLeft,
                          end: Alignment.bottomRight,
                        ),
-                       borderRadius: BorderRadius.circular(13),
+                       borderRadius: BorderRadius.circular(12),
                      ),
                      child: const Center(
-                       child: Text('👑', style: TextStyle(fontSize: 22)),
+                       child: Text('👑', style: TextStyle(fontSize: 20)),
                      ),
                    ),
-                   const SizedBox(width: 14),
+                   const SizedBox(width: 12),
                    Expanded(
                      child: Column(
                        crossAxisAlignment: CrossAxisAlignment.start,
                        children: [
-                         Row(
-                           children: [
-                             Text(
-                               isEn ? 'Upgrade to VIP Premium' : 'สั่งซื้อแพ็กเกจพรีเมี่ยม VIP',
-                               style: const TextStyle(
-                                 color: Colors.white,
-                                 fontSize: 14.5,
-                                 fontWeight: FontWeight.bold,
-                               ),
-                             ),
-                             const SizedBox(width: 6),
-                             Container(
-                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                               decoration: BoxDecoration(
-                                 color: const Color(0xFFF59E0B),
-                                 borderRadius: BorderRadius.circular(6),
-                               ),
-                               child: const Text(
-                                 'HOT ✨',
-                                 style: TextStyle(
-                                   color: Colors.black,
-                                   fontSize: 9.5,
-                                   fontWeight: FontWeight.w900,
-                                 ),
-                               ),
-                             ),
-                           ],
+                         Text(
+                           isEn ? 'Upgrade to VIP Premium' : 'สั่งซื้อแพ็กเกจพรีเมี่ยม VIP',
+                           style: const TextStyle(
+                             color: Colors.white,
+                             fontSize: 14.5,
+                             fontWeight: FontWeight.bold,
+                             letterSpacing: 0.2,
+                           ),
                          ),
                          const SizedBox(height: 3),
                          Text(
                            isEn
-                               ? 'Unlock all features • Unlimited slips • No ads'
-                               : 'ปลดล็อคทุกฟีเจอร์ • สลิปไม่จำกัด • ไร้โฆษณาคั่น',
+                               ? 'Unlock all features • Subscription & Bills • No ads'
+                               : 'ปลดล็อคทุกฟีเจอร์ • จัดการ Subscription • ไร้โฆษณา',
                            style: TextStyle(
-                             color: Colors.white.withValues(alpha: 0.8),
+                             color: Colors.white.withValues(alpha: 0.75),
                              fontSize: 11.5,
                            ),
                          ),
                        ],
                      ),
                    ),
+                   const SizedBox(width: 8),
                    Container(
-                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                      decoration: BoxDecoration(
-                       color: const Color(0xFFF59E0B),
+                       gradient: const LinearGradient(
+                         colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+                       ),
                        borderRadius: BorderRadius.circular(10),
+                       boxShadow: [
+                         BoxShadow(
+                           color: const Color(0xFFF59E0B).withValues(alpha: 0.25),
+                           blurRadius: 6,
+                           offset: const Offset(0, 2),
+                         ),
+                       ],
                      ),
                      child: Text(
                        isEn ? 'Buy' : 'สั่งซื้อ',
