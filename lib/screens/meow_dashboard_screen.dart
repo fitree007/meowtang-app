@@ -1,6 +1,7 @@
 import '../widgets/bank_badge.dart';
 import 'app_features_showcase_screen.dart';
 import 'app_guide_screen.dart';
+import '../services/ad_service.dart';
 import '../widgets/meow_paywall_modal.dart';
 import 'dart:io';
 import 'dart:async';
@@ -793,8 +794,11 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
                           : () async {
                               setModalState(() => isWatching = true);
                               HapticFeedback.mediumImpact();
-                              await Future.delayed(const Duration(milliseconds: 1000));
-                              await widget.controller.watchRewardedAdForBonusSlips();
+                              await AdMobService.instance.showRewardedAd(
+                                onUserEarnedReward: () async {
+                                  await widget.controller.watchRewardedAdForBonusSlips();
+                                },
+                              );
                               if (ctx.mounted) {
                                 Navigator.pop(modalCtx);
                                 ScaffoldMessenger.of(ctx).showSnackBar(

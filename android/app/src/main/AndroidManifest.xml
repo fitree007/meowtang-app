@@ -27,6 +27,10 @@
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="meow_slip_sync_channel_v6" />
+        <!-- Google Mobile Ads App ID -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-8254120815988418~2937001511" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'app.dart';
+import 'services/ad_service.dart';
 import 'services/storage_service.dart';
 import 'state/expense_controller.dart';
 
@@ -25,6 +26,9 @@ void main() async {
   await storage.init();
 
   final controller = ExpenseController(storage);
+
+  // Initialize Google Mobile Ads
+  await AdMobService.instance.initialize();
 
   runApp(AiExpenseTrackerApp(controller: controller));
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../state/expense_controller.dart';
 import '../config/app_config.dart';
+import '../services/ad_service.dart';
 import 'tactile_button.dart';
 import 'meow_mascot_widget.dart';
 
@@ -432,8 +433,8 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
                             index: 1,
                             title: isEn ? 'Yearly' : 'รายปี',
                             price: '฿${AppConfig.yearlySubPriceThb}',
-                            period: isEn ? '/yr (~25฿/mo)' : '/ปี (~25฿/ด.)',
-                            badge: isEn ? 'SAVE 36% ⭐' : 'ประหยัด 36% ⭐',
+                            period: isEn ? '/yr (~33฿/mo)' : '/ปี (~33฿/ด.)',
+                            badge: isEn ? 'SAVE 32% ⭐' : 'ประหยัด 32% ⭐',
                             badgeColor: const Color(0xFF059669),
                             theme: theme,
                             textColor: textColor,
@@ -754,10 +755,11 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
     HapticFeedback.mediumImpact();
     setState(() => _isProcessing = true);
 
-    // Simulated Google AdMob Rewarded Video completion
-    await Future.delayed(const Duration(milliseconds: 1000));
-
-    await widget.controller.watchRewardedAdForBonusSlips();
+    await AdMobService.instance.showRewardedAd(
+      onUserEarnedReward: () async {
+        await widget.controller.watchRewardedAdForBonusSlips();
+      },
+    );
 
     if (!mounted) return;
     setState(() => _isProcessing = false);

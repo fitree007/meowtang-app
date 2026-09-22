@@ -34,8 +34,8 @@ class AppConfig {
   /// Pricing display constants (in Thai Baht)
   static const int themePriceThb = 29;
   static const int iconPriceThb = 10;
-  static const int monthlySubPriceThb = 39;
-  static const int yearlySubPriceThb = 299;
+  static const int monthlySubPriceThb = 49;
+  static const int yearlySubPriceThb = 399;
   static const int lifetimePriceThb = 390;
 
   /// 30-Second theme trial duration

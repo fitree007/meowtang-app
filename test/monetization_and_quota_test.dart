@@ -32,8 +32,8 @@ void main() {
       expect(AppConfig.maxMonthlyRewardedAds, 10);
       expect(AppConfig.themePriceThb, 29);
       expect(AppConfig.iconPriceThb, 10);
-      expect(AppConfig.monthlySubPriceThb, 39);
-      expect(AppConfig.yearlySubPriceThb, 299);
+      expect(AppConfig.monthlySubPriceThb, 49);
+      expect(AppConfig.yearlySubPriceThb, 399);
       expect(AppConfig.lifetimePriceThb, 390);
       expect(AppConfig.themeTrialSeconds, 30);
     });
