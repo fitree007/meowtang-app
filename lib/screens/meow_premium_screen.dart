@@ -595,7 +595,7 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
 
                     // FEATURED HERO CARD: SUBSCRIPTION VAULT (Larger & with brand logos)
                     Container(
-                      margin: const EdgeInsets.only(bottom: 12),
+                      margin: const EdgeInsets.only(bottom: 8),
                       decoration: BoxDecoration(
                         color: cardBg,
                         borderRadius: BorderRadius.circular(20),
@@ -635,7 +635,7 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                             }
                           },
                           child: Padding(
-                            padding: const EdgeInsets.all(16),
+                            padding: const EdgeInsets.all(13),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -696,7 +696,7 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 10),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                                   decoration: BoxDecoration(
@@ -769,12 +769,12 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 4),
 
                     // 2x2 Square Grid
                     GridView.count(
                       crossAxisCount: 2,
                       shrinkWrap: true,
+                      padding: EdgeInsets.zero,
                       physics: const NeverScrollableScrollPhysics(),
                       crossAxisSpacing: 8,
                       mainAxisSpacing: 8,
@@ -865,6 +865,7 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                     GridView.count(
                       crossAxisCount: 2,
                       shrinkWrap: true,
+                      padding: EdgeInsets.zero,
                       physics: const NeverScrollableScrollPhysics(),
                       crossAxisSpacing: 8,
                       mainAxisSpacing: 8,
