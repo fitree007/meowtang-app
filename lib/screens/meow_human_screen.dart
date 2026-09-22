@@ -19,6 +19,8 @@ import 'salary_auto_record_screen.dart';
 import '../widgets/custom_photo_avatar_dialog.dart';
 import '../utils/format_utils.dart';
 import '../widgets/meow_paywall_modal.dart';
+import '../config/app_config.dart';
+import '../services/ad_service.dart';
 
 class MeowHumanScreen extends StatefulWidget {
  final ExpenseController controller;
@@ -499,10 +501,135 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
                ),
              ),
            ),
+           const SizedBox(height: 12),
+           // Monthly Free Slips Quota & Watch Ad Card
+           Container(
+             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+             decoration: BoxDecoration(
+               color: isDark ? const Color(0xFF1E293B) : Colors.white,
+               borderRadius: BorderRadius.circular(18),
+               border: Border.all(
+                 color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+               ),
+               boxShadow: [
+                 BoxShadow(
+                   color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                   blurRadius: 8,
+                   offset: const Offset(0, 2),
+                 ),
+               ],
+             ),
+             child: Column(
+               crossAxisAlignment: CrossAxisAlignment.start,
+               children: [
+                 Row(
+                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                   children: [
+                     Row(
+                       children: [
+                         const Text('📊', style: TextStyle(fontSize: 16)),
+                         const SizedBox(width: 8),
+                         Text(
+                           isEn ? 'Monthly Free Slips' : 'โควต้าสลิปฟรีเดือนนี้',
+                           style: TextStyle(
+                             fontSize: 13,
+                             fontWeight: FontWeight.bold,
+                             color: isDark ? Colors.white : const Color(0xFF0F172A),
+                           ),
+                         ),
+                       ],
+                     ),
+                     Text(
+                       '${widget.controller.currentMonthSlipCount} / ${widget.controller.maxFreeSlipsPerMonth} ${isEn ? "slips" : "สลิป"}',
+                       style: const TextStyle(
+                         fontSize: 13.5,
+                         fontWeight: FontWeight.bold,
+                         color: Color(0xFFF59E0B),
+                       ),
+                     ),
+                   ],
+                 ),
+                 const SizedBox(height: 10),
+                 ClipRRect(
+                   borderRadius: BorderRadius.circular(5),
+                   child: LinearProgressIndicator(
+                     value: widget.controller.maxFreeSlipsPerMonth > 0
+                         ? (widget.controller.currentMonthSlipCount / widget.controller.maxFreeSlipsPerMonth).clamp(0.0, 1.0)
+                         : 0.0,
+                     backgroundColor: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                     valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFF59E0B)),
+                     minHeight: 7,
+                   ),
+                 ),
+                 const SizedBox(height: 12),
+                 SizedBox(
+                   width: double.infinity,
+                   height: 44,
+                   child: ElevatedButton.icon(
+                     onPressed: widget.controller.canWatchRewardedAd
+                         ? () async {
+                             HapticFeedback.mediumImpact();
+                             await AdMobService.instance.showRewardedAd(
+                               onUserEarnedReward: () async {
+                                 await widget.controller.watchRewardedAdForBonusSlips();
+                                 if (context.mounted) {
+                                   ScaffoldMessenger.of(context).showSnackBar(
+                                     SnackBar(
+                                       backgroundColor: const Color(0xFF059669),
+                                       behavior: SnackBarBehavior.floating,
+                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                       content: Row(
+                                         children: [
+                                           const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                                           const SizedBox(width: 10),
+                                           Text(
+                                             isEn
+                                                 ? 'Reward earned! +2 slips added! 🎬✨'
+                                                 : 'ยินดีด้วย! คุณได้รับสิทธิ์เพิ่ม +2 สลิปแล้ว 🎬✨',
+                                           ),
+                                         ],
+                                       ),
+                                     ),
+                                   );
+                                 }
+                               },
+                             );
+                           }
+                         : null,
+                     style: ElevatedButton.styleFrom(
+                       backgroundColor: const Color(0xFF10B981),
+                       foregroundColor: Colors.white,
+                       elevation: 0,
+                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                     ),
+                     icon: const Text('🎬', style: TextStyle(fontSize: 16)),
+                     label: Text(
+                       widget.controller.canWatchRewardedAd
+                           ? (isEn ? 'Watch Ad to get +2 Slips' : 'ดูโฆษณาสั้นรับสิทธิ์เพิ่ม (+2 สลิป)')
+                           : (isEn ? 'Monthly Limit Reached (10/10)' : 'ดูครบ 10 ครั้งในเดือนนี้แล้ว'),
+                       style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                     ),
+                   ),
+                 ),
+                 const SizedBox(height: 6),
+                 Center(
+                   child: Text(
+                     isEn
+                         ? 'Remaining ad watches this month: ${widget.controller.maxMonthlyRewardedAds - widget.controller.currentMonthAdWatchesCount}/${widget.controller.maxMonthlyRewardedAds}'
+                         : 'เหลือสิทธิ์ดูวิดีโอเดือนนี้: ${widget.controller.maxMonthlyRewardedAds - widget.controller.currentMonthAdWatchesCount}/${widget.controller.maxMonthlyRewardedAds} ครั้ง (รีเซ็ตทุกเดือน)',
+                     style: TextStyle(
+                       fontSize: 11,
+                       color: isDark ? Colors.white54 : const Color(0xFF94A3B8),
+                     ),
+                   ),
+                 ),
+               ],
+             ),
+           ),
          ] else ...[
            const SizedBox(height: 14),
            Container(
-             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
              decoration: BoxDecoration(
                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFFEF3C7),
                borderRadius: BorderRadius.circular(14),
@@ -512,30 +639,59 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
              ),
              child: Row(
                children: [
-                 const Text('👑', style: TextStyle(fontSize: 18)),
+                 const Text('👑', style: TextStyle(fontSize: 20)),
                  const SizedBox(width: 10),
                  Expanded(
-                   child: Text(
-                     isEn ? 'Lifetime VIP Member (All Unlocked)' : 'สมาชิก VIP พรีเมี่ยม (ปลดล็อคครบทุกฟีเจอร์)',
-                     style: TextStyle(
-                       color: isDark ? const Color(0xFFFDE68A) : const Color(0xFF92400E),
-                       fontSize: 12.5,
-                       fontWeight: FontWeight.bold,
-                     ),
+                   child: Column(
+                     crossAxisAlignment: CrossAxisAlignment.start,
+                     children: [
+                       Text(
+                         isEn ? 'Lifetime VIP Member (All Unlocked)' : 'สมาชิก VIP พรีเมี่ยม (ปลดล็อคครบทุกฟีเจอร์)',
+                         style: TextStyle(
+                           color: isDark ? const Color(0xFFFDE68A) : const Color(0xFF92400E),
+                           fontSize: 13,
+                           fontWeight: FontWeight.bold,
+                         ),
+                       ),
+                       Text(
+                         isEn ? 'Unlimited Slips • No Ads • All Features' : 'สลิปไม่จำกัด • ไม่มีโฆษณา • ครบทุกฟังก์ชัน',
+                         style: TextStyle(
+                           color: isDark ? Colors.white60 : const Color(0xFFB45309),
+                           fontSize: 11,
+                         ),
+                       ),
+                     ],
                    ),
                  ),
-                 Container(
-                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                   decoration: BoxDecoration(
-                     color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
-                     borderRadius: BorderRadius.circular(8),
-                   ),
-                   child: Text(
-                     isEn ? 'ACTIVE' : 'ใช้งานอยู่',
-                     style: TextStyle(
-                       color: isDark ? const Color(0xFFFDE68A) : const Color(0xFF92400E),
-                       fontSize: 10,
-                       fontWeight: FontWeight.bold,
+                 InkWell(
+                   onTap: () async {
+                     HapticFeedback.lightImpact();
+                     await widget.controller.resetToFreeMode();
+                     if (context.mounted) {
+                       ScaffoldMessenger.of(context).showSnackBar(
+                         SnackBar(
+                           backgroundColor: const Color(0xFF334155),
+                           behavior: SnackBarBehavior.floating,
+                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                           content: const Text('🔄 สลับเข้าสู่โหมดผู้ใช้ฟรี (Freemium) สำหรับทดสอบโฆษณาแล้ว'),
+                         ),
+                       );
+                     }
+                   },
+                   borderRadius: BorderRadius.circular(8),
+                   child: Container(
+                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                     decoration: BoxDecoration(
+                       color: Colors.black26,
+                       borderRadius: BorderRadius.circular(8),
+                     ),
+                     child: Text(
+                       isEn ? 'Test Free' : 'ทดสอบโหมดฟรี',
+                       style: const TextStyle(
+                         color: Color(0xFFFDE68A),
+                         fontSize: 10.5,
+                         fontWeight: FontWeight.bold,
+                       ),
                      ),
                    ),
                  ),

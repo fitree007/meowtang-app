@@ -32,7 +32,7 @@ enum MascotMood {
 }
 
 class ExpenseController extends ChangeNotifier {
-  static const String appVersion = '1.41.41';
+  static const String appVersion = '1.41.42';
 
   final StorageService _storage;
   final OcrEngineService _ocrEngine = OcrEngineService();
@@ -638,6 +638,24 @@ class ExpenseController extends ChangeNotifier {
   Future<void> setPremiumStatus(bool isPremium, {String tier = 'lifetime', DateTime? expiry}) async {
     await _storage.setPremium(isPremium, tier: tier, expiry: expiry);
     notifyListeners();
+  }
+
+  /// Developer / tester helper: reset to Free Freemium mode
+  Future<void> resetToFreeMode() async {
+    AppConfig.overrideEdition = 'playstore';
+    await _storage.setPremium(false);
+    notifyListeners();
+  }
+
+  /// Developer / tester helper: toggle between Free and Creator VIP mode
+  Future<void> toggleEditionTesting() async {
+    if (isPremium) {
+      await resetToFreeMode();
+    } else {
+      AppConfig.overrideEdition = 'creator';
+      await _storage.setPremium(true, tier: 'lifetime');
+      notifyListeners();
+    }
   }
 
   // SLIP SCAN QUOTA (15 Free slips/month for Free users, Unlimited for VIP/Creator)
