@@ -480,7 +480,10 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
                               ],
                             ),
 
-                            const SizedBox(height: 14),
+                            // Real App UI Component Preview Mockup
+                            _buildVisualGuidePreview(index, isDark, currentTheme, stepColor, _selectedLang == 'en'),
+
+                            const SizedBox(height: 12),
 
                             // Description
                             Text(
@@ -613,6 +616,705 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildVisualGuidePreview(int stepIndex, bool isDark, dynamic currentTheme, Color stepColor, bool isEn) {
+    final cardBg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
+    final borderColor = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+
+    Widget content;
+    switch (stepIndex) {
+      case 0: // Auto Slip Sync
+        content = Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.sync_rounded, color: Colors.white, size: 16),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isEn ? 'Bank Slip Detected • KBank' : 'ตรวจพบสลิปโอนเงิน • กสิกรไทย',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: currentTheme.textColor,
+                          ),
+                        ),
+                        Text(
+                          isEn ? 'Saved to Expenses • ฿250.00' : 'บันทึกเป็นรายจ่ายแล้ว • ฿250.00',
+                          style: const TextStyle(fontSize: 11, color: Color(0xFF10B981), fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text('AUTO', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Color(0xFF047857))),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.arrow_downward_rounded, size: 13, color: currentTheme.textSecondaryColor),
+                const SizedBox(width: 4),
+                Text(
+                  isEn ? 'Pull down on Dashboard to rescan anytime' : 'รูดหน้าจอลงสุดในหน้าภาพรวม เพื่อดึงสลิปใหม่',
+                  style: TextStyle(fontSize: 10.5, color: currentTheme.textSecondaryColor),
+                ),
+              ],
+            ),
+          ],
+        );
+        break;
+
+      case 1: // Online Slip Verifier
+        content = Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF0284C7), Color(0xFF0369A1)],
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.bolt_rounded, color: Color(0xFFFDE047), size: 18),
+                  const SizedBox(width: 6),
+                  Text(
+                    isEn ? '⚡ ITMX Real-Time Slip Verifier' : '⚡ ตรวจสลิปแท้ออนไลน์ ITMX ธนาคาร',
+                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF06B6D4).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFF06B6D4).withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle_rounded, color: Color(0xFF06B6D4), size: 16),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      isEn ? 'Verified Transfer: ฿500.00 to นายสมชาย' : 'สลิปแท้ 100% : โอน ฿500.00 ไปยัง นายสมชาย',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: currentTheme.textColor),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+        break;
+
+      case 2: // Offline OCR & Auto Amount Fill
+        content = Row(
+          children: [
+            Expanded(
+              flex: 5,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.add_photo_alternate_rounded, color: Color(0xFF8B5CF6), size: 16),
+                    const SizedBox(width: 4),
+                    Text(
+                      isEn ? '+ Slip Photo' : '+ สลิป',
+                      style: const TextStyle(color: Color(0xFF8B5CF6), fontSize: 11, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 6),
+              child: Icon(Icons.arrow_forward_rounded, color: Color(0xFF8B5CF6), size: 16),
+            ),
+            Expanded(
+              flex: 6,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: currentTheme.borderColor),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      isEn ? 'Auto-filled Amount' : 'ยอดเงินจากสลิปอัตโนมัติ',
+                      style: TextStyle(fontSize: 8.5, color: currentTheme.textSecondaryColor),
+                    ),
+                    const Text(
+                      '฿320.00',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFF10B981)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+        break;
+
+      case 3: // Swipe Actions & Countdown Undo
+        content = Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: currentTheme.borderColor),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF3B82F6).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.edit_rounded, color: Color(0xFF3B82F6), size: 12),
+                        const SizedBox(width: 2),
+                        Text(isEn ? 'Edit' : 'แก้ไข', style: const TextStyle(color: Color(0xFF3B82F6), fontSize: 9.5, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      isEn ? '👉 Swipe Right / Left 👈' : '👉 ปัดขวาแก้ไข / ปัดซ้ายลบ 👈',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: currentTheme.textColor),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444), size: 12),
+                        const SizedBox(width: 2),
+                        Text(isEn ? 'Delete' : 'ลบ', style: const TextStyle(color: Color(0xFFEF4444), fontSize: 9.5, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E293B),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.timer_rounded, color: Color(0xFFF59E0B), size: 14),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      isEn ? 'Deleted (Restoring in 5s...)' : 'ลบ 1 รายการ (นับถอยหลัง 5 วินาที...)',
+                      style: const TextStyle(color: Colors.white, fontSize: 10),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF59E0B),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      isEn ? 'UNDO' : 'เลิกทำ',
+                      style: const TextStyle(color: Colors.black, fontSize: 9.5, fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+        break;
+
+      case 4: // Subscription Vault
+        content = Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: currentTheme.borderColor),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE50914).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Center(
+                  child: Text('N', style: TextStyle(color: Color(0xFFE50914), fontWeight: FontWeight.w900, fontSize: 18)),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Netflix Premium', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: currentTheme.textColor)),
+                        const Text('฿419/ด.', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12, color: Color(0xFF6366F1))),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            isEn ? '🔔 In 3 days' : '🔔 อีก 3 วันตัดรอบ',
+                            style: const TextStyle(color: Color(0xFFD97706), fontSize: 9.5, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            isEn ? 'Mark Paid ✓' : 'บันทึกจ่ายแล้ว ✓',
+                            style: const TextStyle(color: Color(0xFF10B981), fontSize: 9.5, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+        break;
+
+      case 5: // Currency & Precious Metals
+        content = Row(
+          children: [
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: currentTheme.borderColor),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text('💵 USD/THB', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: currentTheme.textColor)),
+                        const Spacer(),
+                        Container(
+                          width: 5,
+                          height: 5,
+                          decoration: const BoxDecoration(color: Color(0xFF10B981), shape: BoxShape.circle),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    const Text('฿35.42', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: Color(0xFF3B82F6))),
+                    const Text('+0.15% วันนี้', style: TextStyle(fontSize: 8.5, color: Color(0xFF10B981), fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFD97706).withValues(alpha: 0.4)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text('🥇 ทองคำ 96.5%', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: currentTheme.textColor)),
+                        const Spacer(),
+                        const Icon(Icons.diamond_rounded, color: Color(0xFFD97706), size: 12),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    const Text('฿42,500', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: Color(0xFFD97706))),
+                    const Text('คำนวณแร่ทอง/เงิน', style: TextStyle(fontSize: 8.5, color: Color(0xFFD97706), fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+        break;
+
+      case 6: // Islamic Halal Finance & Gold Zakat
+        content = Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: const Color(0xFF14B8A6).withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFF14B8A6).withValues(alpha: 0.35)),
+          ),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    isEn ? 'Gold Weight: 85.00 g (Passed Nisab)' : 'ทองคำสะสม: 85.00 กรัม (ผ่านเกณฑ์นิศอบ)',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: currentTheme.textColor),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF14B8A6),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text('2.5% ZAKAT', style: TextStyle(color: Colors.white, fontSize: 8.5, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    isEn ? 'Zakat Due:' : 'ยอดซะกาตที่ต้องจ่าย:',
+                    style: TextStyle(fontSize: 11, color: currentTheme.textSecondaryColor),
+                  ),
+                  const Text(
+                    '฿5,250.00',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFF0F766E)),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+        break;
+
+      case 7: // Thai Voice AI Assistant
+        content = Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: const Color(0xFFEC4899).withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFEC4899).withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(colors: [Color(0xFFF472B6), Color(0xFFDB2777)]),
+                ),
+                child: const Icon(Icons.mic_rounded, color: Colors.white, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isEn ? '🗣️ "Lunch 65 baht from KBank"' : '🗣️ "กินข้าวเที่ยง 65 บาท โอนกสิกร"',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5, color: currentTheme.textColor),
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        const Icon(Icons.bolt_rounded, size: 12, color: Color(0xFFDB2777)),
+                        const SizedBox(width: 2),
+                        Text(
+                          isEn ? 'AI parsed: Food • ฿65.00 • KBank' : 'AI จัดการ: อาหาร • ฿65.00 • กสิกร',
+                          style: const TextStyle(fontSize: 10, color: Color(0xFFDB2777), fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+        break;
+
+      case 8: // Bank Filter & Multi-Accounts
+        content = Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFF10B981)),
+              ),
+              child: Row(
+                children: const [
+                  Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 14),
+                  SizedBox(width: 4),
+                  Text('กสิกรไทย (KBank)', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF047857))),
+                ],
+              ),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF4F46E5).withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFF4F46E5)),
+              ),
+              child: Row(
+                children: const [
+                  Icon(Icons.check_circle_rounded, color: Color(0xFF4F46E5), size: 14),
+                  SizedBox(width: 4),
+                  Text('SCB', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF4338CA))),
+                ],
+              ),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0284C7).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Text('เป๋าตัง', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF0284C7))),
+            ),
+          ],
+        );
+        break;
+
+      case 9: // Calculator Numpad & XL Input
+        content = Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: currentTheme.borderColor),
+          ),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('120 + 45 + 60', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF8B5CF6))),
+                  const Text('= ฿225.00', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Color(0xFF10B981))),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: ['+', '-', '×', '÷', '='].map((op) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: op == '=' ? const Color(0xFF8B5CF6) : (isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9)),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      op,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 12,
+                        color: op == '=' ? Colors.white : currentTheme.textColor,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+        );
+        break;
+
+      case 10: // 2-Month Deep Analytics
+        content = Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: currentTheme.borderColor),
+          ),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(isEn ? 'August: ฿18,200' : 'เดือน ส.ค. : ฿18,200', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: currentTheme.textColor)),
+                  const Text('เดือน ก.ย. : ฿14,500', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0284C7))),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.trending_down_rounded, color: Color(0xFF10B981), size: 14),
+                    const SizedBox(width: 4),
+                    Text(
+                      isEn ? 'Saved ฿3,700 (-20.3%) • AI: Great discipline!' : 'ประหยัดขึ้น ฿3,700 (-20.3%) • AI: คุมงบได้ยอดเยี่ยม',
+                      style: const TextStyle(color: Color(0xFF047857), fontSize: 10.5, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+        break;
+
+      case 11: // Statement PDF & Excel
+        content = Row(
+          children: [
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4444).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.3)),
+                ),
+                child: Column(
+                  children: const [
+                    Icon(Icons.picture_as_pdf_rounded, color: Color(0xFFEF4444), size: 20),
+                    SizedBox(height: 2),
+                    Text('PDF Statement A4', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Color(0xFFEF4444))),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+                ),
+                child: Column(
+                  children: const [
+                    Icon(Icons.table_chart_rounded, color: Color(0xFF10B981), size: 20),
+                    SizedBox(height: 2),
+                    Text('Excel (.xlsx)', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Color(0xFF10B981))),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF3B82F6).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.3)),
+                ),
+                child: Column(
+                  children: const [
+                    Icon(Icons.security_rounded, color: Color(0xFF3B82F6), size: 20),
+                    SizedBox(height: 2),
+                    Text('สำรองข้อมูลออฟไลน์', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Color(0xFF3B82F6))),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+        break;
+
+      default:
+        content = const SizedBox.shrink();
+    }
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 12, bottom: 4),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor),
+      ),
+      child: content,
     );
   }
 

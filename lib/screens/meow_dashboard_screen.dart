@@ -1,5 +1,6 @@
 import '../widgets/bank_badge.dart';
 import 'app_features_showcase_screen.dart';
+import 'app_guide_screen.dart';
 import '../widgets/meow_paywall_modal.dart';
 import 'dart:io';
 import 'dart:async';
@@ -1544,19 +1545,20 @@ void _handleMascotPetting() {
                     },
                   ),
 
-                // App Guide Button (คู่มือและวิธีใช้งานแอพ)
+                // App Guide Button (คู่มือการใช้งานแอพ)
                 IconButton(
                  icon: Icon(Icons.help_outline_rounded, color: currentTheme.primaryColor, size: 24),
-                tooltip: widget.controller.isEnglish ? 'User Guide' : 'คู่มือและวิธีใช้งานแอพ',
-                onPressed: () {
-                 Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                   builder: (_) => AppFeaturesShowcaseScreen(controller: widget.controller, isFromOverview: true),
-                  ),
-                 );
-                },
-               ),
+                 tooltip: widget.controller.isEnglish ? 'User Guide' : 'คู่มือการใช้งานแอพ',
+                 onPressed: () {
+                  HapticFeedback.lightImpact();
+                  Navigator.push(
+                   context,
+                   MaterialPageRoute(
+                    builder: (_) => AppGuideScreen(controller: widget.controller),
+                   ),
+                  );
+                 },
+                ),
               ],
              ),
             ],

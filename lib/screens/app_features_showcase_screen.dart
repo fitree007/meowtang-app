@@ -192,7 +192,7 @@ class AppFeaturesShowcaseScreen extends StatelessWidget {
                 onPressed: () => Navigator.pop(context),
               ),
               title: Text(
-                isEn ? 'MeowTang Features Guide' : 'คู่มือฟีเจอร์เด่นเหมียวตังค์',
+                isEn ? 'Featured App Superpowers' : 'ฟีเจอร์เด่นของแอพ',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,

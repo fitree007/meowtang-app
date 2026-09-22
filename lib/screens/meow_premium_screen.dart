@@ -521,7 +521,7 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                               height: 28,
                               child: Center(
                                 child: Icon(
-                                  Icons.monetization_on_outlined,
+                                  Icons.diamond_rounded,
                                   size: 22,
                                   color: Color(0xFFD97706),
                                 ),
@@ -679,8 +679,8 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                                           const SizedBox(height: 2),
                                           Text(
                                             isEn
-                                                ? 'Manage Netflix, YouTube, ChatGPT, iCloud & bills'
-                                                : 'จัดระเบียบสตรีมมิ่ง, AI, ค่าน้ำไฟ จัดการรอบบิลและเตือนก่อนตัดเงิน',
+                                                ? 'Organize & alert before billing'
+                                                : 'จัดระเบียบและเตือนก่อนตัดเงิน',
                                             style: TextStyle(fontSize: 11.5, color: subTextColor),
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
@@ -783,7 +783,6 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                         // 1. Saving Goals
                         _buildCompactToolCard(
                           title: isEn ? 'Saving Goals' : 'เป้าหมายการออม',
-                          subtitle: isEn ? '${goals.length} Goals' : '${goals.length} เป้าหมายกำลังออม',
                           badgeText: 'ออมเงิน',
                           icon: Icons.track_changes_rounded,
                           iconColor: const Color(0xFF10B981),
@@ -799,9 +798,6 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                         // 2. Budget Management
                         _buildCompactToolCard(
                           title: isEn ? 'Budget Plan' : 'วางแผนงบประมาณ',
-                          subtitle: widget.controller.isBudgetPlanEnabled
-                              ? (totalBudget > 0 ? 'เปิดใช้งานอยู่ (฿${FormatUtils.formatCurrency(totalBudget)}/ด.)' : 'เปิดใช้งานอยู่')
-                              : (isEn ? 'Disabled (Tap to turn on)' : 'ปิดอยู่ (แตะเพื่อเปิดใช้งาน)'),
                           badgeText: widget.controller.isBudgetPlanEnabled ? 'เปิดอยู่' : 'ปิดอยู่',
                           icon: Icons.pie_chart_rounded,
                           iconColor: const Color(0xFF3B82F6),
@@ -817,7 +813,6 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                         // 3. Goal Calculator
                         _buildCompactToolCard(
                           title: isEn ? 'Goal Calculator' : 'คำนวณเวลาเก็บออม',
-                          subtitle: isEn ? 'Days & Months' : 'ประเมินวัน/เดือน/ปี',
                           badgeText: 'วางแผน',
                           icon: Icons.calculate_rounded,
                           iconColor: const Color(0xFF6366F1),
@@ -833,7 +828,6 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                         // 4. Project Budgets
                         _buildCompactToolCard(
                           title: isEn ? 'Project Budgets' : 'งบโปรเจกต์ & ทุนวิจัย',
-                          subtitle: isEn ? 'Research & Projects' : 'คุมงบเฉพาะกิจ/วิจัย',
                           badgeText: 'เฉพาะกิจ',
                           icon: Icons.folder_special_rounded,
                           iconColor: const Color(0xFFEC4899),
@@ -874,7 +868,6 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                         // Zakat Calculator
                         _buildCompactToolCard(
                           title: isEn ? 'Zakat Calculator' : 'คำนวณซากาต',
-                          subtitle: isEn ? 'Gold & Wealth' : 'ทองแท่ง/รูปพรรณ/เงินสด',
                           badgeText: 'ซากาต',
                           icon: Icons.volunteer_activism_rounded,
                           iconColor: const Color(0xFFF59E0B),
@@ -890,7 +883,6 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                         // Islamic Inheritance
                         _buildCompactToolCard(
                           title: isEn ? 'Islamic Faraid' : 'แบ่งมรดกอิสลาม',
-                          subtitle: isEn ? 'Faraid Law' : 'ตามหลักฟะรออิฎ',
                           badgeText: 'มรดก',
                           icon: Icons.account_balance_rounded,
                           iconColor: const Color(0xFF8B5CF6),
@@ -983,8 +975,8 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                                   const SizedBox(height: 2),
                                   Text(
                                     isEn
-                                        ? 'Calculate Day 7 charity by silver/gold weight'
-                                        : 'ชั่งน้ำหนักเส้นผมโกนผมไฟวันที่ 7 เทียบมูลค่าโลหะเงิน/ทองคำ',
+                                        ? 'Calculate charity by silver/gold weight'
+                                        : 'คำนวณมูลค่าทานตามน้ำหนักเงิน/ทองคำ',
                                     style: TextStyle(fontSize: 11, color: subTextColor),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -1027,7 +1019,7 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
 
   Widget _buildCompactToolCard({
     required String title,
-    required String subtitle,
+    String subtitle = '',
     required String badgeText,
     required IconData icon,
     required Color iconColor,
@@ -1124,23 +1116,25 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                     Text(
                       title,
                       style: TextStyle(
-                        fontSize: 12.5,
+                        fontSize: 13,
                         fontWeight: FontWeight.bold,
                         color: textColor,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 1),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: 10.5,
-                        color: subTextColor,
+                    if (subtitle.isNotEmpty) ...[
+                      const SizedBox(height: 1),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          color: subTextColor,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    ],
                   ],
                 ),
               ],

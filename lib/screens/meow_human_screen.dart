@@ -902,7 +902,7 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
            _buildMenuItem(
             icon: Icons.auto_awesome_rounded,
             iconBgColor: const Color(0xFF3B82F6),
-            title: isEn ? 'App Superpowers & Features' : 'สรุปฟีเจอร์ความสุดยอดของแอพ',
+            title: isEn ? 'Featured App Superpowers' : 'ฟีเจอร์เด่นของแอพ',
             trailingBadge: 'PRO ⚡',
             isDark: isDark,
             onTap: () {
