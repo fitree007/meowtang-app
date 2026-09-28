@@ -447,6 +447,149 @@ QR รับเงิน
     final p4 = OcrEngineService().parseSlipText(slip4, testCategories, filePath: '/storage/emulated/0/Pictures/PaoTang/slip4.jpg');
     expect(p4.amount, equals(23.20));
   });
+
+  test('Test 17: User Slips - iBank inside Paotang folder must extract 6,000.00 and 2,000.00 (NOT Ref ID 26241 or 5)', () {
+    // Exact text from user Image 2
+    const ibankSlip6000 = '''
+ทำรายการสำเร็จ ibank
+29 ส.ค. 69 10:10
+นาย อฟิตรี ยาแมเน๊าะ
+บัญชีไอแบงก์ *** * **766 1
+↓
+นาย อฟิตรี ยาแมเน๊าะ
+บัญชีกสิกรไทย *** * **249 1
+จำนวนเงิน 6,000.00 บาท
+ค่าธรรมเนียม 0.00 บาท
+รหัสอ้างอิง
+26241X0101033280705ZVJOBQ
+ใช้นิ้วซูมเข้า-ออกดูสลิปเต็มจอ
+''';
+
+    // Must be identified as IBANK even if in Paotang folder!
+    final ident6000 = ThaiBankDetector.identifySlipBank(
+      rawOcrText: ibankSlip6000,
+      filePath: '/storage/emulated/0/Pictures/Paotang/26241X0101033280705ZVJOBQ.jpg',
+    );
+    expect(ident6000.bankCode, equals('IBANK'));
+    expect(ident6000.cleanBank, equals('ธนาคารอิสลาม'));
+
+    final parsed6000 = OcrEngineService().parseSlipText(
+      ibankSlip6000,
+      testCategories,
+      filePath: '/storage/emulated/0/Pictures/Paotang/26241X0101033280705ZVJOBQ.jpg',
+    );
+    expect(parsed6000.amount, equals(6000.00));
+    expect(parsed6000.refId, equals('26241X0101033280705ZVJOBQ'));
+
+    // Exact text from user Image 3
+    const ibankSlip2000 = '''
+ทำรายการสำเร็จ ibank
+27 ก.ย. 69 17:00
+นาย อฟิตรี ยาแมเน๊าะ
+บัญชีไอแบงก์ *** * **766 1
+↓
+นาย อฟิตรี ยาแมเน๊าะ
+บัญชีกสิกรไทย *** * **249 1
+จำนวนเงิน 2,000.00 บาท
+ค่าธรรมเนียม 0.00 บาท
+รหัสอ้างอิง
+26270X0170044432929XEXU5Q
+ใช้นิ้วซูมเข้า-ออกดูสลิปเต็มจอ
+''';
+
+    final ident2000 = ThaiBankDetector.identifySlipBank(
+      rawOcrText: ibankSlip2000,
+      filePath: '/storage/emulated/0/Pictures/Paotang/26270X0170044432929XEXU5Q.jpg',
+    );
+    expect(ident2000.bankCode, equals('IBANK'));
+    expect(ident2000.cleanBank, equals('ธนาคารอิสลาม'));
+
+    final parsed2000 = OcrEngineService().parseSlipText(
+      ibankSlip2000,
+      testCategories,
+      filePath: '/storage/emulated/0/Pictures/Paotang/26270X0170044432929XEXU5Q.jpg',
+    );
+    expect(parsed2000.amount, equals(2000.00));
+    expect(parsed2000.refId, equals('26270X0170044432929XEXU5Q'));
+  });
+
+  test('Test 18: Other Banks transferring to iBank or G-Wallet never get corrupted', () {
+    // KBank transfer to iBank
+    const kbankToIBank = '''
+K PLUS
+โอนเงินสำเร็จ
+20 ต.ค. 2568 14:30 น.
+จาก: นาย อารีฟีน
+บัญชีกสิกรไทย xxx-x-x1234
+ไปยัง: นาย อฟิตรี
+บัญชีไอแบงก์ xxx-x-x7661
+จำนวนเงิน 1,500.00 บาท
+ค่าธรรมเนียม 0.00 บาท
+รหัสอ้างอิง KB202510209999
+''';
+
+    final identKToI = ThaiBankDetector.identifySlipBank(
+      rawOcrText: kbankToIBank,
+      qrSenderBankCode: '004',
+      filePath: '/storage/emulated/0/Pictures/Paotang/kbank_to_ibank.jpg',
+    );
+    expect(identKToI.bankCode, equals('KBANK'));
+    expect(identKToI.cleanBank, equals('กสิกรไทย'));
+
+    final parsedKToI = OcrEngineService().parseSlipText(
+      kbankToIBank,
+      testCategories,
+      filePath: '/storage/emulated/0/Pictures/Paotang/kbank_to_ibank.jpg',
+    );
+    expect(parsedKToI.amount, equals(1500.00));
+
+    // KBank transfer / top-up to G-Wallet
+    const kbankToGWallet = '''
+K PLUS
+เติมเงินสำเร็จ
+18 ต.ค. 2568 11:20 น.
+จาก: นาย อารีฟีน บัญชีกสิกรไทย
+ไปยัง: G-Wallet (เป๋าตัง) 081-xxx-xxxx
+จำนวนเงิน 500.00 บาท
+รหัสอ้างอิง KB202510185555
+''';
+    final identKToG = ThaiBankDetector.identifySlipBank(
+      rawOcrText: kbankToGWallet,
+      qrSenderBankCode: '004',
+      filePath: '/storage/emulated/0/Pictures/Paotang/kbank_to_gwallet.jpg',
+    );
+    expect(identKToG.bankCode, equals('KBANK'));
+
+    final parsedKToG = OcrEngineService().parseSlipText(
+      kbankToGWallet,
+      testCategories,
+      filePath: '/storage/emulated/0/Pictures/Paotang/kbank_to_gwallet.jpg',
+    );
+    expect(parsedKToG.amount, equals(500.00));
+  });
+
+  test('Test 19: New future Gov Project in Paotang without explicit name reads bottom-to-top safely', () {
+    const futureGovSlip = '''
+เป๋าตัง G-Wallet
+ทำรายการสำเร็จ
+ร้าน ค้าประชารัฐร่วมใจ
+วันที่ 05 พ.ย. 68 12:30 น.
+ค่าสินค้า 300.00 บาท
+เงินสนับสนุนรัฐบาล -150.00 บาท
+จำนวนเงินที่ต้องชำระ 150.00 บาท
+รหัสอ้างอิง
+26299X09999999999999ZZZZZ
+ใช้นิ้วซูมเข้า-ออกดูสลิปเต็มจอ
+''';
+
+    final parsedFuture = OcrEngineService().parseSlipText(
+      futureGovSlip,
+      testCategories,
+      filePath: '/storage/emulated/0/Pictures/Paotang/future_slip.jpg',
+    );
+    // Must extract 150.00 and NEVER touch Ref ID 26299X...
+    expect(parsedFuture.amount, equals(150.00));
+  });
 }
 
 

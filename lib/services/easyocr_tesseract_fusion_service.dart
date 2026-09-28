@@ -575,8 +575,9 @@ class EasyOcrTesseractFusionService {
     final lines = clean.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
 
     // Regex to match monetary amounts: e.g. "100.00", "15.60", "23.20", "100", "1,200.00", "34"
+    // Disallows any adjacent Latin letters (preventing extraction from alphanumeric IDs like "26241X..." or "...U5Q")
     final numRegex = RegExp(
-      r'(?<![0-9])([0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{1,2}|[0-9]+\.[0-9]{1,2}|[0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)(?![0-9])',
+      r'(?<![0-9a-zA-Z])([0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{1,2}|[0-9]+\.[0-9]{1,2}|[0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)(?![0-9a-zA-Z])',
     );
 
     // Pass 1: Scan lines strictly from bottom to top
@@ -600,8 +601,31 @@ class EasyOcrTesseractFusionService {
           lower.contains('สำเร็จ') ||
           lower.contains('วันที่') ||
           lower.contains('เวลา') ||
+          lower.contains('ซูม') ||
+          lower.contains('qrcode') ||
+          lower.contains('qr code') ||
+          lower.contains('สแกน') ||
           lower.endsWith('น.') ||
           lower.endsWith(' น')) {
+        continue;
+      }
+
+      // Skip lines if immediately preceding line was a Reference ID header
+      if (i > 0) {
+        final prevLower = lines[i - 1].toLowerCase();
+        if (prevLower.contains('รหัสอ้างอิง') ||
+            prevLower.contains('เลขอ้างอิง') ||
+            prevLower.contains('ref no') ||
+            prevLower.contains('ref id') ||
+            prevLower.contains('txid')) {
+          continue;
+        }
+      }
+
+      // Skip lines that are standalone alphanumeric codes (e.g. "26241X0101033280705ZVJOBQ")
+      if (RegExp(r'^[A-Za-z0-9_-]{10,}$').hasMatch(line) &&
+          RegExp(r'[A-Za-z]').hasMatch(line) &&
+          RegExp(r'[0-9]').hasMatch(line)) {
         continue;
       }
 
@@ -694,7 +718,11 @@ class EasyOcrTesseractFusionService {
           prefix.contains('wallet') ||
           prefix.contains('****') ||
           prefix.contains('วันที่') ||
-          prefix.contains('เวลา')) {
+          prefix.contains('เวลา') ||
+          prefix.contains('ซูม') ||
+          prefix.contains('สแกน') ||
+          prefix.contains('qrcode') ||
+          prefix.contains('qr code')) {
         continue;
       }
 
@@ -706,6 +734,11 @@ class EasyOcrTesseractFusionService {
 
       final rawNum = match.group(1)?.replaceAll(',', '').trim();
       if (rawNum == null || rawNum.isEmpty) continue;
+
+      // Skip whole numbers with length >= 6 (like 262410, 10103328 etc.)
+      if (!rawNum.contains('.') && rawNum.length >= 6) {
+        continue;
+      }
 
       final val = double.tryParse(rawNum);
       if (val == null || val <= 0 || val >= 50000000) continue;

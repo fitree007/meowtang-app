@@ -249,8 +249,18 @@ class OcrEngineService {
   static double extractAmountFromText(String rawText) {
     if (rawText.isEmpty) return 0.0;
     final lower = rawText.toLowerCase();
-    final bool isIBank = lower.contains('ibank') || lower.contains('อิสลาม') || lower.contains('ไอแบงก์');
-    if (!isIBank && (lower.contains('ไทยช่วยไทย') || lower.contains('คนละครึ่ง') || lower.contains('เราชนะ') || lower.contains('สวัสดิการ') || lower.contains('สิทธิ'))) {
+    final bool isIBank = lower.contains('ibank') ||
+        lower.contains('อิสลาม') ||
+        lower.contains('islamic') ||
+        lower.contains('บัญชีไอแบงก์') ||
+        lower.contains('บัญชีไอแบงค์') ||
+        lower.contains('ไอแบงก์') ||
+        lower.contains('ไอแบงค์') ||
+        lower.contains('ไอเเบงก์') ||
+        lower.contains('ไอเเบงค์') ||
+        lower.contains('ไอแบง') ||
+        lower.contains('ไอเเบง');
+    if (!isIBank && (lower.contains('ไทยช่วยไทย') || lower.contains('คนละครึ่ง') || lower.contains('เราชนะ') || lower.contains('สวัสดิการ') || lower.contains('สิทธิ') || lower.contains('เป๋าตัง') || lower.contains('paotang') || lower.contains('g-wallet'))) {
       final govAmt = EasyOcrTesseractFusionService.extractPaotangGovPaidAmount(rawText);
       if (govAmt > 0) return govAmt;
     }
@@ -475,7 +485,18 @@ class OcrEngineService {
     final bool isKBank = bankIdent.bankCode == 'KBANK';
     final bool isKrungthai = bankIdent.bankCode == 'KTB';
     final bool isSCB = bankIdent.bankCode == 'SCB';
-    final bool isIBankExempt = isIBank || cleanCombined.contains('อิสลาม') || cleanCombined.contains('ibank');
+    final bool isIBankExempt = isIBank ||
+        cleanCombined.contains('อิสลาม') ||
+        cleanCombined.contains('ibank') ||
+        cleanCombined.contains('islamic') ||
+        cleanCombined.contains('บัญชีไอแบงก์') ||
+        cleanCombined.contains('บัญชีไอแบงค์') ||
+        cleanCombined.contains('ไอแบงก์') ||
+        cleanCombined.contains('ไอแบงค์') ||
+        cleanCombined.contains('ไอเเบงก์') ||
+        cleanCombined.contains('ไอเเบงค์') ||
+        cleanCombined.contains('ไอแบง') ||
+        cleanCombined.contains('ไอเเบง');
     final bool hasQr = qrPayload != null && qrPayload.trim().isNotEmpty;
     final bool isPaotangGov = !isIBankExempt && (
       (!hasQr && bankIdent.bankCode == 'PAOTANG') ||
@@ -483,7 +504,8 @@ class OcrEngineService {
       cleanCombined.contains('คนละครึ่ง') ||
       cleanCombined.contains('เราชนะ') ||
       cleanCombined.contains('สวัสดิการแห่งรัฐ') ||
-      cleanCombined.contains('เงินช่วยเหลือ')
+      cleanCombined.contains('เงินช่วยเหลือ') ||
+      (cleanCombined.contains('paotang') || cleanCombined.contains('เป๋าตัง') || cleanCombined.contains('g-wallet'))
     );
 
     // 1. Amount Extraction

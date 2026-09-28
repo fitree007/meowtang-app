@@ -530,7 +530,13 @@ class SlipAutoSyncService {
 
     // Step B: If amount not inside QR payload, ALWAYS extract exact amount from OCR text!
     if (detectedAmount <= 0) {
-      final ocrParsed = controller.parseSlip(rawOcrText, fileName: name, filePath: path);
+      final ocrParsed = controller.parseSlip(
+        rawOcrText,
+        fileName: name,
+        filePath: path,
+        qrPayload: qrPayload,
+        defaultBankCode: bankIdent.bankCode,
+      );
       if (ocrParsed.amount > 0) {
         detectedAmount = ocrParsed.amount;
         if (ocrParsed.refId.isNotEmpty) refId = ocrParsed.refId;
@@ -547,7 +553,18 @@ class SlipAutoSyncService {
 
     // Special Case: PaoTang / Government Project Slips (Explicit User Directive: Initial amount = 0.0)
     // CRITICAL EXCEPTION: Islamic Bank (iBank) is strictly exempted and preserved as-is!
-    final bool isIBankExempt = isIBank || cleanCombined.contains('อิสลาม') || cleanCombined.contains('ibank');
+    final bool isIBankExempt = isIBank ||
+        cleanCombined.contains('อิสลาม') ||
+        cleanCombined.contains('ibank') ||
+        cleanCombined.contains('islamic') ||
+        cleanCombined.contains('บัญชีไอแบงก์') ||
+        cleanCombined.contains('บัญชีไอแบงค์') ||
+        cleanCombined.contains('ไอแบงก์') ||
+        cleanCombined.contains('ไอแบงค์') ||
+        cleanCombined.contains('ไอเเบงก์') ||
+        cleanCombined.contains('ไอเเบงค์') ||
+        cleanCombined.contains('ไอแบง') ||
+        cleanCombined.contains('ไอเเบง');
     final bool isPaotangFolder = cleanCombined.contains('เป๋าตัง') ||
         cleanCombined.contains('paotang') ||
         cleanCombined.contains('g-wallet') ||
@@ -560,7 +577,7 @@ class SlipAutoSyncService {
         cleanCombined.contains('เราชนะ') ||
         cleanCombined.contains('สวัสดิการแห่งรัฐ') ||
         cleanCombined.contains('เงินช่วยเหลือ') ||
-        (isPaotangFolder && !hasQrCode)
+        isPaotangFolder
     );
 
     if (isPaotangGovProject) {
@@ -621,7 +638,13 @@ class SlipAutoSyncService {
     // 4. Extract Sender & Receiver Names
     SlipExtractResult? ocrParsed;
     if (rawOcrText.isNotEmpty) {
-      ocrParsed = controller.parseSlip(rawOcrText, fileName: name, filePath: path);
+      ocrParsed = controller.parseSlip(
+        rawOcrText,
+        fileName: name,
+        filePath: path,
+        qrPayload: qrPayload,
+        defaultBankCode: bankIdent.bankCode,
+      );
     }
     final extractedParties = OcrEngineService.extractSenderAndReceiver(rawOcrText, rawOcrText.split('\n'));
     final senderName = (ocrParsed != null && ocrParsed.senderName != 'ไม่ระบุผู้โอน')

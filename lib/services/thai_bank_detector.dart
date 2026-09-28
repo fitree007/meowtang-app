@@ -206,7 +206,18 @@ class ThaiBankDetector {
       shortName: 'iBank',
       brandColor: Color(0xFF006F3D),
       icon: Icons.account_balance,
-      keywords: ['อิสลามแห่งประเทศไทย', 'ibank', 'islamic bank'],
+      keywords: [
+        'อิสลามแห่งประเทศไทย',
+        'ธนาคารอิสลาม',
+        'ธ.อิสลาม',
+        'ibank',
+        'islamic bank',
+        'บัญชีไอแบงก์',
+        'บัญชีไอแบงค์',
+        'ไอแบงก์',
+        'ไอแบงค์',
+        'ไอแบง',
+      ],
     ),
     ThaiBankInfo(
       code: 'BAAC',
@@ -478,8 +489,14 @@ class ThaiBankDetector {
         text.contains('ธนาคารอิสลาม') ||
         text.contains('ธ.อิสลาม') ||
         text.contains('islamic bank') ||
+        text.contains('บัญชีไอแบงก์') ||
+        text.contains('บัญชีไอแบงค์') ||
         text.contains('ไอแบงก์') ||
-        text.contains('ไอแบงค์')) {
+        text.contains('ไอแบงค์') ||
+        text.contains('ไอเเบงก์') ||
+        text.contains('ไอเเบงค์') ||
+        text.contains('ไอแบง') ||
+        text.contains('ไอเเบง')) {
       return 'IBANK';
     }
     if (text.contains('k plus') || text.contains('kplus') || text.contains('kbank') || text.contains('กสิกรไทย') || text.contains('กสิกร') || text.contains('kasikorn')) {
@@ -552,20 +569,38 @@ class ThaiBankDetector {
     // If OCR text explicitly states the sender bank (e.g. "บัญชีไอแบงก์", "จาก ... ธนาคาร..."),
     // this prevents merchant payment QRs (like SCB Mae Manee 014) from falsely overriding the sender bank!
     final lowerRaw = rawOcrText.toLowerCase();
-    if (lowerRaw.contains('บัญชีไอแบงก์') ||
+    final bool hasIBankKeyword = lowerRaw.contains('บัญชีไอแบงก์') ||
         lowerRaw.contains('บัญชีไอแบงค์') ||
         lowerRaw.contains('ธนาคารอิสลาม') ||
         lowerRaw.contains('ธ.อิสลาม') ||
         lowerRaw.contains('ibank') ||
+        lowerRaw.contains('islamic bank') ||
         lowerRaw.contains('ไอแบงก์') ||
-        lowerRaw.contains('ไอแบงค์')) {
-      final rIndex = lowerRaw.indexOf('ไปยัง');
-      final ibankIndex = lowerRaw.indexOf('ไอแบง') != -1
-          ? lowerRaw.indexOf('ไอแบง')
-          : (lowerRaw.indexOf('อิสลาม') != -1
-              ? lowerRaw.indexOf('อิสลาม')
-              : lowerRaw.indexOf('ibank'));
-      if (rIndex == -1 || ibankIndex < rIndex) {
+        lowerRaw.contains('ไอแบงค์') ||
+        lowerRaw.contains('ไอเเบงก์') ||
+        lowerRaw.contains('ไอเเบงค์') ||
+        lowerRaw.contains('ไอแบง') ||
+        lowerRaw.contains('ไอเเบง');
+
+    if (hasIBankKeyword) {
+      final receiverMarkerRegex = RegExp(
+        r'(?:ไปยัง|ผู้รับเงิน|ผู้รับโอน|ผู้รับ|โอนไปยัง|โอนให้|เข้าบัญชี|เข้าบช|ปลายทาง|\bto\b|\breceiver\b|\brecipient\b|->|→|↓|▼)',
+        caseSensitive: false,
+      );
+      final rMatch = receiverMarkerRegex.firstMatch(lowerRaw);
+      final rIndex = rMatch?.start ?? -1;
+
+      final ibankIndices = [
+        lowerRaw.indexOf('ไอแบง'),
+        lowerRaw.indexOf('ไอเเบง'),
+        lowerRaw.indexOf('อิสลาม'),
+        lowerRaw.indexOf('ibank'),
+        lowerRaw.indexOf('islamic'),
+      ].where((idx) => idx != -1).toList();
+
+      final ibankIndex = ibankIndices.isNotEmpty ? ibankIndices.reduce((a, b) => a < b ? a : b) : -1;
+
+      if (ibankIndex != -1 && (rIndex == -1 || ibankIndex < rIndex)) {
         return const SlipBankIdentification(
           bankCode: 'IBANK',
           bankName: 'iBank (อิสลามแห่งประเทศไทย)',
@@ -679,6 +714,10 @@ class ThaiBankDetector {
         return const SlipBankIdentification(bankCode: 'IBANK', bankName: 'ธนาคารอิสลามแห่งประเทศไทย', cleanBank: 'ธนาคารอิสลาม');
       }
       if (pathLower.contains('paotang') || pathLower.contains('เป๋าตัง') || pathLower.contains('g-wallet')) {
+        final nonPaotangBank = _detectBankFromTextSnippet(lowerRaw);
+        if (nonPaotangBank != null && nonPaotangBank != 'PAOTANG' && nonPaotangBank != 'OTHER') {
+          return _makeBankIdentification(nonPaotangBank);
+        }
         return const SlipBankIdentification(bankCode: 'PAOTANG', bankName: 'เป๋าตัง (PaoTang)', cleanBank: 'เป๋าตัง');
       }
       if (pathLower.contains('truemoney') || pathLower.contains('ทรูมันนี่')) {
