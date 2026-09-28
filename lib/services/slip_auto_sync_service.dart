@@ -234,7 +234,18 @@ class SlipAutoSyncService {
     final pendingIdentifiers = <String>[];
     DateTime lastBatchSaveTime = DateTime.now();
 
+    // Pre-cache deduplication sets in memory once to avoid heavy O(N*M) shared_preferences and .toSet() overhead
+    final cachedDeletedSet = controller.storage.getDeletedSlips().map((s) => s.trim().toLowerCase()).toSet();
+    final cachedImportedSet = controller.storage.getImportedSlipIdentifiers().map((s) => s.trim().toLowerCase()).toSet();
+    int iterationCount = 0;
+
     for (final slip in allSlips) {
+      iterationCount++;
+      // Yield to UI rendering loop every 8 items even during fast duplicate checks to guarantee 60/120 FPS
+      if (iterationCount % 8 == 0) {
+        await Future.delayed(const Duration(milliseconds: 10));
+      }
+
       final path = slip['path'] as String? ?? '';
       final name = slip['name'] as String? ?? '';
       final bankName = slip['bankName'] as String? ?? 'ธนาคารไทย';
@@ -257,11 +268,11 @@ class SlipAutoSyncService {
       }
 
       try {
-        // 1. Initial Duplicate Check before OCR
+        // 1. Blazing fast O(1) Duplicate Check before OCR using pre-cached sets
         final isDup = DuplicateSlipChecker.isDuplicate(
           existingTransactions: controller.allTransactions,
-          deletedSlipIdentifiers: controller.storage.getDeletedSlips(),
-          importedSlipIdentifiers: controller.storage.getImportedSlipIdentifiers(),
+          cachedDeletedSet: cachedDeletedSet,
+          cachedImportedSet: cachedImportedSet,
           filePath: path,
           fileName: name,
         );
@@ -290,56 +301,48 @@ class SlipAutoSyncService {
             continue;
           }
 
-          if (isInitialScan) {
-            pendingBatch.add(item);
-            importedSlips.add(item);
-            pendingIdentifiers.addAll([
-              path.toLowerCase(),
-              name.trim().toLowerCase(),
-              DuplicateSlipChecker.extractBasename(name),
-              DuplicateSlipChecker.extractBasename(path),
-              if (item.slipImageUrl != null) DuplicateSlipChecker.extractBasename(item.slipImageUrl),
-              if (item.slipRefId != null && !item.slipRefId!.startsWith('SLIP-') && !item.slipRefId!.startsWith('NO-QR-')) item.slipRefId!.toLowerCase(),
-            ]);
+          final newIds = [
+            path.toLowerCase(),
+            name.trim().toLowerCase(),
+            DuplicateSlipChecker.extractBasename(name),
+            DuplicateSlipChecker.extractBasename(path),
+            if (item.slipImageUrl != null) DuplicateSlipChecker.extractBasename(item.slipImageUrl),
+            if (item.slipRefId != null && !item.slipRefId!.startsWith('SLIP-') && !item.slipRefId!.startsWith('NO-QR-')) item.slipRefId!.toLowerCase(),
+          ];
 
-            // Save in batches of 10 or every 1.5 seconds so UI remains 100% fluid without lockups
-            if (pendingBatch.length >= 10 || DateTime.now().difference(lastBatchSaveTime).inMilliseconds >= 1500) {
-              await controller.addTransactionsBatch(List.from(pendingBatch), isInitialImport: true);
-              await controller.storage.addImportedSlipIdentifiers(List.from(pendingIdentifiers));
-              pendingBatch.clear();
-              pendingIdentifiers.clear();
-              lastBatchSaveTime = DateTime.now();
-            }
-          } else {
-            final added = await controller.addTransaction(item);
-            if (added) {
-              importedSlips.add(item);
-              await controller.recordSlipImported(
-                slipDate: item.date,
-                isInitialImport: false,
-              );
-              await controller.storage.addImportedSlipIdentifiers([
-                path.toLowerCase(),
-                name.trim().toLowerCase(),
-                DuplicateSlipChecker.extractBasename(name),
-                DuplicateSlipChecker.extractBasename(path),
-                if (item.slipImageUrl != null) DuplicateSlipChecker.extractBasename(item.slipImageUrl),
-                if (item.slipRefId != null && !item.slipRefId!.startsWith('SLIP-') && !item.slipRefId!.startsWith('NO-QR-')) item.slipRefId!.toLowerCase(),
-              ]);
-            }
+          cachedImportedSet.addAll(newIds);
+          pendingBatch.add(item);
+          importedSlips.add(item);
+          pendingIdentifiers.addAll(newIds);
+
+          if (!isInitialScan) {
+            await controller.recordSlipImported(
+              slipDate: item.date,
+              isInitialImport: false,
+            );
           }
+
+          // Consolidated batch save every 5 items or 1.2s to prevent UI rebuild thrashing and stutter
+          if (pendingBatch.length >= 5 || DateTime.now().difference(lastBatchSaveTime).inMilliseconds >= 1200) {
+            await controller.addTransactionsBatch(List.from(pendingBatch), isInitialImport: isInitialScan);
+            await controller.storage.addImportedSlipIdentifiers(List.from(pendingIdentifiers));
+            pendingBatch.clear();
+            pendingIdentifiers.clear();
+            lastBatchSaveTime = DateTime.now();
+          }
+
           if (key.isNotEmpty) _processedKeys.add(key);
         }
         // Yield to event loop to keep UI rendering smoothly at 60/120fps
-        await Future.delayed(const Duration(milliseconds: 40));
+        await Future.delayed(const Duration(milliseconds: 25));
       } finally {
         if (key.isNotEmpty) _inFlightKeys.remove(key);
       }
     }
 
-    // Flush any remaining batch from initial scan
-    if (isInitialScan && pendingBatch.isNotEmpty) {
-      await controller.addTransactionsBatch(List.from(pendingBatch), isInitialImport: true);
+    // Flush any remaining batch
+    if (pendingBatch.isNotEmpty) {
+      await controller.addTransactionsBatch(List.from(pendingBatch), isInitialImport: isInitialScan);
       await controller.storage.addImportedSlipIdentifiers(List.from(pendingIdentifiers));
       pendingBatch.clear();
       pendingIdentifiers.clear();

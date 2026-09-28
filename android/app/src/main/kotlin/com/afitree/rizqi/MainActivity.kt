@@ -63,6 +63,9 @@ class MainActivity : FlutterActivity() {
     private var lastNotifiedSlipId: String? = null
     private var hasPromptedPermissionOnStart = false
 
+    private val barcodeScanner by lazy { BarcodeScanning.getClient() }
+    private val textRecognizer by lazy { TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS) }
+
     private var initialSlipPath: String? = null
     private var isReloadReceiverRegistered = false
 
@@ -260,8 +263,18 @@ class MainActivity : FlutterActivity() {
                 }
                 "scanBankSlips" -> {
                     val daysLimit = call.argument<Int>("daysLimit") ?: 30
-                    val slips = queryDeviceBankSlips(daysLimit)
-                    result.success(slips)
+                    CoroutineScope(Dispatchers.IO).launch {
+                        try {
+                            val slips = queryDeviceBankSlips(daysLimit)
+                            withContext(Dispatchers.Main) {
+                                result.success(slips)
+                            }
+                        } catch (e: Exception) {
+                            withContext(Dispatchers.Main) {
+                                result.success(emptyList<Map<String, Any>>())
+                            }
+                        }
+                    }
                 }
                 "getInstalledBankingApps" -> {
                     val apps = checkInstalledBankingApps()
@@ -361,7 +374,6 @@ class MainActivity : FlutterActivity() {
                 // 1. STEP 1: Barcode / QR Code Scanning
                 var qrPayload: String? = null
                 try {
-                    val barcodeScanner = BarcodeScanning.getClient()
                     val barcodes = barcodeScanner.process(inputImage).await()
                     for (barcode in barcodes) {
                         if (barcode.format == Barcode.FORMAT_QR_CODE || barcode.valueType == Barcode.TYPE_TEXT || barcode.valueType == Barcode.TYPE_URL) {
@@ -379,8 +391,7 @@ class MainActivity : FlutterActivity() {
                 // 2. STEP 2: OCR Text Recognition
                 var ocrText = ""
                 try {
-                    val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-                    val visionText = recognizer.process(inputImage).await()
+                    val visionText = textRecognizer.process(inputImage).await()
                     ocrText = visionText.text ?: ""
                 } catch (e: Exception) {
                     e.printStackTrace()

@@ -1754,35 +1754,7 @@ void _handleMascotPetting() {
                                               ),
                                             ),
                                           ),
-                                          if (_monthlyIncome > 0 && (_monthlyIncome - _monthlyExpense) <= 0) ...[
-                                            const SizedBox(width: 6),
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                                              decoration: BoxDecoration(
-                                                color: const Color(0xFFEF4444).withValues(alpha: 0.25),
-                                                borderRadius: BorderRadius.circular(6),
-                                                border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.5)),
-                                              ),
-                                              child: const Text(
-                                                'รายรับหมดแล้ว 🚨',
-                                                style: TextStyle(color: Color(0xFFEF4444), fontSize: 10, fontWeight: FontWeight.bold),
-                                              ),
-                                            ),
-                                          ] else if (_monthlyIncome > 0 && ((_monthlyIncome - _monthlyExpense) <= _monthlyIncome * 0.20 || (_monthlyIncome - _monthlyExpense) < 500)) ...[
-                                            const SizedBox(width: 6),
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                                              decoration: BoxDecoration(
-                                                color: const Color(0xFFF59E0B).withValues(alpha: 0.25),
-                                                borderRadius: BorderRadius.circular(6),
-                                                border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.5)),
-                                              ),
-                                              child: const Text(
-                                                'รายรับใกล้หมด ⚠️',
-                                                style: TextStyle(color: Color(0xFFFDE047), fontSize: 10, fontWeight: FontWeight.bold),
-                                              ),
-                                            ),
-                                          ],
+
                                         ],
                                       ),
                                       const SizedBox(height: 2),

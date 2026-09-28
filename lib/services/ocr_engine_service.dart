@@ -760,23 +760,47 @@ class OcrEngineService {
     // 4. Expense / Outgoing Transfer Signals (Standard Thai Bank payment & transfer receipts)
     final expenseKeywords = [
       'โอนเงินสำเร็จ',
+      'โอนเงินสําเร็จ',
       'ชำระเงินสำเร็จ',
+      'ชําระเงินสําเร็จ',
+      'ชำระเงิน',
+      'ชําระเงิน',
       'ทำรายการสำเร็จ',
+      'ทำรายการสําเร็จ',
       'รายการสำเร็จ',
+      'รายการสําเร็จ',
       'โอนสำเร็จ',
+      'โอนสําเร็จ',
       'ชำระค่าสินค้า',
+      'ชําระค่าสินค้า',
       'จ่ายบิลสำเร็จ',
+      'จ่ายบิลสําเร็จ',
       'จ่ายบิล',
       'สแกนจ่ายสำเร็จ',
+      'สแกนจ่ายสําเร็จ',
       'สแกนจ่าย',
       'หักบัญชี',
       'หักเงิน',
       'โอนออก',
       'เติมเงินสำเร็จ',
+      'เติมเงินสําเร็จ',
       'เติมเงิน',
       'ถอนเงินสำเร็จ',
+      'ถอนเงินสําเร็จ',
       'ถอนเงิน',
-      'ชำระเงิน',
+      'ชำระสินเชื่อ',
+      'ชําระสินเชื่อ',
+      'ชำระหนี้',
+      'ชําระหนี้',
+      'ผ่อนชำระ',
+      'ผ่อนชําระ',
+      'บัตรเครดิต',
+      'repayment',
+      'credit repayment',
+      'loan repayment',
+      'credit card',
+      'spaylater',
+      'paylater',
       'successful transfer',
       'transfer successful',
       'payment successful',
@@ -822,6 +846,20 @@ class OcrEngineService {
     }
 
     // 6. Word-boundary credit check (avoid matching inside "screenshot", "ocr", "TXNCR...", etc.)
+    // Explicitly treat debt repayment, credit card payment, bills, loans, or SpayLater as EXPENSE
+    final isCreditExpense = RegExp(
+          r'\b(repayment|card|bill|payment|settlement|limit|loan|debt|fee|spaylater|paylater)\b',
+          caseSensitive: false,
+        ).hasMatch(sanitizedText) ||
+        sanitizedText.contains('ชำระ') ||
+        sanitizedText.contains('ชําระ') ||
+        sanitizedText.contains('ผ่อน') ||
+        sanitizedText.contains('บัตรเครดิต');
+
+    if (isCreditExpense) {
+      return TransactionType.expense;
+    }
+
     final hasStandaloneCredit = RegExp(r'\b(cr|credit)\b', caseSensitive: false).hasMatch(sanitizedText) &&
         !lowerFileName.contains('screenshot') &&
         !lowerText.contains('screenshot');
@@ -1002,6 +1040,20 @@ class OcrEngineService {
         if (i + 1 < cleanLines.length) {
           final ext = cleanPersonOrShopName(cleanLines[i + 1]);
           if (ext.isNotEmpty && ext.length >= 2) receiverName = ext;
+        }
+      }
+
+      // Check Biller / Merchant Receiver line followed by biller/reference codes
+      if (i + 1 < cleanLines.length) {
+        final nextLower = cleanLines[i + 1].toLowerCase();
+        if (nextLower.startsWith('รหัสผู้รับเงิน') ||
+            nextLower.startsWith('หมายเลขร้านค้า') ||
+            nextLower.startsWith('biller id') ||
+            nextLower.startsWith('รหัสอ้างอิง 1: spl')) {
+          final ext = cleanPersonOrShopName(cleanLines[i]);
+          if (ext.isNotEmpty && ext.length >= 2 && ext != senderName) {
+            receiverName ??= ext;
+          }
         }
       }
     }

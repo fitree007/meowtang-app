@@ -113,5 +113,53 @@ TrueMoney Wallet
       );
       expect(type, TransactionType.income);
     });
+
+    test('8. iBank Credit Repayment slip (SPayLater debt settlement) is EXPENSE', () {
+      const slipText = '''
+ชำระเงินสำเร็จ
+ibank
+23 ก.ย. 69 15:59
+นาย อฟิตรี ยาแมะเน๊าะ
+บัญชีไอแบงก์ *** * **766 1
+Credit Repayment
+รหัสผู้รับเงิน: *** ******** 9081
+รหัสอ้างอิง 1: SPLKK8KLPLMQ
+รหัสอ้างอิง 2: 068318
+จำนวนเงิน 737.00 บาท
+ค่าธรรมเนียม 0.00 บาท
+บันทึกช่วยจำ shoppee
+รหัสอ้างอิง: 26266BX1559118388420GA6FZ
+''';
+
+      final type = OcrEngineService.detectSlipTransactionType(
+        rawText: slipText,
+        memo: 'shoppee',
+        senderName: 'นาย อฟิตรี ยาแมะเน๊าะ',
+        receiverName: 'Credit Repayment',
+      );
+      expect(type, TransactionType.expense);
+    });
+
+    test('9. extractSenderAndReceiver correctly identifies Credit Repayment as receiver from iBank bill payment', () {
+      const slipText = '''
+ชำระเงินสำเร็จ
+ibank
+23 ก.ย. 69 15:59
+นาย อฟิตรี ยาแมะเน๊าะ
+บัญชีไอแบงก์ *** * **766 1
+Credit Repayment
+รหัสผู้รับเงิน: *** ******** 9081
+รหัสอ้างอิง 1: SPLKK8KLPLMQ
+รหัสอ้างอิง 2: 068318
+จำนวนเงิน 737.00 บาท
+ค่าธรรมเนียม 0.00 บาท
+บันทึกช่วยจำ shoppee
+รหัสอ้างอิง: 26266BX1559118388420GA6FZ
+''';
+
+      final parties = OcrEngineService.extractSenderAndReceiver(slipText, slipText.split('\n'));
+      expect(parties['sender'], contains('อฟิตรี'));
+      expect(parties['receiver'], 'Credit Repayment');
+    });
   });
 }
