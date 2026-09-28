@@ -568,95 +568,159 @@ class EasyOcrTesseractFusionService {
   }
   /// Extracts the exact paid amount from PaoTang Government Project slips (คนละครึ่ง, ไทยช่วยไทย, เราชนะ, ฯลฯ)
   /// For PaoTang government project slips ONLY:
-  /// Extracts the bottom-most user-paid amount at "จำนวนเงินที่ต้องชำระ" / "จำนวนเงินที่ชำระ"
+  /// Scans from bottom-to-top; the very first valid positive amount encountered is the user-paid amount.
   static double extractPaotangGovPaidAmount(String text) {
     if (text.isEmpty) return 0.0;
     final clean = normalizeOcrText(text);
     final lines = clean.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
 
-    final paidLabels = [
-      'จำนวนเงินที่ต้องชำระ',
-      'จํานวนเงินที่ต้องชําระ',
-      'ยอดที่ต้องชำระ',
-      'ยอดที่ต้องชําระ',
-      'จำนวนเงินที่ชำระ',
-      'จํานวนเงินที่ชําระ',
-      'เงินที่จ่ายจริง',
-      'ยอดเงินที่ชำระ',
-      'ยอดเงินที่ชําระ',
-      'ยอดชำระ',
-      'ยอดชําระ',
-    ];
-
+    // Regex to match monetary amounts: e.g. "100.00", "15.60", "23.20", "100", "1,200.00", "34"
     final numRegex = RegExp(
-      r'([0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{1,2}|[0-9]+\.[0-9]{1,2}|[0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)',
+      r'(?<![0-9])([0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{1,2}|[0-9]+\.[0-9]{1,2}|[0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)(?![0-9])',
     );
 
-    // Pass 1: Proximity to paidLabels, scanned bottom-to-top to capture the final paid amount
+    // Pass 1: Scan lines strictly from bottom to top
     for (int i = lines.length - 1; i >= 0; i--) {
       final line = lines[i];
       final lower = line.toLowerCase();
+
+      // Skip lines that are subsidies, discounts, remaining balance, fees, IDs, or timestamps
       if (lower.contains('สิทธิ') ||
           lower.contains('สิทธิ์') ||
           lower.contains('ส่วนลด') ||
           lower.contains('คงเหลือ') ||
           lower.contains('ค่าธรรมเนียม') ||
-          lower.startsWith('-')) {
+          lower.contains('fee') ||
+          lower.contains('ref') ||
+          lower.contains('รหัส') ||
+          lower.contains('wallet') ||
+          lower.contains('****') ||
+          lower.contains('id:') ||
+          (lower.contains('id') && lower.contains(':')) ||
+          lower.contains('สำเร็จ') ||
+          lower.contains('วันที่') ||
+          lower.contains('เวลา') ||
+          lower.endsWith('น.') ||
+          lower.endsWith(' น')) {
         continue;
       }
 
-      if (paidLabels.any((lbl) => lower.contains(lbl))) {
-        // A. Same line after label
-        for (final lbl in paidLabels) {
-          final idx = lower.indexOf(lbl);
-          if (idx != -1) {
-            final after = line.substring(idx + lbl.length);
-            final m = numRegex.firstMatch(after);
-            if (m != null) {
-              final val = double.tryParse(m.group(1)!.replaceAll(',', ''));
-              if (val != null && val > 0 && val < 50000000) {
-                return val;
-              }
-            }
-          }
+      // Skip lines containing Thai month names (date lines like "29 ต.ค. 2568 09:29 น.")
+      if (RegExp(r'(?:ม\.?\s*ค|ก\.?\s*พ|มี\.?\s*ค|เม\.?\s*ย|พ\.?\s*ค|มิ\.?\s*ย|ก\.?\s*ค|ส\.?\s*ค|ก\.?\s*ย|ต\.?\s*ค|พ\.?\s*ย|ธ\.?\s*ค)\.?').hasMatch(lower)) {
+        continue;
+      }
+
+      // Check if line contains a time pattern like "09:29" or "17:48" without currency
+      if (RegExp(r'\b[0-9]{1,2}:[0-9]{2}\b').hasMatch(line) && !line.contains('บาท')) {
+        continue;
+      }
+
+      // Extract all numbers on this line
+      final matches = numRegex.allMatches(line).toList();
+      if (matches.isEmpty) continue;
+
+      // Scan numbers on this line from right to left (from the end of the line)
+      for (int m = matches.length - 1; m >= 0; m--) {
+        final match = matches[m];
+        final startIdx = match.start;
+        final prefix = line.substring(0, startIdx).trim();
+        final suffix = line.substring(match.end).trim();
+
+        // Check if preceded or followed by colon (time e.g. 12:30)
+        if (prefix.endsWith(':') || suffix.startsWith(':')) {
+          continue;
         }
 
-        // B. Same line match
-        final mSelf = numRegex.firstMatch(line);
-        if (mSelf != null) {
-          final val = double.tryParse(mSelf.group(1)!.replaceAll(',', ''));
-          if (val != null && val > 0 && val < 50000000) {
-            return val;
-          }
+        // Check if preceded by minus / hyphen (negative number = discount)
+        if (prefix.endsWith('-') ||
+            prefix.endsWith('–') ||
+            prefix.endsWith('—') ||
+            prefix.endsWith('‑') ||
+            line.contains('-' + match.group(1)!)) {
+          continue;
         }
 
-        // C. Lookahead to adjacent lines (if label was on line i and amount is on line i+1)
-        for (int j = i + 1; j < lines.length && j <= i + 2; j++) {
-          final sub = lines[j];
-          if (sub.contains('-') || sub.contains('สิทธิ') || sub.contains('คงเหลือ')) continue;
-          final mSub = numRegex.firstMatch(sub);
-          if (mSub != null) {
-            final val = double.tryParse(mSub.group(1)!.replaceAll(',', ''));
-            if (val != null && val > 0 && val < 50000000) {
-              return val;
-            }
-          }
+        final rawNum = match.group(1)?.replaceAll(',', '').trim();
+        if (rawNum == null || rawNum.isEmpty) continue;
+
+        final val = double.tryParse(rawNum);
+        if (val == null || val <= 0 || val >= 50000000) continue;
+
+        // Skip years e.g. 2565, 2566, 2567, 2568, 2569, 2570, 2024, 2025, 2026
+        if (val == 2565 || val == 2566 || val == 2567 || val == 2568 || val == 2569 ||
+            val == 2570 || val == 2024 || val == 2025 || val == 2026) {
+          continue;
         }
+
+        // Skip time representations like 09.29, 17.48 if followed by "น." or "เวลา"
+        if (suffix.startsWith('น.') || suffix.startsWith(' น') || line.contains('เวลา')) {
+          continue;
+        }
+
+        // First positive amount encountered from the bottom -> THAT IS IT!
+        return val;
       }
     }
 
-    // Pass 2: Direct Regex match across full text, selecting the bottom-most match
-    final directRegex = RegExp(
-      r'(?:จำนวนเงินที่ต้องชำระ|จํานวนเงินที่ต้องชําระ|จำนวนเงินที่ชำระ|จํานวนเงินที่ชําระ|ยอดเงินที่ชำระ|เงินที่จ่ายจริง|ยอดชำระ|ยอดที่ต้องชำระ)[:\s]*([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)\s*(?:บาท|thb)?',
-      caseSensitive: false,
-    );
-    final allMatches = directRegex.allMatches(clean).toList();
-    if (allMatches.isNotEmpty) {
-      final lastMatch = allMatches.last;
-      final val = double.tryParse(lastMatch.group(1)!.replaceAll(',', ''));
-      if (val != null && val > 0 && val < 50000000) {
-        return val;
+    // Pass 2: Reverse global regex scan across full text as fallback
+    final allMatches = numRegex.allMatches(clean).toList();
+    for (int m = allMatches.length - 1; m >= 0; m--) {
+      final match = allMatches[m];
+      final startIdx = match.start;
+
+      // Check if preceded or followed by colon (time e.g. 12:30)
+      final checkStart = startIdx > 35 ? startIdx - 35 : 0;
+      final prefix = clean.substring(checkStart, startIdx).toLowerCase();
+      final checkEnd = match.end + 20 < clean.length ? match.end + 20 : clean.length;
+      final suffix = clean.substring(match.end, checkEnd).toLowerCase();
+
+      if (prefix.trim().endsWith(':') || suffix.trim().startsWith(':')) {
+        continue;
       }
+
+      // Check if preceded by minus, discount, ref, wallet, or date/time
+      if (prefix.trim().endsWith('-') ||
+          prefix.trim().endsWith('–') ||
+          prefix.trim().endsWith('—') ||
+          prefix.contains('-') ||
+          prefix.contains('สิทธิ') ||
+          prefix.contains('สิทธิ์') ||
+          prefix.contains('ส่วนลด') ||
+          prefix.contains('คงเหลือ') ||
+          prefix.contains('ค่าธรรมเนียม') ||
+          prefix.contains('fee') ||
+          prefix.contains('ref') ||
+          prefix.contains('รหัส') ||
+          prefix.contains('wallet') ||
+          prefix.contains('****') ||
+          prefix.contains('วันที่') ||
+          prefix.contains('เวลา')) {
+        continue;
+      }
+
+      // Check if preceded or followed by month abbreviation (indicating date e.g. 15 ก.ย. 68)
+      if (RegExp(r'(?:ม\.?\s*ค|ก\.?\s*พ|มี\.?\s*ค|เม\.?\s*ย|พ\.?\s*ค|มิ\.?\s*ย|ก\.?\s*ค|ส\.?\s*ค|ก\.?\s*ย|ต\.?\s*ค|พ\.?\s*ย|ธ\.?\s*ค)\.?').hasMatch(prefix) ||
+          RegExp(r'(?:ม\.?\s*ค|ก\.?\s*พ|มี\.?\s*ค|เม\.?\s*ย|พ\.?\s*ค|มิ\.?\s*ย|ก\.?\s*ค|ส\.?\s*ค|ก\.?\s*ย|ต\.?\s*ค|พ\.?\s*ย|ธ\.?\s*ค)\.?').hasMatch(suffix)) {
+        continue;
+      }
+
+      final rawNum = match.group(1)?.replaceAll(',', '').trim();
+      if (rawNum == null || rawNum.isEmpty) continue;
+
+      final val = double.tryParse(rawNum);
+      if (val == null || val <= 0 || val >= 50000000) continue;
+
+      if (val == 2565 || val == 2566 || val == 2567 || val == 2568 || val == 2569 ||
+          val == 2570 || val == 2024 || val == 2025 || val == 2026) {
+        continue;
+      }
+
+      // Skip 2-digit years (e.g. 67, 68, 69) unless followed by currency "บาท"
+      if (val >= 60 && val <= 75 && !suffix.trim().startsWith('บาท') && !suffix.trim().startsWith('thb')) {
+        continue;
+      }
+
+      return val;
     }
 
     return 0.0;
