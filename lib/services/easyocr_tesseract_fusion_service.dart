@@ -19,6 +19,11 @@ class EasyOcrTesseractFusionService {
 
   /// Common OCR dictionary misread corrections for Thai Banking Slips
   static const Map<String, String> _ocrCorrections = {
+    'จํา นวน': 'จำนวน',
+    'จำ นวน': 'จำนวน',
+    'จําน วน': 'จำนวน',
+    'จ่านวน': 'จำนวน',
+    'จ่า นวน': 'จำนวน',
     'จํานวนเงิน': 'จำนวนเงิน',
     'จําน วนเงิน': 'จำนวนเงิน',
     'จํานวน': 'จำนวน',
@@ -91,8 +96,10 @@ class EasyOcrTesseractFusionService {
 
     // D. Fix broken comma and dot spacing inside numbers (e.g. "1, 500.00" -> "1,500.00")
     text = text.replaceAllMapped(RegExp(r'([0-9]+),\s+([0-9]{3})'), (m) => '${m[1]},${m[2]}');
-    text = text.replaceAllMapped(RegExp(r'([0-9]+)\s*\.\s*([0-9]{2})\b'), (m) => '${m[1]}.${m[2]}');
-    text = text.replaceAllMapped(RegExp(r'([0-9]+)\s*,\s*([0-9]{2})\b'), (m) => '${m[1]}.${m[2]}');
+    text = text.replaceAllMapped(RegExp(r'([0-9]+)\s*\.\s*([0-9]{2})(?![0-9])'), (m) => '${m[1]}.${m[2]}');
+    text = text.replaceAllMapped(RegExp(r'([0-9]+)\s*,\s*([0-9]{2})(?![0-9])'), (m) => '${m[1]}.${m[2]}');
+    // D2. Split joined numbers and trailing text (e.g. "150.00บาท" -> "150.00 บาท", "150.00un" -> "150.00 un")
+    text = text.replaceAllMapped(RegExp(r'([0-9]+\.[0-9]{2})([a-zA-Z\u0E00-\u0E7F])'), (m) => '${m[1]} ${m[2]}');
 
     // E. Normalize amount labels with currency brackets like "จำนวนเงิน (บาท)" -> "จำนวนเงิน: "
     text = text.replaceAll(
@@ -117,9 +124,10 @@ class EasyOcrTesseractFusionService {
 
     final amountKeywords = [
       'จำนวนเงินที่ชำระ', 'ยอดเงินที่ชำระ', 'ยอดชำระ', 'จำนวนเงิน', 'จํานวนเงิน',
-      'จำนวน:', 'จํานวน:', 'จำนวน', 'จํานวน', 'ยอดเงิน', 'ยอดเงินโอน', 'ยอดโอน',
+      'จำนวน:', 'จํานวน:', 'จำนวน', 'จํานวน', 'จํา นวน', 'จำ นวน', 'จําน วน', 'จ่านวน', 'จ่า นวน',
+      'ยอดเงิน', 'ยอดเงินโอน', 'ยอดโอน',
       'เงินที่จ่าย', 'เงินที่โอน', 'ยอดหักบัญชี', 'จำนวนเงินสุทธิ', 'ยอดสุทธิ',
-      'รวมเงิน', 'ยอดรวม', 'รวมทั้งสิ้น', 'amount', 'total', 'net amount',
+      'รวมเงิน', 'ยอดรวม', 'รวมทั้งสิ้น', 'amount:', 'amount', 'total', 'net amount',
       'transfer amount', 'payment amount', 'paid'
     ];
 
@@ -185,16 +193,18 @@ class EasyOcrTesseractFusionService {
     // Pass 2: Column-split reconstruction (Positive amount line immediately preceding 0.00 fee)
     for (int i = 0; i < lines.length - 1; i++) {
       final line = lines[i];
-      final nextLine = lines[i + 1];
       if (feeKeywords.any((fk) => line.toLowerCase().contains(fk))) continue;
 
-      if (RegExp(r'\b0(?:\.00)?\s*(?:บาท|thb|baht|บ\.)?\b', caseSensitive: false).hasMatch(nextLine)) {
-        final m = num2DecRegex.firstMatch(line);
-        if (m != null) {
-          final rawNum = m.group(1)?.replaceAll(',', '').trim();
-          final val = double.tryParse(rawNum ?? '');
-          if (val != null && val > 0 && val < 50000000) {
-            return val;
+      for (int k = i + 1; k < lines.length && k <= i + 3; k++) {
+        final subLine = lines[k];
+        if (RegExp(r'(?<![0-9])0(?:\.00)?\s*(?:บาท|thb|baht|บ\.)?(?![0-9])', caseSensitive: false).hasMatch(subLine)) {
+          final m = num2DecRegex.firstMatch(line);
+          if (m != null) {
+            final rawNum = m.group(1)?.replaceAll(',', '').trim();
+            final val = double.tryParse(rawNum ?? '');
+            if (val != null && val > 0 && val < 50000000) {
+              return val;
+            }
           }
         }
       }
@@ -240,7 +250,7 @@ class EasyOcrTesseractFusionService {
     }
 
     // Pass 5: Any 2-decimal numbers on the slip (excluding dates/years e.g. 68, 69, 70, times e.g. 08.49)
-    final generalRegex = RegExp(r'\b([0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{2}|[0-9]+\.[0-9]{2})\b');
+    final generalRegex = RegExp(r'(?<![0-9])([0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{2}|[0-9]+\.[0-9]{2})(?![0-9])');
     final matches = generalRegex.allMatches(clean);
     for (final match in matches) {
       final startIdx = match.start > 25 ? match.start - 25 : 0;

@@ -1929,6 +1929,7 @@ void _handleMascotPetting() {
                         customPhotoPath: widget.controller.customAvatarPath,
                         isCustomPhoto: widget.controller.isCustomAvatarEnabled,
                         mood: widget.controller.mascotMood,
+                        showMoodBadge: false,
                         onTap: _handleMascotPetting,
                       ),
                     ],

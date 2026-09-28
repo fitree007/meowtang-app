@@ -596,7 +596,7 @@ class _MeowMascotWidgetState extends State<MeowMascotWidget> with SingleTickerPr
       children: [
         mascotCore,
         // Mood Badge
-        if (widget.showMoodBadge && widget.mood != MascotMood.normal)
+        if (widget.showMoodBadge && !widget.isCustomPhoto && widget.mood != MascotMood.normal)
           Positioned(
             top: -2,
             left: -2,

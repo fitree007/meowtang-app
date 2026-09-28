@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ai_expense_tracker/services/ocr_engine_service.dart';
 import 'package:ai_expense_tracker/services/easyocr_tesseract_fusion_service.dart';
+import 'package:ai_expense_tracker/services/thai_bank_detector.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -61,6 +62,51 @@ THE YALA PROVINCIAL CO.,LTD.
 
       final amount = OcrEngineService.extractAmountFromText(splitSlipText);
       expect(amount, 130.00);
+    });
+
+    test('3. iBank slip paying to SCB Mae Manee recipient is recognized as IBANK, NOT SCB', () {
+      const ibankSlipText = '''
+โอนเงินสำเร็จ
+ibank
+18 ก.ย. 69 14:20
+นาย ซูไฮมี มะแอ
+บัญชีไอแบงก์ *** * **476 8
+ไปยัง
+SCB มณี SHOP
+รหัสผู้รับเงิน 014123456789
+จำนวนเงิน 85.00 บาท
+ค่าธรรมเนียม 0.00 บาท
+''';
+
+      // Even if QR payload has 0103014 (SCB merchant code), identifySlipBank must return IBANK
+      final bankInfo = ThaiBankDetector.identifySlipBank(
+        rawOcrText: ibankSlipText,
+        qrPayload: '00020101021130570016A000000677010111011300400000000020103014',
+        qrSenderBankCode: '014',
+      );
+      expect(bankInfo.bankCode, 'IBANK');
+      expect(bankInfo.cleanBank, 'ธนาคารอิสลาม');
+    });
+
+    test('4. KBank slip with attached Thai/latin text extracts 150.00 correctly', () {
+      const kbankSlipText = '''
+โอนเงินสำเร็จ
+18 ก.ย. 69 08:49 น.
+นาย ทดสอบ โอนเงิน
+กสิกรไทย
+xxx-x-x1234-x
+ไปยัง
+น.ส. ผู้รับ เงิน
+พร้อมเพย์
+xxx-xxx-5678
+จำนวน:
+150.00บาท
+ค่าธรรมเนียม:
+0.00บาท
+''';
+
+      final amount = OcrEngineService.extractAmountFromText(kbankSlipText);
+      expect(amount, 150.00);
     });
   });
 }

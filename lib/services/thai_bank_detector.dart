@@ -473,12 +473,6 @@ class ThaiBankDetector {
   }
 
   static String? _detectBankFromTextSnippet(String text) {
-    if (text.contains('k plus') || text.contains('kplus') || text.contains('kbank') || text.contains('กสิกรไทย') || text.contains('กสิกร') || text.contains('kasikorn')) {
-      return 'KBANK';
-    }
-    if (text.contains('scb easy') || text.contains('scb') || text.contains('ไทยพาณิชย์') || text.contains('แม่มณี') || text.contains('siam commercial')) {
-      return 'SCB';
-    }
     if (text.contains('ibank') ||
         text.contains('อิสลามแห่งประเทศไทย') ||
         text.contains('ธนาคารอิสลาม') ||
@@ -487,6 +481,12 @@ class ThaiBankDetector {
         text.contains('ไอแบงก์') ||
         text.contains('ไอแบงค์')) {
       return 'IBANK';
+    }
+    if (text.contains('k plus') || text.contains('kplus') || text.contains('kbank') || text.contains('กสิกรไทย') || text.contains('กสิกร') || text.contains('kasikorn')) {
+      return 'KBANK';
+    }
+    if (text.contains('scb easy') || text.contains('scb') || text.contains('ไทยพาณิชย์') || text.contains('แม่มณี') || text.contains('siam commercial')) {
+      return 'SCB';
     }
     if (text.contains('ไทยช่วยไทย') || text.contains('คนละครึ่ง') || text.contains('เราชนะ') || text.contains('สวัสดิการแห่งรัฐ') || text.contains('เป๋าตัง') || text.contains('paotang') || text.contains('g-wallet') || text.contains('gwallet')) {
       return 'PAOTANG';
@@ -548,6 +548,32 @@ class ThaiBankDetector {
     String? fileName,
     bool isIncome = false,
   }) {
+    // --- Priority 0: Explicit Sender Account Bank in OCR Text ---
+    // If OCR text explicitly states the sender bank (e.g. "บัญชีไอแบงก์", "จาก ... ธนาคาร..."),
+    // this prevents merchant payment QRs (like SCB Mae Manee 014) from falsely overriding the sender bank!
+    final lowerRaw = rawOcrText.toLowerCase();
+    if (lowerRaw.contains('บัญชีไอแบงก์') ||
+        lowerRaw.contains('บัญชีไอแบงค์') ||
+        lowerRaw.contains('ธนาคารอิสลาม') ||
+        lowerRaw.contains('ธ.อิสลาม') ||
+        lowerRaw.contains('ibank') ||
+        lowerRaw.contains('ไอแบงก์') ||
+        lowerRaw.contains('ไอแบงค์')) {
+      final rIndex = lowerRaw.indexOf('ไปยัง');
+      final ibankIndex = lowerRaw.indexOf('ไอแบง') != -1
+          ? lowerRaw.indexOf('ไอแบง')
+          : (lowerRaw.indexOf('อิสลาม') != -1
+              ? lowerRaw.indexOf('อิสลาม')
+              : lowerRaw.indexOf('ibank'));
+      if (rIndex == -1 || ibankIndex < rIndex) {
+        return const SlipBankIdentification(
+          bankCode: 'IBANK',
+          bankName: 'iBank (อิสลามแห่งประเทศไทย)',
+          cleanBank: 'ธนาคารอิสลาม',
+        );
+      }
+    }
+
     // --- Priority 1: QR Code BOT Bank Code (Highest Authority) ---
     String? code = qrSenderBankCode?.trim();
     if (code == null || code.isEmpty) {
@@ -680,7 +706,7 @@ class ThaiBankDetector {
     // For standard Expense/Transfer slips, the bank is the SENDER / ISSUING bank.
     // Cut off the Receiver Section completely so recipient bank NEVER hijacks detection!
     final receiverRegex = RegExp(
-      r'(?:ไปยัง|ผู้รับเงิน|ผู้รับโอน|ผู้รับ|โอนไปยัง|โอนให้|เข้าบัญชี|เข้าบช|เลขที่บัญชีผู้รับ|บัญชีผู้รับ|ปลายทาง|\bto\b|\breceiver\b|\brecipient\b)',
+      r'(?:ไปยัง|ผู้รับเงิน|ผู้รับโอน|ผู้รับ|โอนไปยัง|โอนให้|เข้าบัญชี|เข้าบช|เลขที่บัญชีผู้รับ|บัญชีผู้รับ|ปลายทาง|scb\s*มณี\s*shop|มณี\s*shop|แม่มณี|รหัสผู้รับเงิน|รหัสร้านค้า|\bto\b|\breceiver\b|\brecipient\b)',
       caseSensitive: false,
     );
     final receiverMatch = receiverRegex.firstMatch(lowerCleanOcr);
