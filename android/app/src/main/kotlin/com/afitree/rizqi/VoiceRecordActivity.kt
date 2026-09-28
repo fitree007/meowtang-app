@@ -71,6 +71,13 @@ class VoiceRecordActivity : Activity() {
         micPulseContainer.setOnClickListener {
             if (!isRecording) {
                 checkPermissionAndStartSpeech()
+            } else {
+                tvStatus.text = "บันทึกอัตโนมัติ..."
+                micPulseContainer.clearAnimation()
+                stopWaveAnimation()
+                try {
+                    speechRecognizer?.stopListening()
+                } catch (e: Exception) {}
             }
         }
 
@@ -79,11 +86,11 @@ class VoiceRecordActivity : Activity() {
 
     private fun setupPulseAnimation() {
         pulseAnimation = ScaleAnimation(
-            1.0f, 1.25f, 1.0f, 1.25f,
+            1.0f, 1.15f, 1.0f, 1.15f,
             Animation.RELATIVE_TO_SELF, 0.5f,
             Animation.RELATIVE_TO_SELF, 0.5f
         ).apply {
-            duration = 800
+            duration = 900
             repeatCount = Animation.INFINITE
             repeatMode = Animation.REVERSE
         }
@@ -92,14 +99,14 @@ class VoiceRecordActivity : Activity() {
     private fun startWaveAnimation() {
         waveAnimator?.cancel()
         waveAnimator = ValueAnimator.ofFloat(0.3f, 1.2f).apply {
-            duration = 500
+            duration = 450
             repeatMode = ValueAnimator.REVERSE
             repeatCount = ValueAnimator.INFINITE
             addUpdateListener { anim ->
                 val factor = anim.animatedValue as Float
                 waveBars.forEachIndexed { index, bar ->
                     val waveOffset = kotlin.math.sin((factor * Math.PI) + (index * 0.6f)).toFloat()
-                    val scale = (0.5f + (waveOffset * 0.5f)).coerceIn(0.25f, 1.4f)
+                    val scale = (0.4f + (waveOffset * 0.4f)).coerceIn(0.25f, 1.4f)
                     bar.scaleY = scale
                 }
             }
@@ -114,7 +121,7 @@ class VoiceRecordActivity : Activity() {
             val scale = (normalized * multipliers.getOrElse(index) { 1.0f } + 0.35f).coerceIn(0.25f, 1.8f)
             bar.animate()
                 .scaleY(scale)
-                .setDuration(70)
+                .setDuration(50)
                 .start()
         }
     }
@@ -123,7 +130,7 @@ class VoiceRecordActivity : Activity() {
         waveAnimator?.cancel()
         waveAnimator = null
         waveBars.forEach { bar ->
-            bar.animate().scaleY(1.0f).setDuration(120).start()
+            bar.animate().scaleY(1.0f).setDuration(100).start()
         }
     }
 
@@ -151,13 +158,13 @@ class VoiceRecordActivity : Activity() {
         speechRecognizer?.setRecognitionListener(object : RecognitionListener {
             override fun onReadyForSpeech(params: Bundle?) {
                 isRecording = true
-                tvStatus.text = "🎙️ กำลังฟังเสียง... พูดได้เลยค่ะ"
+                tvStatus.text = "กำลังฟังเสียงพูดของคุณ..."
                 micPulseContainer.startAnimation(pulseAnimation)
                 startWaveAnimation()
             }
 
             override fun onBeginningOfSpeech() {
-                tvStatus.text = "🎙️ กำลังฟังเสียง... พูดได้เลยค่ะ"
+                tvStatus.text = "กำลังฟังเสียงพูดของคุณ..."
             }
 
             override fun onRmsChanged(rmsdB: Float) {
@@ -169,9 +176,12 @@ class VoiceRecordActivity : Activity() {
             override fun onBufferReceived(buffer: ByteArray?) {}
 
             override fun onEndOfSpeech() {
-                tvStatus.text = "✨ กำลังประมวลผล..."
+                tvStatus.text = "บันทึกอัตโนมัติ..."
                 micPulseContainer.clearAnimation()
                 stopWaveAnimation()
+                try {
+                    speechRecognizer?.stopListening()
+                } catch (e: Exception) {}
             }
 
             override fun onError(error: Int) {

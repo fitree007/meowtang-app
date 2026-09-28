@@ -2,12 +2,18 @@ import 'package:flutter/services.dart';
 
 typedef OnSlipDetectedCallback = void Function(Map<String, dynamic> slipData);
 typedef OnDataReloadCallback = void Function();
+typedef OnVoiceRmsChangedCallback = void Function(double rms, double rmsdB);
+typedef OnVoicePartialResultCallback = void Function(String text);
+typedef OnVoiceEndOfSpeechCallback = void Function();
 
 class NativeBridgeService {
   static const MethodChannel _channel = MethodChannel('com.afitree.rizqi/native');
   static OnSlipDetectedCallback? _slipListener;
   static OnSlipDetectedCallback? _openSlipListener;
   static OnDataReloadCallback? _dataReloadListener;
+  static OnVoiceRmsChangedCallback? _voiceRmsListener;
+  static OnVoicePartialResultCallback? _voicePartialListener;
+  static OnVoiceEndOfSpeechCallback? _voiceEndOfSpeechListener;
   static bool _isListenerInitialized = false;
 
   static void initMethodCallHandler() {
@@ -27,6 +33,21 @@ class NativeBridgeService {
         }
       } else if (call.method == 'onVoiceTransactionAdded' || call.method == 'onAppResumed') {
         _dataReloadListener?.call();
+      } else if (call.method == 'onVoiceRmsChanged') {
+        if (call.arguments is Map) {
+          final data = Map<String, dynamic>.from(call.arguments as Map);
+          final rms = (data['rms'] as num?)?.toDouble() ?? 0.0;
+          final rmsdB = (data['rmsdB'] as num?)?.toDouble() ?? 0.0;
+          _voiceRmsListener?.call(rms, rmsdB);
+        }
+      } else if (call.method == 'onVoicePartialResult') {
+        if (call.arguments is Map) {
+          final data = Map<String, dynamic>.from(call.arguments as Map);
+          final text = data['text'] as String? ?? '';
+          _voicePartialListener?.call(text);
+        }
+      } else if (call.method == 'onVoiceEndOfSpeech') {
+        _voiceEndOfSpeechListener?.call();
       }
     });
   }
@@ -44,6 +65,21 @@ class NativeBridgeService {
   static void setDataReloadListener(OnDataReloadCallback listener) {
     initMethodCallHandler();
     _dataReloadListener = listener;
+  }
+
+  static void setVoiceRmsListener(OnVoiceRmsChangedCallback? listener) {
+    initMethodCallHandler();
+    _voiceRmsListener = listener;
+  }
+
+  static void setVoicePartialListener(OnVoicePartialResultCallback? listener) {
+    initMethodCallHandler();
+    _voicePartialListener = listener;
+  }
+
+  static void setVoiceEndOfSpeechListener(OnVoiceEndOfSpeechCallback? listener) {
+    initMethodCallHandler();
+    _voiceEndOfSpeechListener = listener;
   }
 
   /// Gets the slip path passed via PendingIntent when app was launched from notification

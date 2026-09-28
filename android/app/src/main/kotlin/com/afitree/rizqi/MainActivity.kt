@@ -924,11 +924,31 @@ class MainActivity : FlutterActivity() {
                 }
 
                 inAppSpeechRecognizer?.setRecognitionListener(object : RecognitionListener {
-                    override fun onReadyForSpeech(params: Bundle?) {}
-                    override fun onBeginningOfSpeech() {}
-                    override fun onRmsChanged(rmsdB: Float) {}
+                    override fun onReadyForSpeech(params: Bundle?) {
+                        runOnUiThread {
+                            methodChannel?.invokeMethod("onVoiceStateChanged", mapOf("state" to "ready"))
+                        }
+                    }
+                    override fun onBeginningOfSpeech() {
+                        runOnUiThread {
+                            methodChannel?.invokeMethod("onVoiceStateChanged", mapOf("state" to "speaking"))
+                        }
+                    }
+                    override fun onRmsChanged(rmsdB: Float) {
+                        val normalized = ((rmsdB.coerceIn(-2f, 10f) + 2f) / 12f).coerceIn(0.0f, 1.0f)
+                        runOnUiThread {
+                            methodChannel?.invokeMethod("onVoiceRmsChanged", mapOf(
+                                "rms" to normalized.toDouble(),
+                                "rmsdB" to rmsdB.toDouble()
+                            ))
+                        }
+                    }
                     override fun onBufferReceived(buffer: ByteArray?) {}
-                    override fun onEndOfSpeech() {}
+                    override fun onEndOfSpeech() {
+                        runOnUiThread {
+                            methodChannel?.invokeMethod("onVoiceEndOfSpeech", null)
+                        }
+                    }
                     override fun onError(error: Int) {
                         if (!hasResponded) {
                             hasResponded = true
@@ -943,7 +963,15 @@ class MainActivity : FlutterActivity() {
                             result.success(text)
                         }
                     }
-                    override fun onPartialResults(partialResults: Bundle?) {}
+                    override fun onPartialResults(partialResults: Bundle?) {
+                        val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                        if (!matches.isNullOrEmpty()) {
+                            val partialText = matches[0]
+                            runOnUiThread {
+                                methodChannel?.invokeMethod("onVoicePartialResult", mapOf("text" to partialText))
+                            }
+                        }
+                    }
                     override fun onEvent(eventType: Int, params: Bundle?) {}
                 })
 

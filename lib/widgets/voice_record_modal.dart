@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -18,9 +19,9 @@ class VoiceRecordModal extends StatefulWidget {
     HapticFeedback.selectionClick();
     await showModalBottomSheet(
       context: context,
-      backgroundColor: controller.isDarkMode ? MeowTheme.navySurface : Colors.white,
+      backgroundColor: controller.isDarkMode ? const Color(0xFF0F172A) : Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       isScrollControlled: true,
       builder: (ctx) => VoiceRecordModal(controller: controller),
@@ -35,30 +36,107 @@ class _VoiceRecordModalState extends State<VoiceRecordModal>
     with SingleTickerProviderStateMixin {
   bool _isListening = false;
   String _recognizedText = '';
-  String _status = 'แตะที่ไมโครโฟน แล้วพูดเพื่อบันทึก...';
+  String _partialText = '';
+  String _status = 'กำลังฟังเสียงพูดของคุณ...';
   double? _parsedAmount;
   String? _parsedTitle;
   TransactionType _parsedType = TransactionType.expense;
   CategoryItem? _parsedCategory;
 
-  late AnimationController _animCtrl;
+  late AnimationController _waveAnimCtrl;
+  final List<double> _audioLevels = List.filled(7, 0.25);
+  double _currentRms = 0.0;
+  Timer? _silenceTimer;
 
   @override
   void initState() {
     super.initState();
-    _animCtrl = AnimationController(
+    _waveAnimCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1600),
-    )..repeat();
+      duration: const Duration(milliseconds: 1200),
+    )..addListener(_onWaveTick)
+     ..repeat();
+
+    _setupNativeVoiceListeners();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startListening();
     });
   }
 
+  void _setupNativeVoiceListeners() {
+    NativeBridgeService.setVoiceRmsListener((rms, rmsdB) {
+      if (!_isListening || !mounted) return;
+      _onRealRmsReceived(rms);
+    });
+
+    NativeBridgeService.setVoicePartialListener((text) {
+      if (!_isListening || !mounted) return;
+      if (text.trim().isNotEmpty) {
+        setState(() {
+          _partialText = text.trim();
+        });
+        _resetSilenceTimer();
+      }
+    });
+
+    NativeBridgeService.setVoiceEndOfSpeechListener(() {
+      if (!_isListening || !mounted) return;
+      setState(() {
+        _status = 'ตรวจพบการหยุดพูด กำลังประมวลผล...';
+      });
+    });
+  }
+
+  void _onRealRmsReceived(double rms) {
+    _currentRms = rms;
+    const multipliers = [0.35, 0.65, 0.95, 1.35, 0.95, 0.65, 0.35];
+    setState(() {
+      for (int i = 0; i < 7; i++) {
+        final target = (rms * multipliers[i] + 0.15).clamp(0.15, 1.0);
+        _audioLevels[i] = _audioLevels[i] + (target - _audioLevels[i]) * 0.45;
+      }
+    });
+
+    if (rms > 0.2) {
+      _resetSilenceTimer();
+    }
+  }
+
+  void _onWaveTick() {
+    if (!mounted) return;
+    // Ambient breathing oscillation when real audio is quiet or on web simulator
+    if (_currentRms < 0.08) {
+      final progress = _waveAnimCtrl.value;
+      setState(() {
+        for (int i = 0; i < 7; i++) {
+          final sine = (math.sin((progress * 2 * math.pi) + (i * 0.8)).abs() * 0.35) + 0.15;
+          _audioLevels[i] = _audioLevels[i] + (sine - _audioLevels[i]) * 0.15;
+        }
+      });
+    }
+  }
+
+  void _resetSilenceTimer() {
+    _silenceTimer?.cancel();
+    // When user pauses/stops talking for 1.8 seconds, auto-stop and process
+    _silenceTimer = Timer(const Duration(milliseconds: 1800), () {
+      if (_isListening && mounted) {
+        final candidate = _partialText.isNotEmpty ? _partialText : _recognizedText;
+        if (candidate.trim().isNotEmpty) {
+          _stopListeningAndProcess();
+        }
+      }
+    });
+  }
+
   @override
   void dispose() {
-    _animCtrl.dispose();
+    _silenceTimer?.cancel();
+    _waveAnimCtrl.dispose();
+    NativeBridgeService.setVoiceRmsListener(null);
+    NativeBridgeService.setVoicePartialListener(null);
+    NativeBridgeService.setVoiceEndOfSpeechListener(null);
     super.dispose();
   }
 
@@ -66,8 +144,9 @@ class _VoiceRecordModalState extends State<VoiceRecordModal>
     HapticFeedback.mediumImpact();
     setState(() {
       _isListening = true;
-      _status = 'กำลังฟังเสียงของคุณ... พูดได้เลยครับ';
+      _status = 'กำลังฟังเสียงพูดของคุณ...';
       _recognizedText = '';
+      _partialText = '';
       _parsedAmount = null;
       _parsedTitle = null;
     });
@@ -76,12 +155,31 @@ class _VoiceRecordModalState extends State<VoiceRecordModal>
 
     if (!mounted) return;
 
-    if (spokenText != null && spokenText.trim().isNotEmpty) {
-      _processSpokenText(spokenText.trim());
+    final finalText = (spokenText != null && spokenText.trim().isNotEmpty)
+        ? spokenText.trim()
+        : _partialText.trim();
+
+    if (finalText.isNotEmpty) {
+      _processSpokenText(finalText);
     } else {
       setState(() {
         _isListening = false;
-        _status = 'ไม่พบเสียงพูด กรุณาแตะไมโครโฟนแล้วลองใหม่อีกครั้ง';
+        _status = 'ไม่พบเสียงพูด กรุณาแตะไมค์แล้วลองใหม่อีกครั้ง';
+      });
+    }
+  }
+
+  Future<void> _stopListeningAndProcess() async {
+    HapticFeedback.lightImpact();
+    await NativeBridgeService.stopVoiceRecognition();
+
+    final textToProcess = _partialText.isNotEmpty ? _partialText : _recognizedText;
+    if (textToProcess.trim().isNotEmpty) {
+      _processSpokenText(textToProcess.trim());
+    } else {
+      setState(() {
+        _isListening = false;
+        _status = 'หยุดการฟังแล้ว ไม่พบข้อความเสียง';
       });
     }
   }
@@ -113,7 +211,7 @@ class _VoiceRecordModalState extends State<VoiceRecordModal>
       _parsedTitle = parsed.title.isNotEmpty ? parsed.title : text;
       _parsedType = parsed.type;
       _parsedCategory = matchedCat;
-      _status = 'แปลงเสียงเป็นข้อความสำเร็จ ✨';
+      _status = 'ตรวจพบข้อมูลเรียบร้อยแล้ว';
     });
   }
 
@@ -163,18 +261,27 @@ class _VoiceRecordModalState extends State<VoiceRecordModal>
   @override
   Widget build(BuildContext context) {
     final isDark = widget.controller.isDarkMode;
-    final textPrimary =
-        isDark ? MeowTheme.textLightPrimary : const Color(0xFF0F172A);
-    final textSecondary =
-        isDark ? MeowTheme.textLightSecondary : const Color(0xFF64748B);
-    final cardBg = isDark ? MeowTheme.navyCard : const Color(0xFFF8FAFC);
+    final bgColor = isDark ? const Color(0xFF0F172A) : Colors.white;
+    final cardBg = isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC);
+    final borderColor = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final textPrimary = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
+    final textSecondary = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    const accentColor = Color(0xFF10B981); // Minimalist emerald
     final isIncome = _parsedType == TransactionType.income;
 
-    return Padding(
+    final currentDisplay = _recognizedText.isNotEmpty
+        ? _recognizedText
+        : (_partialText.isNotEmpty ? _partialText : '');
+
+    return Container(
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       padding: EdgeInsets.only(
         left: 20,
         right: 20,
-        top: 20,
+        top: 14,
         bottom: MediaQuery.of(context).viewInsets.bottom + 24,
       ),
       child: Column(
@@ -198,196 +305,139 @@ class _VoiceRecordModalState extends State<VoiceRecordModal>
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    width: 34,
+                    height: 34,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
+                      color: cardBg,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: borderColor),
                     ),
                     child: const Icon(
-                      Icons.mic_rounded,
-                      color: Color(0xFF0284C7),
-                      size: 22,
+                      Icons.mic_none_rounded,
+                      color: accentColor,
+                      size: 20,
                     ),
                   ),
                   const SizedBox(width: 10),
-                  Text(
-                    'พูดเพื่อจดบันทึก (Voice AI)',
-                    style: TextStyle(
-                      color: textPrimary,
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'พูดเพื่อจดบันทึก',
+                        style: TextStyle(
+                          color: textPrimary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        'ตรวจจับจังหวะเสียงจริง • บันทึกอัตโนมัติ',
+                        style: TextStyle(
+                          color: textSecondary,
+                          fontSize: 11.5,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
               IconButton(
-                icon: Icon(Icons.close_rounded, color: textSecondary, size: 24),
+                icon: Icon(Icons.close_rounded, color: textSecondary, size: 22),
                 onPressed: () => Navigator.pop(context),
               ),
             ],
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
 
-          // Animated Waves & Glowing Mic Hero
+          // Minimalist Mic Hero & Capsule Audio Waves
           Center(
-            child: SizedBox(
-              width: 170,
-              height: 170,
-              child: AnimatedBuilder(
-                animation: _animCtrl,
-                builder: (context, child) {
-                  final progress = _animCtrl.value;
-
-                  return Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // Concentric Ripple Wave 1
-                      if (_isListening)
-                        Container(
-                          width: 100 + (progress * 65),
-                          height: 100 + (progress * 65),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: const Color(0xFF38BDF8).withValues(
-                                alpha: (1.0 - progress).clamp(0.0, 0.7),
-                              ),
-                              width: 2.2,
-                            ),
-                          ),
-                        ),
-
-                      // Concentric Ripple Wave 2 (Staggered by 0.5)
-                      if (_isListening)
-                        Container(
-                          width: 100 + (((progress + 0.5) % 1.0) * 65),
-                          height: 100 + (((progress + 0.5) % 1.0) * 65),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: MeowTheme.mustardYellow.withValues(
-                                alpha: (1.0 - ((progress + 0.5) % 1.0))
-                                    .clamp(0.0, 0.6),
-                              ),
-                              width: 1.8,
-                            ),
-                          ),
-                        ),
-
-                      // Animated Equalizer Wave Bars underneath mic
-                      if (_isListening)
-                        Positioned(
-                          bottom: 12,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: List.generate(7, (index) {
-                              final barHeight = 8.0 +
-                                  (math.sin((progress * 2 * math.pi) +
-                                              (index * 0.9))
-                                          .abs() *
-                                      20.0);
-                              return Container(
-                                margin:
-                                    const EdgeInsets.symmetric(horizontal: 2.5),
-                                width: 3.5,
-                                height: barHeight,
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: [
-                                      Color(0xFF38BDF8),
-                                      Color(0xFF2563EB),
-                                    ],
-                                  ),
-                                  borderRadius: BorderRadius.circular(3),
-                                ),
-                              );
-                            }),
-                          ),
-                        ),
-
-                      // Main Tactile Mic Button
-                      GestureDetector(
-                        onTap: _startListening,
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          width: _isListening ? 86 : 80,
-                          height: _isListening ? 86 : 80,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: _isListening
-                                ? const LinearGradient(
-                                    colors: [
-                                      Color(0xFF38BDF8),
-                                      Color(0xFF2563EB),
-                                      Color(0xFF1D4ED8),
-                                    ],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  )
-                                : (isIncome
-                                    ? const LinearGradient(
-                                        colors: [
-                                          Color(0xFF10B981),
-                                          Color(0xFF059669),
-                                        ],
-                                      )
-                                    : MeowTheme.blueButtonGradient),
-                            boxShadow: [
-                              BoxShadow(
-                                color: (_isListening
-                                        ? const Color(0xFF2563EB)
-                                        : (isIncome
-                                            ? const Color(0xFF10B981)
-                                            : MeowTheme.actionBlue))
-                                    .withValues(
-                                        alpha: _isListening ? 0.6 : 0.35),
-                                blurRadius: _isListening ? 22 : 14,
-                                spreadRadius: _isListening ? 3 : 1,
-                              ),
-                            ],
-                          ),
-                          child: Icon(
-                            _isListening ? Icons.mic : Icons.mic_none_rounded,
-                            color: Colors.white,
-                            size: 40,
-                          ),
-                        ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Minimalist Solid Circle Mic
+                GestureDetector(
+                  onTap: _isListening ? _stopListeningAndProcess : _startListening,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    width: 76,
+                    height: 76,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _isListening
+                          ? (_currentRms > 0.3 ? const Color(0xFF047857) : accentColor)
+                          : cardBg,
+                      border: Border.all(
+                        color: _isListening ? accentColor : borderColor,
+                        width: _isListening ? 2 : 1.5,
                       ),
-                    ],
-                  );
-                },
-              ),
+                      boxShadow: _isListening
+                          ? [
+                              BoxShadow(
+                                color: accentColor.withValues(alpha: 0.25),
+                                blurRadius: 18,
+                                spreadRadius: 2,
+                              ),
+                            ]
+                          : [],
+                    ),
+                    child: Icon(
+                      _isListening ? Icons.mic_rounded : Icons.mic_none_rounded,
+                      color: _isListening ? Colors.white : textPrimary,
+                      size: 34,
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 18),
+
+                // Minimalist Sound Wave Capsule Visualizer (7 Bars)
+                SizedBox(
+                  height: 38,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: List.generate(7, (index) {
+                      final level = _audioLevels[index];
+                      final barHeight = 6.0 + (level * 28.0);
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 70),
+                        margin: const EdgeInsets.symmetric(horizontal: 2.8),
+                        width: 4.0,
+                        height: barHeight,
+                        decoration: BoxDecoration(
+                          color: _isListening
+                              ? accentColor
+                              : textSecondary.withValues(alpha: 0.25),
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                      );
+                    }),
+                  ),
+                ),
+              ],
             ),
           ),
 
-          const SizedBox(height: 10),
+          const SizedBox(height: 14),
 
-          // Live Listening Badge / Status
+          // Minimalist Status Indicator
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: BoxDecoration(
-              color: _isListening
-                  ? const Color(0xFFEF4444).withValues(alpha: 0.12)
-                  : cardBg,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: _isListening
-                    ? const Color(0xFFEF4444).withValues(alpha: 0.35)
-                    : Colors.transparent,
-              ),
+              color: cardBg,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: borderColor),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (_isListening) ...[
                   Container(
-                    width: 8,
-                    height: 8,
+                    width: 7,
+                    height: 7,
                     decoration: const BoxDecoration(
-                      color: Color(0xFFEF4444),
+                      color: accentColor,
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -395,12 +445,10 @@ class _VoiceRecordModalState extends State<VoiceRecordModal>
                 ],
                 Text(
                   _status,
-                  textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: _isListening ? const Color(0xFFEF4444) : textPrimary,
-                    fontSize: 13.5,
-                    fontWeight:
-                        _isListening ? FontWeight.w900 : FontWeight.w600,
+                    color: _isListening ? accentColor : textSecondary,
+                    fontSize: 12.5,
+                    fontWeight: _isListening ? FontWeight.w600 : FontWeight.normal,
                   ),
                 ),
               ],
@@ -409,90 +457,129 @@ class _VoiceRecordModalState extends State<VoiceRecordModal>
 
           const SizedBox(height: 12),
 
-          // Speech Example Prompts
-          Text(
-            '💡 พูดได้เลย เช่น: "กินข้าว 60 บาท", "เติมน้ำมัน 500 โอนจากกสิกร", "เงินเดือน 35000"',
-            style: TextStyle(
-              color: textSecondary.withValues(alpha: 0.8),
-              fontSize: 11.5,
-              height: 1.4,
+          // Live Recognized Speech Display
+          if (currentDisplay.isNotEmpty) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: borderColor),
+              ),
+              child: Text(
+                '“$currentDisplay”',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: textPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  height: 1.4,
+                ),
+              ),
             ),
-            textAlign: TextAlign.center,
-          ),
+            const SizedBox(height: 14),
+          ] else ...[
+            Text(
+              '💡 พูด เช่น: "กินข้าว 60 บาท", "เติมน้ำมัน 500", "เงินเดือน 35000"',
+              style: TextStyle(
+                color: textSecondary.withValues(alpha: 0.8),
+                fontSize: 12,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+          ],
 
-          const SizedBox(height: 18),
+          // Action Buttons while listening: Manual Stop Button
+          if (_isListening) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () {
+                      NativeBridgeService.stopVoiceRecognition();
+                      Navigator.pop(context);
+                    },
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: borderColor),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                    ),
+                    child: Text(
+                      'ยกเลิก',
+                      style: TextStyle(color: textSecondary, fontSize: 13.5),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: ElevatedButton.icon(
+                    onPressed: _stopListeningAndProcess,
+                    icon: const Icon(Icons.stop_rounded, color: Colors.white, size: 20),
+                    label: const Text(
+                      'หยุดพูด & บันทึก',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: accentColor,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
 
-          // Recognized & Parsed Result Card
-          if (_recognizedText.isNotEmpty) ...[
+          // Parsed Result Card (when listening stopped and item parsed)
+          if (!_isListening && _recognizedText.isNotEmpty) ...[
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: cardBg,
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: (isIncome
-                          ? MeowTheme.incomeGreen
-                          : const Color(0xFF38BDF8))
-                      .withValues(alpha: 0.35),
-                  width: 1.2,
+                  color: isIncome
+                      ? MeowTheme.incomeGreen.withValues(alpha: 0.4)
+                      : borderColor,
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: (isIncome
-                            ? MeowTheme.incomeGreen
-                            : const Color(0xFF38BDF8))
-                        .withValues(alpha: 0.08),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Icon(
-                        Icons.record_voice_over_rounded,
-                        color: isIncome
-                            ? MeowTheme.incomeGreen
-                            : const Color(0xFF0284C7),
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'ได้ยินว่า: "$_recognizedText"',
-                          style: TextStyle(
-                            color: textPrimary,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13.5,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                      Text(
+                        _parsedTitle ?? "บันทึกเสียง",
+                        style: TextStyle(
+                          color: textPrimary,
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3.5),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: (isIncome
-                                  ? MeowTheme.incomeGreen
-                                  : MeowTheme.expenseRed)
-                              .withValues(alpha: 0.15),
+                          color: (isIncome ? MeowTheme.incomeGreen : MeowTheme.expenseRed)
+                              .withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: isIncome
-                                ? MeowTheme.incomeGreen
-                                : MeowTheme.expenseRed,
-                          ),
                         ),
                         child: Text(
-                          isIncome ? '💰 รายรับ' : '💸 รายจ่าย',
+                          isIncome ? 'รายรับ' : 'รายจ่าย',
                           style: TextStyle(
-                            color: isIncome
-                                ? MeowTheme.incomeGreen
-                                : MeowTheme.expenseRed,
+                            color: isIncome ? MeowTheme.incomeGreen : MeowTheme.expenseRed,
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
                           ),
@@ -500,43 +587,22 @@ class _VoiceRecordModalState extends State<VoiceRecordModal>
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  const Divider(height: 1),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'รายการ: ${_parsedTitle ?? ""}',
-                              style: TextStyle(
-                                color: textPrimary,
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'หมวดหมู่: #${_parsedCategory?.name ?? "ทั่วไป"}',
-                              style: const TextStyle(
-                                color: MeowTheme.mustardYellow,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
+                      Text(
+                        '#${_parsedCategory?.name ?? "ทั่วไป"}',
+                        style: TextStyle(
+                          color: textSecondary,
+                          fontSize: 12.5,
                         ),
                       ),
                       Text(
                         '${isIncome ? "+" : "-"}฿${_parsedAmount != null ? FormatUtils.formatCurrency(_parsedAmount!) : "0.00"}',
                         style: TextStyle(
-                          color: isIncome
-                              ? MeowTheme.incomeGreen
-                              : MeowTheme.expenseRed,
-                          fontSize: 22,
+                          color: isIncome ? MeowTheme.incomeGreen : MeowTheme.expenseRed,
+                          fontSize: 20,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
@@ -545,44 +611,30 @@ class _VoiceRecordModalState extends State<VoiceRecordModal>
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
 
-            // Save Action Button
+            // Confirm & Save Button
             TactileButton(
               onTap: _confirmAndSave,
               child: Container(
                 width: double.infinity,
-                height: 50,
+                height: 48,
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [
-                      Color(0xFF38BDF8),
-                      Color(0xFF2563EB),
-                      Color(0xFF1D4ED8),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF2563EB).withValues(alpha: 0.35),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+                  color: accentColor,
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: const Center(
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.check_circle_rounded,
-                          color: Colors.white, size: 20),
+                      Icon(Icons.check_rounded, color: Colors.white, size: 20),
                       SizedBox(width: 8),
                       Text(
-                        'บันทึกรายการนี้ทันที 🚀',
+                        'ยืนยันบันทึกรายการ',
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w900,
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ],

@@ -189,20 +189,16 @@ class _QuickVoiceWidgetState extends State<QuickVoiceWidget>
                     height: 58,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        colors: _isRecording
-                            ? [const Color(0xFFEF4444), const Color(0xFFDC2626)]
-                            : [const Color(0xFF10B981), const Color(0xFF059669)],
-                      ),
+                      color: _isRecording ? const Color(0xFFEF4444) : const Color(0xFF10B981),
                       boxShadow: [
                         BoxShadow(
-                          color: (_isRecording ? const Color(0xFFEF4444) : const Color(0xFF10B981)).withValues(alpha: 0.4),
-                          blurRadius: 12,
+                          color: (_isRecording ? const Color(0xFFEF4444) : const Color(0xFF10B981)).withValues(alpha: 0.25),
+                          blurRadius: 10,
                         ),
                       ],
                     ),
                     child: Icon(
-                      _isRecording ? Icons.stop : Icons.mic,
+                      _isRecording ? Icons.stop_rounded : Icons.mic_rounded,
                       color: Colors.white,
                       size: 28,
                     ),
