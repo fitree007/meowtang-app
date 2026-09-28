@@ -118,8 +118,8 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
     // 0.1 Request OS permissions on app launch (Photos, Camera, Audio) for iOS & Android
     await NativeBridgeService.requestAppPermissions();
 
-    // 1. Initial background scan for unimported bank slips with gentle delay (800ms) for smooth startup
-    Future.delayed(const Duration(milliseconds: 800), () {
+    // 1. Initial background scan for unimported bank slips with gentle delay (2000ms) for smooth startup
+    Future.delayed(const Duration(milliseconds: 2000), () {
       if (mounted) {
         _autoScanSlipsInBackground(showFeedback: false);
       }
@@ -182,6 +182,22 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
         duration: const Duration(milliseconds: 380),
         curve: Curves.easeOutCubic,
       );
+    }
+  }
+
+  Future<void> _handlePullToRefresh() async {
+    HapticFeedback.lightImpact();
+    // Refresh database transactions first
+    await widget.controller.reloadFromStorage();
+    // Allow pull indicator animation to dismiss smoothly
+    await Future.delayed(const Duration(milliseconds: 250));
+    // Trigger unimported slip scanning in background without blocking UI
+    if (mounted && widget.controller.canImportMoreSlips && !_isAutoScanning) {
+      Future.microtask(() {
+        if (mounted) {
+          _autoScanSlipsInBackground(showFeedback: false);
+        }
+      });
     }
   }
 
@@ -1394,7 +1410,7 @@ void _handleMascotPetting() {
    body: Stack(
     children: [
       RefreshIndicator(
-       onRefresh: _autoScanSlipsInBackground,
+       onRefresh: _handlePullToRefresh,
        child: ListView(
         controller: _scrollController,
         physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),

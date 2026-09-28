@@ -713,7 +713,6 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
            icon: Icons.account_balance_wallet_rounded,
            iconBgColor: const Color(0xFF3B82F6),
            title: isEn ? 'Accounts & Wallets' : 'จัดการบัญชี & กระเป๋าเงิน',
-           trailingBadge: '${widget.controller.accounts.length} ${isEn ? "acc" : "บัญชี"}',
            isDark: isDark,
            onTap: () {
             Navigator.push(
@@ -729,7 +728,6 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
            icon: Icons.grid_view_rounded,
            iconBgColor: const Color(0xFFF59E0B),
            title: isEn ? 'Categories & Icons' : 'จัดการหมวดหมู่รายรับ-รายจ่าย',
-           trailingBadge: '${widget.controller.categories.length} ${isEn ? "cats" : "หมวด"}',
            isDark: isDark,
            onTap: () {
             Navigator.push(
@@ -745,12 +743,6 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
            icon: Icons.alarm_on_rounded,
            iconBgColor: const Color(0xFF10B981),
            title: isEn ? 'Auto-Record Salary' : 'บันทึกเงินเดือนอัตโนมัติ',
-           trailingBadge: widget.controller.salaryConfig.isEnabled
-               ? (widget.controller.salaryConfig.isLastDayOfMonth
-                   ? (isEn ? 'End of month' : 'วันสิ้นเดือน')
-                   : (isEn ? 'Day ${widget.controller.salaryConfig.dayOfMonth}' : 'ทุกวันที่ ${widget.controller.salaryConfig.dayOfMonth}'))
-               : (isEn ? 'Off' : 'ปิด'),
-           badgeColor: widget.controller.salaryConfig.isEnabled ? const Color(0xFF10B981) : null,
            isDark: isDark,
            onTap: () {
             Navigator.push(
@@ -798,8 +790,6 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
            icon: Icons.file_upload_outlined,
            iconBgColor: const Color(0xFF06B6D4),
            title: isEn ? 'Export Report (Excel / CSV)' : 'ส่งออกรายงานบัญชี (Excel / CSV)',
-           trailingBadge: widget.controller.isPremium ? 'VIP 👑' : '🔒 VIP',
-           badgeColor: widget.controller.isPremium ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
            isDark: isDark,
            onTap: () {
             Navigator.push(
@@ -815,7 +805,6 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
            icon: Icons.settings_backup_restore_rounded,
            iconBgColor: const Color(0xFF6366F1),
            title: isEn ? 'Backup & Migrate Data' : 'สำรอง & ย้ายข้อมูลข้ามเครื่อง (ฟรี)',
-           trailingBadge: '100% Free 🛡️',
            isDark: isDark,
            onTap: () {
             Navigator.push(
@@ -990,12 +979,6 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
            icon: Icons.face_retouching_natural_rounded,
            iconBgColor: const Color(0xFF6366F1),
            title: isEn ? 'Character & Mascot' : 'ตัวละคร & มาสคอตประจำตัว',
-           trailingBadge: widget.controller.isCustomAvatarEnabled
-               ? (isEn ? 'Custom Photo' : 'รูปถ่าย')
-               : MascotCatalog.characters.firstWhere(
-                   (m) => m.id == widget.controller.selectedMascotId,
-                   orElse: () => MascotCatalog.characters.first,
-                 ).name.split('(').first.trim(),
            isDark: isDark,
            onTap: () {
             Navigator.push(
@@ -1011,7 +994,6 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
            icon: Icons.palette_outlined,
            iconBgColor: const Color(0xFFEC4899),
            title: isEn ? 'Theme Shop & Palettes' : 'ร้านค้าธีม & พื้นหลังน่ารัก',
-           trailingBadge: widget.controller.currentTheme.name,
            isDark: isDark,
            onTap: () {
             Navigator.push(
@@ -1027,7 +1009,6 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
             icon: Icons.language_rounded,
             iconBgColor: const Color(0xFF14B8A6),
             title: isEn ? 'App Language' : 'ภาษาของแอพ (Language)',
-            trailingBadge: isEn ? 'English' : 'ภาษาไทย',
             isDark: isDark,
             onTap: _showLanguagePicker,
            ),
@@ -1053,7 +1034,6 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
             icon: Icons.auto_awesome_rounded,
             iconBgColor: const Color(0xFF3B82F6),
             title: isEn ? 'Featured App Superpowers' : 'ฟีเจอร์เด่นของแอพ',
-            trailingBadge: 'PRO ⚡',
             isDark: isDark,
             onTap: () {
               Navigator.push(
@@ -1087,7 +1067,6 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
             icon: Icons.notifications_active_rounded,
             iconBgColor: const Color(0xFF10B981),
             title: isEn ? 'Auto-Capture Bank Notifications' : 'ดึงรายรับอัตโนมัติจากแจ้งเตือนธนาคาร',
-            trailingBadge: 'Auto ⚡',
             isDark: isDark,
             onTap: () async {
              final granted = await NativeBridgeService.isNotificationListenerGranted();

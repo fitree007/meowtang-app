@@ -84,6 +84,7 @@ void main() {
           dayOfMonth: 25,
           accountId: controller.accounts.first.id,
         ),
+        triggerCheck: false,
       );
 
       // Today is September 24 (before 25)
@@ -106,6 +107,7 @@ void main() {
           accountId: acc.id,
           note: 'เงินเดือนประจำเดือน',
         ),
+        triggerCheck: false,
       );
 
       // Today is September 25
@@ -139,6 +141,7 @@ void main() {
           dayOfMonth: 25,
           accountId: acc.id,
         ),
+        triggerCheck: false,
       );
 
       final day25 = DateTime(2026, 9, 25);
@@ -163,6 +166,7 @@ void main() {
           isLastDayOfMonth: true,
           accountId: acc.id,
         ),
+        triggerCheck: false,
       );
 
       // April 29 -> not end of month
@@ -186,6 +190,7 @@ void main() {
           accountId: acc.id,
           note: 'เงินเดือนทดสอบ',
         ),
+        triggerCheck: false,
       );
 
       final manualSuccess = await controller.triggerManualSalaryRecord();

@@ -112,103 +112,106 @@ class SlipAutoSyncService {
     try {
       _processedKeys.clear();
       _inFlightKeys.clear();
-      // 0. Auto-clean existing duplicates in database if any exist
-      await deduplicateExistingTransactions(controller);
 
-    // 0.1. Seed persistent registry with any existing transactions
-    final existingSlips = <String>[];
-    for (final tx in controller.allTransactions) {
-      if (tx.slipImageUrl != null && tx.slipImageUrl!.isNotEmpty) {
-        existingSlips.add(tx.slipImageUrl!.toLowerCase());
-        final bName = DuplicateSlipChecker.extractBasename(tx.slipImageUrl);
-        if (bName.isNotEmpty) {
-          existingSlips.add(bName);
-          if (bName.startsWith('slip_')) {
-            final parts = bName.split('_');
-            if (parts.length >= 3) {
-              existingSlips.add(parts.sublist(2).join('_'));
+      final isCreator = AppConfig.isCreatorEdition;
+      final isInitialScan = !controller.storage.isInitialDeviceScanCompleted();
+
+      // 0. Only perform full DB deduplication and registry seeding on initial scan or if empty
+      if (isInitialScan || controller.storage.getImportedSlipIdentifiers().isEmpty) {
+        await deduplicateExistingTransactions(controller);
+
+        // Seed persistent registry with any existing transactions
+        final existingSlips = <String>[];
+        for (final tx in controller.allTransactions) {
+          if (tx.slipImageUrl != null && tx.slipImageUrl!.isNotEmpty) {
+            existingSlips.add(tx.slipImageUrl!.toLowerCase());
+            final bName = DuplicateSlipChecker.extractBasename(tx.slipImageUrl);
+            if (bName.isNotEmpty) {
+              existingSlips.add(bName);
+              if (bName.startsWith('slip_')) {
+                final parts = bName.split('_');
+                if (parts.length >= 3) {
+                  existingSlips.add(parts.sublist(2).join('_'));
+                }
+              }
             }
           }
+          if (tx.slipRefId != null && tx.slipRefId!.isNotEmpty && !tx.slipRefId!.startsWith('SLIP-') && !tx.slipRefId!.startsWith('NO-QR-')) {
+            existingSlips.add(tx.slipRefId!.toLowerCase());
+          }
+        }
+        if (existingSlips.isNotEmpty) {
+          await controller.storage.addImportedSlipIdentifiers(existingSlips);
         }
       }
-      if (tx.slipRefId != null && tx.slipRefId!.isNotEmpty && !tx.slipRefId!.startsWith('SLIP-') && !tx.slipRefId!.startsWith('NO-QR-')) {
-        existingSlips.add(tx.slipRefId!.toLowerCase());
-      }
-    }
-    if (existingSlips.isNotEmpty) {
-      await controller.storage.addImportedSlipIdentifiers(existingSlips);
-    }
 
-    final isCreator = AppConfig.isCreatorEdition;
-    final isInitialScan = !controller.storage.isInitialDeviceScanCompleted();
-    final now = DateTime.now();
-    final startOfPreviousMonth = getStartOfPreviousMonth(now);
-    // 12-Month Cutoff for Initial Device Scan: exactly 12 calendar months backwards
-    final twelveMonthsAgo = DateTime(now.year - 1, now.month, 1);
-    final cutoffDate = isCreator ? DateTime(2000) : (isInitialScan ? twelveMonthsAgo : startOfPreviousMonth);
+      final now = DateTime.now();
+      final startOfPreviousMonth = getStartOfPreviousMonth(now);
+      // 12-Month Cutoff for Initial Device Scan: exactly 12 calendar months backwards
+      final twelveMonthsAgo = DateTime(now.year - 1, now.month, 1);
+      final cutoffDate = isCreator ? DateTime(2000) : (isInitialScan ? twelveMonthsAgo : startOfPreviousMonth);
 
-    // In Creator Edition: 0 (all). In Initial Scan: 370 days (12 months). In Ongoing Scans: 2 months.
-    final daysToScan = isCreator ? 0 : (isInitialScan ? 370 : (now.difference(startOfPreviousMonth).inDays + 2));
+      // In Creator Edition: 0 (all). In Initial Scan: 370 days (12 months). In Ongoing Scans: 2 months.
+      final daysToScan = isCreator ? 0 : (isInitialScan ? 370 : (now.difference(startOfPreviousMonth).inDays + 2));
 
-    final slipFiles = await NativeBridgeService.scanBankSlips(daysLimit: daysToScan);
-    final allSlips = List<Map<String, dynamic>>.from(slipFiles);
+      final slipFiles = await NativeBridgeService.scanBankSlips(daysLimit: daysToScan);
+      final allSlips = List<Map<String, dynamic>>.from(slipFiles);
 
-    // Direct Physical Folder scan for PaoTang & other slip directories to guarantee 100% detection
-    final paoTangDirs = [
-      Directory('/storage/emulated/0/Pictures/PaoTang'),
-      Directory('/storage/emulated/0/Pictures/เป๋าตัง'),
-      Directory('/storage/emulated/0/DCIM/PaoTang'),
-      Directory('/storage/emulated/0/Download/PaoTang'),
-    ];
+      // Direct Physical Folder scan for PaoTang & other slip directories to guarantee 100% detection (Asynchronous I/O)
+      final paoTangDirs = [
+        Directory('/storage/emulated/0/Pictures/PaoTang'),
+        Directory('/storage/emulated/0/Pictures/เป๋าตัง'),
+        Directory('/storage/emulated/0/DCIM/PaoTang'),
+        Directory('/storage/emulated/0/Download/PaoTang'),
+      ];
 
-    for (final dir in paoTangDirs) {
-      try {
-        if (dir.existsSync()) {
-          final entities = dir.listSync(recursive: false);
-          for (final entity in entities) {
-            if (entity is File) {
-              final path = entity.path;
-              final ext = path.split('.').last.toLowerCase();
-              if (['jpg', 'jpeg', 'png', 'webp'].contains(ext)) {
-                final stat = entity.statSync();
-                // Filter: cutoffDate (12 months for initial scan, 2 months for ongoing scans)
-                if (!isCreator && stat.modified.isBefore(cutoffDate)) {
-                  continue;
-                }
-                if (stat.size > 1024) {
-                  final name = path.split(RegExp(r'[\/\\]')).last;
-                  final baseName = DuplicateSlipChecker.extractBasename(name);
-                  
-                  // Strict deduplication check inside slip list (check path, name, and basename)
-                  final alreadyInList = allSlips.any((s) {
-                    final sPath = s['path'] as String? ?? '';
-                    final sName = s['name'] as String? ?? '';
-                    final sBase = DuplicateSlipChecker.extractBasename(sName.isNotEmpty ? sName : sPath);
-                    return sPath == path || (baseName.isNotEmpty && sBase == baseName);
-                  });
-
-                  if (!alreadyInList) {
-                    final lower = name.toLowerCase();
-                    final bank = (lower.contains('ibank') || lower.contains('อิสลาม'))
-                        ? 'iBank (อิสลามแห่งประเทศไทย)'
-                        : (lower.contains('ไทยช่วยไทย') ? 'ไทยช่วยไทย (เป๋าตัง)' : 'เป๋าตัง (PaoTang)');
-                    allSlips.add({
-                      'id': path.hashCode.toString(),
-                      'name': name,
-                      'path': path,
-                      'uri': Uri.file(path).toString(),
-                      'dateAdded': stat.modified.millisecondsSinceEpoch,
-                      'size': stat.size,
-                      'bankName': bank,
+      for (final dir in paoTangDirs) {
+        try {
+          if (await dir.exists()) {
+            await for (final entity in dir.list(recursive: false)) {
+              if (entity is File) {
+                final path = entity.path;
+                final ext = path.split('.').last.toLowerCase();
+                if (['jpg', 'jpeg', 'png', 'webp'].contains(ext)) {
+                  final stat = await entity.stat();
+                  // Filter: cutoffDate (12 months for initial scan, 2 months for ongoing scans)
+                  if (!isCreator && stat.modified.isBefore(cutoffDate)) {
+                    continue;
+                  }
+                  if (stat.size > 1024) {
+                    final name = path.split(RegExp(r'[\/\\]')).last;
+                    final baseName = DuplicateSlipChecker.extractBasename(name);
+                    
+                    // Strict deduplication check inside slip list (check path, name, and basename)
+                    final alreadyInList = allSlips.any((s) {
+                      final sPath = s['path'] as String? ?? '';
+                      final sName = s['name'] as String? ?? '';
+                      final sBase = DuplicateSlipChecker.extractBasename(sName.isNotEmpty ? sName : sPath);
+                      return sPath == path || (baseName.isNotEmpty && sBase == baseName);
                     });
+
+                    if (!alreadyInList) {
+                      final lower = name.toLowerCase();
+                      final bank = (lower.contains('ibank') || lower.contains('อิสลาม'))
+                          ? 'iBank (อิสลามแห่งประเทศไทย)'
+                          : (lower.contains('ไทยช่วยไทย') ? 'ไทยช่วยไทย (เป๋าตัง)' : 'เป๋าตัง (PaoTang)');
+                      allSlips.add({
+                        'id': path.hashCode.toString(),
+                        'name': name,
+                        'path': path,
+                        'uri': Uri.file(path).toString(),
+                        'dateAdded': stat.modified.millisecondsSinceEpoch,
+                        'size': stat.size,
+                        'bankName': bank,
+                      });
+                    }
                   }
                 }
               }
             }
           }
-        }
-      } catch (_) {}
-    }
+        } catch (_) {}
+      }
 
     if (allSlips.isEmpty) {
       if (isInitialScan) {
@@ -299,8 +302,8 @@ class SlipAutoSyncService {
               if (item.slipRefId != null && !item.slipRefId!.startsWith('SLIP-') && !item.slipRefId!.startsWith('NO-QR-')) item.slipRefId!.toLowerCase(),
             ]);
 
-            // Save in batches of 5 or every 1.5 seconds so UI remains 100% fluid without lockups
-            if (pendingBatch.length >= 5 || DateTime.now().difference(lastBatchSaveTime).inMilliseconds >= 1500) {
+            // Save in batches of 10 or every 1.5 seconds so UI remains 100% fluid without lockups
+            if (pendingBatch.length >= 10 || DateTime.now().difference(lastBatchSaveTime).inMilliseconds >= 1500) {
               await controller.addTransactionsBatch(List.from(pendingBatch), isInitialImport: true);
               await controller.storage.addImportedSlipIdentifiers(List.from(pendingIdentifiers));
               pendingBatch.clear();
@@ -328,7 +331,7 @@ class SlipAutoSyncService {
           if (key.isNotEmpty) _processedKeys.add(key);
         }
         // Yield to event loop to keep UI rendering smoothly at 60/120fps
-        await Future.delayed(const Duration(milliseconds: 30));
+        await Future.delayed(const Duration(milliseconds: 40));
       } finally {
         if (key.isNotEmpty) _inFlightKeys.remove(key);
       }

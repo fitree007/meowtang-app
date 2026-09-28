@@ -32,7 +32,7 @@ enum MascotMood {
 }
 
 class ExpenseController extends ChangeNotifier {
-  static const String appVersion = '1.41.43';
+  static const String appVersion = '1.41.44';
 
   final StorageService _storage;
   final OcrEngineService _ocrEngine = OcrEngineService();
@@ -205,11 +205,13 @@ class ExpenseController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> updateSalaryAutoRecordConfig(SalaryAutoRecordConfig config) async {
+  Future<void> updateSalaryAutoRecordConfig(SalaryAutoRecordConfig config, {bool triggerCheck = true}) async {
     _salaryConfig = config;
     await _storage.saveSalaryAutoRecordConfig(config);
     notifyListeners();
-    await checkAndProcessRecurringSalary();
+    if (triggerCheck) {
+      await checkAndProcessRecurringSalary();
+    }
   }
 
   /// Manually triggers recording salary for testing or immediate record

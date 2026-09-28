@@ -82,8 +82,8 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
           children: [
             Text(
               isEn
-                  ? 'MeowTang operates 100% offline. Your VIP license is tied directly to your Google Play Account.\n\n• If you previously purchased VIP or premium themes on this Google Account, Google Play automatically restores your license.\n• No server login or email registration required.'
-                  : 'เหมียวตังค์ทำงานแบบออฟไลน์ 100% โดยสิทธิ์ VIP จะผูกติดกับบัญชี Google Play Store ของเครื่องนี้โดยตรง\n\n• หากคุณเคยสั่งซื้อ VIP หรือธีมในบัญชี Google นี้ ระบบ Google Play จะคืนสิทธิ์ให้อัตโนมัติเมื่อติดตั้งใหม่\n• ใช้งานได้ตลอดชีพ ปลอดภัย ไม่ต้องมีเซิร์ฟเวอร์หรือสมัครสมาชิกใดๆ',
+                  ? 'MeowTang operates 100% offline. Your VIP subscription is managed securely by your Google Play Account.\n\n• If you previously subscribed to VIP (Monthly/Yearly) on this Google Account, Google Play will restore your active subscription.\n• Secure and seamless — no external server or account needed.'
+                  : 'เหมียวตังค์ทำงานแบบออฟไลน์ 100% โดยสิทธิ์ VIP จะผูกติดกับบัญชี Google Play Store ของคุณโดยตรง\n\n• หากคุณเคยสมัครแพ็กเกจ VIP (รายเดือนหรือรายปี) ด้วยบัญชี Google นี้ ระบบ Google Play จะตรวจสอบและคืนสิทธิ์ VIP ให้อัตโนมัติเมื่อติดตั้งใหม่หรือย้ายเครื่อง\n• จัดการรอบบิลผ่าน Google Play Store อย่างปลอดภัย ไม่จำเป็นต้องสร้างบัญชีใหม่',
               style: TextStyle(
                 fontSize: 13,
                 color: theme.textSecondaryColor,
