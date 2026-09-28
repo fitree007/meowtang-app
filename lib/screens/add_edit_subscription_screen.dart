@@ -1907,9 +1907,30 @@ class _AddEditSubscriptionScreenState extends State<AddEditSubscriptionScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    isEn ? 'Show on Overview' : 'แสดงเตือนในหน้าภาพรวม',
-                                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: textColor),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        isEn ? 'Show on Overview' : 'แสดงเตือนในหน้าภาพรวม',
+                                        style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: textColor),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(color: const Color(0xFF10B981), width: 0.8),
+                                        ),
+                                        child: Text(
+                                          isEn ? 'Recommended' : 'แนะนำ',
+                                          style: const TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF10B981),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                   Text(
                                     isEn

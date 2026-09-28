@@ -33,7 +33,7 @@ enum MascotMood {
 }
 
 class ExpenseController extends ChangeNotifier {
-  static const String appVersion = '1.41.52';
+  static const String appVersion = '1.41.53';
 
   final StorageService _storage;
   final OcrEngineService _ocrEngine = OcrEngineService();
@@ -1161,6 +1161,10 @@ class ExpenseController extends ChangeNotifier {
    notifyListeners();
    return newAcc;
  }
+
+  AccountItem ensureCreditCardAccountExists() {
+    return getOrCreateAccountForBank('CREDIT', bankName: 'บัตรเครดิต');
+  }
 
  // CATEGORY MANAGEMENT (Add / Edit / Delete / Reorder / Reset)
  Future<void> addCategory(CategoryItem cat) async {

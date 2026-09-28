@@ -264,6 +264,15 @@ class ThaiBankDetector {
       icon: Icons.payments,
       keywords: ['เงินสด', 'cash'],
     ),
+    ThaiBankInfo(
+      code: 'CREDIT',
+      nameTh: 'บัตรเครดิต',
+      nameEn: 'Credit Card',
+      shortName: 'บัตรเครดิต',
+      brandColor: Color(0xFF6366F1),
+      icon: Icons.credit_card_rounded,
+      keywords: ['บัตรเครดิต', 'credit card', 'credit', 'บัตร'],
+    ),
   ];
 
   static ThaiBankInfo getBankByCode(String code) {
@@ -288,6 +297,14 @@ class ThaiBankDetector {
     final nLower = (tx.note ?? '').toLowerCase();
     final bLower = (tx.bankName ?? '').toLowerCase();
     final pathLower = (tx.slipImageUrl ?? '').toLowerCase();
+    final tags = tx.tags;
+
+    // Fast-path: Explicit Credit Card transaction
+    if (tags.contains('บัตรเครดิต') || tags.contains('จ่ายบิลบัตรเครดิต') || tags.contains('ผ่อนชำระ') ||
+        bLower.contains('บัตรเครดิต') || bLower.contains('credit card') ||
+        tLower.contains('บัตรเครดิต') || tLower.contains('credit card')) {
+      return 'CREDIT';
+    }
 
     // Fast-path: Explicit bank from bankName
     if (bLower.contains('กสิกร') || bLower.contains('k plus') || bLower.contains('kplus') || bLower.contains('kbank') || bLower == '004') {

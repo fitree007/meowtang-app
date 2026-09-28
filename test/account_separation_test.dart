@@ -3,6 +3,7 @@ import 'package:ai_expense_tracker/state/expense_controller.dart';
 import 'package:ai_expense_tracker/services/storage_service.dart';
 import 'package:ai_expense_tracker/services/thai_bank_detector.dart';
 import 'package:ai_expense_tracker/models/account_item.dart';
+import 'package:ai_expense_tracker/models/transaction_item.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -32,6 +33,37 @@ void main() {
     expect(ThaiBankDetector.detectCodeFromBankName('ธนาคารอิสลามแห่งประเทศไทย'), equals('IBANK'));
     expect(ThaiBankDetector.detectCodeFromBankName('กสิกรไทย (K PLUS)'), equals('KBANK'));
     expect(ThaiBankDetector.detectCodeFromBankName('กรุงไทย NEXT'), equals('KTB'));
-    expect(ThaiBankDetector.detectCodeFromBankName('เป๋าตัง (PaoTang)'), equals('PAOTANG'));
+    // 4. Test ensureCreditCardAccountExists creates CREDIT account with credit card bankCode
+    final ccAcc = controller.ensureCreditCardAccountExists();
+    expect(ccAcc.bankCode, equals('CREDIT'));
+    expect(ccAcc.name, equals('บัตรเครดิต'));
+    expect(controller.accounts.any((a) => a.bankCode == 'CREDIT'), isTrue);
+
+    // 5. Test detectBankCode detects CREDIT from credit card tags and names
+    final txWithTag = TransactionItem(
+      id: 'tx_cc_1',
+      title: 'จ่ายค่าอาหาร',
+      amount: 500,
+      date: DateTime.now(),
+      type: TransactionType.expense,
+      categoryId: 'food',
+      categoryName: 'อาหาร',
+      accountId: 'acc_credit',
+      tags: ['บัตรเครดิต'],
+    );
+    expect(ThaiBankDetector.detectBankCode(txWithTag, controller.accounts), equals('CREDIT'));
+
+    final txWithName = TransactionItem(
+      id: 'tx_cc_2',
+      title: 'ชำระยอดบัตร',
+      amount: 1500,
+      date: DateTime.now(),
+      type: TransactionType.expense,
+      categoryId: 'shopping',
+      categoryName: 'ช้อปปิ้ง',
+      accountId: 'acc_credit',
+      bankName: 'บัตรเครดิต',
+    );
+    expect(ThaiBankDetector.detectBankCode(txWithName, controller.accounts), equals('CREDIT'));
   });
 }

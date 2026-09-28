@@ -109,17 +109,7 @@ class _MeowEntryScreenState extends State<MeowEntryScreen> {
         _selectedType = TransactionType.income;
       } else if (index == 2) {
         _selectedType = TransactionType.expense; // บัตรเครดิต
-        final ccAccount = widget.controller.accounts.cast<AccountItem?>().firstWhere(
-          (acc) =>
-              acc != null &&
-              (acc.name.contains('บัตรเครดิต') ||
-                  acc.name.toLowerCase().contains('credit') ||
-                  acc.bankCode.toUpperCase() == 'CREDIT'),
-          orElse: () => null,
-        );
-        if (ccAccount != null) {
-          _selectedAccount = ccAccount;
-        }
+        _selectedAccount = widget.controller.ensureCreditCardAccountExists();
       }
       _setDefaultCategory();
     });
@@ -928,7 +918,10 @@ class _MeowEntryScreenState extends State<MeowEntryScreen> {
       return;
     }
 
-    final acc = _selectedAccount ?? (widget.controller.accounts.isNotEmpty ? widget.controller.accounts.first : null);
+    final defaultAcc = _currentTab == 2
+        ? widget.controller.ensureCreditCardAccountExists()
+        : (widget.controller.accounts.isNotEmpty ? widget.controller.accounts.first : null);
+    final acc = _selectedAccount ?? defaultAcc;
     if (acc == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(widget.controller.isEnglish ? 'No wallet account found' : 'ไม่พบบัญชีกระเป๋าเงิน')),

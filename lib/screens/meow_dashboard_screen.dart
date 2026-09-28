@@ -6,6 +6,7 @@ import '../widgets/meow_paywall_modal.dart';
 import 'dart:io';
 import 'dart:async';
 import 'dart:ui';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/transaction_item.dart';
@@ -92,6 +93,7 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
   String _statusMessage = 'คู่หูพร้อมดักจับสลิปใหม่แบบ Real-time และบันทึกอัตโนมัติแล้วนะ';
   bool _isAutoScanning = false;
   bool _isSortNewestFirst = true;
+  bool _isBankFilterExpanded = true;
   late Set<String> _enabledBankCodes;
 
   @override
@@ -108,6 +110,14 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
 
     _enabledBankCodes = ThaiBankDetector.supportedBanks.map((b) => b.code).toSet();
     _enabledBankCodes.add('OTHER');
+
+    SharedPreferences.getInstance().then((prefs) {
+      if (mounted) {
+        setState(() {
+          _isBankFilterExpanded = prefs.getBool('rizqi_bank_filter_expanded') ?? true;
+        });
+      }
+    });
 
   WidgetsBinding.instance.addPostFrameCallback((_) async {
     // 0. Register Native Reload Trigger
@@ -3090,35 +3100,74 @@ void _handleMascotPetting() {
          ],
         ],
        ),
-       TactileButton(
-        onTap: _showBankFilterBottomSheet,
-        child: Container(
-         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFEFF6FF),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: MeowTheme.actionBlue.withValues(alpha: 0.3)),
-         ),
-         child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-           const Icon(Icons.tune_rounded, size: 13, color: MeowTheme.actionBlue),
-           const SizedBox(width: 4),
-           Text(
-            isEn ? 'All Banks' : 'ธนาคารทั้งหมด',
-            style: const TextStyle(color: MeowTheme.actionBlue, fontSize: 11.5, fontWeight: FontWeight.bold),
+       Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+         TactileButton(
+          onTap: () {
+           HapticFeedback.selectionClick();
+           setState(() {
+            _isBankFilterExpanded = !_isBankFilterExpanded;
+           });
+           SharedPreferences.getInstance().then((p) => p.setBool('rizqi_bank_filter_expanded', _isBankFilterExpanded));
+          },
+          child: Container(
+           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+           margin: const EdgeInsets.only(right: 6),
+           decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: borderColor),
            ),
-          ],
+           child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+             Icon(
+              _isBankFilterExpanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
+              size: 15,
+              color: textSecondary,
+             ),
+             const SizedBox(width: 3),
+             Text(
+              _isBankFilterExpanded ? (isEn ? 'Collapse' : 'หุบ') : (isEn ? 'Expand' : 'ขยาย'),
+              style: TextStyle(color: textSecondary, fontSize: 11, fontWeight: FontWeight.bold),
+             ),
+            ],
+           ),
+          ),
          ),
-        ),
+         TactileButton(
+          onTap: _showBankFilterBottomSheet,
+          child: Container(
+           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+           decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFEFF6FF),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: MeowTheme.actionBlue.withValues(alpha: 0.3)),
+           ),
+           child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+             const Icon(Icons.tune_rounded, size: 13, color: MeowTheme.actionBlue),
+             const SizedBox(width: 4),
+             Text(
+              isEn ? 'All Banks' : 'ธนาคารทั้งหมด',
+              style: const TextStyle(color: MeowTheme.actionBlue, fontSize: 11.5, fontWeight: FontWeight.bold),
+             ),
+            ],
+           ),
+          ),
+         ),
+        ],
        ),
       ],
      ),
-     const SizedBox(height: 6),
+     if (_isBankFilterExpanded) ...[
+      const SizedBox(height: 6),
 
-     // Horizontal Bank App Icons with Notification Badges (Icon-Only Ultra Compact)
-     if (activeBankCodes.isNotEmpty)
-      SizedBox(
+      // Horizontal Bank App Icons with Notification Badges (Icon-Only Ultra Compact)
+      if (activeBankCodes.isNotEmpty)
+       SizedBox(
        height: 52,
        child: ListView.builder(
         scrollDirection: Axis.horizontal,
@@ -3255,6 +3304,7 @@ void _handleMascotPetting() {
         ],
        ),
       ),
+     ],
     ],
    ),
   );

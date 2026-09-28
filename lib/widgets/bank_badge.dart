@@ -43,6 +43,7 @@ class BankBadge extends StatelessWidget {
     if (code.contains('CIMB')) return 'CIMB';
     if (code.contains('UOB') || code.contains('TMRW')) return 'UOB';
     if (code.contains('CASH') || code.contains('เงินสด')) return 'CASH';
+    if (code.contains('CREDIT') || code.contains('บัตรเครดิต')) return 'CREDIT';
     return code;
   }
 
@@ -92,6 +93,8 @@ class BankBadge extends StatelessWidget {
         return const Color(0xFF003D79);
       case 'CASH':
         return const Color(0xFF10B981);
+      case 'CREDIT':
+        return const Color(0xFF6366F1);
       default:
         return const Color(0xFF64748B);
     }
@@ -143,6 +146,8 @@ class BankBadge extends StatelessWidget {
         return 'PromptPay พร้อมเพย์';
       case 'CASH':
         return 'เงินสด (Cash)';
+      case 'CREDIT':
+        return 'บัตรเครดิต (Credit Card)';
       default:
         return 'บัญชีอื่นๆ ($bankCode)';
     }
@@ -231,6 +236,8 @@ class BankBadge extends StatelessWidget {
         return Icon(Icons.qr_code_scanner_rounded, color: Colors.white, size: size * 0.56);
       case 'CASH':
         return Icon(Icons.payments_rounded, color: Colors.white, size: size * 0.58);
+      case 'CREDIT':
+        return Icon(Icons.credit_card_rounded, color: Colors.white, size: size * 0.58);
       default:
         return Icon(Icons.account_balance_rounded, color: Colors.white, size: size * 0.55);
     }
