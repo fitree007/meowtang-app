@@ -213,6 +213,22 @@ class CategoryMatcherService {
       final rent = availableCategories.where((c) => c.name.toLowerCase().contains('เช่า') || c.name.toLowerCase().contains('หอ'));
       if (rent.isNotEmpty) return rent.first;
     }
+    // Shopping & E-Commerce (ช้อปปิ้ง, ช็อปปิ้ง, ช้อปออนไลน์, ช็อปออนไลน์, ช้อป, ช็อป, ของใช้, สั่งของ, shopping)
+    if (targetLower.contains('ช้อป') ||
+        targetLower.contains('ช็อป') ||
+        targetLower.contains('shop') ||
+        targetLower.contains('ซื้อของ') ||
+        targetLower.contains('ของใช้')) {
+      final shopping = availableCategories.where((c) {
+        final n = c.name.toLowerCase();
+        return n.contains('ช้อป') ||
+            n.contains('ช็อป') ||
+            n.contains('shop') ||
+            n.contains('ของใช้') ||
+            n.contains('ซื้อของ');
+      });
+      if (shopping.isNotEmpty) return shopping.first;
+    }
 
     // 4. Substring match (bidirectional)
     for (final c in availableCategories) {

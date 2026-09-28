@@ -885,7 +885,10 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
     }
 
     var finalNote = _note;
-    var finalTitle = _selectedCategory?.name ?? widget.transaction.title;
+    // Keep existing transaction title (e.g. "โอนเงินผ่านกสิกรไทย", "โอนเงินผ่านไทยพาณิชย์") unchanged when changing category
+    var finalTitle = widget.transaction.title.trim().isNotEmpty
+        ? widget.transaction.title
+        : (_selectedCategory?.name ?? 'รายการ');
 
     if (_currentTab == 2) {
       if (_ccMode == 0) {

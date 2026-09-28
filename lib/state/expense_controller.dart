@@ -23,6 +23,7 @@ import '../localization/app_strings.dart';
 import '../theme/app_theme_model.dart';
 import '../services/thai_bank_detector.dart';
 import '../services/currency_exchange_service.dart';
+import '../services/category_matcher_service.dart';
 import '../utils/format_utils.dart';
 
 enum MascotMood {
@@ -32,7 +33,7 @@ enum MascotMood {
 }
 
 class ExpenseController extends ChangeNotifier {
-  static const String appVersion = '1.41.45';
+  static const String appVersion = '1.41.46';
 
   final StorageService _storage;
   final OcrEngineService _ocrEngine = OcrEngineService();
@@ -1820,6 +1821,8 @@ class ExpenseController extends ChangeNotifier {
 
  // OCR & NLP
  SlipExtractResult parseSlip(String rawText, {String? defaultBankCode, String? fileName, String? filePath, String? qrPayload}) {
+  final customRulesRaw = _storage.getKeywordRules();
+  final customRules = customRulesRaw.map((r) => KeywordRule.fromJson(r)).toList();
   return _ocrEngine.parseSlipText(
    rawText,
    _categories,
@@ -1827,6 +1830,7 @@ class ExpenseController extends ChangeNotifier {
    fileName: fileName,
    filePath: filePath,
    qrPayload: qrPayload,
+   customRules: customRules,
   );
  }
 

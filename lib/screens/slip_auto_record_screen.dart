@@ -275,19 +275,20 @@ class _SlipAutoRecordScreenState extends State<SlipAutoRecordScreen> {
   );
 
   final bool hasMemo = memo != null && memo.trim().isNotEmpty && memo.trim() != 'โปรดระบุยอด';
-  final CategoryItem matchedCategory;
-  if (!isIncomeSlip && !hasMemo) {
-    // หากไม่มีบันทึกช่วยจำหรือโน้ต ให้จัดอยู่ใน "รายจ่ายอื่นๆ" ตามที่ผู้ใช้ระบุ
-    matchedCategory = expenseFallback;
-  } else {
-    matchedCategory = await CategoryMatcherService.matchOrAutoCreateCategory(
-      noteOrMemo: memo ?? '',
-      recipientOrMerchant: hasMemo ? (memo ?? '') : '$bankName $receiverName $senderName',
-      controller: widget.controller,
-      type: isIncomeSlip ? CategoryType.income : CategoryType.expense,
-      fallbackCategory: isIncomeSlip ? incomeFallback : expenseFallback,
-    );
-  }
+
+  final searchContext = [
+    if (hasMemo) memo!.trim(),
+    if (receiverName != 'ไม่ระบุผู้รับ' && receiverName.trim().isNotEmpty) receiverName.trim(),
+    if (senderName != 'ไม่ระบุผู้โอน' && senderName.trim().isNotEmpty) senderName.trim(),
+    rawOcrText,
+  ].join(' ');
+
+  final CategoryItem matchedCategory = CategoryMatcherService.matchCategory(
+    text: searchContext,
+    availableCategories: isIncomeSlip ? widget.controller.incomeCategories : widget.controller.expenseCategories,
+    customRules: customRules,
+    fallbackCategory: isIncomeSlip ? incomeFallback : expenseFallback,
+  );
 
   // 7. Generate Title showing Who transferred to Whom
   String title;

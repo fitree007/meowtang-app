@@ -117,18 +117,34 @@ class OcrEngineService {
     final isQrReceiveImage = clean.contains('my qr') ||
         clean.contains('myqr') ||
         clean.contains('คิวอาร์ของฉัน') ||
+        clean.contains('qr ของฉัน') ||
+        clean.contains('qr ส่วนตัว') ||
         clean.contains('qr รับเงิน') ||
+        clean.contains('คิวอาร์รับเงิน') ||
+        clean.contains('คิวอาร์โค้ดรับเงิน') ||
+        clean.contains('qr code รับเงิน') ||
+        clean.contains('รับเงินด้วย qr') ||
+        clean.contains('รับเงินผ่าน qr') ||
+        clean.contains('รับเงินผ่านพร้อมเพย์') ||
+        clean.contains('พร้อมเพย์รับเงิน') ||
         clean.contains('สแกนเพื่อรับเงิน') ||
+        clean.contains('สแกนเพื่อจ่ายเงินให้ฉัน') ||
+        clean.contains('สแกนเพื่อโอนเงินให้ฉัน') ||
+        clean.contains('สแกน qr เพื่อชำระเงิน') ||
+        clean.contains('สแกนเพื่อจ่าย') ||
         clean.contains('สแกนจ่าย') ||
         clean.contains('สแกนรับเงิน') ||
-        clean.contains('แม่มณี') ||
-        clean.contains('ถุงเงิน') ||
+        clean.contains('แชร์ qr') ||
+        clean.contains('บันทึกรูป qr') ||
+        clean.contains('บันทึก qr') ||
         clean.contains('ป้ายคิวอาร์') ||
         file.contains('myqr') ||
         file.contains('my_qr') ||
         file.contains('qr_receive') ||
         file.contains('qr_code_receive') ||
-        file.contains('receive_qr');
+        file.contains('receive_qr') ||
+        file.contains('qr_payment') ||
+        file.contains('promptpay_qr');
 
     final bool hasTransferSuccessEvidence = clean.contains('โอนเงินสำเร็จ') ||
         clean.contains('รายการสำเร็จ') ||
@@ -145,24 +161,28 @@ class OcrEngineService {
       return false;
     }
 
-    // 3. QR Code Analysis (Differentiate between Slip Verification QR vs Pure Static Receive QR)
+    // 3. QR Code Analysis (Differentiate between Slip Verification QR vs Pure Receive QR)
     if (qrPayload != null && qrPayload.trim().isNotEmpty) {
       final qClean = qrPayload.trim();
-      
-      // If it's a Static PromptPay Receive QR (Starts with 000201010211...) without slip signature:
-      final bool isStaticReceiveQr = (qClean.startsWith('000201010211') || qClean.contains('010211')) &&
-          !qClean.contains('http') &&
-          !qClean.contains('slip') &&
-          !qClean.contains('verify') &&
-          !qClean.contains('ITMX');
+      final lowerQr = qClean.toLowerCase();
 
-      if (isStaticReceiveQr && !hasTransferSuccessEvidence) {
-        // Pure QR for receiving money -> REJECT
+      // If it's a PromptPay Receive QR (AID 010111 or 010112, or Thai QR payment) without slip verification:
+      final bool isReceiveQrPayload = (qClean.contains('A000000677010111') ||
+              qClean.contains('A000000677010112') ||
+              qClean.startsWith('000201010211') ||
+              (qClean.startsWith('000201010212') && !qClean.contains('A000000677010114'))) &&
+          !lowerQr.contains('http') &&
+          !lowerQr.contains('/slip') &&
+          !lowerQr.contains('verify') &&
+          !lowerQr.contains('itmx') &&
+          !qClean.contains('A000000677010114');
+
+      if (isReceiveQrPayload && !hasTransferSuccessEvidence) {
+        // Pure QR for receiving money -> REJECT immediately!
         return false;
       }
 
-      // Valid Bank Slip Verification URLs or ITMX Mini-QR
-      final lowerQr = qClean.toLowerCase();
+      // Valid Bank Slip Verification URLs or ITMX Mini-QR (AID 010114)
       final bool isBankVerificationQr = lowerQr.contains('itmx') ||
           lowerQr.contains('/slip') ||
           lowerQr.contains('slip') ||
@@ -172,8 +192,7 @@ class OcrEngineService {
           lowerQr.contains('scb') ||
           lowerQr.contains('krungthai') ||
           lowerQr.contains('ktb') ||
-          qClean.startsWith('000201010212') ||
-          qClean.contains('A000000677010112');
+          qClean.contains('A000000677010114');
 
       if (isBankVerificationQr) {
         if (hasTransferSuccessEvidence ||
@@ -413,7 +432,15 @@ class OcrEngineService {
     }
   }
 
-  SlipExtractResult parseSlipText(String rawText, List<CategoryItem> categories, {String? defaultBankCode, String? fileName, String? filePath, String? qrPayload}) {
+  SlipExtractResult parseSlipText(
+    String rawText,
+    List<CategoryItem> categories, {
+    String? defaultBankCode,
+    String? fileName,
+    String? filePath,
+    String? qrPayload,
+    List<KeywordRule> customRules = const [],
+  }) {
     final normalizedText = EasyOcrTesseractFusionService.normalizeOcrText(rawText.replaceAll('\r', ''));
     final cleanText = normalizedText;
     final lines = cleanText.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
@@ -442,13 +469,21 @@ class OcrEngineService {
     final bool isKBank = bankIdent.bankCode == 'KBANK';
     final bool isKrungthai = bankIdent.bankCode == 'KTB';
     final bool isSCB = bankIdent.bankCode == 'SCB';
+    final bool isIBankExempt = isIBank || cleanCombined.contains('อิสลาม') || cleanCombined.contains('ibank');
     final bool hasQr = qrPayload != null && qrPayload.trim().isNotEmpty;
-    final bool isPaotangGov = !hasQr && bankIdent.bankCode == 'PAOTANG';
+    final bool isPaotangGov = !isIBankExempt && (
+      (!hasQr && bankIdent.bankCode == 'PAOTANG') ||
+      cleanCombined.contains('ไทยช่วยไทย') ||
+      cleanCombined.contains('คนละครึ่ง') ||
+      cleanCombined.contains('เราชนะ') ||
+      cleanCombined.contains('สวัสดิการแห่งรัฐ') ||
+      cleanCombined.contains('เงินช่วยเหลือ')
+    );
 
     // 1. Amount Extraction
     double amount = 0.0;
     if (isPaotangGov) {
-      // User rule: For PaoTang slips without QR Code, set amount to 0.0 always so user can fill manually
+      // User rule: For PaoTang government project slips, set initial amount to 0.0 always so user can fill manually
       amount = 0.0;
     } else {
       // Normal flow for all other banks and iBank
@@ -568,13 +603,19 @@ class OcrEngineService {
     );
 
     final bool hasMemo = memo != null && memo.trim().isNotEmpty && memo.trim() != 'โปรดระบุยอด';
-    final matchedCat = hasMemo
-        ? CategoryMatcherService.matchCategory(
-            text: memo!.trim(),
-            availableCategories: categories.where((c) => c.type == (suggestedType == TransactionType.income ? CategoryType.income : CategoryType.expense)).toList(),
-            fallbackCategory: suggestedType == TransactionType.income ? fallbackIncome : fallbackExpense,
-          )
-        : (suggestedType == TransactionType.income ? fallbackIncome : fallbackExpense);
+    final searchContext = [
+      if (hasMemo) memo!.trim(),
+      if (receiverName != 'ไม่ระบุผู้รับ' && receiverName.trim().isNotEmpty) receiverName.trim(),
+      if (senderName != 'ไม่ระบุผู้โอน' && senderName.trim().isNotEmpty) senderName.trim(),
+      cleanText,
+    ].join(' ');
+
+    final matchedCat = CategoryMatcherService.matchCategory(
+      text: searchContext,
+      availableCategories: categories.where((c) => c.type == (suggestedType == TransactionType.income ? CategoryType.income : CategoryType.expense)).toList(),
+      customRules: customRules,
+      fallbackCategory: suggestedType == TransactionType.income ? fallbackIncome : fallbackExpense,
+    );
 
     // If generic fallback but memo has a specific topic, use memo as suggested category name
     String suggestedCategory = matchedCat.name;

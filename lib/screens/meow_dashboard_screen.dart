@@ -2598,7 +2598,7 @@ void _handleMascotPetting() {
                         ),
 
                         // Full-Width No-QR Tap-to-Enter Banner OR Standard Note Box
-                        if (tx.amount <= 0.0 || (cleanNote != null && cleanNote.contains('สลิปไม่มี QR Code'))) ...[
+                        if (tx.amount <= 0.0 || (cleanNote != null && (cleanNote.contains('สลิปไม่มี QR Code') || cleanNote.contains('แตะเพื่อระบุยอด') || cleanNote.contains('โปรดระบุยอด')))) ...[
                          GestureDetector(
                           onTap: () {
                             HapticFeedback.lightImpact();
@@ -2626,7 +2626,7 @@ void _handleMascotPetting() {
                              const SizedBox(width: 5),
                              Expanded(
                               child: Text(
-                               widget.controller.isEnglish ? 'No QR Code • Tap to enter amount' : 'สลิปไม่มี QR Code (แตะเพื่อระบุยอดเงิน)',
+                               widget.controller.isEnglish ? 'Tap to enter amount' : 'แตะเพื่อระบุยอดเงิน',
                                style: const TextStyle(
                                 color: Color(0xFFD97706),
                                 fontSize: 11,

@@ -542,14 +542,28 @@ class SlipAutoSyncService {
       detectedAmount = EasyOcrTesseractFusionService.extractAmount(rawOcrText);
     }
 
-    // Special Case: PaoTang / G-Wallet without amount & without QR code (Explicit User Exemption)
+    // Special Case: PaoTang / Government Project Slips (Explicit User Directive: Initial amount = 0.0)
+    // CRITICAL EXCEPTION: Islamic Bank (iBank) is strictly exempted and preserved as-is!
+    final bool isIBankExempt = isIBank || cleanCombined.contains('อิสลาม') || cleanCombined.contains('ibank');
     final bool isPaotangFolder = cleanCombined.contains('เป๋าตัง') ||
         cleanCombined.contains('paotang') ||
         cleanCombined.contains('g-wallet') ||
         path.toLowerCase().contains('paotang') ||
         path.contains('เป๋าตัง');
 
-    if (detectedAmount <= 0) {
+    final bool isPaotangGovProject = !isIBankExempt && (
+        cleanCombined.contains('ไทยช่วยไทย') ||
+        cleanCombined.contains('คนละครึ่ง') ||
+        cleanCombined.contains('เราชนะ') ||
+        cleanCombined.contains('สวัสดิการแห่งรัฐ') ||
+        cleanCombined.contains('เงินช่วยเหลือ') ||
+        (isPaotangFolder && !hasQrCode)
+    );
+
+    if (isPaotangGovProject) {
+      detectedAmount = 0.0;
+      refId = 'GOV-PAOTANG-${DateTime.now().millisecondsSinceEpoch}';
+    } else if (detectedAmount <= 0) {
       if (isPaotangFolder && !hasQrCode) {
         // PaoTang no-QR exception: Allow 0.0 with prompt
         detectedAmount = 0.0;

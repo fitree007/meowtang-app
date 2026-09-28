@@ -4,6 +4,7 @@ import 'package:ai_expense_tracker/models/category_item.dart';
 import 'package:ai_expense_tracker/models/transaction_item.dart';
 import 'package:ai_expense_tracker/services/thai_bank_detector.dart';
 import 'package:ai_expense_tracker/services/easyocr_tesseract_fusion_service.dart';
+import 'package:ai_expense_tracker/services/category_matcher_service.dart';
 
 void main() {
   final testCategories = [
@@ -299,7 +300,107 @@ xxx-x-x5678-x
     final bankCode = ThaiBankDetector.detectBankCode(kbankTx, []);
     expect(bankCode, equals('KBANK'));
   });
+
+  test('Test 12: Pure Receive QR Codes (PromptPay My QR, QR รับเงิน) are rejected by isBankSlip', () {
+    // 12A. Static PromptPay Receive QR (My QR)
+    const receiveQrPayload = '00020101021129370016A000000677010111011300668123456785802TH53037646304ABCD';
+    const receiveQrText = '''
+QR รับเงิน
+สแกนเพื่อจ่ายเงินให้ฉัน
+นาย สมชาย ใจดี
+พร้อมเพย์ 081-234-5678
+''';
+    final isSlip1 = OcrEngineService.isBankSlip(
+      receiveQrText,
+      qrPayload: receiveQrPayload,
+      fileName: 'my_qr_code.jpg',
+    );
+    expect(isSlip1, isFalse);
+
+    // 12B. Dynamic Merchant Receive QR with pre-filled amount
+    const merchantQrPayload = '00020101021230570016A000000677010112011300400000000025405150.005802TH63049999';
+    const merchantQrText = '''
+สแกน QR เพื่อชำระเงิน
+ร้านค้าของฉัน
+จำนวนเงิน 150.00 บาท
+''';
+    final isSlip2 = OcrEngineService.isBankSlip(
+      merchantQrText,
+      qrPayload: merchantQrPayload,
+      fileName: 'receive_qr_150.png',
+    );
+    expect(isSlip2, isFalse);
+  });
+
+  test('Test 13: PaoTang government project slip (คนละครึ่ง / ไทยช่วยไทย) sets initial amount to 0.0', () {
+    const govOcr = '''
+คนละครึ่ง
+ไทยช่วยไทย
+15 ก.ย. 68 12:30
+ร้านค้าประชารัฐ
+ยอดเงิน 150.00 บาท
+''';
+    final parsed = OcrEngineService().parseSlipText(
+      govOcr,
+      testCategories,
+      filePath: '/storage/emulated/0/Pictures/PaoTang/gov_slip.jpg',
+    );
+    // Government PaoTang slips must be initialized to 0.0 per user instruction
+    expect(parsed.amount, equals(0.0));
+  });
+
+  test('Test 14: CategoryMatcherService matches "shopee" to "ช้อปปิ้ง & ของใช้" via custom rule or default rule', () {
+    final categories = [
+      CategoryItem(id: 'cat_shop', name: 'ช้อปปิ้ง & ของใช้', iconKey: 'shopping_bag', colorValue: 0xFF3B82F6, type: CategoryType.expense),
+      CategoryItem(id: 'cat_food', name: 'อาหาร', iconKey: 'restaurant', colorValue: 0xFFF59E0B, type: CategoryType.expense),
+    ];
+
+    // Case A: Default rule for shopee
+    final resA = CategoryMatcherService.matchCategoryWithResult(
+      text: 'โอนเงินชำระค่าสินค้า shopee order #12345',
+      availableCategories: categories,
+    );
+    expect(resA.category.name, equals('ช้อปปิ้ง & ของใช้'));
+
+    // Case B: Custom rule with target category "ช็อปออนไลน์" matching user's "ช้อปปิ้ง & ของใช้"
+    final customRules = [
+      const KeywordRule(id: 'c1', keyword: 'shopee', categoryName: 'ช็อปออนไลน์'),
+    ];
+    final resB = CategoryMatcherService.matchCategoryWithResult(
+      text: 'shopee',
+      availableCategories: categories,
+      customRules: customRules,
+    );
+    expect(resB.category.name, equals('ช้อปปิ้ง & ของใช้'));
+  });
+
+  test('Test 15: Custom rule matches keyword found in slip memo', () {
+    final categories = [
+      CategoryItem(id: 'cat_gas', name: 'ค่าน้ำมัน', iconKey: 'local_gas_station', colorValue: 0xFFEF4444, type: CategoryType.expense),
+      CategoryItem(id: 'cat_other', name: 'รายจ่ายอื่นๆ', iconKey: 'category', colorValue: 0xFF64748B, type: CategoryType.expense),
+    ];
+    final customRules = [
+      const KeywordRule(id: 'c2', keyword: 'เติมน้ำมัน', categoryName: 'ค่าน้ำมัน'),
+    ];
+
+    const slipWithMemo = '''
+โอนเงินสำเร็จ
+18 ก.ย. 69
+จาก นาย ก
+ไปยัง ปั๊มบางจาก
+บันทึกช่วยจำ: เติมน้ำมันรถยนต์
+จำนวนเงิน 500.00 บาท
+''';
+
+    final parsed = OcrEngineService().parseSlipText(
+      slipWithMemo,
+      categories,
+      customRules: customRules,
+    );
+    expect(parsed.suggestedCategoryName, equals('ค่าน้ำมัน'));
+  });
 }
+
 
 
 
