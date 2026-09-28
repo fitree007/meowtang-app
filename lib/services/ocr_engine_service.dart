@@ -248,6 +248,12 @@ class OcrEngineService {
   /// Advanced RegEx & EasyOCR-Tesseract Fusion parser to extract amount from bank slip text
   static double extractAmountFromText(String rawText) {
     if (rawText.isEmpty) return 0.0;
+    final lower = rawText.toLowerCase();
+    final bool isIBank = lower.contains('ibank') || lower.contains('อิสลาม') || lower.contains('ไอแบงก์');
+    if (!isIBank && (lower.contains('ไทยช่วยไทย') || lower.contains('คนละครึ่ง') || lower.contains('เราชนะ') || lower.contains('สวัสดิการ') || lower.contains('สิทธิ'))) {
+      final govAmt = EasyOcrTesseractFusionService.extractPaotangGovPaidAmount(rawText);
+      if (govAmt > 0) return govAmt;
+    }
     return EasyOcrTesseractFusionService.extractAmount(rawText);
   }
 
@@ -483,8 +489,8 @@ class OcrEngineService {
     // 1. Amount Extraction
     double amount = 0.0;
     if (isPaotangGov) {
-      // User rule: For PaoTang government project slips, set initial amount to 0.0 always so user can fill manually
-      amount = 0.0;
+      // User rule: For PaoTang government project slips ONLY, extract the final paid amount at "จำนวนเงินที่ชำระ" / "จำนวนเงินที่ต้องชำระ"
+      amount = EasyOcrTesseractFusionService.extractPaotangGovPaidAmount(cleanText);
     } else {
       // Normal flow for all other banks and iBank
       amount = EasyOcrTesseractFusionService.extractAmount(cleanText);

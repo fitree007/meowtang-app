@@ -566,4 +566,99 @@ class EasyOcrTesseractFusionService {
     // If it has passbook signatures and lacks transfer success phrases, it is a PASSBOOK (reject!)
     return !hasTransferSuccess;
   }
+  /// Extracts the exact paid amount from PaoTang Government Project slips (คนละครึ่ง, ไทยช่วยไทย, เราชนะ, ฯลฯ)
+  /// For PaoTang government project slips ONLY:
+  /// Extracts the bottom-most user-paid amount at "จำนวนเงินที่ต้องชำระ" / "จำนวนเงินที่ชำระ"
+  static double extractPaotangGovPaidAmount(String text) {
+    if (text.isEmpty) return 0.0;
+    final clean = normalizeOcrText(text);
+    final lines = clean.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
+
+    final paidLabels = [
+      'จำนวนเงินที่ต้องชำระ',
+      'จํานวนเงินที่ต้องชําระ',
+      'ยอดที่ต้องชำระ',
+      'ยอดที่ต้องชําระ',
+      'จำนวนเงินที่ชำระ',
+      'จํานวนเงินที่ชําระ',
+      'เงินที่จ่ายจริง',
+      'ยอดเงินที่ชำระ',
+      'ยอดเงินที่ชําระ',
+      'ยอดชำระ',
+      'ยอดชําระ',
+    ];
+
+    final numRegex = RegExp(
+      r'([0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{1,2}|[0-9]+\.[0-9]{1,2}|[0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)',
+    );
+
+    // Pass 1: Proximity to paidLabels, scanned bottom-to-top to capture the final paid amount
+    for (int i = lines.length - 1; i >= 0; i--) {
+      final line = lines[i];
+      final lower = line.toLowerCase();
+      if (lower.contains('สิทธิ') ||
+          lower.contains('สิทธิ์') ||
+          lower.contains('ส่วนลด') ||
+          lower.contains('คงเหลือ') ||
+          lower.contains('ค่าธรรมเนียม') ||
+          lower.startsWith('-')) {
+        continue;
+      }
+
+      if (paidLabels.any((lbl) => lower.contains(lbl))) {
+        // A. Same line after label
+        for (final lbl in paidLabels) {
+          final idx = lower.indexOf(lbl);
+          if (idx != -1) {
+            final after = line.substring(idx + lbl.length);
+            final m = numRegex.firstMatch(after);
+            if (m != null) {
+              final val = double.tryParse(m.group(1)!.replaceAll(',', ''));
+              if (val != null && val > 0 && val < 50000000) {
+                return val;
+              }
+            }
+          }
+        }
+
+        // B. Same line match
+        final mSelf = numRegex.firstMatch(line);
+        if (mSelf != null) {
+          final val = double.tryParse(mSelf.group(1)!.replaceAll(',', ''));
+          if (val != null && val > 0 && val < 50000000) {
+            return val;
+          }
+        }
+
+        // C. Lookahead to adjacent lines (if label was on line i and amount is on line i+1)
+        for (int j = i + 1; j < lines.length && j <= i + 2; j++) {
+          final sub = lines[j];
+          if (sub.contains('-') || sub.contains('สิทธิ') || sub.contains('คงเหลือ')) continue;
+          final mSub = numRegex.firstMatch(sub);
+          if (mSub != null) {
+            final val = double.tryParse(mSub.group(1)!.replaceAll(',', ''));
+            if (val != null && val > 0 && val < 50000000) {
+              return val;
+            }
+          }
+        }
+      }
+    }
+
+    // Pass 2: Direct Regex match across full text, selecting the bottom-most match
+    final directRegex = RegExp(
+      r'(?:จำนวนเงินที่ต้องชำระ|จํานวนเงินที่ต้องชําระ|จำนวนเงินที่ชำระ|จํานวนเงินที่ชําระ|ยอดเงินที่ชำระ|เงินที่จ่ายจริง|ยอดชำระ|ยอดที่ต้องชำระ)[:\s]*([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)\s*(?:บาท|thb)?',
+      caseSensitive: false,
+    );
+    final allMatches = directRegex.allMatches(clean).toList();
+    if (allMatches.isNotEmpty) {
+      final lastMatch = allMatches.last;
+      final val = double.tryParse(lastMatch.group(1)!.replaceAll(',', ''));
+      if (val != null && val > 0 && val < 50000000) {
+        return val;
+      }
+    }
+
+    return 0.0;
+  }
 }

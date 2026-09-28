@@ -211,16 +211,21 @@ class _SlipAutoRecordScreenState extends State<SlipAutoRecordScreen> {
   // STEP 2: Fallback to Advanced OCR Text Recognition for Amount
   if (detectedAmount <= 0) {
    if (isPaotangGovNoQr) {
-     final paotangAmtRegex = RegExp(
-       r'(?:จำนวนเงินที่ชำระ|จํานวนเงินที่ชำระ)[:\s\n]*([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{2})|[0-9]+(?:\.[0-9]{2})?)',
-       caseSensitive: false,
-     );
-     final match = paotangAmtRegex.firstMatch(rawOcrText);
-     if (match != null && match.group(1) != null) {
-       final rawVal = match.group(1)!.replaceAll(',', '').trim();
-       detectedAmount = double.tryParse(rawVal) ?? 0.0;
-     }
-   } else {
+      final govAmt = EasyOcrTesseractFusionService.extractPaotangGovPaidAmount(rawOcrText);
+      if (govAmt > 0) {
+        detectedAmount = govAmt;
+      } else {
+        final paotangAmtRegex = RegExp(
+          r'(?:จำนวนเงินที่ชำระ|จํานวนเงินที่ชำระ)[:\\s\\n]*([0-9]{1,3}(?:,[0-9]{3})*(?:\\.[0-9]{2})|[0-9]+(?:\\.[0-9]{2})?)',
+          caseSensitive: false,
+        );
+        final match = paotangAmtRegex.firstMatch(rawOcrText);
+        if (match != null && match.group(1) != null) {
+          final rawVal = match.group(1)!.replaceAll(',', '').trim();
+          detectedAmount = double.tryParse(rawVal) ?? 0.0;
+        }
+      }
+    } else {
      if (ocrParsed.amount > 0) {
        detectedAmount = ocrParsed.amount;
        if (ocrParsed.refId.isNotEmpty) refNo = ocrParsed.refId;

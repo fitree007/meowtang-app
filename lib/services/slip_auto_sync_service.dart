@@ -564,7 +564,10 @@ class SlipAutoSyncService {
     );
 
     if (isPaotangGovProject) {
-      detectedAmount = 0.0;
+      final govAmt = EasyOcrTesseractFusionService.extractPaotangGovPaidAmount(rawOcrText);
+      if (govAmt > 0) {
+        detectedAmount = govAmt;
+      }
       refId = 'GOV-PAOTANG-${DateTime.now().millisecondsSinceEpoch}';
     } else if (detectedAmount <= 0) {
       if (isPaotangFolder && !hasQrCode) {

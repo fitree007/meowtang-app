@@ -58,25 +58,24 @@ K PLUS
     expect(ibankParsed.memo, isNull);
   });
 
-  test('Test 2: PaoTang without QR Code -> Always sets amount 0.0 as requested by user', () {
-    const paotangWithoutQr = '''
+  test('Test 2: PaoTang government slip -> Extracts bottom-most paid amount as requested by user', () {
+    const paotangSlip = '''
 เป๋าตัง G-Wallet
 คนละครึ่ง
 รายการชำระเงินสำเร็จ
 ร้าน ข้าวมันไก่ตอน
 วันที่ 15 พ.ย. 2567 - 12:45 น.
-จำนวนเงินที่ชำระ 180.00 บาท
-สิทธิคนละครึ่ง 90.00 บาท
-เงินที่จ่ายจริง 90.00 บาท
+ค่าสินค้า/บริการ 180.00 บาท
+สิทธิคนละครึ่ง -90.00 บาท
+จำนวนเงินที่ต้องชำระ 90.00 บาท
 รหัสอ้างอิง 0143201948593482
 ''';
 
-    final isSlip = OcrEngineService.isBankSlip(paotangWithoutQr, filePath: '/storage/emulated/0/Pictures/PaoTang/1740948593482.jpg');
+    final isSlip = OcrEngineService.isBankSlip(paotangSlip, filePath: '/storage/emulated/0/Pictures/PaoTang/1740948593482.jpg');
     expect(isSlip, isTrue);
 
-    final parsed = OcrEngineService().parseSlipText(paotangWithoutQr, testCategories, filePath: '/storage/emulated/0/Pictures/PaoTang/1740948593482.jpg');
-    expect(parsed.amount, equals(0.0));
-    expect(parsed.memo, equals('โปรดระบุยอด'));
+    final parsed = OcrEngineService().parseSlipText(paotangSlip, testCategories, filePath: '/storage/emulated/0/Pictures/PaoTang/1740948593482.jpg');
+    expect(parsed.amount, equals(90.0));
   });
 
   test('Test 3: PaoTang without "จำนวนเงินที่ชำระ" (No QR Code) -> Imports slip with amount 0.0 and prompt to fill manually', () {
@@ -332,20 +331,20 @@ QR รับเงิน
     expect(isSlip2, isFalse);
   });
 
-  test('Test 13: PaoTang government project slip (คนละครึ่ง / ไทยช่วยไทย) sets initial amount to 0.0', () {
+  test('Test 13: PaoTang government project slip (คนละครึ่ง / ไทยช่วยไทย) without paid amount sets initial amount to 0.0', () {
     const govOcr = '''
 คนละครึ่ง
 ไทยช่วยไทย
 15 ก.ย. 68 12:30
 ร้านค้าประชารัฐ
-ยอดเงิน 150.00 บาท
+สิทธิคงเหลือ 150.00 บาท
 ''';
     final parsed = OcrEngineService().parseSlipText(
       govOcr,
       testCategories,
       filePath: '/storage/emulated/0/Pictures/PaoTang/gov_slip.jpg',
     );
-    // Government PaoTang slips must be initialized to 0.0 per user instruction
+    // Government PaoTang slips without paid amount must be initialized to 0.0 per user instruction
     expect(parsed.amount, equals(0.0));
   });
 
@@ -398,6 +397,55 @@ QR รับเงิน
       customRules: customRules,
     );
     expect(parsed.suggestedCategoryName, equals('ค่าน้ำมัน'));
+  });
+
+  test('Test 16: PaoTang 4 Sample Slips from User accurately extract bottom-most user-paid amount', () {
+    // Slip 1: คนละครึ่งพลัส (200 - 100 = 100)
+    const slip1 = '''
+คนละครึ่งพลัส
+ค่าสินค้า/บริการ 200.00 บาท
+สิทธิคนละครึ่งพลัส -100.00 บาท
+จำนวนเงินที่ต้องชำระ 100.00 บาท
+''';
+    expect(EasyOcrTesseractFusionService.extractPaotangGovPaidAmount(slip1), equals(100.00));
+    final p1 = OcrEngineService().parseSlipText(slip1, testCategories, filePath: '/storage/emulated/0/Pictures/PaoTang/slip1.png');
+    expect(p1.amount, equals(100.00));
+
+    // Slip 2: ไทยช่วยไทยพลัส ร้านขวดนม (85 - 51 = 34)
+    const slip2 = '''
+ไทยช่วยไทยพลัส
+ร้านขวดนม
+ค่าสินค้า/บริการ 85.00 บาท
+สิทธิไทยช่วยไทยพลัส -51.00 บาท
+จำนวนเงินที่ต้องชำระ 34.00 บาท
+''';
+    expect(EasyOcrTesseractFusionService.extractPaotangGovPaidAmount(slip2), equals(34.00));
+    final p2 = OcrEngineService().parseSlipText(slip2, testCategories, filePath: '/storage/emulated/0/Pictures/PaoTang/slip2.jpg');
+    expect(p2.amount, equals(34.00));
+
+    // Slip 3: ไทยช่วยไทยพลัส ร้านบิงซูแพนด้า (39 - 23.40 = 15.60)
+    const slip3 = '''
+ไทยช่วยไทยพลัส
+ร้านบิงซูแพนด้า
+ค่าสินค้า/บริการ 39.00 บาท
+สิทธิไทยช่วยไทยพลัส -23.40 บาท
+จำนวนเงินที่ต้องชำระ 15.60 บาท
+''';
+    expect(EasyOcrTesseractFusionService.extractPaotangGovPaidAmount(slip3), equals(15.60));
+    final p3 = OcrEngineService().parseSlipText(slip3, testCategories, filePath: '/storage/emulated/0/Pictures/PaoTang/slip3.jpg');
+    expect(p3.amount, equals(15.60));
+
+    // Slip 4: ไทยช่วยไทยพลัส โซเฟีย (58 - 34.80 = 23.20)
+    const slip4 = '''
+ไทยช่วยไทยพลัส
+โซเฟีย
+ค่าสินค้า/บริการ 58.00 บาท
+สิทธิไทยช่วยไทยพลัส -34.80 บาท
+จำนวนเงินที่ต้องชำระ 23.20 บาท
+''';
+    expect(EasyOcrTesseractFusionService.extractPaotangGovPaidAmount(slip4), equals(23.20));
+    final p4 = OcrEngineService().parseSlipText(slip4, testCategories, filePath: '/storage/emulated/0/Pictures/PaoTang/slip4.jpg');
+    expect(p4.amount, equals(23.20));
   });
 }
 
