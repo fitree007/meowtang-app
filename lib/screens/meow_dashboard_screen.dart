@@ -3116,12 +3116,13 @@ void _handleMascotPetting() {
      ),
      const SizedBox(height: 6),
 
-     // Horizontal Bank Chips (For banks present in this month)
+     // Horizontal Bank App Icons with Notification Badges (Icon-Only Ultra Compact)
      if (activeBankCodes.isNotEmpty)
       SizedBox(
-       height: 38,
+       height: 52,
        child: ListView.builder(
         scrollDirection: Axis.horizontal,
+        clipBehavior: Clip.none,
         itemCount: activeBankCodes.length,
         itemBuilder: (ctx, idx) {
          final code = activeBankCodes[idx];
@@ -3139,55 +3140,94 @@ void _handleMascotPetting() {
          final isChecked = _enabledBankCodes.contains(code);
          final count = bankTxsMap[code]?.length ?? 0;
 
-         return TactileButton(
-          onTap: () {
-           HapticFeedback.selectionClick();
-           setState(() {
-            if (isChecked) {
-             _enabledBankCodes.remove(code);
-            } else {
-             _enabledBankCodes.add(code);
-            }
-           });
-          },
-          child: AnimatedContainer(
-           duration: const Duration(milliseconds: 200),
-           margin: const EdgeInsets.only(right: 8),
-           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-           decoration: BoxDecoration(
-            color: isChecked ? bankMeta.primaryColor.withValues(alpha: 0.12) : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-             color: isChecked ? bankMeta.primaryColor : borderColor,
-             width: isChecked ? 1.5 : 1,
+         return Padding(
+          padding: const EdgeInsets.only(right: 12, top: 4, bottom: 4),
+          child: Tooltip(
+           message: '${isEn ? bankMeta.nameEn : bankMeta.nameTh} ($count)',
+           child: TactileButton(
+            onTap: () {
+             HapticFeedback.selectionClick();
+             setState(() {
+              if (isChecked) {
+               _enabledBankCodes.remove(code);
+              } else {
+               _enabledBankCodes.add(code);
+              }
+             });
+            },
+            child: Stack(
+             clipBehavior: Clip.none,
+             children: [
+              AnimatedContainer(
+               duration: const Duration(milliseconds: 200),
+               width: 44,
+               height: 44,
+               padding: const EdgeInsets.all(2),
+               decoration: BoxDecoration(
+                color: isChecked
+                    ? bankMeta.primaryColor.withValues(alpha: 0.15)
+                    : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                 color: isChecked ? bankMeta.primaryColor : borderColor,
+                 width: isChecked ? 2.0 : 1.0,
+                ),
+                boxShadow: isChecked
+                    ? [
+                      BoxShadow(
+                       color: bankMeta.primaryColor.withValues(alpha: 0.35),
+                       blurRadius: 6,
+                       offset: const Offset(0, 2),
+                      ),
+                     ]
+                    : null,
+               ),
+               child: Center(
+                child: BankBadge(
+                 bankCode: code,
+                 size: 38,
+                 shape: BoxShape.rectangle,
+                 borderRadius: BorderRadius.circular(9),
+                ),
+               ),
+              ),
+              // App Icon Style Notification Badge (LINE style)
+              if (count > 0)
+               Positioned(
+                top: -5,
+                right: -5,
+                child: Container(
+                 padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                 decoration: BoxDecoration(
+                  color: const Color(0xFFFF5252),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                   color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                   width: 1.5,
+                  ),
+                  boxShadow: [
+                   BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.2),
+                    blurRadius: 3,
+                    offset: const Offset(0, 1),
+                   ),
+                  ],
+                 ),
+                 constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                 alignment: Alignment.center,
+                 child: Text(
+                  count > 999 ? '999+' : '$count',
+                  style: const TextStyle(
+                   color: Colors.white,
+                   fontSize: 10,
+                   fontWeight: FontWeight.w900,
+                   height: 1.1,
+                  ),
+                 ),
+                ),
+               ),
+             ],
             ),
-           ),
-           child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-             BankBadge(bankCode: code, size: 18),
-             const SizedBox(width: 5),
-             Text(
-              isEn ? bankMeta.shortNameEn : bankMeta.shortNameTh,
-              style: TextStyle(
-               color: isChecked ? (isDark ? Colors.white : bankMeta.primaryColor) : textSecondary,
-               fontSize: 12,
-               fontWeight: isChecked ? FontWeight.bold : FontWeight.w500,
-              ),
-             ),
-             const SizedBox(width: 4),
-             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-              decoration: BoxDecoration(
-               color: isChecked ? bankMeta.primaryColor : Colors.grey.withOpacity(0.3),
-               borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-               '$count',
-               style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-              ),
-             ),
-            ],
            ),
           ),
          );

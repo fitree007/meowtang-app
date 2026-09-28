@@ -6,12 +6,17 @@ class BankBadge extends StatelessWidget {
   final bool showLabel;
   final TextStyle? labelStyle;
 
+  final BoxShape shape;
+  final BorderRadius? borderRadius;
+
   const BankBadge({
     super.key,
     required this.bankCode,
     this.size = 36.0,
     this.showLabel = false,
     this.labelStyle,
+    this.shape = BoxShape.circle,
+    this.borderRadius,
   });
 
   String get _normalizedCode {
@@ -157,12 +162,15 @@ class BankBadge extends StatelessWidget {
   }
 
   Widget _buildFallbackContainer() {
+    final effectiveRadius = borderRadius ?? BorderRadius.circular(size * 0.28);
+    final isSquare = shape == BoxShape.rectangle;
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
         color: bankColor,
-        borderRadius: BorderRadius.circular(size * 0.28),
+        shape: shape,
+        borderRadius: isSquare ? effectiveRadius : null,
         boxShadow: [
           BoxShadow(
             color: bankColor.withValues(alpha: 0.35),
@@ -231,6 +239,8 @@ class BankBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final asset = _bankLogoAsset;
+    final effectiveRadius = borderRadius ?? BorderRadius.circular(size * 0.28);
+    final isSquare = shape == BoxShape.rectangle;
 
     final Widget badge;
     if (asset != null) {
@@ -238,7 +248,8 @@ class BankBadge extends StatelessWidget {
         width: size,
         height: size,
         decoration: BoxDecoration(
-          shape: BoxShape.circle,
+          shape: shape,
+          borderRadius: isSquare ? effectiveRadius : null,
           boxShadow: [
             BoxShadow(
               color: bankColor.withValues(alpha: 0.20),
@@ -247,15 +258,26 @@ class BankBadge extends StatelessWidget {
             ),
           ],
         ),
-        child: ClipOval(
-          child: Image.asset(
-            asset,
-            width: size,
-            height: size,
-            fit: BoxFit.cover,
-            errorBuilder: (_, _, _) => _buildFallbackContainer(),
-          ),
-        ),
+        child: isSquare
+            ? ClipRRect(
+                borderRadius: effectiveRadius,
+                child: Image.asset(
+                  asset,
+                  width: size,
+                  height: size,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => _buildFallbackContainer(),
+                ),
+              )
+            : ClipOval(
+                child: Image.asset(
+                  asset,
+                  width: size,
+                  height: size,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => _buildFallbackContainer(),
+                ),
+              ),
       );
     } else {
       badge = _buildFallbackContainer();
