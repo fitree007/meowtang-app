@@ -446,7 +446,7 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> with SingleTi
         ],
        ),
        padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top + (_isHeaderCollapsed ? 8 : 10),
+        top: MediaQuery.of(context).padding.top + (_isHeaderCollapsed ? 11 : 14),
         left: 18,
         right: 18,
         bottom: _isHeaderCollapsed ? 8 : 12,

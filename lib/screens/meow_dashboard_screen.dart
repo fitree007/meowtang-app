@@ -1468,7 +1468,7 @@ void _handleMascotPetting() {
         Container(
          color: bgColor,
          padding: EdgeInsets.only(
-          top: MediaQuery.of(context).padding.top + 6,
+          top: MediaQuery.of(context).padding.top + 12,
           left: 20,
           right: 20,
           bottom: 4,

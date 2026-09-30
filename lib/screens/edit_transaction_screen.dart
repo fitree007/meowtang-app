@@ -967,7 +967,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
             // Top 3 Tabs & Close Button (รายจ่าย, รายรับ, บัตรเครดิต) [Removed Delete Button as requested]
             Container(
               color: currentTheme.surfaceBackground,
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              padding: const EdgeInsets.only(left: 10, right: 10, top: 12, bottom: 8),
               child: Row(
                 children: [
                   Expanded(
