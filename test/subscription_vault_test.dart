@@ -141,6 +141,12 @@ void main() {
     });
 
     test('Auto-matches brand logos for AI and popular Thai services correctly', () {
+      // MeowTang VIP App Preset
+      expect(SubscriptionPreset.popularPresets.first.name, equals('เหมียวตังค์ (MeowTang VIP)'));
+      expect(SubscriptionPreset.findMatchingPreset('เหมียว')?.name, equals('เหมียวตังค์ (MeowTang VIP)'));
+      expect(SubscriptionPreset.findMatchingPreset('meowtang')?.name, equals('เหมียวตังค์ (MeowTang VIP)'));
+      expect(SubscriptionPreset.findMatchingPreset('meow')?.name, equals('เหมียวตังค์ (MeowTang VIP)'));
+
       // AI Services
       expect(SubscriptionPreset.findMatchingPreset('Gemini Advanced')?.name, equals('Google Gemini Advanced'));
       expect(SubscriptionPreset.findMatchingPreset('perplexity pro')?.name, equals('Perplexity Pro'));

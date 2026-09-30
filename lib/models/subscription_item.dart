@@ -293,6 +293,17 @@ class SubscriptionPreset {
   });
 
   static const List<SubscriptionPreset> popularPresets = [
+    // Featured App Preset
+    SubscriptionPreset(
+      name: 'เหมียวตังค์ (MeowTang VIP)',
+      category: 'AI & ซอฟต์แวร์',
+      defaultPrice: 49.0,
+      currency: 'THB',
+      billingCycle: 'monthly',
+      logoAssetPath: 'assets/icons/subscriptions/meowtang.png',
+      brandColor: Color(0xFFF59E0B),
+    ),
+
     // Streaming & Entertainment
     SubscriptionPreset(
       name: 'Netflix',
@@ -694,6 +705,16 @@ class SubscriptionPreset {
   ];
 
   static final Map<String, List<String>> _aliasMap = {
+    'เหมียวตังค์ (MeowTang VIP)': [
+      'meowtang',
+      'meow tang',
+      'เหมียวตังค์',
+      'เหมียวตัง',
+      'เหมียว',
+      'meow',
+      'meowtang vip',
+      'meow tang vip',
+    ],
     'Netflix': ['netflix', 'เน็ตฟลิก', 'เนตฟลิก'],
     'YouTube Premium': ['youtube', 'yt', 'ยูทูป', 'ยูทูบ'],
     'Spotify': ['spotify', 'สปอติฟาย'],
