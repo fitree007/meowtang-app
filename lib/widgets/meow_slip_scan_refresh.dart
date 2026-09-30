@@ -44,9 +44,9 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
 
   double _dragOffset = 0.0;
   bool _isDragging = false;
+  bool _canRefresh = false;
   bool _isRefreshing = false;
   bool _isCompleted = false;
-  bool _hasHapticed = false;
 
   late AnimationController _springBackController;
   late Animation<double> _springBackAnimation;
@@ -111,29 +111,30 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
     });
 
     if (_dragOffset >= _triggerDistance) {
-      if (!_hasHapticed) {
+      if (!_canRefresh) {
+        _canRefresh = true;
         HapticFeedback.lightImpact();
-        _hasHapticed = true;
       }
       _startSwipeLoop();
-    } else {
-      _hasHapticed = false;
+    } else if (_dragOffset <= 6.0) {
+      _canRefresh = false;
     }
   }
 
   Future<void> _handleRelease() async {
     if (_isRefreshing) return;
 
-    if (_dragOffset >= _triggerDistance) {
+    if (_canRefresh || _dragOffset >= _triggerDistance) {
+      _canRefresh = false;
       setState(() {
         _isRefreshing = true;
         _isCompleted = false;
       });
 
       _startSwipeLoop();
-      _animateTo(_refreshingHeight, durationMs: 180);
+      _animateTo(_refreshingHeight, durationMs: 160);
 
-      // Hold refresh screen for at least 3.2 seconds for full animation enjoyment
+      // Hold refresh screen firmly for at least 3.2 seconds
       try {
         await Future.wait([
           widget.onRefresh(),
@@ -148,16 +149,16 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
       });
       HapticFeedback.lightImpact();
 
-      await Future.delayed(const Duration(milliseconds: 400));
+      await Future.delayed(const Duration(milliseconds: 450));
       if (!mounted) return;
 
-      _animateTo(0.0, durationMs: 220, onDone: () {
+      _animateTo(0.0, durationMs: 240, onDone: () {
         if (mounted) {
           setState(() {
             _isRefreshing = false;
             _isCompleted = false;
             _dragOffset = 0.0;
-            _hasHapticed = false;
+            _canRefresh = false;
           });
           _stopSwipeLoop();
         }
@@ -167,7 +168,7 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
         if (mounted) {
           setState(() {
             _dragOffset = 0.0;
-            _hasHapticed = false;
+            _canRefresh = false;
           });
           _stopSwipeLoop();
         }
@@ -195,6 +196,8 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
   }
 
   bool _onScrollNotification(ScrollNotification notification) {
+    if (_isRefreshing) return false;
+
     if (notification is ScrollStartNotification) {
       if (notification.metrics.extentBefore == 0) {
         _isDragging = true;
@@ -204,7 +207,9 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
         if (notification.metrics.pixels < 0) {
           _updateDrag(-notification.metrics.pixels);
         } else if (_dragOffset > 0 && notification.scrollDelta != null && notification.scrollDelta! > 0) {
-          _updateDrag(_dragOffset - notification.scrollDelta!);
+          if (!_canRefresh) {
+            _updateDrag(_dragOffset - notification.scrollDelta!);
+          }
         }
       }
     } else if (notification is OverscrollNotification) {
@@ -244,7 +249,7 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
   @override
   Widget build(BuildContext context) {
     final double topSafe = MediaQuery.of(context).padding.top;
-    final double visibleHeight = _dragOffset;
+    final double visibleHeight = _isRefreshing ? math.max(_dragOffset, _refreshingHeight) : _dragOffset;
     final double progress = (_dragOffset / _triggerDistance).clamp(0.0, 1.0);
 
     return NotificationListener<ScrollNotification>(
@@ -521,238 +526,119 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
     );
   }
 
-  /// Cat with a visible forearm connected directly to its shoulder and body
+  /// Cat with a realistic, fixed-length forearm rotating from shoulder and authentic feline face
   Widget _buildCatWithArcPaw(Color catColor, Color earColor, double swipeT) {
     final bool isBlinking = _idleCatController.value > 0.94;
+    final double earTwitch = math.sin(_idleCatController.value * math.pi * 4) * 0.08;
 
     // The swat cadence synchronizes with the 3 passing slips
     final double swatPhase = (swipeT * 3.0) % 1.0;
-    double pawX;
-    double pawY;
-    double pawRotation;
 
+    // CONSTANT ARM LENGTH: Exactly 23.0 pixels! Rotates around shoulder, NEVER stretches!
+    const double armLength = 23.0;
+    const Offset shoulder = Offset(62.0, 36.0);
+
+    double armAngle;
     if (swatPhase < 0.45) {
-      // Swatting forward
+      // Swatting forward and downward
       final double s = swatPhase / 0.45;
       final double ease = math.sin(s * math.pi * 0.5);
-      pawX = 46.0 - (ease * 38.0); // 46 -> 8
-      pawY = 34.0 + (math.sin(s * math.pi) * 8.0);
-      pawRotation = -0.15 - (ease * 0.65);
+      armAngle = 2.65 + (ease * 0.65); // from 2.65 rad (~151°) to 3.30 rad (~189°)
     } else {
-      // Returning to ready position
+      // Returning back to ready pose
       final double r = (swatPhase - 0.45) / 0.55;
       final double ease = (1.0 - math.cos(r * math.pi)) * 0.5;
-      pawX = 8.0 + (ease * 38.0); // 8 -> 46
-      pawY = 34.0;
-      pawRotation = -0.80 + (ease * 0.65);
+      armAngle = 3.30 - (ease * 0.65);
     }
 
-    const Offset shoulder = Offset(68.0, 36.0);
-    final Offset wrist = Offset(pawX + 11.0, pawY + 6.0);
+    final double pawCenterX = shoulder.dx + math.cos(armAngle) * armLength;
+    final double pawCenterY = shoulder.dy + math.sin(armAngle) * armLength;
+    final double pawRotation = armAngle - math.pi * 0.5;
 
     return SizedBox(
-      width: 108,
-      height: 60,
+      width: 114,
+      height: 62,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          // 1. Forearm connecting cat's shoulder to the swiping paw
+          // 1. Forearm connecting cat's shoulder to wrist (CONSTANT LENGTH, NEVER STRETCHES)
           CustomPaint(
-            size: const Size(108, 60),
-            painter: _CatArmPainter(
+            size: const Size(114, 62),
+            painter: _CatFixedArmPainter(
               armColor: catColor,
               shoulder: shoulder,
-              wrist: wrist,
+              wrist: Offset(pawCenterX, pawCenterY),
             ),
           ),
 
-          // 2. Swatting Front Paw with toe beans
+          // 2. Swatting Front Paw with toe beans & heart pad
           Positioned(
-            left: pawX,
-            top: pawY,
+            left: pawCenterX - 11.0,
+            top: pawCenterY - 6.5,
             child: Transform.rotate(
               angle: pawRotation,
-              alignment: Alignment.centerRight,
+              alignment: Alignment.center,
               child: _buildSwipingPaw(catColor),
             ),
           ),
 
-          // 3. Peeking Cat Head & Upper Body with Kawaii features
+          // 3. Realistic, Adorable Peeking Cat Head & Upper Body
           Positioned(
             right: 0,
             bottom: -2,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Ears
-                SizedBox(
-                  width: 44,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      CustomPaint(
-                        size: const Size(12, 14),
-                        painter: _EarPainter(outerColor: catColor, innerColor: earColor),
-                      ),
-                      Transform.scale(
-                        scaleX: -1,
-                        child: CustomPaint(
-                          size: const Size(12, 14),
-                          painter: _EarPainter(outerColor: catColor, innerColor: earColor),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Head Round Shape
-                Container(
-                  width: 50,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: catColor,
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(24),
-                      topRight: Radius.circular(24),
-                      bottomLeft: Radius.circular(18),
-                      bottomRight: Radius.circular(18),
-                    ),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x33000000),
-                        blurRadius: 4,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // Sparkling Anime Eyes
-                      Positioned(
-                        top: 9,
-                        left: 9,
-                        right: 9,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _buildKawaiiEye(isBlinking),
-                            _buildKawaiiEye(isBlinking),
-                          ],
-                        ),
-                      ),
-
-                      // Cute White Muzzle, Pink Heart Nose & :3 Mouth
-                      Positioned(
-                        bottom: 6,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Soft white muzzle area with heart nose
-                            Stack(
-                              alignment: Alignment.topCenter,
-                              children: [
-                                Container(
-                                  width: 18,
-                                  height: 9,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(5),
-                                    boxShadow: const [
-                                      BoxShadow(color: Color(0x15000000), blurRadius: 1),
-                                    ],
-                                  ),
-                                ),
-                                // Tiny Pink Heart Nose
-                                Positioned(
-                                  top: -1,
-                                  child: CustomPaint(
-                                    size: const Size(5, 4),
-                                    painter: _HeartNosePainter(),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 1),
-                            // Sweet :3 Mouth
-                            CustomPaint(
-                              size: const Size(11, 4),
-                              painter: _MouthPainter(),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // Rosy Blushing Cheeks with subtle blush slashes
-                      Positioned(
-                        bottom: 10,
-                        left: 5,
-                        child: _buildBlushCheek(isLeft: true),
-                      ),
-                      Positioned(
-                        bottom: 10,
-                        right: 5,
-                        child: _buildBlushCheek(isLeft: false),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+            child: _buildRealisticCat(catColor, earColor, isBlinking, earTwitch),
           ),
 
           // 4. Resting Left Paw on the front edge
           Positioned(
-            right: 36,
+            right: 44,
             bottom: 0,
-            child: Container(
-              width: 12,
-              height: 8,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: const Color(0xFFE2E8F0), width: 0.7),
-                boxShadow: const [
-                  BoxShadow(color: Color(0x22000000), blurRadius: 2),
-                ],
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 1.5, vertical: 1),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: List.generate(2, (i) => Container(
-                  width: 2,
-                  height: 3,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFDA4AF),
-                    borderRadius: BorderRadius.circular(1),
-                  ),
-                )),
-              ),
-            ),
+            child: _buildRestingPaw(catColor),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildBlushCheek({required bool isLeft}) {
-    return Container(
-      width: 7,
-      height: 4,
-      decoration: BoxDecoration(
-        color: const Color(0xFFFDA4AF).withValues(alpha: 0.75),
-        borderRadius: BorderRadius.circular(3),
-      ),
-      child: Center(
-        child: Text(
-          isLeft ? '//' : '\\\\',
-          style: const TextStyle(
-            fontSize: 4,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFFF43F5E),
-            height: 0.8,
-          ),
+  Widget _buildRealisticCat(Color catColor, Color earColor, bool isBlinking, double earTwitch) {
+    return SizedBox(
+      width: 56,
+      height: 48,
+      child: CustomPaint(
+        painter: _RealCatFacePainter(
+          catColor: catColor,
+          earColor: earColor,
+          isBlinking: isBlinking,
+          isCompleted: _isCompleted,
+          earTwitch: earTwitch,
         ),
+      ),
+    );
+  }
+
+  Widget _buildRestingPaw(Color catColor) {
+    return Container(
+      width: 13,
+      height: 9,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(4.5),
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 0.8),
+        boxShadow: const [
+          BoxShadow(color: Color(0x25000000), blurRadius: 2, offset: Offset(0, 1)),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 1.5, vertical: 1),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: List.generate(3, (i) => Container(
+          width: 2.2,
+          height: 3.5,
+          decoration: BoxDecoration(
+            color: const Color(0xFFFDA4AF),
+            borderRadius: BorderRadius.circular(1.2),
+          ),
+        )),
       ),
     );
   }
@@ -763,107 +649,46 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
       height: 13,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(7),
+        borderRadius: BorderRadius.circular(6.5),
         border: Border.all(color: const Color(0xFFE2E8F0), width: 0.8),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x33000000),
-            blurRadius: 4,
-            offset: Offset(-1, 2),
+            color: Color(0x25000000),
+            blurRadius: 3,
+            offset: Offset(-1, 1.5),
           ),
         ],
       ),
       padding: const EdgeInsets.all(2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          Container(
-            width: 3.5,
-            height: 6,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFDA4AF),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          Container(
-            width: 4,
-            height: 7,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFDA4AF),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          Container(
-            width: 3.5,
-            height: 6,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFDA4AF),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Big, expressive, sparkling anime/kawaii cat eyes
-  Widget _buildKawaiiEye(bool isBlinking) {
-    if (_isCompleted) {
-      // Cheerful happy closed eye ^
-      return SizedBox(
-        width: 10,
-        height: 7,
-        child: CustomPaint(
-          painter: _HappyEyePainter(),
-        ),
-      );
-    }
-
-    if (isBlinking) {
-      // Cute blinking closed eye ‿
-      return Container(
-        width: 8,
-        height: 2,
-        decoration: BoxDecoration(
-          color: const Color(0xFF0F172A),
-          borderRadius: BorderRadius.circular(1),
-        ),
-      );
-    }
-
-    // Sparkly anime eye with twin catchlights
-    return Container(
-      width: 9.5,
-      height: 10.5,
-      decoration: BoxDecoration(
-        color: const Color(0xFF0B132B),
-        borderRadius: BorderRadius.circular(5),
-      ),
       child: Stack(
+        alignment: Alignment.center,
         children: [
-          // Primary big sparkle at top-right
+          // 4 pink toe beans across top
           Positioned(
-            top: 1.5,
-            right: 1.5,
-            child: Container(
-              width: 3.5,
-              height: 3.5,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-              ),
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: List.generate(4, (i) => Container(
+                width: 2.8,
+                height: 4.2,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFDA4AF),
+                  borderRadius: BorderRadius.circular(1.5),
+                ),
+              )),
             ),
           ),
-          // Secondary twinkle sparkle at bottom-left
+          // Heart-shaped palm pad (metacarpal pad)
           Positioned(
-            bottom: 2.0,
-            left: 1.8,
+            bottom: 0,
             child: Container(
-              width: 1.8,
-              height: 1.8,
+              width: 6,
+              height: 4.5,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.9),
-                shape: BoxShape.circle,
+                color: const Color(0xFFFDA4AF),
+                borderRadius: BorderRadius.circular(2.2),
               ),
             ),
           ),
@@ -873,13 +698,13 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
   }
 }
 
-/// Painter that connects the cat's shoulder to the swiping paw
-class _CatArmPainter extends CustomPainter {
+/// Painter for fixed-length forearm rotating around shoulder joint
+class _CatFixedArmPainter extends CustomPainter {
   final Color armColor;
   final Offset shoulder;
   final Offset wrist;
 
-  _CatArmPainter({
+  _CatFixedArmPainter({
     required this.armColor,
     required this.shoulder,
     required this.wrist,
@@ -890,26 +715,24 @@ class _CatArmPainter extends CustomPainter {
     final dx = wrist.dx - shoulder.dx;
     final dy = wrist.dy - shoulder.dy;
     final dist = math.sqrt(dx * dx + dy * dy);
-    if (dist < 4.0) return;
+    if (dist < 2.0) return;
 
     final nx = -dy / dist;
     final ny = dx / dist;
 
+    // Fixed anatomical arm: shoulder ~6.5px, wrist ~4.8px
     const double rShoulder = 6.5;
     const double rWrist = 4.8;
 
-    final midX = (shoulder.dx + wrist.dx) * 0.5 + (nx * 3.5);
-    final midY = (shoulder.dy + wrist.dy) * 0.5 + (ny * 3.5);
-
     final path = Path()
       ..moveTo(shoulder.dx + nx * rShoulder, shoulder.dy + ny * rShoulder)
-      ..quadraticBezierTo(midX + nx * 4.5, midY + ny * 4.5, wrist.dx + nx * rWrist, wrist.dy + ny * rWrist)
+      ..lineTo(wrist.dx + nx * rWrist, wrist.dy + ny * rWrist)
       ..lineTo(wrist.dx - nx * rWrist, wrist.dy - ny * rWrist)
-      ..quadraticBezierTo(midX - nx * 4.5, midY - ny * 4.5, shoulder.dx - nx * rShoulder, shoulder.dy - ny * rShoulder)
+      ..lineTo(shoulder.dx - nx * rShoulder, shoulder.dy - ny * rShoulder)
       ..close();
 
     final shadowPaint = Paint()
-      ..color = const Color(0x22000000)
+      ..color = const Color(0x20000000)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5);
 
     final armPaint = Paint()
@@ -927,105 +750,294 @@ class _CatArmPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _CatArmPainter oldDelegate) =>
+  bool shouldRepaint(covariant _CatFixedArmPainter oldDelegate) =>
       oldDelegate.wrist != wrist ||
       oldDelegate.shoulder != shoulder ||
       oldDelegate.armColor != armColor;
 }
 
-class _EarPainter extends CustomPainter {
-  final Color outerColor;
-  final Color innerColor;
+/// Detailed, authentic, adorable cat face painter
+class _RealCatFacePainter extends CustomPainter {
+  final Color catColor;
+  final Color earColor;
+  final bool isBlinking;
+  final bool isCompleted;
+  final double earTwitch;
 
-  _EarPainter({required this.outerColor, required this.innerColor});
+  _RealCatFacePainter({
+    required this.catColor,
+    required this.earColor,
+    required this.isBlinking,
+    required this.isCompleted,
+    required this.earTwitch,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final outerPath = Path()
-      ..moveTo(0, size.height)
-      ..lineTo(size.width * 0.4, 0)
-      ..lineTo(size.width, size.height)
+    // 1. Cat Ears
+    // Left ear (with twitch)
+    canvas.save();
+    canvas.translate(size.width * 0.22, size.height * 0.22);
+    canvas.rotate(earTwitch - 0.12);
+    _drawCatEar(canvas, const Size(15, 18), catColor, earColor, isLeft: true);
+    canvas.restore();
+
+    // Right ear
+    canvas.save();
+    canvas.translate(size.width * 0.78, size.height * 0.22);
+    canvas.rotate(0.12);
+    _drawCatEar(canvas, const Size(15, 18), catColor, earColor, isLeft: false);
+    canvas.restore();
+
+    // 2. Head Silhouette with Fluffy Cheeks
+    final headPath = Path();
+    headPath.moveTo(size.width * 0.28, size.height * 0.22);
+    // Top head curve
+    headPath.quadraticBezierTo(size.width * 0.5, size.height * 0.18, size.width * 0.72, size.height * 0.22);
+    // Right cheek slope
+    headPath.quadraticBezierTo(size.width * 0.88, size.height * 0.38, size.width * 0.96, size.height * 0.56);
+    // Right cheek tuft
+    headPath.lineTo(size.width * 0.98, size.height * 0.64);
+    headPath.lineTo(size.width * 0.90, size.height * 0.70);
+    // Chin curve
+    headPath.quadraticBezierTo(size.width * 0.5, size.height * 0.98, size.width * 0.10, size.height * 0.70);
+    // Left cheek tuft
+    headPath.lineTo(size.width * 0.02, size.height * 0.64);
+    headPath.lineTo(size.width * 0.04, size.height * 0.56);
+    // Left cheek slope
+    headPath.quadraticBezierTo(size.width * 0.12, size.height * 0.38, size.width * 0.28, size.height * 0.22);
+    headPath.close();
+
+    // Shadow
+    canvas.drawPath(headPath, Paint()
+      ..color = const Color(0x25000000)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3.5));
+
+    // Head Fill
+    canvas.drawPath(headPath, Paint()..color = catColor);
+    // Head Outline
+    canvas.drawPath(headPath, Paint()
+      ..color = const Color(0xFFE2E8F0)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.9);
+
+    // 3. Tabby Forehead Markings
+    final stripePaint = Paint()
+      ..color = earColor.withValues(alpha: 0.35)
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = 1.6;
+
+    canvas.drawLine(Offset(size.width * 0.5, size.height * 0.22), Offset(size.width * 0.5, size.height * 0.32), stripePaint);
+    canvas.drawLine(Offset(size.width * 0.42, size.height * 0.24), Offset(size.width * 0.44, size.height * 0.32), stripePaint);
+    canvas.drawLine(Offset(size.width * 0.58, size.height * 0.24), Offset(size.width * 0.56, size.height * 0.32), stripePaint);
+
+    // 4. Eyes (Almond Cat Eyes)
+    final eyeLeft = Offset(size.width * 0.32, size.height * 0.48);
+    final eyeRight = Offset(size.width * 0.68, size.height * 0.48);
+
+    if (isCompleted) {
+      _drawHappyEye(canvas, eyeLeft);
+      _drawHappyEye(canvas, eyeRight);
+    } else if (isBlinking) {
+      _drawBlinkEye(canvas, eyeLeft);
+      _drawBlinkEye(canvas, eyeRight);
+    } else {
+      _drawAlmondEye(canvas, eyeLeft, isLeft: true);
+      _drawAlmondEye(canvas, eyeRight, isLeft: false);
+    }
+
+    // 5. Whisker Pads (Puffy ω Muzzle)
+    final muzzleCenter = Offset(size.width * 0.5, size.height * 0.70);
+    final padPaint = Paint()..color = Colors.white;
+    final padBorder = Paint()
+      ..color = const Color(0xFFE2E8F0)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.7;
+
+    // Left pad
+    canvas.drawOval(Rect.fromCenter(center: Offset(muzzleCenter.dx - 5.5, muzzleCenter.dy), width: 13, height: 9.5), padPaint);
+    canvas.drawOval(Rect.fromCenter(center: Offset(muzzleCenter.dx - 5.5, muzzleCenter.dy), width: 13, height: 9.5), padBorder);
+    // Right pad
+    canvas.drawOval(Rect.fromCenter(center: Offset(muzzleCenter.dx + 5.5, muzzleCenter.dy), width: 13, height: 9.5), padPaint);
+    canvas.drawOval(Rect.fromCenter(center: Offset(muzzleCenter.dx + 5.5, muzzleCenter.dy), width: 13, height: 9.5), padBorder);
+
+    // Whisker follicle dots (3 dots each)
+    final dotPaint = Paint()..color = const Color(0xFF94A3B8);
+    for (final off in [
+      Offset(muzzleCenter.dx - 8, muzzleCenter.dy - 1.5),
+      Offset(muzzleCenter.dx - 5, muzzleCenter.dy + 1.0),
+      Offset(muzzleCenter.dx - 8.5, muzzleCenter.dy + 2.0),
+      Offset(muzzleCenter.dx + 8, muzzleCenter.dy - 1.5),
+      Offset(muzzleCenter.dx + 5, muzzleCenter.dy + 1.0),
+      Offset(muzzleCenter.dx + 8.5, muzzleCenter.dy + 2.0),
+    ]) {
+      canvas.drawCircle(off, 0.7, dotPaint);
+    }
+
+    // 6. Inverted Triangle Baby Pink Nose
+    final noseTop = muzzleCenter.dy - 4.5;
+    final nosePath = Path()
+      ..moveTo(muzzleCenter.dx - 3.2, noseTop)
+      ..lineTo(muzzleCenter.dx + 3.2, noseTop)
+      ..lineTo(muzzleCenter.dx, noseTop + 4.2)
       ..close();
+    canvas.drawPath(nosePath, Paint()..color = const Color(0xFFFB7185));
 
-    final innerPath = Path()
-      ..moveTo(size.width * 0.25, size.height)
-      ..lineTo(size.width * 0.45, size.height * 0.35)
-      ..lineTo(size.width * 0.8, size.height)
-      ..close();
-
-    canvas.drawPath(outerPath, Paint()..color = outerColor);
-    canvas.drawPath(innerPath, Paint()..color = innerColor);
-  }
-
-  @override
-  bool shouldRepaint(covariant _EarPainter oldDelegate) =>
-      oldDelegate.outerColor != outerColor || oldDelegate.innerColor != innerColor;
-}
-
-class _MouthPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
+    // Mouth lines descending into ω curves
+    final mouthPaint = Paint()
       ..color = const Color(0xFF334155)
       ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = 0.9;
+
+    final mouthPath = Path()
+      ..moveTo(muzzleCenter.dx, noseTop + 4.0)
+      ..lineTo(muzzleCenter.dx, muzzleCenter.dy + 1.5)
+      ..moveTo(muzzleCenter.dx, muzzleCenter.dy + 1.5)
+      ..quadraticBezierTo(muzzleCenter.dx - 3.5, muzzleCenter.dy + 4.0, muzzleCenter.dx - 6.5, muzzleCenter.dy + 2.2)
+      ..moveTo(muzzleCenter.dx, muzzleCenter.dy + 1.5)
+      ..quadraticBezierTo(muzzleCenter.dx + 3.5, muzzleCenter.dy + 4.0, muzzleCenter.dx + 6.5, muzzleCenter.dy + 2.2);
+    canvas.drawPath(mouthPath, mouthPaint);
+
+    // 7. Whiskers (3 elegant curved whiskers on each side)
+    final whiskerPaint = Paint()
+      ..color = const Color(0xFFCBD5E1)
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = 0.85;
+
+    // Left Whiskers
+    final wLeftY = muzzleCenter.dy;
+    final wL1 = Path()
+      ..moveTo(muzzleCenter.dx - 9, wLeftY - 1.5)
+      ..quadraticBezierTo(size.width * 0.1, wLeftY - 6.0, -10.0, wLeftY - 5.0);
+    final wL2 = Path()
+      ..moveTo(muzzleCenter.dx - 10, wLeftY + 0.5)
+      ..quadraticBezierTo(size.width * 0.1, wLeftY + 1.0, -12.0, wLeftY + 2.5);
+    final wL3 = Path()
+      ..moveTo(muzzleCenter.dx - 9, wLeftY + 2.5)
+      ..quadraticBezierTo(size.width * 0.12, wLeftY + 7.0, -8.0, wLeftY + 10.0);
+
+    canvas.drawPath(wL1, whiskerPaint);
+    canvas.drawPath(wL2, whiskerPaint);
+    canvas.drawPath(wL3, whiskerPaint);
+
+    // Right Whiskers
+    final wRightY = muzzleCenter.dy;
+    final wR1 = Path()
+      ..moveTo(muzzleCenter.dx + 9, wRightY - 1.5)
+      ..quadraticBezierTo(size.width * 0.9, wRightY - 6.0, size.width + 10.0, wRightY - 5.0);
+    final wR2 = Path()
+      ..moveTo(muzzleCenter.dx + 10, wRightY + 0.5)
+      ..quadraticBezierTo(size.width * 0.9, wRightY + 1.0, size.width + 12.0, wRightY + 2.5);
+    final wR3 = Path()
+      ..moveTo(muzzleCenter.dx + 9, wRightY + 2.5)
+      ..quadraticBezierTo(size.width * 0.88, wRightY + 7.0, size.width + 8.0, wRightY + 10.0);
+
+    canvas.drawPath(wR1, whiskerPaint);
+    canvas.drawPath(wR2, whiskerPaint);
+    canvas.drawPath(wR3, whiskerPaint);
+  }
+
+  void _drawCatEar(Canvas canvas, Size earSize, Color outerColor, Color innerColor, {required bool isLeft}) {
+    final earPath = Path()
+      ..moveTo(-earSize.width * 0.5, 0)
+      ..lineTo(0, -earSize.height)
+      ..lineTo(earSize.width * 0.5, 0)
+      ..close();
+
+    canvas.drawPath(earPath, Paint()..color = outerColor);
+    canvas.drawPath(earPath, Paint()
+      ..color = const Color(0xFFE2E8F0)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.8);
+
+    // Inner pink ear
+    final innerEarPath = Path()
+      ..moveTo(-earSize.width * 0.32, -1)
+      ..lineTo(0, -earSize.height * 0.78)
+      ..lineTo(earSize.width * 0.32, -1)
+      ..close();
+    canvas.drawPath(innerEarPath, Paint()..color = innerColor);
+
+    // Fluffy ear furnishings (white tufts)
+    final tuftPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
       ..strokeWidth = 1.0;
 
+    canvas.drawLine(Offset(isLeft ? 2 : -2, -3), Offset(isLeft ? -3 : 3, -9), tuftPaint);
+    canvas.drawLine(Offset(isLeft ? 1 : -1, -5), Offset(isLeft ? -4 : 4, -12), tuftPaint);
+  }
+
+  void _drawAlmondEye(Canvas canvas, Offset center, {required bool isLeft}) {
+    canvas.save();
+    canvas.translate(center.dx, center.dy);
+    canvas.rotate(isLeft ? 0.08 : -0.08);
+
+    const double w = 10.5;
+    const double h = 9.0;
+
+    final eyePath = Path();
+    eyePath.moveTo(-w * 0.5, 0);
+    eyePath.quadraticBezierTo(0, -h * 0.65, w * 0.5, 0);
+    eyePath.quadraticBezierTo(0, h * 0.65, -w * 0.5, 0);
+    eyePath.close();
+
+    // Iris fill
+    canvas.drawPath(eyePath, Paint()..color = const Color(0xFF0F172A));
+
+    // Big pupil
+    canvas.drawOval(Rect.fromCenter(center: Offset.zero, width: 7.0, height: 7.8), Paint()..color = const Color(0xFF020617));
+
+    // Specular Catchlights
+    canvas.drawCircle(const Offset(1.5, -1.8), 1.7, Paint()..color = Colors.white);
+    canvas.drawCircle(const Offset(-1.5, 1.8), 0.9, Paint()..color = Colors.white.withValues(alpha: 0.9));
+
+    // Upper cat eyeliner with wing
+    final linerPath = Path()
+      ..moveTo(-w * 0.5, 0)
+      ..quadraticBezierTo(0, -h * 0.65, w * 0.5, 0)
+      ..lineTo(isLeft ? -w * 0.58 : w * 0.58, -1.5);
+    canvas.drawPath(linerPath, Paint()
+      ..color = const Color(0xFF020617)
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = 1.3);
+
+    canvas.restore();
+  }
+
+  void _drawHappyEye(Canvas canvas, Offset center) {
     final path = Path()
-      ..moveTo(0, 0)
-      ..quadraticBezierTo(size.width * 0.25, size.height, size.width * 0.5, size.height * 0.5)
-      ..quadraticBezierTo(size.width * 0.75, size.height, size.width, 0);
-
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _HeartNosePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFFFB7185)
-      ..style = PaintingStyle.fill;
-
-    final path = Path();
-    path.moveTo(size.width * 0.5, size.height);
-    path.cubicTo(
-      0, size.height * 0.5,
-      0, 0,
-      size.width * 0.5, size.height * 0.3,
-    );
-    path.cubicTo(
-      size.width, 0,
-      size.width, size.height * 0.5,
-      size.width * 0.5, size.height,
-    );
-    path.close();
-
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _HappyEyePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
+      ..moveTo(center.dx - 4.5, center.dy + 1.5)
+      ..quadraticBezierTo(center.dx, center.dy - 3.5, center.dx + 4.5, center.dy + 1.5);
+    canvas.drawPath(path, Paint()
       ..color = const Color(0xFF0F172A)
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
-      ..strokeWidth = 1.5;
+      ..strokeWidth = 1.6);
+  }
 
-    final path = Path()
-      ..moveTo(0, size.height)
-      ..quadraticBezierTo(size.width * 0.5, 0, size.width, size.height);
-
-    canvas.drawPath(path, paint);
+  void _drawBlinkEye(Canvas canvas, Offset center) {
+    canvas.drawLine(
+      Offset(center.dx - 4.0, center.dy),
+      Offset(center.dx + 4.0, center.dy),
+      Paint()
+        ..color = const Color(0xFF0F172A)
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeWidth = 1.5,
+    );
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _RealCatFacePainter oldDelegate) =>
+      oldDelegate.isBlinking != isBlinking ||
+      oldDelegate.isCompleted != isCompleted ||
+      oldDelegate.earTwitch != earTwitch ||
+      oldDelegate.catColor != catColor ||
+      oldDelegate.earColor != earColor;
 }
