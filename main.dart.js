@@ -75384,7 +75384,7 @@ p.push(B.buH)
 o=a4?"MeowTang (\u0e40\u0e2b\u0e21\u0e35\u0e22\u0e27\u0e15\u0e31\u0e07\u0e04\u0e4c)":"\u0e40\u0e2b\u0e21\u0e35\u0e22\u0e27\u0e15\u0e31\u0e07\u0e04\u0e4c (MeowTang)"
 o=A.c(o,a,a,a,a,A.d(a,a,a3?B.aW:B.bU,a,a,a,a,a,a,a,a,14,a,a,B.w,a,a,!0,a,a,a,a,a,a,a,a),a,a,a)
 n=A.c(A.eJ("credit_service",b.a.c.gaq()),a,a,a,a,B.bDA,a,a,a)
-m=a4?"Version 1.41.68 (Latest Release)":"\u0e40\u0e27\u0e2d\u0e23\u0e4c\u0e0a\u0e31\u0e19 1.41.68 (\u0e25\u0e48\u0e32\u0e2a\u0e38\u0e14)"
+m=a4?"Version 1.41.69 (Latest Release)":"\u0e40\u0e27\u0e2d\u0e23\u0e4c\u0e0a\u0e31\u0e19 1.41.69 (\u0e25\u0e48\u0e32\u0e2a\u0e38\u0e14)"
 p.push(A.b_(A.F(A.a([o,B.b3,n,B.b3,A.c(m,a,a,a,a,A.d(a,a,a3?B.aK:B.b9,a,a,a,a,a,a,a,a,11,a,a,a,a,a,!0,a,a,a,a,a,a,a,a),a,a,a),B.fx],i),B.t,B.p,B.m),a,a))
 return A.e2(a,s,new A.el(new A.ba2(b),A.F(A.a([a1,A.G(A.h7(A.a([new A.ag(B.bn,A.F(p,B.D,B.p,B.m),a)],i),a,B.av,a,a,!1),1)],i),B.t,B.p,B.m),a,t.WA),a,a)},
 HY(a,b,c,d){var s=null,r=A.a4(a,b,s,s,17)
@@ -86577,10 +86577,10 @@ n.wT(s*0.052)
 return A.bj(new A.cx(B.bL,m,B.bh,B.r,A.a([p,o,A.tY(0,A.zk(B.a0i,A.mP("assets/icons/mascot_3d/cat_3d_head.png",new A.bb_(),B.eE,66,66),m,n,!0))],t.p),m),66,66)},
 QN(a){var s,r,q=null,p=a*3.141592653589793,o=Math.sin(p)
 p=Math.sin(p)
-s=a>=0.22&&a<=0.95
+s=a>=0.18&&a<=0.95
 if(a<0.1)r=B.q.au(a/0.1,0,1)
 else r=a>0.88?B.q.au((1-a)/0.12,0,1):1
-return A.dS(q,A.y0(A.bqD(p*-0.06,this.avd(s)),r),q,q,155-a*190,q,3+o*3.2,q)},
+return A.dS(q,A.y0(A.bqD(p*-0.06,this.avd(s)),r),q,q,135-a*173,q,3+o*2.8,q)},
 avd(a){var s,r=null,q=A.e(5),p=A.H(a?B.aK:B.d0,0.9),o=t.p,n=A.i(B.bZ,A.m(A.a([A.i(r,r,B.r,r,r,new A.h(B.b9,r,r,A.e(1),r,r,B.u),r,1.5,r,r,r,r,r,10),B.akI],o),B.t,B.a1,B.m,0,r),B.r,r,r,B.a1K,r,8,r,r,B.ET,r,r,r),m=A.i(r,r,B.r,r,r,new A.h(B.bU,r,r,A.e(1),r,r,B.u),r,1.2,r,r,r,r,r,16),l=A.i(r,r,B.r,r,r,new A.h(B.bU,r,r,A.e(1),r,r,B.u),r,1.2,r,r,r,r,r,10),k=J.ho(4,t.J)
 for(s=0;s<4;++s)k[s]=A.i(r,r,B.r,B.d0,r,r,r,3,r,r,r,r,r,1.2)
 o=A.a([A.F(A.a([n,A.G(new A.ag(B.aeX,A.F(A.a([B.bFy,m,l,A.m(k,B.t,B.tm,B.m,0,r)],o),B.D,B.tm,B.m),r),1)],o),B.eW,B.p,B.m)],o)
@@ -86679,15 +86679,15 @@ q=l.QN(B.q.aL(r+0.3333,1))
 p=l.QN(B.q.aL(r+0.6667,1))
 o=A.a([B.V,B.br.u(0.8),B.V],t.O)
 n=t.p
-o=A.dS(m,A.bj(new A.cx(B.bL,m,B.bh,B.r,A.a([s,q,p,A.dS(0,A.i(m,m,B.r,m,m,new A.h(m,m,m,m,A.a([new A.ao(0,B.S,B.br.u(0.5),B.O,5)],t.V),new A.d8(B.h_,B.hI,B.bz,o,m,m),B.u),m,m,m,m,m,m,m,2),m,m,78,m,0,m)],n),m),52,195),m,m,14,m,10,m)
-p=A.dS(10,l.auZ(r),m,m,m,20,m,m)
+o=A.dS(m,A.bj(new A.cx(B.bL,m,B.bh,B.r,A.a([s,q,p,A.dS(0,A.i(m,m,B.r,m,m,new A.h(m,m,m,m,A.a([new A.ao(0,B.S,B.br.u(0.5),B.O,5)],t.V),new A.d8(B.h_,B.hI,B.bz,o,m,m),B.u),m,m,m,m,m,m,m,2),m,m,65,m,0,m)],n),m),52,165),m,m,8,m,10,m)
+p=A.dS(10,l.auZ(r),m,m,m,28,m,m)
 if(l.x){s=A.e(10)
 s=A.i(m,A.m(A.a([B.akO,B.XP,A.c(l.a.r?"Done!":"\u0e40\u0e23\u0e35\u0e22\u0e1a\u0e23\u0e49\u0e2d\u0e22!",m,m,m,m,B.bz6,m,m,m)],n),B.t,B.p,B.T,0,m),B.r,m,m,new A.h(B.G,m,m,s,B.b8O,m,B.u),m,m,m,m,B.iF,m,m,m)
 l=s}else{s=A.i(m,m,B.r,m,m,B.hL,m,5,m,m,m,m,m,5)
 l=l.a
 q=l.r?"Scanning slips...":"\u0e01\u0e33\u0e25\u0e31\u0e07\u0e2a\u0e41\u0e01\u0e19\u0e2a\u0e25\u0e34\u0e1b..."
 s=A.m(A.a([s,B.cx,A.c(q,m,m,m,m,A.d(m,m,l.f?B.b9:B.aK,m,m,m,m,m,m,m,m,9.5,m,m,B.ap,m,m,!0,m,-0.1,m,m,m,m,m,m),m,m,m)],n),B.t,B.p,B.T,0,m)
-l=s}return A.b_(A.bj(new A.cx(B.bL,m,B.bh,B.r,A.a([o,p,A.dS(0,A.b_(l,m,m),m,m,0,0,m,m)],n),m),76,290),m,m)},
+l=s}return A.b_(A.bj(new A.cx(B.bL,m,B.bh,B.r,A.a([o,p,A.dS(0,A.b_(l,m,m),m,m,0,0,m,m)],n),m),76,250),m,m)},
 $S:409}
 A.baY.prototype={
 $3(a,b,c){return B.bd},
