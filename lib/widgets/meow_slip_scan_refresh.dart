@@ -3,9 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
-/// A playful pull-to-refresh indicator inspired by the cat motion video.
-/// Features a seamless frameless design, a gentle short pull distance,
-/// and an animated cat peeking up and rapidly swatting/patting a floating money slip.
+/// A playful pull-to-refresh indicator featuring a cat peeking up from the right
+/// and continuously swiping dark-gray money slips to the left in a curved semi-circular arc.
 class MeowSlipScanRefreshIndicator extends StatefulWidget {
   final Future<void> Function() onRefresh;
   final Widget child;
@@ -38,10 +37,10 @@ class MeowSlipScanRefreshIndicator extends StatefulWidget {
 
 class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndicator>
     with TickerProviderStateMixin {
-  // Short effortless pull distance (46px instead of 75+px)
+  // Short, effortless pull distance (46px)
   static const double _triggerDistance = 46.0;
   static const double _refreshingHeight = 68.0;
-  static const double _maxDragDisplacement = 88.0;
+  static const double _maxDragDisplacement = 86.0;
 
   double _dragOffset = 0.0;
   bool _isDragging = false;
@@ -52,10 +51,10 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
   late AnimationController _springBackController;
   late Animation<double> _springBackAnimation;
 
-  // Paw swatting animation (rapid, playful tap ~340ms)
-  late AnimationController _swatController;
-  // Eye blinking / head bob animation
-  late AnimationController _blinkController;
+  // Arc swiping controller: drives the curved semi-circular swipe to the left
+  late AnimationController _arcSwipeController;
+  // Subtle blinking & ear twitch controller
+  late AnimationController _idleCatController;
 
   @override
   void initState() {
@@ -66,44 +65,45 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
       duration: const Duration(milliseconds: 240),
     );
 
-    _swatController = AnimationController(
+    // Continuous curved swiping loop (~580ms per swipe)
+    _arcSwipeController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 360),
+      duration: const Duration(milliseconds: 580),
     );
 
-    _blinkController = AnimationController(
+    _idleCatController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2200),
+      duration: const Duration(milliseconds: 2000),
     );
   }
 
   @override
   void dispose() {
     _springBackController.dispose();
-    _swatController.dispose();
-    _blinkController.dispose();
+    _arcSwipeController.dispose();
+    _idleCatController.dispose();
     super.dispose();
   }
 
-  void _startCatPlay() {
-    if (!_swatController.isAnimating) {
-      _swatController.repeat(reverse: true);
+  void _startSwipeLoop() {
+    if (!_arcSwipeController.isAnimating) {
+      _arcSwipeController.repeat();
     }
-    if (!_blinkController.isAnimating) {
-      _blinkController.repeat();
+    if (!_idleCatController.isAnimating) {
+      _idleCatController.repeat();
     }
   }
 
-  void _stopCatPlay() {
-    _swatController.stop();
-    _blinkController.stop();
+  void _stopSwipeLoop() {
+    _arcSwipeController.stop();
+    _idleCatController.stop();
   }
 
   void _updateDrag(double rawOffset) {
     if (_isRefreshing) return;
 
-    // Responsive 1:0.82 touch ratio
-    const resistance = 0.82;
+    // Responsive 1:0.85 touch ratio
+    const resistance = 0.85;
     final newOffset = (rawOffset * resistance).clamp(0.0, _maxDragDisplacement);
 
     setState(() {
@@ -115,7 +115,7 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
         HapticFeedback.lightImpact();
         _hasHapticed = true;
       }
-      _startCatPlay();
+      _startSwipeLoop();
     } else {
       _hasHapticed = false;
     }
@@ -130,7 +130,7 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
         _isCompleted = false;
       });
 
-      _startCatPlay();
+      _startSwipeLoop();
       _animateTo(_refreshingHeight, durationMs: 180);
 
       try {
@@ -144,7 +144,7 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
       });
       HapticFeedback.lightImpact();
 
-      await Future.delayed(const Duration(milliseconds: 450));
+      await Future.delayed(const Duration(milliseconds: 400));
       if (!mounted) return;
 
       _animateTo(0.0, durationMs: 220, onDone: () {
@@ -155,7 +155,7 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
             _dragOffset = 0.0;
             _hasHapticed = false;
           });
-          _stopCatPlay();
+          _stopSwipeLoop();
         }
       });
     } else {
@@ -165,7 +165,7 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
             _dragOffset = 0.0;
             _hasHapticed = false;
           });
-          _stopCatPlay();
+          _stopSwipeLoop();
         }
       });
     }
@@ -221,21 +221,19 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
     return false;
   }
 
-  Color _getMascotPrimaryColor() {
+  Color _getMascotColor() {
     final id = widget.mascotId ?? 'cat_quill';
     if (id.contains('white')) return const Color(0xFFF1F5F9);
     if (id.contains('black')) return const Color(0xFF334155);
     if (id.contains('calico')) return const Color(0xFFE2E8F0);
     if (id.contains('pink')) return const Color(0xFFF472B6);
-    if (id.contains('blue') || id.contains('cyber')) return const Color(0xFF0EA5E9);
-    return const Color(0xFFF59E0B); // Default warm ginger/orange tabby
+    return const Color(0xFFF59E0B); // Default orange ginger tabby
   }
 
-  Color _getMascotEarColor() {
+  Color _getEarColor() {
     final id = widget.mascotId ?? 'cat_quill';
     if (id.contains('white')) return const Color(0xFFFDA4AF);
     if (id.contains('black')) return const Color(0xFF1E293B);
-    if (id.contains('calico')) return const Color(0xFFD97706);
     return const Color(0xFFD97706);
   }
 
@@ -256,17 +254,17 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
             child: widget.child,
           ),
 
-          // Open, Frameless Cat Playing with Slip (Seamlessly revealed behind content)
+          // Frameless, Open Scene: Cat swiping dark-gray slips in an arc to the left
           if (visibleHeight > 3.0)
             Positioned(
-              top: topSafe + 6,
+              top: topSafe + 4,
               left: 0,
               right: 0,
               height: visibleHeight,
               child: ClipRect(
                 child: Opacity(
-                  opacity: (visibleHeight / 20.0).clamp(0.0, 1.0),
-                  child: _buildPlayfulCatScene(progress),
+                  opacity: (visibleHeight / 18.0).clamp(0.0, 1.0),
+                  child: _buildArcSwipingScene(progress),
                 ),
               ),
             ),
@@ -275,54 +273,43 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
     );
   }
 
-  Widget _buildPlayfulCatScene(double progress) {
-    final catColor = _getMascotPrimaryColor();
-    final earColor = _getMascotEarColor();
+  Widget _buildArcSwipingScene(double progress) {
+    final catColor = _getMascotColor();
+    final earColor = _getEarColor();
 
     return AnimatedBuilder(
-      animation: Listenable.merge([_swatController, _blinkController]),
+      animation: Listenable.merge([_arcSwipeController, _idleCatController]),
       builder: (context, child) {
-        final swatVal = _swatController.value;
-        // Slip gently swings when the cat swats it
-        final slipTilt = _isRefreshing ? (math.sin(swatVal * math.pi) * 0.12) : (progress * 0.04);
-        final slipBounceY = _isRefreshing ? (math.sin(swatVal * math.pi) * 3.0) : 0.0;
+        // Swipe value loops 0.0 -> 1.0
+        final swipeT = _isRefreshing ? _arcSwipeController.value : (progress * 0.4);
 
         return Stack(
           alignment: Alignment.bottomCenter,
           clipBehavior: Clip.none,
           children: [
-            // Center Canvas: Cat on Right, Money Slip on Left/Center
             SizedBox(
-              width: 220,
+              width: 250,
               height: 64,
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  // 1. The Floating Money Slip (Being audited & patted)
-                  Positioned(
-                    left: 28,
-                    bottom: 4 + slipBounceY,
-                    child: Transform.rotate(
-                      angle: -0.05 + slipTilt,
-                      alignment: Alignment.topCenter,
-                      child: _buildFloatingSlip(),
-                    ),
-                  ),
+                  // 1. Dark-Gray Money Slips swiping in a semi-circular arc to the left
+                  _buildSwipingSlips(swipeT),
 
-                  // 2. The Cat peeking up from the bottom edge
+                  // 2. The Cat on the right peeking up and swiping paw in an arc
                   Positioned(
-                    right: 28,
+                    right: 18,
                     bottom: 0,
-                    child: _buildPeekingCat(catColor, earColor, swatVal),
+                    child: _buildCatWithArcPaw(catColor, earColor, swipeT),
                   ),
 
-                  // 3. Status Sparkle / Checkmark when completed
+                  // 3. Completed Checkmark Pill
                   if (_isCompleted)
                     Positioned(
-                      left: 48,
-                      top: 4,
+                      left: 35,
+                      top: 6,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                         decoration: BoxDecoration(
                           color: const Color(0xFF10B981),
                           borderRadius: BorderRadius.circular(10),
@@ -334,12 +321,12 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(Icons.check_rounded, color: Colors.white, size: 10),
-                            SizedBox(width: 3),
+                            SizedBox(width: 3.5),
                             Text(
                               'เรียบร้อย!',
                               style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 9,
+                                fontSize: 9.5,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -356,58 +343,105 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
     );
   }
 
-  Widget _buildFloatingSlip() {
-    final isDark = widget.isDark;
-    return Container(
-      width: 44,
-      height: 52,
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(5),
-        border: Border.all(
-          color: const Color(0xFF10B981).withValues(alpha: 0.6),
-          width: 1,
+  Widget _buildSwipingSlips(double swipeT) {
+    // We render two slips staggered along the curved arc to the left
+    // The arc starts in front of the cat (right) and swoops curved downwards and leftwards
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        _buildSingleArcSlip(swipeT),
+        // Staggered second slip following in the queue
+        _buildSingleArcSlip((swipeT + 0.5) % 1.0),
+      ],
+    );
+  }
+
+  Widget _buildSingleArcSlip(double t) {
+    // Semi-circular curved arc from right (x ~ 140) to left (x ~ 10)
+    // Angle goes from 0 (right) to PI (left)
+    final arcAngle = t * math.pi;
+
+    // Center of the arc ellipse
+    const double centerX = 80.0;
+    const double radiusX = 65.0;
+    const double radiusY = 22.0;
+
+    // Curved semi-circular coordinates (swoop down and to the left)
+    final posX = centerX + math.cos(arcAngle) * radiusX;
+    final posY = 20.0 + math.sin(arcAngle) * radiusY;
+
+    // Rotation tilting along the curved arc
+    final tiltAngle = -0.4 + (math.sin(arcAngle) * 0.7) - (t * 0.5);
+
+    // Fade out as it flings far to the left
+    final opacity = (1.0 - (t * 0.65)).clamp(0.0, 1.0);
+
+    return Positioned(
+      left: posX,
+      bottom: posY,
+      child: Opacity(
+        opacity: opacity,
+        child: Transform.rotate(
+          angle: tiltAngle,
+          alignment: Alignment.center,
+          child: _buildDarkGraySlip(),
         ),
-        boxShadow: [
+      ),
+    );
+  }
+
+  /// Minimalist Dark-Gray Money Slip (Neutral slate/dark gray only, no bank branding)
+  Widget _buildDarkGraySlip() {
+    return Container(
+      width: 40,
+      height: 48,
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E293B), // Dark slate gray base
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: const Color(0xFF475569), // Muted slate gray border
+          width: 0.9,
+        ),
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.12),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
+            color: Color(0x55000000),
+            blurRadius: 4,
+            offset: Offset(0, 1.5),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header band
+          // Dark Gray Top Band (Neutral, no bank name)
           Container(
-            height: 10,
-            decoration: BoxDecoration(
-              color: const Color(0xFF10B981).withValues(alpha: 0.25),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(4),
-                topRight: Radius.circular(4),
+            height: 9,
+            decoration: const BoxDecoration(
+              color: Color(0xFF334155), // Mid slate gray
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(3),
+                topRight: Radius.circular(3),
               ),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 3),
             alignment: Alignment.centerLeft,
-            child: const Row(
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'KBank ฿',
-                  style: TextStyle(
-                    fontSize: 5.5,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF10B981),
+                Container(
+                  width: 14,
+                  height: 2,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF94A3B8),
+                    borderRadius: BorderRadius.circular(1),
                   ),
                 ),
-                Icon(Icons.receipt_rounded, size: 6.5, color: Color(0xFF10B981)),
+                const Icon(Icons.receipt_rounded, size: 6, color: Color(0xFF94A3B8)),
               ],
             ),
           ),
 
-          // Body lines
+          // Slip Body: Neutral Gray Lines & Currency Placeholder
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
@@ -416,37 +450,38 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   const Text(
-                    '+฿ 500',
+                    '฿ •••••',
                     style: TextStyle(
-                      fontSize: 7,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF10B981),
+                      fontSize: 6.5,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFFCBD5E1), // Soft light gray
                       letterSpacing: -0.2,
+                      height: 1,
                     ),
                   ),
                   Container(
-                    width: 22,
+                    width: 20,
                     height: 1.5,
                     decoration: BoxDecoration(
-                      color: isDark ? Colors.white24 : Colors.black12,
+                      color: const Color(0xFF334155),
                       borderRadius: BorderRadius.circular(1),
                     ),
                   ),
                   Container(
-                    width: 14,
+                    width: 13,
                     height: 1.5,
                     decoration: BoxDecoration(
-                      color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.06),
+                      color: const Color(0xFF334155),
                       borderRadius: BorderRadius.circular(1),
                     ),
                   ),
-                  // Dotted tear line at bottom
+                  // Bottom mini barcode lines (all neutral gray)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: List.generate(5, (i) => Container(
-                      width: 2,
-                      height: 1,
-                      color: isDark ? Colors.white24 : Colors.black26,
+                      width: 1.5,
+                      height: 4,
+                      color: const Color(0xFF475569),
                     )),
                   ),
                 ],
@@ -458,35 +493,38 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
     );
   }
 
-  Widget _buildPeekingCat(Color catColor, Color earColor, double swatVal) {
-    final bool isBlinking = _blinkController.value > 0.94;
-    // Paw reaches forward and taps down onto the slip
-    final pawReachX = -12.0 - (swatVal * 16.0);
-    final pawReachY = -18.0 - (math.sin(swatVal * math.pi) * 12.0);
-    final pawRotation = -0.3 + (swatVal * 0.45);
+  Widget _buildCatWithArcPaw(Color catColor, Color earColor, double swipeT) {
+    final bool isBlinking = _idleCatController.value > 0.94;
+
+    // Semi-circular arc trajectory for the swiping paw
+    // The paw sweeps from right to left in a curved semi-circle
+    final arcAngle = swipeT * math.pi;
+    final pawArcX = -10.0 - (math.cos(arcAngle) * 24.0);
+    final pawArcY = 16.0 - (math.sin(arcAngle) * 14.0);
+    final pawRotation = -0.4 + (math.sin(arcAngle) * 0.7);
 
     return SizedBox(
-      width: 74,
+      width: 78,
       height: 58,
       child: Stack(
         clipBehavior: Clip.none,
         alignment: Alignment.bottomRight,
         children: [
-          // 1. Swatting Front Paw (Reaches out from cat's chest to bat the slip)
+          // 1. Swatting Front Paw following the curved arc to the left
           Positioned(
-            left: 20 + pawReachX,
-            bottom: 22 + pawReachY,
+            left: pawArcX,
+            bottom: pawArcY,
             child: Transform.rotate(
               angle: pawRotation,
               alignment: Alignment.bottomRight,
-              child: _buildSwattingPaw(catColor),
+              child: _buildSwipingPaw(catColor),
             ),
           ),
 
-          // 2. Cat Body & Head Peeking Up
+          // 2. Peeking Cat Head & Upper Body
           Positioned(
-            right: 4,
-            bottom: -4,
+            right: 0,
+            bottom: -3,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -496,12 +534,10 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Left Ear
                       CustomPaint(
                         size: const Size(12, 14),
                         painter: _EarPainter(outerColor: catColor, innerColor: earColor),
                       ),
-                      // Right Ear
                       Transform.scale(
                         scaleX: -1,
                         child: CustomPaint(
@@ -525,11 +561,11 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
                       bottomLeft: Radius.circular(18),
                       bottomRight: Radius.circular(18),
                     ),
-                    boxShadow: [
+                    boxShadow: const [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.18),
+                        color: Color(0x33000000),
                         blurRadius: 4,
-                        offset: const Offset(0, 2),
+                        offset: Offset(0, 2),
                       ),
                     ],
                   ),
@@ -550,12 +586,11 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
                         ),
                       ),
 
-                      // Snout, Pink Nose & Mouth
+                      // Nose & Mouth (w)
                       Positioned(
                         bottom: 8,
                         child: Column(
                           children: [
-                            // Pink nose
                             Container(
                               width: 5,
                               height: 4,
@@ -565,7 +600,6 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
                               ),
                             ),
                             const SizedBox(height: 1),
-                            // Muzzle smile (w)
                             CustomPaint(
                               size: const Size(10, 4),
                               painter: _MouthPainter(),
@@ -574,7 +608,7 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
                         ),
                       ),
 
-                      // Cute Cheeks
+                      // Cheeks
                       Positioned(
                         bottom: 11,
                         left: 6,
@@ -606,9 +640,9 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
             ),
           ),
 
-          // 3. Second resting paw resting at the edge
+          // 3. Resting Left Paw on the edge
           Positioned(
-            right: 38,
+            right: 36,
             bottom: 0,
             child: Container(
               width: 11,
@@ -616,8 +650,8 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(4),
-                boxShadow: [
-                  BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 2),
+                boxShadow: const [
+                  BoxShadow(color: Color(0x22000000), blurRadius: 2),
                 ],
               ),
             ),
@@ -627,7 +661,7 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
     );
   }
 
-  Widget _buildSwattingPaw(Color catColor) {
+  Widget _buildSwipingPaw(Color catColor) {
     return Container(
       width: 22,
       height: 13,
@@ -635,11 +669,11 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
         color: Colors.white,
         borderRadius: BorderRadius.circular(7),
         border: Border.all(color: const Color(0xFFE2E8F0), width: 0.8),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
+            color: Color(0x33000000),
             blurRadius: 4,
-            offset: const Offset(-1, 2),
+            offset: Offset(-1, 2),
           ),
         ],
       ),
@@ -678,7 +712,6 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
 
   Widget _buildEye(bool isBlinking) {
     if (_isCompleted) {
-      // Happy curved closed eye (^•^)
       return Container(
         width: 8,
         height: 4,
@@ -691,7 +724,6 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
     }
 
     if (isBlinking) {
-      // Blinking eye line
       return Container(
         width: 7,
         height: 2,
@@ -699,7 +731,6 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
       );
     }
 
-    // Wide open focused eye with white sparkle highlight
     return Container(
       width: 7.5,
       height: 7.5,
