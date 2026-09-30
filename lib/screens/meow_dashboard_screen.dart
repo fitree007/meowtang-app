@@ -27,6 +27,7 @@ import '../widgets/transaction_detail_sheet.dart';
 import '../widgets/daily_budget_quota_card.dart';
 import '../widgets/meow_wheel_date_picker.dart';
 import '../widgets/app_logo_widget.dart';
+import '../widgets/meow_slip_scan_refresh.dart';
 import '../utils/format_utils.dart';
 import '../services/thai_bank_detector.dart';
 import '../services/slip_storage_service.dart';
@@ -1457,8 +1458,11 @@ void _handleMascotPetting() {
    backgroundColor: bgColor,
    body: Stack(
     children: [
-      RefreshIndicator(
+      MeowSlipScanRefreshIndicator(
        onRefresh: _handlePullToRefresh,
+       primaryColor: currentTheme.primaryColor,
+       isDark: isDark,
+       isEnglish: widget.controller.isEnglish,
        child: ListView(
         controller: _scrollController,
         physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),

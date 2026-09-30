@@ -265,7 +265,9 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
            mainAxisSize: MainAxisSize.min,
            children: [
             Text(
-             isEn ? 'Management & Settings' : 'จัดการ & ตั้งค่าระบบ',
+             _isHeaderCollapsed
+                 ? (isEn ? 'Manage & Settings' : 'จัดการ & ตั้งค่า')
+                 : (isEn ? 'Management & Settings' : 'จัดการ & ตั้งค่าระบบ'),
              style: TextStyle(
               color: Colors.white,
               fontSize: _isHeaderCollapsed ? 16.5 : 18,
