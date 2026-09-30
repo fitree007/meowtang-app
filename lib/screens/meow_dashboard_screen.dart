@@ -1463,6 +1463,11 @@ void _handleMascotPetting() {
        primaryColor: currentTheme.primaryColor,
        isDark: isDark,
        isEnglish: widget.controller.isEnglish,
+       mascotId: widget.controller.selectedMascotId,
+       mascotAccessory: widget.controller.selectedMascotAccessory,
+       mascotOutfit: widget.controller.selectedMascotOutfit,
+       customAvatarPath: widget.controller.customAvatarPath,
+       isCustomAvatarEnabled: widget.controller.isCustomAvatarEnabled,
        child: ListView(
         controller: _scrollController,
         physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
