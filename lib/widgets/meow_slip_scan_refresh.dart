@@ -1,11 +1,13 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import 'meow_mascot_widget.dart';
 
-/// A charming, polished pull-to-refresh indicator featuring the authentic MeowTang
-/// mascot cat playfully swatting dark-gray money slips along a smooth conveyor stream.
+/// A charming, polished pull-to-refresh indicator featuring the user's authentic
+/// 3D clay/chibi mascot cat with independently animated head and waving/swatting right arm,
+/// accompanied by a smooth conveyor of dark-gray money slips with a scanning laser.
+///
+/// Features a rock-solid Direct Touch Gesture Listener that guarantees 100% reliable
+/// single-pull activation without requiring rapid double pulls.
 class MeowSlipScanRefreshIndicator extends StatefulWidget {
   final Future<void> Function() onRefresh;
   final Widget child;
@@ -38,23 +40,26 @@ class MeowSlipScanRefreshIndicator extends StatefulWidget {
 
 class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndicator>
     with TickerProviderStateMixin {
-  // Short, effortless pull distance (46px)
-  static const double _triggerDistance = 46.0;
-  static const double _refreshingHeight = 72.0;
-  static const double _maxDragDisplacement = 88.0;
+  // Effortless single-pull trigger distance (38px)
+  static const double _triggerDistance = 38.0;
+  static const double _refreshingHeight = 78.0;
+  static const double _maxDragDisplacement = 96.0;
 
   double _dragOffset = 0.0;
-  bool _isDragging = false;
+  double _pointerStartY = 0.0;
+  bool _isPointerTracking = false;
   bool _canRefresh = false;
   bool _isRefreshing = false;
   bool _isCompleted = false;
 
+  ScrollMetrics? _lastScrollMetrics;
+
   late AnimationController _springBackController;
   late Animation<double> _springBackAnimation;
 
-  // Continuous conveyor swipe controller (~1600ms per loop)
+  // Slip conveyor & swatting cadence controller (~1600ms per loop)
   late AnimationController _conveyorController;
-  // Subtle bobbing & breathing controller
+  // Gentle head tilt & bobbing breathing controller (~2200ms per loop)
   late AnimationController _idleCatController;
 
   @override
@@ -73,8 +78,9 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
 
     _idleCatController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2000),
+      duration: const Duration(milliseconds: 2200),
     );
+    _idleCatController.repeat();
   }
 
   @override
@@ -89,20 +95,16 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
     if (!_conveyorController.isAnimating) {
       _conveyorController.repeat();
     }
-    if (!_idleCatController.isAnimating) {
-      _idleCatController.repeat();
-    }
   }
 
   void _stopSwipeLoop() {
     _conveyorController.stop();
-    _idleCatController.stop();
   }
 
   void _updateDrag(double rawOffset) {
     if (_isRefreshing) return;
 
-    const resistance = 0.85;
+    const resistance = 0.88;
     final newOffset = (rawOffset * resistance).clamp(0.0, _maxDragDisplacement);
 
     setState(() {
@@ -112,10 +114,10 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
     if (_dragOffset >= _triggerDistance) {
       if (!_canRefresh) {
         _canRefresh = true;
-        HapticFeedback.lightImpact();
+        HapticFeedback.mediumImpact();
       }
       _startSwipeLoop();
-    } else if (_dragOffset <= 6.0) {
+    } else if (_dragOffset <= 4.0) {
       _canRefresh = false;
     }
   }
@@ -133,7 +135,7 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
       _startSwipeLoop();
       _animateTo(_refreshingHeight, durationMs: 160);
 
-      // Hold refresh screen firmly for at least 3.2 seconds
+      // Lock and hold refresh screen firmly for at least 3.2 seconds
       try {
         await Future.wait([
           widget.onRefresh(),
@@ -194,73 +196,78 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
     });
   }
 
-  bool _onScrollNotification(ScrollNotification notification) {
-    if (_isRefreshing) return false;
-
-    if (notification is ScrollStartNotification) {
-      if (notification.metrics.extentBefore == 0) {
-        _isDragging = true;
-      }
-    } else if (notification is ScrollUpdateNotification) {
-      if (_isDragging && !_isRefreshing) {
-        if (notification.metrics.pixels < 0) {
-          _updateDrag(-notification.metrics.pixels);
-        } else if (_dragOffset > 0 && notification.scrollDelta != null && notification.scrollDelta! > 0) {
-          if (!_canRefresh) {
-            _updateDrag(_dragOffset - notification.scrollDelta!);
-          }
-        }
-      }
-    } else if (notification is OverscrollNotification) {
-      if (!_isRefreshing && notification.overscroll < 0) {
-        _updateDrag(_dragOffset + (-notification.overscroll));
-      }
-    } else if (notification is ScrollEndNotification) {
-      if (_isDragging) {
-        _isDragging = false;
-        _handleRelease();
-      }
-    } else if (notification is UserScrollNotification) {
-      if (notification.direction == ScrollDirection.idle && _isDragging) {
-        _isDragging = false;
-        _handleRelease();
-      }
-    }
-    return false;
-  }
-
   @override
   Widget build(BuildContext context) {
     final double topSafe = MediaQuery.of(context).padding.top;
     final double visibleHeight = _isRefreshing ? math.max(_dragOffset, _refreshingHeight) : _dragOffset;
     final double progress = (_dragOffset / _triggerDistance).clamp(0.0, 1.0);
 
-    return NotificationListener<ScrollNotification>(
-      onNotification: _onScrollNotification,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          // Content translated smoothly down by pull distance
-          Transform.translate(
-            offset: Offset(0, visibleHeight),
-            child: widget.child,
-          ),
+    return Listener(
+      // Direct Pointer Event tracking: intercepts single downward drag from the top
+      onPointerDown: (e) {
+        if (_isRefreshing) return;
+        final pixels = _lastScrollMetrics?.pixels ?? 0.0;
+        if (pixels <= 0.0) {
+          _pointerStartY = e.position.dy;
+          _isPointerTracking = true;
+        }
+      },
+      onPointerMove: (e) {
+        if (_isRefreshing || !_isPointerTracking) return;
+        final dy = e.position.dy - _pointerStartY;
+        if (dy > 0) {
+          _updateDrag(dy);
+        }
+      },
+      onPointerUp: (e) {
+        if (_isPointerTracking) {
+          _isPointerTracking = false;
+          _handleRelease();
+        }
+      },
+      onPointerCancel: (e) {
+        if (_isPointerTracking) {
+          _isPointerTracking = false;
+          _handleRelease();
+        }
+      },
+      child: NotificationListener<ScrollNotification>(
+        onNotification: (notification) {
+          _lastScrollMetrics = notification.metrics;
+          // Fallback scroll end handler
+          if (notification is ScrollEndNotification) {
+            if (_isPointerTracking) {
+              _isPointerTracking = false;
+              _handleRelease();
+            }
+          }
+          return false;
+        },
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            // Content translated smoothly down by pull distance
+            Transform.translate(
+              offset: Offset(0, visibleHeight),
+              child: widget.child,
+            ),
 
-          // Frameless, balanced refresh stage
-          if (visibleHeight > 3.0)
-            Positioned(
-              top: topSafe + 2,
-              left: 0,
-              right: 0,
-              height: visibleHeight,
-              child: ClipRect(
-                child: Opacity(
-                  opacity: (visibleHeight / 18.0).clamp(0.0, 1.0),
-                  child: _buildRefreshStage(progress),
+            // Frameless, balanced 3D refresh stage
+            if (visibleHeight > 3.0)
+              Positioned(
+                top: topSafe + 2,
+                left: 0,
+                right: 0,
+                height: visibleHeight,
+                child: ClipRect(
+                  child: Opacity(
+                    opacity: (visibleHeight / 16.0).clamp(0.0, 1.0),
+                    child: _buildRefreshStage(progress),
+                  ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -270,22 +277,21 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
       animation: Listenable.merge([_conveyorController, _idleCatController]),
       builder: (context, child) {
         final swipeT = _isRefreshing ? _conveyorController.value : (progress * 0.4);
-        final catBob = math.sin(_idleCatController.value * math.pi * 2) * 1.5;
 
         return Center(
           child: SizedBox(
-            width: 260,
-            height: 68,
+            width: 275,
+            height: 74,
             child: Stack(
               clipBehavior: Clip.none,
               children: [
                 // 1. Slip Conveyor Stream (3 dark-gray slips moving smoothly leftwards)
                 Positioned(
-                  left: 12,
-                  top: 6,
+                  left: 6,
+                  top: 10,
                   child: SizedBox(
-                    width: 140,
-                    height: 48,
+                    width: 145,
+                    height: 50,
                     child: Stack(
                       clipBehavior: Clip.none,
                       children: [
@@ -295,7 +301,7 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
 
                         // Subtle scanner laser beam
                         Positioned(
-                          left: 54,
+                          left: 60,
                           top: 0,
                           bottom: 0,
                           child: Container(
@@ -313,7 +319,7 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
                               boxShadow: [
                                 BoxShadow(
                                   color: const Color(0xFF38BDF8).withValues(alpha: 0.5),
-                                  blurRadius: 4,
+                                  blurRadius: 5,
                                 ),
                               ],
                             ),
@@ -324,32 +330,16 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
                   ),
                 ),
 
-                // 2. Official MeowTang Mascot Cat (Round, Kawaii, Adorable)
+                // 2. The User's Authentic 3D Chibi Mascot Cat with Animated Head & Arm
                 Positioned(
-                  right: 14,
-                  bottom: 12 + catBob,
-                  child: MeowMascotWidget(
-                    size: 52,
-                    mascotId: widget.mascotId,
-                    accessory: widget.mascotAccessory,
-                    outfit: widget.mascotOutfit,
-                    customPhotoPath: widget.customAvatarPath,
-                    isCustomPhoto: widget.isCustomAvatarEnabled,
-                    withPen: false,
-                    isHeadOnly: true,
-                  ),
+                  right: 8,
+                  bottom: 12,
+                  child: _build3DAnimatedCat(swipeT),
                 ),
 
-                // 3. Cute Chubby Paw playfully swiping over the passing slips
+                // 3. Status Badge / Completion Pill at bottom
                 Positioned(
-                  right: 50,
-                  bottom: 18 + catBob,
-                  child: _buildCuteChubbyPaw(swipeT),
-                ),
-
-                // 4. Status Badge / Completion Pill at bottom
-                Positioned(
-                  bottom: 1,
+                  bottom: 0,
                   left: 0,
                   right: 0,
                   child: Center(
@@ -412,11 +402,94 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
     );
   }
 
+  /// The user's authentic 3D clay/chibi mascot cat with:
+  /// - Independently animated head (tilting & nodding with breathing rhythm)
+  /// - Independently animated raised right arm (batting & swatting at passing slips)
+  /// - Solid base body with blue fabric collar and golden bell
+  Widget _build3DAnimatedCat(double swipeT) {
+    const double catSize = 64.0;
+
+    // Head animation: gentle playful tilt around neck
+    final double headT = _idleCatController.value;
+    final double headAngle = math.sin(headT * math.pi * 2) * 0.055; // ±3.1 degrees
+    final double headBobY = math.cos(headT * math.pi * 2) * 1.2;
+
+    // Arm animation: swatting/waving rhythm synchronized with passing slips
+    final double armPhase = (swipeT * 3.0) % 1.0;
+    double armAngle;
+    if (armPhase < 0.40) {
+      final p = armPhase / 0.40;
+      final ease = math.sin(p * math.pi);
+      armAngle = -ease * 0.38; // Swipes forward/down towards the slip
+    } else {
+      final r = (armPhase - 0.40) / 0.60;
+      final ease = (1.0 - math.cos(r * math.pi)) * 0.5;
+      armAngle = -0.38 * (1.0 - ease); // Returns back to high waving pose
+    }
+
+    return SizedBox(
+      width: catSize,
+      height: catSize,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // 1. Cat Body Layer (Base, blue collar & golden bell)
+          Positioned.fill(
+            child: Image.asset(
+              'assets/icons/mascot_3d/cat_3d_body.png',
+              width: catSize,
+              height: catSize,
+              fit: BoxFit.contain,
+              errorBuilder: (_, error, stack) => const SizedBox.shrink(),
+            ),
+          ),
+
+          // 2. Cat Arm Layer (Raised paw with pink pads, rotating around shoulder pivot)
+          Positioned.fill(
+            child: Transform(
+              alignment: const Alignment(-0.28, 0.78), // Shoulder joint pivot
+              transform: Matrix4.identity()..rotateZ(armAngle),
+              child: Image.asset(
+                'assets/icons/mascot_3d/cat_3d_arm.png',
+                width: catSize,
+                height: catSize,
+                fit: BoxFit.contain,
+                errorBuilder: (_, error, stack) => const SizedBox.shrink(),
+              ),
+            ),
+          ),
+
+          // 3. Cat Head Layer (Tilting & bobbing around neck pivot)
+          Positioned.fill(
+            child: Transform(
+              alignment: const Alignment(0.12, 0.46), // Neck joint pivot
+              transform: Matrix4.identity()
+                ..setTranslationRaw(0.0, headBobY, 0.0)
+                ..rotateZ(headAngle),
+              child: Image.asset(
+                'assets/icons/mascot_3d/cat_3d_head.png',
+                width: catSize,
+                height: catSize,
+                fit: BoxFit.contain,
+                errorBuilder: (_, error, stack) => Image.asset(
+                  'assets/icons/mascot_3d/cat_3d_transparent.png',
+                  width: catSize,
+                  height: catSize,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSingleConveyorSlip(double u) {
-    // Slips glide smoothly from right (120) to left (-10)
-    final double posX = 120.0 - (u * 135.0);
-    final double dip = math.sin(u * math.pi) * 4.0;
-    final double tilt = math.sin(u * math.pi) * -0.08;
+    // Slips glide smoothly from right (125) to left (-15)
+    final double posX = 125.0 - (u * 140.0);
+    final double dip = math.sin(u * math.pi) * 3.5;
+    final double tilt = math.sin(u * math.pi) * -0.07;
 
     // Smooth opacity fade on entry and exit
     double opacity = 1.0;
@@ -538,82 +611,6 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  /// Cute, chubby white kitten paw with pink toe beans and soft batting movement
-  Widget _buildCuteChubbyPaw(double swipeT) {
-    final double phase = (swipeT * 3.0) % 1.0;
-
-    double dx;
-    double dy;
-    double angle;
-    if (phase < 0.40) {
-      final p = phase / 0.40;
-      final ease = math.sin(p * math.pi);
-      dx = -ease * 12.0;
-      dy = -math.sin(p * math.pi * 0.5) * 3.0 + (p * 5.0);
-      angle = -ease * 0.32;
-    } else {
-      final r = (phase - 0.40) / 0.60;
-      final ease = (1.0 - math.cos(r * math.pi)) * 0.5;
-      dx = -12.0 * (1.0 - ease);
-      dy = 2.0 * (1.0 - ease);
-      angle = -0.32 * (1.0 - ease);
-    }
-
-    return Transform.translate(
-      offset: Offset(dx, dy),
-      child: Transform.rotate(
-        angle: angle,
-        alignment: Alignment.bottomRight,
-        child: Container(
-          width: 22,
-          height: 17,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(8.5),
-            border: Border.all(
-              color: widget.isDark ? const Color(0xFF64748B) : const Color(0xFFFDBA74),
-              width: 1.0,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.18),
-                blurRadius: 3,
-                offset: const Offset(0, 1.5),
-              ),
-            ],
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 2.5, vertical: 1.5),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // 3 mini pink toe beans
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: List.generate(3, (i) => Container(
-                  width: 2.8,
-                  height: 3.2,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFDA4AF),
-                    borderRadius: BorderRadius.circular(1.2),
-                  ),
-                )),
-              ),
-              // Center heart/palm pad
-              Container(
-                width: 7.5,
-                height: 5.5,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFDA4AF),
-                  borderRadius: BorderRadius.circular(2.5),
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
