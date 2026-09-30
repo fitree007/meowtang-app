@@ -65,10 +65,10 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
       duration: const Duration(milliseconds: 240),
     );
 
-    // Continuous curved swiping loop (~580ms per swipe)
+    // Continuous 360-degree slip orbit loop (~1600ms per full revolution)
     _arcSwipeController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 580),
+      duration: const Duration(milliseconds: 1600),
     );
 
     _idleCatController = AnimationController(
@@ -133,8 +133,12 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
       _startSwipeLoop();
       _animateTo(_refreshingHeight, durationMs: 180);
 
+      // Hold refresh screen for at least 3.2 seconds for full animation enjoyment
       try {
-        await widget.onRefresh();
+        await Future.wait([
+          widget.onRefresh(),
+          Future.delayed(const Duration(milliseconds: 3200)),
+        ]);
       } catch (_) {}
 
       if (!mounted) return;
@@ -344,47 +348,71 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
   }
 
   Widget _buildSwipingSlips(double swipeT) {
-    // We render two slips staggered along the curved arc to the left
-    // The arc starts in front of the cat (right) and swoops curved downwards and leftwards
+    // 3 dark-gray money slips circulating in an endless 360-degree closed orbit
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        _buildSingleArcSlip(swipeT),
-        // Staggered second slip following in the queue
-        _buildSingleArcSlip((swipeT + 0.5) % 1.0),
+        _buildSingleOrbitSlip(swipeT),
+        _buildSingleOrbitSlip((swipeT + 0.3333) % 1.0),
+        _buildSingleOrbitSlip((swipeT + 0.6667) % 1.0),
       ],
     );
   }
 
-  Widget _buildSingleArcSlip(double t) {
-    // Semi-circular curved arc from right (x ~ 140) to left (x ~ 10)
-    // Angle goes from 0 (right) to PI (left)
-    final arcAngle = t * math.pi;
+  Widget _buildSingleOrbitSlip(double u) {
+    // 360-degree continuous closed orbit:
+    // u in [0.00, 0.45]: Cat swats slip forward across the lower front track
+    // u in [0.45, 0.55]: Slip rounds the left apex turn
+    // u in [0.55, 0.90]: Slip cruises smoothly back to the right along upper track
+    // u in [0.90, 1.00]: Slip swoops down into swat zone ready to be batted again
+    double posX;
+    double posY;
+    double tiltAngle;
+    double scale;
+    double opacity;
 
-    // Center of the arc ellipse
-    const double centerX = 80.0;
-    const double radiusX = 65.0;
-    const double radiusY = 22.0;
-
-    // Curved semi-circular coordinates (swoop down and to the left)
-    final posX = centerX + math.cos(arcAngle) * radiusX;
-    final posY = 20.0 + math.sin(arcAngle) * radiusY;
-
-    // Rotation tilting along the curved arc
-    final tiltAngle = -0.4 + (math.sin(arcAngle) * 0.7) - (t * 0.5);
-
-    // Fade out as it flings far to the left
-    final opacity = (1.0 - (t * 0.65)).clamp(0.0, 1.0);
+    if (u < 0.45) {
+      final p = u / 0.45;
+      posX = 138.0 - (p * 122.0); // 138 -> 16
+      posY = 14.0 - (math.sin(p * math.pi) * 10.0); // dips in front
+      tiltAngle = -0.22 - (math.sin(p * math.pi) * 0.45);
+      scale = 1.0;
+      opacity = 1.0;
+    } else if (u < 0.55) {
+      final p = (u - 0.45) / 0.10;
+      posX = 16.0 - (math.sin(p * math.pi) * 6.0);
+      posY = 14.0 + (p * 18.0); // 14 -> 32
+      tiltAngle = -0.45 + (p * 0.45);
+      scale = 1.0 - (p * 0.15);
+      opacity = 1.0 - (p * 0.15);
+    } else if (u < 0.90) {
+      final p = (u - 0.55) / 0.35;
+      posX = 16.0 + (p * 122.0); // 16 -> 138
+      posY = 32.0 - (math.sin(p * math.pi) * 5.0);
+      tiltAngle = 0.05 - (p * 0.15);
+      scale = 0.85;
+      opacity = 0.85;
+    } else {
+      final p = (u - 0.90) / 0.10;
+      posX = 138.0 + (math.sin(p * math.pi) * 6.0);
+      posY = 32.0 - (p * 18.0); // 32 -> 14
+      tiltAngle = -0.10 - (p * 0.12);
+      scale = 0.85 + (p * 0.15);
+      opacity = 0.85 + (p * 0.15);
+    }
 
     return Positioned(
       left: posX,
       bottom: posY,
       child: Opacity(
-        opacity: opacity,
-        child: Transform.rotate(
-          angle: tiltAngle,
-          alignment: Alignment.center,
-          child: _buildDarkGraySlip(),
+        opacity: opacity.clamp(0.0, 1.0),
+        child: Transform.scale(
+          scale: scale,
+          child: Transform.rotate(
+            angle: tiltAngle,
+            alignment: Alignment.center,
+            child: _buildDarkGraySlip(),
+          ),
         ),
       ),
     );
@@ -493,38 +521,66 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
     );
   }
 
+  /// Cat with a visible forearm connected directly to its shoulder and body
   Widget _buildCatWithArcPaw(Color catColor, Color earColor, double swipeT) {
     final bool isBlinking = _idleCatController.value > 0.94;
 
-    // Semi-circular arc trajectory for the swiping paw
-    // The paw sweeps from right to left in a curved semi-circle
-    final arcAngle = swipeT * math.pi;
-    final pawArcX = -10.0 - (math.cos(arcAngle) * 24.0);
-    final pawArcY = 16.0 - (math.sin(arcAngle) * 14.0);
-    final pawRotation = -0.4 + (math.sin(arcAngle) * 0.7);
+    // The swat cadence synchronizes with the 3 passing slips
+    final double swatPhase = (swipeT * 3.0) % 1.0;
+    double pawX;
+    double pawY;
+    double pawRotation;
+
+    if (swatPhase < 0.45) {
+      // Swatting forward
+      final double s = swatPhase / 0.45;
+      final double ease = math.sin(s * math.pi * 0.5);
+      pawX = 46.0 - (ease * 38.0); // 46 -> 8
+      pawY = 34.0 + (math.sin(s * math.pi) * 8.0);
+      pawRotation = -0.15 - (ease * 0.65);
+    } else {
+      // Returning to ready position
+      final double r = (swatPhase - 0.45) / 0.55;
+      final double ease = (1.0 - math.cos(r * math.pi)) * 0.5;
+      pawX = 8.0 + (ease * 38.0); // 8 -> 46
+      pawY = 34.0;
+      pawRotation = -0.80 + (ease * 0.65);
+    }
+
+    const Offset shoulder = Offset(68.0, 36.0);
+    final Offset wrist = Offset(pawX + 11.0, pawY + 6.0);
 
     return SizedBox(
-      width: 78,
-      height: 58,
+      width: 108,
+      height: 60,
       child: Stack(
         clipBehavior: Clip.none,
-        alignment: Alignment.bottomRight,
         children: [
-          // 1. Swatting Front Paw following the curved arc to the left
+          // 1. Forearm connecting cat's shoulder to the swiping paw
+          CustomPaint(
+            size: const Size(108, 60),
+            painter: _CatArmPainter(
+              armColor: catColor,
+              shoulder: shoulder,
+              wrist: wrist,
+            ),
+          ),
+
+          // 2. Swatting Front Paw with toe beans
           Positioned(
-            left: pawArcX,
-            bottom: pawArcY,
+            left: pawX,
+            top: pawY,
             child: Transform.rotate(
               angle: pawRotation,
-              alignment: Alignment.bottomRight,
+              alignment: Alignment.centerRight,
               child: _buildSwipingPaw(catColor),
             ),
           ),
 
-          // 2. Peeking Cat Head & Upper Body
+          // 3. Peeking Cat Head & Upper Body with Kawaii features
           Positioned(
             right: 0,
-            bottom: -3,
+            bottom: -2,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -556,8 +612,8 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
                   decoration: BoxDecoration(
                     color: catColor,
                     borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(25),
-                      topRight: Radius.circular(25),
+                      topLeft: Radius.circular(24),
+                      topRight: Radius.circular(24),
                       bottomLeft: Radius.circular(18),
                       bottomRight: Radius.circular(18),
                     ),
@@ -572,66 +628,71 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
-                      // Eyes
+                      // Sparkling Anime Eyes
                       Positioned(
-                        top: 10,
-                        left: 10,
-                        right: 10,
+                        top: 9,
+                        left: 9,
+                        right: 9,
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            _buildEye(isBlinking),
-                            _buildEye(isBlinking),
+                            _buildKawaiiEye(isBlinking),
+                            _buildKawaiiEye(isBlinking),
                           ],
                         ),
                       ),
 
-                      // Nose & Mouth (w)
+                      // Cute White Muzzle, Pink Heart Nose & :3 Mouth
                       Positioned(
-                        bottom: 8,
+                        bottom: 6,
                         child: Column(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Container(
-                              width: 5,
-                              height: 4,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFDA4AF),
-                                borderRadius: BorderRadius.circular(2),
-                              ),
+                            // Soft white muzzle area with heart nose
+                            Stack(
+                              alignment: Alignment.topCenter,
+                              children: [
+                                Container(
+                                  width: 18,
+                                  height: 9,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(5),
+                                    boxShadow: const [
+                                      BoxShadow(color: Color(0x15000000), blurRadius: 1),
+                                    ],
+                                  ),
+                                ),
+                                // Tiny Pink Heart Nose
+                                Positioned(
+                                  top: -1,
+                                  child: CustomPaint(
+                                    size: const Size(5, 4),
+                                    painter: _HeartNosePainter(),
+                                  ),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 1),
+                            // Sweet :3 Mouth
                             CustomPaint(
-                              size: const Size(10, 4),
+                              size: const Size(11, 4),
                               painter: _MouthPainter(),
                             ),
                           ],
                         ),
                       ),
 
-                      // Cheeks
+                      // Rosy Blushing Cheeks with subtle blush slashes
                       Positioned(
-                        bottom: 11,
-                        left: 6,
-                        child: Container(
-                          width: 6,
-                          height: 3.5,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFDA4AF).withValues(alpha: 0.6),
-                            borderRadius: BorderRadius.circular(3),
-                          ),
-                        ),
+                        bottom: 10,
+                        left: 5,
+                        child: _buildBlushCheek(isLeft: true),
                       ),
                       Positioned(
-                        bottom: 11,
-                        right: 6,
-                        child: Container(
-                          width: 6,
-                          height: 3.5,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFDA4AF).withValues(alpha: 0.6),
-                            borderRadius: BorderRadius.circular(3),
-                          ),
-                        ),
+                        bottom: 10,
+                        right: 5,
+                        child: _buildBlushCheek(isLeft: false),
                       ),
                     ],
                   ),
@@ -640,23 +701,58 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
             ),
           ),
 
-          // 3. Resting Left Paw on the edge
+          // 4. Resting Left Paw on the front edge
           Positioned(
             right: 36,
             bottom: 0,
             child: Container(
-              width: 11,
+              width: 12,
               height: 8,
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: const Color(0xFFE2E8F0), width: 0.7),
                 boxShadow: const [
                   BoxShadow(color: Color(0x22000000), blurRadius: 2),
                 ],
               ),
+              padding: const EdgeInsets.symmetric(horizontal: 1.5, vertical: 1),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: List.generate(2, (i) => Container(
+                  width: 2,
+                  height: 3,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFDA4AF),
+                    borderRadius: BorderRadius.circular(1),
+                  ),
+                )),
+              ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildBlushCheek({required bool isLeft}) {
+    return Container(
+      width: 7,
+      height: 4,
+      decoration: BoxDecoration(
+        color: const Color(0xFFFDA4AF).withValues(alpha: 0.75),
+        borderRadius: BorderRadius.circular(3),
+      ),
+      child: Center(
+        child: Text(
+          isLeft ? '//' : '\\\\',
+          style: const TextStyle(
+            fontSize: 4,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFFF43F5E),
+            height: 0.8,
+          ),
+        ),
       ),
     );
   }
@@ -710,48 +806,131 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
     );
   }
 
-  Widget _buildEye(bool isBlinking) {
+  /// Big, expressive, sparkling anime/kawaii cat eyes
+  Widget _buildKawaiiEye(bool isBlinking) {
     if (_isCompleted) {
-      return Container(
-        width: 8,
-        height: 4,
-        decoration: const BoxDecoration(
-          border: Border(
-            top: BorderSide(color: Color(0xFF0F172A), width: 2),
-          ),
+      // Cheerful happy closed eye ^
+      return SizedBox(
+        width: 10,
+        height: 7,
+        child: CustomPaint(
+          painter: _HappyEyePainter(),
         ),
       );
     }
 
     if (isBlinking) {
+      // Cute blinking closed eye ‿
       return Container(
-        width: 7,
+        width: 8,
         height: 2,
-        color: const Color(0xFF0F172A),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0F172A),
+          borderRadius: BorderRadius.circular(1),
+        ),
       );
     }
 
+    // Sparkly anime eye with twin catchlights
     return Container(
-      width: 7.5,
-      height: 7.5,
-      decoration: const BoxDecoration(
-        color: Color(0xFF0F172A),
-        shape: BoxShape.circle,
+      width: 9.5,
+      height: 10.5,
+      decoration: BoxDecoration(
+        color: const Color(0xFF0B132B),
+        borderRadius: BorderRadius.circular(5),
       ),
-      child: Align(
-        alignment: Alignment.topRight,
-        child: Container(
-          width: 2.5,
-          height: 2.5,
-          margin: const EdgeInsets.only(top: 1, right: 1),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            shape: BoxShape.circle,
+      child: Stack(
+        children: [
+          // Primary big sparkle at top-right
+          Positioned(
+            top: 1.5,
+            right: 1.5,
+            child: Container(
+              width: 3.5,
+              height: 3.5,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+              ),
+            ),
           ),
-        ),
+          // Secondary twinkle sparkle at bottom-left
+          Positioned(
+            bottom: 2.0,
+            left: 1.8,
+            child: Container(
+              width: 1.8,
+              height: 1.8,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.9),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
+}
+
+/// Painter that connects the cat's shoulder to the swiping paw
+class _CatArmPainter extends CustomPainter {
+  final Color armColor;
+  final Offset shoulder;
+  final Offset wrist;
+
+  _CatArmPainter({
+    required this.armColor,
+    required this.shoulder,
+    required this.wrist,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final dx = wrist.dx - shoulder.dx;
+    final dy = wrist.dy - shoulder.dy;
+    final dist = math.sqrt(dx * dx + dy * dy);
+    if (dist < 4.0) return;
+
+    final nx = -dy / dist;
+    final ny = dx / dist;
+
+    const double rShoulder = 6.5;
+    const double rWrist = 4.8;
+
+    final midX = (shoulder.dx + wrist.dx) * 0.5 + (nx * 3.5);
+    final midY = (shoulder.dy + wrist.dy) * 0.5 + (ny * 3.5);
+
+    final path = Path()
+      ..moveTo(shoulder.dx + nx * rShoulder, shoulder.dy + ny * rShoulder)
+      ..quadraticBezierTo(midX + nx * 4.5, midY + ny * 4.5, wrist.dx + nx * rWrist, wrist.dy + ny * rWrist)
+      ..lineTo(wrist.dx - nx * rWrist, wrist.dy - ny * rWrist)
+      ..quadraticBezierTo(midX - nx * 4.5, midY - ny * 4.5, shoulder.dx - nx * rShoulder, shoulder.dy - ny * rShoulder)
+      ..close();
+
+    final shadowPaint = Paint()
+      ..color = const Color(0x22000000)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5);
+
+    final armPaint = Paint()
+      ..color = armColor
+      ..style = PaintingStyle.fill;
+
+    final borderPaint = Paint()
+      ..color = const Color(0xFFE2E8F0)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.9;
+
+    canvas.drawPath(path, shadowPaint);
+    canvas.drawPath(path, armPaint);
+    canvas.drawPath(path, borderPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _CatArmPainter oldDelegate) =>
+      oldDelegate.wrist != wrist ||
+      oldDelegate.shoulder != shoulder ||
+      oldDelegate.armColor != armColor;
 }
 
 class _EarPainter extends CustomPainter {
@@ -787,7 +966,7 @@ class _MouthPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFF0F172A)
+      ..color = const Color(0xFF334155)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
 
@@ -795,6 +974,54 @@ class _MouthPainter extends CustomPainter {
       ..moveTo(0, 0)
       ..quadraticBezierTo(size.width * 0.25, size.height, size.width * 0.5, size.height * 0.5)
       ..quadraticBezierTo(size.width * 0.75, size.height, size.width, 0);
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _HeartNosePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFFFB7185)
+      ..style = PaintingStyle.fill;
+
+    final path = Path();
+    path.moveTo(size.width * 0.5, size.height);
+    path.cubicTo(
+      0, size.height * 0.5,
+      0, 0,
+      size.width * 0.5, size.height * 0.3,
+    );
+    path.cubicTo(
+      size.width, 0,
+      size.width, size.height * 0.5,
+      size.width * 0.5, size.height,
+    );
+    path.close();
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _HappyEyePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFF0F172A)
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = 1.5;
+
+    final path = Path()
+      ..moveTo(0, size.height)
+      ..quadraticBezierTo(size.width * 0.5, 0, size.width, size.height);
 
     canvas.drawPath(path, paint);
   }
