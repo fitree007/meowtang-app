@@ -75359,7 +75359,7 @@ a1.push(B.buu)
 o=a4?"MeowTang (\u0e40\u0e2b\u0e21\u0e35\u0e22\u0e27\u0e15\u0e31\u0e07\u0e04\u0e4c)":"\u0e40\u0e2b\u0e21\u0e35\u0e22\u0e27\u0e15\u0e31\u0e07\u0e04\u0e4c (MeowTang)"
 o=A.c(o,a,a,a,a,A.d(a,a,a3?B.aT:B.ch,a,a,a,a,a,a,a,a,14,a,a,B.w,a,a,!0,a,a,a,a,a,a,a,a),a,a,a)
 m=A.c(A.eI("credit_service",b.a.c.gaq()),a,a,a,a,B.bDm,a,a,a)
-l=a4?"Version 1.41.55 (Latest Release)":"\u0e40\u0e27\u0e2d\u0e23\u0e4c\u0e0a\u0e31\u0e19 1.41.55 (\u0e25\u0e48\u0e32\u0e2a\u0e38\u0e14)"
+l=a4?"Version 1.41.56 (Latest Release)":"\u0e40\u0e27\u0e2d\u0e23\u0e4c\u0e0a\u0e31\u0e19 1.41.56 (\u0e25\u0e48\u0e32\u0e2a\u0e38\u0e14)"
 a1.push(A.b4(A.F(A.a([o,B.b1,m,B.b1,A.c(l,a,a,a,a,A.d(a,a,a3?B.aN:B.be,a,a,a,a,a,a,a,a,11,a,a,a,a,a,!0,a,a,a,a,a,a,a,a),a,a,a),B.fw],n),B.t,B.p,B.m),a,a))
 return A.e0(a,s,A.h7(A.a([p,new A.ai(B.bm,A.F(a1,B.D,B.p,B.m),a)],n),a,B.au,a,a,!1),a,a)},
 HZ(a,b,c,d){var s=null,r=A.a3(a,b,s,s,17)
@@ -75673,7 +75673,7 @@ e=a5.a.c.a
 if(e.u3()){e=e.a
 e===$&&A.b()
 e=A.b9(e.a.h(0,a3))!=null}else e=!1
-k=A.i(a2,A.m(A.a([j,A.le(g,!0,f,e,!1,h,B.er,a2,!0,60,!0)],i),B.t,B.p,B.m,0,a2),B.r,a2,a2,new A.h(a2,a2,a2,a2,m,a6,B.u),a2,a2,a2,a2,new A.V(18,k.r.b+10,18,14),a2,a2,a2)
+k=A.i(a2,A.m(A.a([j,A.le(g,!0,f,e,!1,h,B.er,a2,!0,60,!0)],i),B.t,B.p,B.m,0,a2),B.r,a2,a2,new A.h(a2,a2,a2,a2,m,a6,B.u),a2,a2,a2,a2,new A.V(18,k.r.b+10,18,14),a2,a2,1/0)
 a6=A.a([],i)
 m=!n
 if(m){j=A.e(18)
@@ -75772,7 +75772,7 @@ c=m?"\ud83d\udd12 VIP":"\u0e0b\u0e38\u0e19\u0e19\u0e30\u0e2e\u0e4c \ufdfa"
 f=A.m(A.a([f,B.ac,A.i(a2,A.c(c,a2,a2,a2,a2,A.d(a2,a2,m?B.a3:B.fF,a2,a2,a2,a2,a2,a2,a2,a2,9.5,a2,a2,B.w,a2,a2,!0,a2,a2,a2,a2,a2,a2,a2,a2),a2,a2,a2),B.r,a2,a2,new A.h(e,a2,a2,d,a2,a2,B.u),a2,a2,a2,a2,B.hj,a2,a2,a2)],i),B.t,B.p,B.m,0,a2)
 m=a8?"Calculate charity by silver/gold weight":"\u0e04\u0e33\u0e19\u0e27\u0e13\u0e21\u0e39\u0e25\u0e04\u0e48\u0e32\u0e17\u0e32\u0e19\u0e15\u0e32\u0e21\u0e19\u0e49\u0e33\u0e2b\u0e19\u0e31\u0e01\u0e40\u0e07\u0e34\u0e19/\u0e17\u0e2d\u0e07\u0e04\u0e33"
 a6.push(A.cg(A.i(a2,A.m(A.a([h,B.aM,A.J(A.F(A.a([f,B.aO,A.c(m,1,B.a4,a2,a2,A.d(a2,a2,o,a2,a2,a2,a2,a2,a2,a2,a2,11,a2,a2,a2,a2,a2,!0,a2,a2,a2,a2,a2,a2,a2,a2),a2,a2,a2)],i),B.D,B.p,B.m),1),B.anw],i),B.t,B.p,B.m,0,a2),B.r,a2,a2,new A.h(r,a2,j,g,l,a2,B.u),a2,a2,a2,a2,B.fk,a2,a2,a2),new A.baP(a5)))
-return A.e0(a2,s,A.h7(A.a([k,new A.ai(B.adG,A.F(a6,B.D,B.p,B.m),a2)],i),a2,B.au,B.c4,a2,!1),a2,a2)},
+return A.e0(a2,s,A.F(A.a([k,A.J(A.h7(A.a([new A.ai(B.adG,A.F(a6,B.D,B.p,B.m),a2)],i),a2,B.au,B.c4,a2,!1),1)],i),B.t,B.p,B.m),a2,a2)},
 $S:105}
 A.baK.prototype={
 $0(){A.kj(this.b,this.a.a.c,"\u0e2a\u0e31\u0e48\u0e07\u0e0b\u0e37\u0e49\u0e2d\u0e41\u0e1e\u0e47\u0e01\u0e40\u0e01\u0e08\u0e1e\u0e23\u0e35\u0e40\u0e21\u0e35\u0e48\u0e22\u0e21 VIP \u0e40\u0e1e\u0e37\u0e48\u0e2d\u0e1b\u0e25\u0e14\u0e25\u0e47\u0e2d\u0e04\u0e17\u0e38\u0e01\u0e1f\u0e35\u0e40\u0e08\u0e2d\u0e23\u0e4c\u0e2d\u0e22\u0e48\u0e32\u0e07\u0e2a\u0e21\u0e1a\u0e39\u0e23\u0e13\u0e4c\u0e41\u0e1a\u0e1a \u2728")},

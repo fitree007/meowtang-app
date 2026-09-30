@@ -154,12 +154,11 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
 
         return Scaffold(
           backgroundColor: bgColor,
-          body: ListView(
-            padding: EdgeInsets.zero,
-            physics: const BouncingScrollPhysics(),
+          body: Column(
             children: [
-              // 1. VIP Hero Header with Dynamic Active Theme Gradient
+              // 1. VIP Hero Header with Dynamic Active Theme Gradient (Pinned at Top)
               Container(
+                width: double.infinity,
                 decoration: BoxDecoration(
                   gradient: currentTheme.heroGradient,
                   boxShadow: [
@@ -215,11 +214,17 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                 ),
               ),
 
-              Padding(
-                padding: const EdgeInsets.fromLTRB(14, 12, 14, 28),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              // 2. Scrollable Body
+              Expanded(
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  physics: const BouncingScrollPhysics(),
                   children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 12, 14, 28),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                     if (!isVip) ...[
                       // Prominent VIP Upgrade / Purchase Banner
                       InkWell(
@@ -985,7 +990,10 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
               ),
             ],
           ),
-        );
+        ),
+      ],
+    ),
+  );
       },
     );
   }
