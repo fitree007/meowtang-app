@@ -415,62 +415,103 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> with SingleTi
 
   return Scaffold(
    backgroundColor: currentTheme.scaffoldBackground,
-   appBar: PreferredSize(
-    preferredSize: const Size.fromHeight(105),
-    child: Container(
-     decoration: BoxDecoration(
-      gradient: currentTheme.heroGradient,
-     ),
-     padding: EdgeInsets.only(
-      top: MediaQuery.of(context).padding.top + 6,
-      left: 16,
-      right: 16,
-      bottom: 10,
-     ),
-     child: Column(
-      children: [
-       // Top Bar Header
-       Row(
-        children: [
-         const Icon(Icons.analytics_rounded, color: Colors.white, size: 24),
-         const SizedBox(width: 8),
-         Text(
-          isEn ? 'Financial Analytics' : 'สรุปวิเคราะห์การเงิน',
-          style: const TextStyle(
-           color: Colors.white,
-           fontSize: 18,
-           fontWeight: FontWeight.bold,
-          ),
-         ),
-        ],
-       ),
-       const SizedBox(height: 8),
-       // 3 Main Segmented Tabs (High Contrast, Clear Visibility)
-       Container(
-        height: 44,
-        padding: const EdgeInsets.all(3),
-        decoration: BoxDecoration(
-         color: Colors.black.withValues(alpha: 0.22),
-         borderRadius: BorderRadius.circular(13),
-         border: Border.all(color: Colors.white.withValues(alpha: 0.22), width: 1),
+   body: Column(
+    children: [
+     // Pinned Hero Header with identical Status Bar height/padding to Premium screen
+     Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+       gradient: currentTheme.heroGradient,
+       boxShadow: [
+        BoxShadow(
+         color: currentTheme.primaryColor.withValues(alpha: isDark ? 0.3 : 0.15),
+         blurRadius: 16,
+         offset: const Offset(0, 4),
         ),
-        child: Row(
+       ],
+      ),
+      padding: EdgeInsets.only(
+       top: MediaQuery.of(context).padding.top + 10,
+       left: 18,
+       right: 18,
+       bottom: 14,
+      ),
+      child: Column(
+       children: [
+        // Top Bar Header
+        Row(
          children: [
-          _buildMainTabButton(AnalyticsMainTab.overview, isEn ? 'Overview' : 'ภาพรวม', Icons.pie_chart_rounded),
-          _buildMainTabButton(AnalyticsMainTab.categoryTags, isEn ? 'Categories' : 'หมวดหมู่ & #แท็ก', Icons.label_rounded),
-          _buildMainTabButton(AnalyticsMainTab.comparison, isEn ? 'Compare' : 'เทียบ 2 เดือน', Icons.compare_arrows_rounded),
+          const Icon(Icons.analytics_rounded, color: Colors.white, size: 24),
+          const SizedBox(width: 8),
+          Text(
+           isEn ? 'Financial Analytics' : 'สรุปวิเคราะห์การเงิน',
+           style: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+           ),
+          ),
          ],
         ),
-       ),
-      ],
+        const SizedBox(height: 10),
+        // 3 Main Segmented Tabs (High Contrast, Clear Visibility with Dividers)
+        Container(
+         height: 48,
+         padding: const EdgeInsets.all(3),
+         decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.22),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.22), width: 1),
+         ),
+         child: Row(
+          children: [
+           _buildMainTabButton(
+            AnalyticsMainTab.overview,
+            line1: isEn ? 'Overview' : 'ภาพรวม',
+            icon: Icons.pie_chart_rounded,
+           ),
+           _buildTabDivider(),
+           _buildMainTabButton(
+            AnalyticsMainTab.categoryTags,
+            line1: isEn ? 'Categories' : 'หมวดหมู่',
+            line2: isEn ? '#Tags' : '#แท็ก',
+            icon: Icons.label_rounded,
+           ),
+           _buildTabDivider(),
+           _buildMainTabButton(
+            AnalyticsMainTab.comparison,
+            line1: isEn ? 'Compare' : 'เทียบ 2 เดือน',
+            icon: Icons.compare_arrows_rounded,
+           ),
+          ],
+         ),
+        ),
+       ],
+      ),
      ),
-    ),
+     Expanded(
+      child: _buildActiveTabContent(),
+     ),
+    ],
    ),
-   body: _buildActiveTabContent(),
   );
  }
 
- Widget _buildMainTabButton(AnalyticsMainTab tab, String label, IconData icon) {
+ Widget _buildTabDivider() {
+  return Container(
+   width: 1,
+   height: 22,
+   margin: const EdgeInsets.symmetric(horizontal: 1),
+   color: Colors.white.withValues(alpha: 0.25),
+  );
+ }
+
+ Widget _buildMainTabButton(
+  AnalyticsMainTab tab, {
+  required String line1,
+  String? line2,
+  required IconData icon,
+ }) {
   final isSelected = _activeTab == tab;
   final currentTheme = widget.controller.currentTheme;
   final isDark = widget.controller.isDarkMode;
@@ -484,12 +525,12 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> with SingleTi
     child: AnimatedContainer(
      duration: const Duration(milliseconds: 200),
      curve: Curves.easeInOut,
-     margin: const EdgeInsets.symmetric(horizontal: 2),
+     margin: const EdgeInsets.symmetric(horizontal: 1),
      decoration: BoxDecoration(
       color: isSelected
           ? (isDark ? const Color(0xFF1E293B) : Colors.white)
           : Colors.transparent,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(11),
       border: isSelected
           ? Border.all(
               color: isDark ? const Color(0xFF38BDF8) : currentTheme.primaryColor.withValues(alpha: 0.35),
@@ -507,9 +548,10 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> with SingleTi
           : [],
      ),
      alignment: Alignment.center,
-     padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 4),
+     padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 3),
      child: Row(
       mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
       children: [
        Icon(
         icon,
@@ -520,17 +562,39 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> with SingleTi
        ),
        const SizedBox(width: 4),
        Flexible(
-        child: Text(
-         label,
-         maxLines: 1,
-         overflow: TextOverflow.ellipsis,
-         style: TextStyle(
-          color: isSelected
-              ? (isDark ? Colors.white : currentTheme.primaryDark)
-              : Colors.white.withValues(alpha: 0.95),
-          fontSize: 11.5,
-          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-         ),
+        child: Column(
+         mainAxisSize: MainAxisSize.min,
+         mainAxisAlignment: MainAxisAlignment.center,
+         crossAxisAlignment: CrossAxisAlignment.start,
+         children: [
+          Text(
+           line1,
+           maxLines: 1,
+           overflow: TextOverflow.ellipsis,
+           style: TextStyle(
+            color: isSelected
+                ? (isDark ? Colors.white : currentTheme.primaryDark)
+                : Colors.white.withValues(alpha: 0.95),
+            fontSize: line2 != null ? 10.5 : 11.5,
+            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+            height: 1.15,
+           ),
+          ),
+          if (line2 != null)
+           Text(
+            line2,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+             color: isSelected
+                 ? (isDark ? const Color(0xFF38BDF8) : currentTheme.primaryColor)
+                 : Colors.white.withValues(alpha: 0.85),
+             fontSize: 9.5,
+             fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+             height: 1.1,
+            ),
+           ),
+         ],
         ),
        ),
       ],
