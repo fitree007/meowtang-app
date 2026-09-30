@@ -392,26 +392,53 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
     final lum1 = currentTheme.primaryColor.computeLuminance();
     final lum2 = currentTheme.primaryDark.computeLuminance();
     final avgLum = (lum1 + lum2) / 2.0;
-    final bool isHeroLight = avgLum > 0.55;
+    final bool isHeroLight = avgLum > 0.55 || currentTheme.isGlass;
+
+    // Detect if theme background is yellowish / golden / honey / orange
+    final bool isThemeYellowish = currentTheme.id == 'classic_meow_gold' ||
+        currentTheme.id == 'cute_honey_lemon' ||
+        currentTheme.id == 'cozy_terracotta' ||
+        (currentTheme.primaryColor.red > 200 && currentTheme.primaryColor.green > 160 && currentTheme.primaryColor.blue < 100);
+
+    // Detect if theme background is reddish / wine / burgundy / pink
+    final bool isThemeReddish = currentTheme.id == 'burgundy_prestige' ||
+        currentTheme.id == 'festive_lunar_red' ||
+        currentTheme.id == 'sweet_sakura_pink' ||
+        (currentTheme.primaryColor.red > 140 && currentTheme.primaryColor.green < 80 && currentTheme.primaryColor.blue < 90);
 
     // Base color for normal state (when income is healthy)
     final normalColor = isHeroLight ? const Color(0xFF0F172A) : Colors.white;
 
+    // Red alert color (adapts so it never vanishes on reddish/wine themes)
+    Color getRedAlertColor() {
+      if (isThemeReddish) {
+        return isHeroLight ? const Color(0xFF881337) : const Color(0xFFFFF1F2);
+      }
+      return isHeroLight ? const Color(0xFFB91C1C) : const Color(0xFFEF4444);
+    }
+
+    // Yellow warning color (adapts so it never vanishes on gold/yellow themes)
+    Color getYellowWarningColor() {
+      if (isThemeYellowish) {
+        return const Color(0xFF78350F);
+      }
+      return isHeroLight ? const Color(0xFFB45309) : const Color(0xFFFDE047);
+    }
+
     if (income <= 0) {
       if (expense > 0) {
-        // Red alert adapted to light/dark themes
-        return isHeroLight ? const Color(0xFFDC2626) : const Color(0xFFEF4444);
+        return getRedAlertColor();
       }
       return normalColor;
     }
 
     final remaining = income - expense;
     if (remaining <= 0) {
-      // รายรับหมดแล้ว หรือ ติดลบ -> สีแดง (เข้มขึ้นบนธีมสว่าง, สดใสบนธีมมืด)
-      return isHeroLight ? const Color(0xFFB91C1C) : const Color(0xFFEF4444);
+      // รายรับหมดแล้ว หรือ ติดลบ -> สีแดง (เข้มชัดตามธีม ไม่กลืน)
+      return getRedAlertColor();
     } else if (remaining <= income * 0.20 || remaining < 500) {
-      // รายรับใกล้หมด (เหลือน้อยกว่า 20% หรือ ต่ำกว่า 500 บาท) -> สีเหลือง/อำพัน (ส้มอำพันบนธีมสว่าง, สีทองสว่างบนธีมมืด)
-      return isHeroLight ? const Color(0xFFD97706) : const Color(0xFFFDE047);
+      // รายรับใกล้หมด -> สีเตือน (ปรับสีทอง/เหลืองไม่ให้กลืนบนธีมทอง)
+      return getYellowWarningColor();
     } else {
       return normalColor;
     }
@@ -1415,6 +1442,17 @@ void _handleMascotPetting() {
   final textPrimary = currentTheme.textColor;
   final borderColor = currentTheme.borderColor;
 
+  // Adaptive contrast for hero card header and icons
+  final lum1 = currentTheme.primaryColor.computeLuminance();
+  final lum2 = currentTheme.primaryDark.computeLuminance();
+  final avgLum = (lum1 + lum2) / 2.0;
+  final bool isHeroLight = avgLum > 0.55 || currentTheme.isGlass;
+  final Color heroContentColor = isHeroLight ? const Color(0xFF0F172A) : Colors.white;
+  final Color heroContentMuted = isHeroLight ? const Color(0xFF475569) : Colors.white70;
+  final Color heroPillBg = isHeroLight ? Colors.black.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.16);
+  final Color heroPillBorder = isHeroLight ? Colors.black.withValues(alpha: 0.12) : Colors.white.withValues(alpha: 0.22);
+  final Color heroDividerColor = isHeroLight ? Colors.black.withValues(alpha: 0.12) : Colors.white.withValues(alpha: 0.2);
+
   return Scaffold(
    backgroundColor: bgColor,
    body: Stack(
@@ -1631,12 +1669,12 @@ void _handleMascotPetting() {
                                 children: [
                                   Container(
                                     decoration: BoxDecoration(
-                                      color: Colors.black.withValues(alpha: 0.16),
+                                      color: heroPillBg,
                                       borderRadius: BorderRadius.circular(14),
-                                      border: Border.all(color: Colors.white.withValues(alpha: 0.22), width: 1),
+                                      border: Border.all(color: heroPillBorder, width: 1),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: Colors.black.withValues(alpha: 0.08),
+                                          color: Colors.black.withValues(alpha: isHeroLight ? 0.04 : 0.08),
                                           blurRadius: 8,
                                           offset: const Offset(0, 2),
                                         ),
@@ -1654,13 +1692,13 @@ void _handleMascotPetting() {
                                               HapticFeedback.lightImpact();
                                               _prevMonth();
                                             },
-                                            child: const Padding(
-                                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                                              child: Icon(Icons.chevron_left_rounded, color: Colors.white, size: 22),
+                                            child: Padding(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                              child: Icon(Icons.chevron_left_rounded, color: heroContentColor, size: 22),
                                             ),
                                           ),
                                         ),
-                                        Container(width: 1, height: 16, color: Colors.white.withValues(alpha: 0.2)),
+                                        Container(width: 1, height: 16, color: heroDividerColor),
                                         // Month & Year Picker Button
                                         Material(
                                           color: Colors.transparent,
@@ -1674,25 +1712,25 @@ void _handleMascotPetting() {
                                               child: Row(
                                                 mainAxisSize: MainAxisSize.min,
                                                 children: [
-                                                  const Icon(Icons.calendar_month_rounded, size: 15, color: Colors.white),
+                                                  Icon(Icons.calendar_month_rounded, size: 15, color: heroContentColor),
                                                   const SizedBox(width: 6),
                                                   Text(
                                                     _formatMonthYear(_currentMonth),
-                                                    style: const TextStyle(
-                                                      color: Colors.white,
+                                                    style: TextStyle(
+                                                      color: heroContentColor,
                                                       fontSize: 14,
                                                       fontWeight: FontWeight.w800,
                                                       letterSpacing: -0.2,
                                                     ),
                                                   ),
                                                   const SizedBox(width: 4),
-                                                  const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Colors.white),
+                                                  Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: heroContentColor),
                                                 ],
                                               ),
                                             ),
                                           ),
                                         ),
-                                        Container(width: 1, height: 16, color: Colors.white.withValues(alpha: 0.2)),
+                                        Container(width: 1, height: 16, color: heroDividerColor),
                                         // Next Month Button
                                         Material(
                                           color: Colors.transparent,
@@ -1702,9 +1740,9 @@ void _handleMascotPetting() {
                                               HapticFeedback.lightImpact();
                                               _nextMonth();
                                             },
-                                            child: const Padding(
-                                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                                              child: Icon(Icons.chevron_right_rounded, color: Colors.white, size: 22),
+                                            child: Padding(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                              child: Icon(Icons.chevron_right_rounded, color: heroContentColor, size: 22),
                                             ),
                                           ),
                                         ),
@@ -1731,7 +1769,7 @@ void _handleMascotPetting() {
                                           Text(
                                             widget.controller.tr('this_month_expense'),
                                             style: TextStyle(
-                                              color: (currentTheme.primaryColor.computeLuminance() > 0.55) ? Colors.black54 : Colors.white70,
+                                              color: heroContentMuted,
                                               fontSize: 13,
                                               fontWeight: FontWeight.w600,
                                             ),
@@ -1746,9 +1784,9 @@ void _handleMascotPetting() {
                                             child: Container(
                                               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                                               decoration: BoxDecoration(
-                                                color: Colors.black.withValues(alpha: 0.18),
+                                                color: isHeroLight ? Colors.black.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.18),
                                                 borderRadius: BorderRadius.circular(6),
-                                                border: Border.all(color: Colors.white.withValues(alpha: 0.25), width: 0.8),
+                                                border: Border.all(color: isHeroLight ? Colors.black.withValues(alpha: 0.12) : Colors.white.withValues(alpha: 0.25), width: 0.8),
                                               ),
                                               child: Row(
                                                 mainAxisSize: MainAxisSize.min,
@@ -1758,7 +1796,7 @@ void _handleMascotPetting() {
                                                         ? Icons.visibility_off_rounded
                                                         : Icons.visibility_rounded,
                                                     size: 13,
-                                                    color: Colors.white,
+                                                    color: heroContentColor,
                                                   ),
                                                 ],
                                               ),
@@ -1782,7 +1820,7 @@ void _handleMascotPetting() {
                                             letterSpacing: -0.5,
                                             shadows: [
                                               BoxShadow(
-                                                color: Colors.black.withValues(alpha: 0.18),
+                                                color: Colors.black.withValues(alpha: isHeroLight ? 0.12 : 0.25),
                                                 blurRadius: 4,
                                                 offset: const Offset(0, 1),
                                               ),
@@ -1795,21 +1833,21 @@ void _handleMascotPetting() {
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                         decoration: BoxDecoration(
-                                          color: Colors.black.withValues(alpha: 0.15),
+                                          color: heroPillBg,
                                           borderRadius: BorderRadius.circular(6),
-                                          border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 0.7),
+                                          border: Border.all(color: heroPillBorder, width: 0.7),
                                         ),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            const Icon(Icons.arrow_downward, color: Color(0xFF34D399), size: 10),
+                                            Icon(Icons.arrow_downward, color: isHeroLight ? const Color(0xFF059669) : const Color(0xFF34D399), size: 10),
                                             const SizedBox(width: 3),
                                             Text(
                                               widget.controller.isHideBalance
                                                   ? '${widget.controller.isEnglish ? "Income" : "รายรับเดือนนี้"}: •••••• ฿'
                                                   : '${widget.controller.isEnglish ? "Income" : "รายรับเดือนนี้"}: ฿${CurrencyFormat.format(_monthlyIncome)}',
-                                              style: const TextStyle(
-                                                color: Colors.white,
+                                              style: TextStyle(
+                                                color: heroContentColor,
                                                 fontSize: 10.5,
                                                 fontWeight: FontWeight.w600,
                                               ),
@@ -1875,19 +1913,19 @@ void _handleMascotPetting() {
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6.5),
                                       decoration: BoxDecoration(
-                                        color: Colors.white.withValues(alpha: 0.22),
+                                        color: isHeroLight ? Colors.black.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.22),
                                         borderRadius: BorderRadius.circular(20),
-                                        border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
+                                        border: Border.all(color: isHeroLight ? Colors.black.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.35)),
                                       ),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          const Icon(Icons.calendar_month_rounded, color: Colors.white, size: 14),
+                                          Icon(Icons.calendar_month_rounded, color: heroContentColor, size: 14),
                                           const SizedBox(width: 4),
                                           Text(
                                             widget.controller.isEnglish ? 'Calendar' : 'ปฏิทิน',
-                                            style: const TextStyle(
-                                              color: Colors.white,
+                                            style: TextStyle(
+                                              color: heroContentColor,
                                               fontSize: 12,
                                               fontWeight: FontWeight.bold,
                                             ),
@@ -1923,7 +1961,7 @@ void _handleMascotPetting() {
                   margin: const EdgeInsets.only(left: 12, right: 12, bottom: 12),
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.18),
+                    color: isHeroLight ? Colors.black.withValues(alpha: 0.06) : Colors.white.withValues(alpha: 0.18),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Builder(
@@ -1940,7 +1978,7 @@ void _handleMascotPetting() {
                           Expanded(
                             child: Row(
                               children: [
-                                const Icon(Icons.arrow_downward, color: Color(0xFF34D399), size: 13),
+                                Icon(Icons.arrow_downward, color: isHeroLight ? const Color(0xFF059669) : const Color(0xFF34D399), size: 13),
                                 const SizedBox(width: 3),
                                 Expanded(
                                   child: FittedBox(
@@ -1948,20 +1986,20 @@ void _handleMascotPetting() {
                                     alignment: Alignment.centerLeft,
                                     child: Text(
                                       '${isEn ? "Yearly Income" : "รายรับ"}($yearLabel): ฿${CurrencyFormat.format(yearlyIncome)}',
-                                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                                      style: TextStyle(color: heroContentColor, fontSize: 11, fontWeight: FontWeight.w600),
                                     ),
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          Container(width: 1, height: 14, color: Colors.white.withValues(alpha: 0.3)),
+                          Container(width: 1, height: 14, color: heroDividerColor),
                           const SizedBox(width: 6),
                           Expanded(
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.end,
                               children: [
-                                const Icon(Icons.arrow_upward, color: Color(0xFFFCA5A5), size: 13),
+                                Icon(Icons.arrow_upward, color: isHeroLight ? const Color(0xFFDC2626) : const Color(0xFFFCA5A5), size: 13),
                                 const SizedBox(width: 3),
                                 Expanded(
                                   child: FittedBox(
@@ -1969,7 +2007,7 @@ void _handleMascotPetting() {
                                     alignment: Alignment.centerRight,
                                     child: Text(
                                       '${isEn ? "Yearly Expense" : "รายจ่าย"}($yearLabel): ฿${CurrencyFormat.format(yearlyExpense)}',
-                                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                                      style: TextStyle(color: heroContentColor, fontSize: 11, fontWeight: FontWeight.w600),
                                     ),
                                   ),
                                 ),
@@ -1996,18 +2034,18 @@ void _handleMascotPetting() {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.22),
+                          color: isHeroLight ? Colors.black.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.22),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.4), width: 1),
+                          border: Border.all(color: isHeroLight ? Colors.black.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.4), width: 1),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.today_rounded, size: 12, color: Colors.white),
+                            Icon(Icons.today_rounded, size: 12, color: heroContentColor),
                             const SizedBox(width: 4),
                             Text(
                               widget.controller.isEnglish ? 'Back to this month (Today)' : 'กลับสู่เดือนนี้ (วันนี้)',
-                              style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                              style: TextStyle(color: heroContentColor, fontSize: 11, fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),

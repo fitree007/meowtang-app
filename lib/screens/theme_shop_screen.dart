@@ -351,7 +351,7 @@ class _ThemeShopScreenState extends State<ThemeShopScreen> with SingleTickerProv
                   labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                   tabs: const [
                     Tab(text: '🏛️ คลาสสิค'),
-                    Tab(text: '🪟 มินิมอล & Glass'),
+                    Tab(text: 'มินิมอล'),
                     Tab(text: '🐱 น่ารัก'),
                   ],
                 ),

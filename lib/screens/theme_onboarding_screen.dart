@@ -214,7 +214,7 @@ class _ThemeOnboardingScreenState extends State<ThemeOnboardingScreen> {
                 child: Row(
                   children: [
                     _buildCategoryTab(ThemeCategory.classic, '🏛️ คลาสสิค', activeTheme),
-                    _buildCategoryTab(ThemeCategory.minimal, '🪟 มินิมอล & Glass', activeTheme),
+                    _buildCategoryTab(ThemeCategory.minimal, 'มินิมอล', activeTheme),
                     _buildCategoryTab(ThemeCategory.cute, '🐱 น่ารัก & พาสเทล', activeTheme),
                   ],
                 ),

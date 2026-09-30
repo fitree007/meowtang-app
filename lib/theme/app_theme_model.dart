@@ -139,13 +139,24 @@ class AppThemeModel {
     );
   }
 
-  LinearGradient get heroGradient => LinearGradient(
+  LinearGradient get heroGradient {
+    if (isGlass) {
+      return LinearGradient(
         colors: isDark
-            ? [primaryDark, darkSurfaceBackground]
-            : [primaryColor, primaryDark],
+            ? const [Color(0x33FFFFFF), Color(0x14FFFFFF)]
+            : const [Color(0x73FFFFFF), Color(0x40FFFFFF)],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       );
+    }
+    return LinearGradient(
+      colors: isDark
+          ? [primaryDark, darkSurfaceBackground]
+          : [primaryColor, primaryDark],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    );
+  }
 
   LinearGradient get buttonGradient => LinearGradient(
         colors: [primaryLight, primaryColor],
@@ -394,16 +405,16 @@ class AppThemePresets {
   );
 
   // =========================================================================
-  // 2. หมวดมินิมอล & LIQUID GLASS (MINIMAL & REAL CLEAR GLASS - 6 ธีม)
+  // 2. หมวดมินิมอล (MINIMAL - 6 ธีม)
   // =========================================================================
 
-  /// 2.1 ลิควิดกลาส เพียวคริสตัล (Liquid Glass Pure Crystal) - กระจกใสฝ้าจริง ไร้สี สะท้อนแสงเงาหรูหรา
+  /// 2.1 ลิควิดกลาส (Liquid Glass) - กระจกใสฝ้าจริง 35% พร้อมแสงสะท้อนขอบเงา
   static const AppThemeModel liquidGlassCrystal = AppThemeModel(
     id: 'liquid_glass_crystal',
-    name: 'ลิควิดกลาส เพียวคริสตัล',
-    nameEn: 'Liquid Glass Crystal',
-    description: 'สไตล์กระจกใสฝ้า Frosted Glass ไร้สี โปร่งใส หรูหรา มีมิติแสงเงาสะท้อนระดับพรีเมียม',
-    descriptionEn: 'Pure transparent frosted liquid glass with glossy reflections and clean specular edges',
+    name: 'ลิควิดกลาส',
+    nameEn: 'Liquid Glass',
+    description: 'สไตล์กระจกใสฝ้า Frosted Glass ระดับพรีเมียม พื้นหลังโปร่งแสง 35% พร้อมแสงสะท้อนขอบเงา',
+    descriptionEn: 'Pure frosted liquid glass with 35% translucent fill and glossy specular edge reflections',
     priceText: 'ฟรี',
     isGlass: true,
     category: ThemeCategory.minimal,
@@ -412,23 +423,23 @@ class AppThemePresets {
     primaryLight: Color(0xFF64748B),
     primaryDark: Color(0xFF1E293B),
     secondaryColor: Color(0xFF94A3B8),
-    lightScaffoldBackground: Color(0xFFECEFF3),
-    lightCardBackground: Color(0xFFFAFCFF),
-    lightSurfaceBackground: Color(0xFFDFE4EA),
+    lightScaffoldBackground: Color(0xFFDCE2E9),
+    lightCardBackground: Color(0x59FFFFFF), // rgba(255, 255, 255, 0.35)
+    lightSurfaceBackground: Color(0x40FFFFFF), // rgba(255, 255, 255, 0.25)
     lightTextColor: Color(0xFF0F172A),
     lightTextSecondaryColor: Color(0xFF475569),
-    lightBorderColor: Color(0xFFCBD5E1),
+    lightBorderColor: Color(0x80FFFFFF), // rgba(255, 255, 255, 0.50)
     lightExpenseColor: Color(0xFFDC2626),
     lightIncomeColor: Color(0xFF16A34A),
     darkScaffoldBackground: Color(0xFF0A0D14),
-    darkCardBackground: Color(0xFF141A26),
-    darkSurfaceBackground: Color(0xFF1E2638),
+    darkCardBackground: Color(0x33FFFFFF), // rgba(255, 255, 255, 0.20)
+    darkSurfaceBackground: Color(0x24FFFFFF),
     darkTextColor: Color(0xFFF8FAFC),
     darkTextSecondaryColor: Color(0xFF94A3B8),
-    darkBorderColor: Color(0xFF2C384F),
+    darkBorderColor: Color(0x66FFFFFF), // rgba(255, 255, 255, 0.40)
     darkExpenseColor: Color(0xFFF87171),
     darkIncomeColor: Color(0xFF34D399),
-    previewDots: [Color(0xFF475569), Color(0xFF94A3B8), Color(0xFFECEFF3)],
+    previewDots: [Color(0xFFFFFFFF), Color(0xFF94A3B8), Color(0xFF475569)],
   );
 
   /// 2.2 ลิควิดกลาส ฟรอสต์ซิลเวอร์ (Liquid Glass Frost Silver)
@@ -806,14 +817,14 @@ class AppThemePresets {
   // =========================================================================
   static const List<AppThemeModel> allThemes = [
     // 1. Classic (6)
-    classicMeowGold,
     executiveNavy,
+    classicMeowGold,
     emeraldWealth,
     midnightSapphire,
     burgundyPrestige,
     monochromeStudio,
 
-    // 2. Minimal & Liquid Glass (6)
+    // 2. Minimal (6)
     liquidGlassCrystal,
     liquidGlassSilver,
     liquidGlassIce,
