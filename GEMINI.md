@@ -25,4 +25,5 @@ Whenever an update or request is received from the user, you MUST strictly follo
 - Copy the newly built APK to:
   - `E:\สร้างแอพ apk\MeowTang-Creator-vX.Y.Z.apk`
   - `E:\สร้างแอพ apk\playstore_release\MeowTang-PlayStore-vX.Y.Z.apk`
-- Sync all files, commit to git in both repositories (`E:\ai_expense_tracker` and `E:\สร้างแอพ apk\ai_expense_tracker`), and push to GitHub (`git push origin main` in `E:\ai_expense_tracker`) so that GitHub Pages (`https://fitree007.github.io/meowtang-app/`) is always up-to-date automatically.
+- Sync all files, commit to git in both repositories (`E:\ai_expense_tracker` and `E:\สร้างแอพ apk\ai_expense_tracker`).
+- Push to GitHub (`git push origin main` and deploy web to `gh-pages` using `powershell -ExecutionPolicy Bypass -File scripts/deploy_web.ps1` in `E:\ai_expense_tracker`) so that GitHub Pages (`https://fitree007.github.io/meowtang-app/`) is always up-to-date automatically.
