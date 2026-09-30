@@ -124,7 +124,14 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Widget
         final currentTheme = widget.controller.currentTheme;
 
         final screens = [
-          MeowDashboardScreen(controller: widget.controller),
+          MeowDashboardScreen(
+            controller: widget.controller,
+            onSwitchTab: (index) {
+              if (mounted) {
+                setState(() => _currentIndex = index);
+              }
+            },
+          ),
           MeowAnalyticsScreen(controller: widget.controller),
           MeowPremiumScreen(controller: widget.controller),
           MeowHumanScreen(controller: widget.controller),

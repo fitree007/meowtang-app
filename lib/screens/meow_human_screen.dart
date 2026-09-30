@@ -309,7 +309,7 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
              alignment: Alignment.bottomRight,
              children: [
                MeowMascotWidget(
-                 size: _isHeaderCollapsed ? 38 : 58,
+                 size: _isHeaderCollapsed ? 38 : 52,
                  mascotId: widget.controller.selectedMascotId,
                  accessory: widget.controller.selectedMascotAccessory,
                  customPhotoPath: widget.controller.customAvatarPath,

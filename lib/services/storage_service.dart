@@ -63,6 +63,13 @@ class StorageService {
     _prefs = await SharedPreferences.getInstance();
   }
 
+  /// Forces SharedPreferences to reload its cache from disk (e.g. after Android Widget writes to storage)
+  Future<void> reloadPrefs() async {
+    try {
+      await _prefs.reload();
+    } catch (_) {}
+  }
+
   // INITIAL LANGUAGE SELECTION ON FIRST LAUNCH
   bool hasSelectedInitialLanguage() {
     return _prefs.getBool(_keyHasSelectedInitialLanguage) ?? false;

@@ -33,7 +33,7 @@ enum MascotMood {
 }
 
 class ExpenseController extends ChangeNotifier {
-  static const String appVersion = '1.41.70';
+  static const String appVersion = '1.41.71';
 
   final StorageService _storage;
   final OcrEngineService _ocrEngine = OcrEngineService();
@@ -72,8 +72,8 @@ class ExpenseController extends ChangeNotifier {
 
  ExpenseController(this._storage) {
   loadData();
-  NativeBridgeService.setDataReloadListener(() {
-   loadData();
+  NativeBridgeService.addDataReloadListener(() async {
+    await reloadFromStorage();
   });
  }
 
@@ -1044,12 +1044,16 @@ class ExpenseController extends ChangeNotifier {
 
  /// Forces a complete fresh reload from persistent storage (e.g. after Widget adds a transaction)
  Future<void> reloadFromStorage() async {
+  try {
+    await _storage.reloadPrefs();
+  } catch (_) {}
   _transactions = _storage.getTransactions();
   _accounts = _storage.getAccounts();
   _categories = _storage.getCategories();
   _savingGoals = _storage.getSavingGoals();
   _subscriptions = _storage.getSubscriptions();
   _salaryConfig = _storage.getSalaryAutoRecordConfig();
+  _deduplicateInMemoryTransactions();
   notifyListeners();
   await syncAndroidWidget();
   await checkAndProcessRecurringSalary();

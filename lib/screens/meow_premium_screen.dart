@@ -225,8 +225,9 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                           ],
                         ),
                       ),
+                      const SizedBox(width: 10),
                       MeowMascotWidget(
-                        size: _isHeaderCollapsed ? 38 : 58,
+                        size: _isHeaderCollapsed ? 38 : 52,
                         mascotId: widget.controller.selectedMascotId,
                         accessory: widget.controller.selectedMascotAccessory,
                         customPhotoPath: widget.controller.customAvatarPath,

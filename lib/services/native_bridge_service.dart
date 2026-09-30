@@ -10,7 +10,7 @@ class NativeBridgeService {
   static const MethodChannel _channel = MethodChannel('com.afitree.rizqi/native');
   static OnSlipDetectedCallback? _slipListener;
   static OnSlipDetectedCallback? _openSlipListener;
-  static OnDataReloadCallback? _dataReloadListener;
+  static final List<OnDataReloadCallback> _dataReloadListeners = [];
   static OnVoiceRmsChangedCallback? _voiceRmsListener;
   static OnVoicePartialResultCallback? _voicePartialListener;
   static OnVoiceEndOfSpeechCallback? _voiceEndOfSpeechListener;
@@ -32,7 +32,11 @@ class NativeBridgeService {
           _openSlipListener?.call(data);
         }
       } else if (call.method == 'onVoiceTransactionAdded' || call.method == 'onAppResumed') {
-        _dataReloadListener?.call();
+        for (final listener in List<OnDataReloadCallback>.from(_dataReloadListeners)) {
+          try {
+            listener();
+          } catch (_) {}
+        }
       } else if (call.method == 'onVoiceRmsChanged') {
         if (call.arguments is Map) {
           final data = Map<String, dynamic>.from(call.arguments as Map);
@@ -62,9 +66,19 @@ class NativeBridgeService {
     _openSlipListener = listener;
   }
 
-  static void setDataReloadListener(OnDataReloadCallback listener) {
+  static void addDataReloadListener(OnDataReloadCallback listener) {
     initMethodCallHandler();
-    _dataReloadListener = listener;
+    if (!_dataReloadListeners.contains(listener)) {
+      _dataReloadListeners.add(listener);
+    }
+  }
+
+  static void removeDataReloadListener(OnDataReloadCallback listener) {
+    _dataReloadListeners.remove(listener);
+  }
+
+  static void setDataReloadListener(OnDataReloadCallback listener) {
+    addDataReloadListener(listener);
   }
 
   static void setVoiceRmsListener(OnVoiceRmsChangedCallback? listener) {

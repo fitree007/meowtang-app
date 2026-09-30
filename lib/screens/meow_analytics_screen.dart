@@ -20,6 +20,7 @@ import 'compare_analytics_screen.dart';
 import '../widgets/transaction_detail_sheet.dart';
 import '../widgets/slip_image_viewer_dialog.dart';
 import '../services/slip_auto_sync_service.dart';
+import '../widgets/meow_mascot_widget.dart';
 
 enum AnalyticsMainTab {
  overview,
@@ -462,12 +463,16 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> with SingleTi
              children: [
               const Icon(Icons.analytics_rounded, color: Colors.white, size: 22),
               const SizedBox(width: 8),
-              Text(
-               isEn ? 'Financial Analytics' : 'สรุปวิเคราะห์การเงิน',
-               style: TextStyle(
-                color: Colors.white,
-                fontSize: _isHeaderCollapsed ? 16.5 : 18,
-                fontWeight: FontWeight.bold,
+              Expanded(
+               child: Text(
+                isEn ? 'Financial Analytics' : 'สรุปวิเคราะห์การเงิน',
+                style: TextStyle(
+                 color: Colors.white,
+                 fontSize: _isHeaderCollapsed ? 16.5 : 18,
+                 fontWeight: FontWeight.bold,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                ),
               ),
              ],
@@ -478,7 +483,7 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> with SingleTi
                  ? CrossFadeState.showSecond
                  : CrossFadeState.showFirst,
              firstChild: Padding(
-              padding: const EdgeInsets.only(top: 3, left: 30),
+              padding: const EdgeInsets.only(top: 2, left: 30),
               child: Text(
                isEn
                    ? 'Income, expense trends & category breakdown'
@@ -487,12 +492,23 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> with SingleTi
                 color: Colors.white70,
                 fontSize: 11,
                ),
+               maxLines: 1,
+               overflow: TextOverflow.ellipsis,
               ),
              ),
              secondChild: const SizedBox.shrink(),
             ),
            ],
           ),
+         ),
+         const SizedBox(width: 10),
+         MeowMascotWidget(
+           size: _isHeaderCollapsed ? 38 : 52,
+           mascotId: widget.controller.selectedMascotId,
+           accessory: widget.controller.selectedMascotAccessory,
+           customPhotoPath: widget.controller.customAvatarPath,
+           isCustomPhoto: widget.controller.isCustomAvatarEnabled,
+           withPen: true,
          ),
         ],
        ),

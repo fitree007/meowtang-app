@@ -36,10 +36,16 @@ import 'subscription_vault_screen.dart';
 
 class MeowDashboardScreen extends StatefulWidget {
   final ExpenseController controller;
+  final void Function(int index)? onSwitchTab;
 
-  const MeowDashboardScreen({super.key, required this.controller});
+  const MeowDashboardScreen({
+    super.key,
+    required this.controller,
+    this.onSwitchTab,
+  });
 
   static VoidCallback? onScrollToTopRequested;
+  static void Function(int index)? onSwitchTabRequested;
 
   @override
   State<MeowDashboardScreen> createState() => _MeowDashboardScreenState();
@@ -102,6 +108,7 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     MeowDashboardScreen.onScrollToTopRequested = _scrollToTop;
+    MeowDashboardScreen.onSwitchTabRequested = (idx) => widget.onSwitchTab?.call(idx);
     _scrollController.addListener(() {
       final show = _scrollController.hasClients && _scrollController.offset > 150;
       if (show != _showScrollToTop && mounted) {
@@ -122,8 +129,11 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
 
   WidgetsBinding.instance.addPostFrameCallback((_) async {
     // 0. Register Native Reload Trigger
-    NativeBridgeService.setDataReloadListener(() {
-      if (mounted) _autoScanSlipsInBackground(showFeedback: false);
+    NativeBridgeService.addDataReloadListener(() {
+      if (mounted) {
+        widget.controller.reloadFromStorage();
+        _autoScanSlipsInBackground(showFeedback: false);
+      }
     });
 
     // 0.1 Request OS permissions on app launch (Photos, Camera, Audio) for iOS & Android
@@ -168,10 +178,26 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
     });
   }
 
+  DateTime? _lastPausedTime;
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
+    if (state == AppLifecycleState.paused) {
+      _lastPausedTime = DateTime.now();
+    } else if (state == AppLifecycleState.resumed) {
+      // 1. Immediately reload storage from disk (syncs widget voice entries in real-time)
+      widget.controller.reloadFromStorage();
       _autoScanSlipsInBackground(showFeedback: false);
+
+      // 2. Auto-refresh if user has been away for 5+ minutes (or on cold launch)
+      if (_lastPausedTime != null && DateTime.now().difference(_lastPausedTime!).inMinutes >= 5) {
+        _lastPausedTime = DateTime.now();
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            _handlePullToRefresh();
+          }
+        });
+      }
     }
   }
 
@@ -180,6 +206,9 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
     WidgetsBinding.instance.removeObserver(this);
     if (MeowDashboardScreen.onScrollToTopRequested == _scrollToTop) {
       MeowDashboardScreen.onScrollToTopRequested = null;
+    }
+    if (MeowDashboardScreen.onSwitchTabRequested != null) {
+      MeowDashboardScreen.onSwitchTabRequested = null;
     }
     _scrollController.dispose();
     super.dispose();
@@ -198,18 +227,14 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
 
   Future<void> _handlePullToRefresh() async {
     HapticFeedback.lightImpact();
-    // Refresh database transactions first
+    // 1. Force refresh persistent database transactions & preferences from disk
     await widget.controller.reloadFromStorage();
-    // Allow pull indicator animation to dismiss smoothly
-    await Future.delayed(const Duration(milliseconds: 250));
-    // Trigger unimported slip scanning in background without blocking UI
+    // 2. Scan and auto-import new slips from device gallery
     if (mounted && widget.controller.canImportMoreSlips && !_isAutoScanning) {
-      Future.microtask(() {
-        if (mounted) {
-          _autoScanSlipsInBackground(showFeedback: false);
-        }
-      });
+      await _autoScanSlipsInBackground(showFeedback: false);
     }
+    // 3. Keep widget in sync
+    await widget.controller.syncAndroidWidget();
   }
 
   Future<void> _autoScanSlipsInBackground({bool showFeedback = true}) async {
@@ -1879,12 +1904,19 @@ void _handleMascotPetting() {
                                   // Summary Pill Button
                                   GestureDetector(
                                     onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => MeowAnalyticsScreen(controller: widget.controller),
-                                        ),
-                                      );
+                                      HapticFeedback.selectionClick();
+                                      if (widget.onSwitchTab != null) {
+                                        widget.onSwitchTab!(1);
+                                      } else if (MeowDashboardScreen.onSwitchTabRequested != null) {
+                                        MeowDashboardScreen.onSwitchTabRequested!(1);
+                                      } else {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => MeowAnalyticsScreen(controller: widget.controller),
+                                          ),
+                                        );
+                                      }
                                     },
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6.5),

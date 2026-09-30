@@ -716,10 +716,10 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
                   ),
                   child: const Icon(
                     Icons.pets_rounded,
-                    color: Color(0xFFF472B6), // Cute pink stamp
+                    color: Color(0xFFCBD5E1), // Light gray paw stamp
                     size: 15,
                     shadows: [
-                      Shadow(color: Color(0x88F472B6), blurRadius: 4),
+                      Shadow(color: Color(0x66CBD5E1), blurRadius: 4),
                     ],
                   ),
                 ),
