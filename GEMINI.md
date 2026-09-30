@@ -1,4 +1,4 @@
-﻿# Standing Workflow Rules for MeowTang Project
+# Standing Workflow Rules for MeowTang Project
 
 Whenever an update or request is received from the user, you MUST strictly follow this 4-step protocol in order:
 
@@ -25,4 +25,4 @@ Whenever an update or request is received from the user, you MUST strictly follo
 - Copy the newly built APK to:
   - `E:\สร้างแอพ apk\MeowTang-Creator-vX.Y.Z.apk`
   - `E:\สร้างแอพ apk\playstore_release\MeowTang-PlayStore-vX.Y.Z.apk`
-- Sync all files and commit to git in both repositories (`E:\ai_expense_tracker` and `E:\สร้างแอพ apk\ai_expense_tracker`).
+- Sync all files, commit to git in both repositories (`E:\ai_expense_tracker` and `E:\สร้างแอพ apk\ai_expense_tracker`), and push to GitHub (`git push origin main` in `E:\ai_expense_tracker`) so that GitHub Pages (`https://fitree007.github.io/meowtang-app/`) is always up-to-date automatically.
