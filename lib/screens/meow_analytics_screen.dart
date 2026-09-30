@@ -52,6 +52,7 @@ class MeowAnalyticsScreen extends StatefulWidget {
 
 class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> with SingleTickerProviderStateMixin {
  AnalyticsMainTab _activeTab = AnalyticsMainTab.overview;
+ bool _isHeaderCollapsed = false;
 
  // Period filter states (Overview & Category Tags)
  PeriodFilterType _periodType = PeriodFilterType.month;
@@ -415,94 +416,143 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> with SingleTi
 
   return Scaffold(
    backgroundColor: currentTheme.scaffoldBackground,
-   body: Column(
-    children: [
-     // Pinned Hero Header with identical Status Bar height/padding to Premium screen
-     Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-       gradient: currentTheme.heroGradient,
-       boxShadow: [
-        BoxShadow(
-         color: currentTheme.primaryColor.withValues(alpha: isDark ? 0.3 : 0.15),
-         blurRadius: 16,
-         offset: const Offset(0, 4),
+   body: NotificationListener<ScrollNotification>(
+    onNotification: (notification) {
+     if (notification.metrics.axis == Axis.vertical) {
+      final isScrolled = notification.metrics.pixels > 20.0;
+      if (isScrolled != _isHeaderCollapsed) {
+       setState(() {
+        _isHeaderCollapsed = isScrolled;
+       });
+      }
+     }
+     return false;
+    },
+    child: Column(
+     children: [
+      // 1. Collapsing Pinned Hero Header (Status bar area)
+      AnimatedContainer(
+       duration: const Duration(milliseconds: 220),
+       curve: Curves.easeInOut,
+       width: double.infinity,
+       decoration: BoxDecoration(
+        gradient: currentTheme.heroGradient,
+        boxShadow: [
+         BoxShadow(
+          color: currentTheme.primaryColor.withValues(alpha: isDark ? 0.3 : 0.15),
+          blurRadius: 16,
+          offset: const Offset(0, 4),
+         ),
+        ],
+       ),
+       padding: EdgeInsets.only(
+        top: MediaQuery.of(context).padding.top + (_isHeaderCollapsed ? 8 : 10),
+        left: 18,
+        right: 18,
+        bottom: _isHeaderCollapsed ? 8 : 12,
+       ),
+       child: Row(
+        children: [
+         Expanded(
+          child: Column(
+           crossAxisAlignment: CrossAxisAlignment.start,
+           mainAxisSize: MainAxisSize.min,
+           children: [
+            Row(
+             children: [
+              const Icon(Icons.analytics_rounded, color: Colors.white, size: 22),
+              const SizedBox(width: 8),
+              Text(
+               isEn ? 'Financial Analytics' : 'สรุปวิเคราะห์การเงิน',
+               style: TextStyle(
+                color: Colors.white,
+                fontSize: _isHeaderCollapsed ? 16.5 : 18,
+                fontWeight: FontWeight.bold,
+               ),
+              ),
+             ],
+            ),
+            AnimatedCrossFade(
+             duration: const Duration(milliseconds: 200),
+             crossFadeState: _isHeaderCollapsed
+                 ? CrossFadeState.showSecond
+                 : CrossFadeState.showFirst,
+             firstChild: Padding(
+              padding: const EdgeInsets.only(top: 3, left: 30),
+              child: Text(
+               isEn
+                   ? 'Income, expense trends & category breakdown'
+                   : 'ภาพรวมรายรับรายจ่าย, หมวดหมู่ และแนวโน้ม',
+               style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 11,
+               ),
+              ),
+             ),
+             secondChild: const SizedBox.shrink(),
+            ),
+           ],
+          ),
+         ),
+        ],
+       ),
+      ),
+
+      // 2. 3 Main Segmented Tabs (Placed outside Status Bar!)
+      Padding(
+       padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+       child: Container(
+        height: 48,
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+         color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+         borderRadius: BorderRadius.circular(14),
+         border: Border.all(
+          color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+          width: 1,
+         ),
         ),
-       ],
-      ),
-      padding: EdgeInsets.only(
-       top: MediaQuery.of(context).padding.top + 10,
-       left: 18,
-       right: 18,
-       bottom: 14,
-      ),
-      child: Column(
-       children: [
-        // Top Bar Header
-        Row(
+        child: Row(
          children: [
-          const Icon(Icons.analytics_rounded, color: Colors.white, size: 24),
-          const SizedBox(width: 8),
-          Text(
-           isEn ? 'Financial Analytics' : 'สรุปวิเคราะห์การเงิน',
-           style: const TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-           ),
+          _buildMainTabButton(
+           AnalyticsMainTab.overview,
+           line1: isEn ? 'Overview' : 'ภาพรวม',
+           icon: Icons.pie_chart_rounded,
+          ),
+          _buildTabDivider(isDark),
+          _buildMainTabButton(
+           AnalyticsMainTab.categoryTags,
+           line1: isEn ? 'Categories' : 'หมวดหมู่',
+           line2: isEn ? '#Tags' : '#แท็ก',
+           icon: Icons.label_rounded,
+          ),
+          _buildTabDivider(isDark),
+          _buildMainTabButton(
+           AnalyticsMainTab.comparison,
+           line1: isEn ? 'Compare' : 'เทียบ 2 เดือน',
+           icon: Icons.compare_arrows_rounded,
           ),
          ],
         ),
-        const SizedBox(height: 10),
-        // 3 Main Segmented Tabs (High Contrast, Clear Visibility with Dividers)
-        Container(
-         height: 48,
-         padding: const EdgeInsets.all(3),
-         decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.22),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.22), width: 1),
-         ),
-         child: Row(
-          children: [
-           _buildMainTabButton(
-            AnalyticsMainTab.overview,
-            line1: isEn ? 'Overview' : 'ภาพรวม',
-            icon: Icons.pie_chart_rounded,
-           ),
-           _buildTabDivider(),
-           _buildMainTabButton(
-            AnalyticsMainTab.categoryTags,
-            line1: isEn ? 'Categories' : 'หมวดหมู่',
-            line2: isEn ? '#Tags' : '#แท็ก',
-            icon: Icons.label_rounded,
-           ),
-           _buildTabDivider(),
-           _buildMainTabButton(
-            AnalyticsMainTab.comparison,
-            line1: isEn ? 'Compare' : 'เทียบ 2 เดือน',
-            icon: Icons.compare_arrows_rounded,
-           ),
-          ],
-         ),
-        ),
-       ],
+       ),
       ),
-     ),
-     Expanded(
-      child: _buildActiveTabContent(),
-     ),
-    ],
+
+      // 3. Tab Content
+      Expanded(
+       child: _buildActiveTabContent(),
+      ),
+     ],
+    ),
    ),
   );
  }
 
- Widget _buildTabDivider() {
+ Widget _buildTabDivider(bool isDark) {
   return Container(
    width: 1,
    height: 22,
    margin: const EdgeInsets.symmetric(horizontal: 1),
-   color: Colors.white.withValues(alpha: 0.25),
+   color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
   );
  }
 
@@ -528,7 +578,7 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> with SingleTi
      margin: const EdgeInsets.symmetric(horizontal: 1),
      decoration: BoxDecoration(
       color: isSelected
-          ? (isDark ? const Color(0xFF1E293B) : Colors.white)
+          ? (isDark ? const Color(0xFF334155) : Colors.white)
           : Colors.transparent,
       borderRadius: BorderRadius.circular(11),
       border: isSelected
@@ -540,9 +590,9 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> with SingleTi
       boxShadow: isSelected
           ? [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.18),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
+                color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.08),
+                blurRadius: 4,
+                offset: const Offset(0, 1),
               ),
             ]
           : [],
@@ -558,7 +608,7 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> with SingleTi
         size: 14,
         color: isSelected
             ? (isDark ? const Color(0xFF38BDF8) : currentTheme.primaryDark)
-            : Colors.white.withValues(alpha: 0.9),
+            : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
        ),
        const SizedBox(width: 4),
        Flexible(
@@ -574,7 +624,7 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> with SingleTi
            style: TextStyle(
             color: isSelected
                 ? (isDark ? Colors.white : currentTheme.primaryDark)
-                : Colors.white.withValues(alpha: 0.95),
+                : (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569)),
             fontSize: line2 != null ? 10.5 : 11.5,
             fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
             height: 1.15,
@@ -588,7 +638,7 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> with SingleTi
             style: TextStyle(
              color: isSelected
                  ? (isDark ? const Color(0xFF38BDF8) : currentTheme.primaryColor)
-                 : Colors.white.withValues(alpha: 0.85),
+                 : (isDark ? const Color(0xFF38BDF8).withValues(alpha: 0.8) : currentTheme.primaryColor.withValues(alpha: 0.8)),
              fontSize: 9.5,
              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
              height: 1.1,

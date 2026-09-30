@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../state/expense_controller.dart';
-import '../utils/format_utils.dart';
 import '../widgets/meow_mascot_widget.dart';
 import '../widgets/tactile_button.dart';
 import '../services/currency_exchange_service.dart';
@@ -28,6 +27,8 @@ class MeowPremiumScreen extends StatefulWidget {
 }
 
 class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
+  bool _isHeaderCollapsed = false;
+
   @override
   void initState() {
     super.initState();
@@ -148,74 +149,96 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
         final textColor = currentTheme.textColor;
         final subTextColor = currentTheme.textSecondaryColor;
 
-        final goals = widget.controller.savingGoals;
-        final totalBudget = widget.controller.monthlySalary;
         final isVip = widget.controller.isPremium;
 
         return Scaffold(
           backgroundColor: bgColor,
-          body: Column(
-            children: [
-              // 1. VIP Hero Header with Dynamic Active Theme Gradient (Pinned at Top)
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  gradient: currentTheme.heroGradient,
-                  boxShadow: [
-                    BoxShadow(
-                      color: currentTheme.primaryColor.withValues(alpha: isDark ? 0.3 : 0.15),
-                      blurRadius: 16,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                padding: EdgeInsets.only(
-                  top: MediaQuery.of(context).padding.top + 10,
-                  left: 18,
-                  right: 18,
-                  bottom: 14,
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            isEn ? 'Advanced Financial Suite' : 'ศูนย์รวมเครื่องมือการเงินขั้นสูง',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            isEn
-                                ? 'Live FX rates, wealth budgets, compound interest & Islamic finance'
-                                : 'เรทเงินโลกสด, ดอกเบี้ยทบต้น, วางแผนการเงิน & การเงินอิสลาม',
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ],
+          body: NotificationListener<ScrollNotification>(
+            onNotification: (notification) {
+              if (notification.metrics.axis == Axis.vertical) {
+                final isScrolled = notification.metrics.pixels > 20.0;
+                if (isScrolled != _isHeaderCollapsed) {
+                  setState(() {
+                    _isHeaderCollapsed = isScrolled;
+                  });
+                }
+              }
+              return false;
+            },
+            child: Column(
+              children: [
+                // 1. VIP Hero Header with Dynamic Active Theme Gradient (Pinned at Top & Collapsible)
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeInOut,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    gradient: currentTheme.heroGradient,
+                    boxShadow: [
+                      BoxShadow(
+                        color: currentTheme.primaryColor.withValues(alpha: isDark ? 0.3 : 0.15),
+                        blurRadius: 16,
+                        offset: const Offset(0, 4),
                       ),
-                    ),
-                    MeowMascotWidget(
-                      size: 60,
-                      mascotId: widget.controller.selectedMascotId,
-                      accessory: widget.controller.selectedMascotAccessory,
-                      customPhotoPath: widget.controller.customAvatarPath,
-                      isCustomPhoto: widget.controller.isCustomAvatarEnabled,
-                      withPen: true,
-                    ),
-                  ],
+                    ],
+                  ),
+                  padding: EdgeInsets.only(
+                    top: MediaQuery.of(context).padding.top + (_isHeaderCollapsed ? 8 : 10),
+                    left: 18,
+                    right: 18,
+                    bottom: _isHeaderCollapsed ? 8 : 12,
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              isEn ? 'Advanced Financial Suite' : 'ศูนย์รวมเครื่องมือการเงินขั้นสูง',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: _isHeaderCollapsed ? 16.5 : 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            AnimatedCrossFade(
+                              duration: const Duration(milliseconds: 200),
+                              crossFadeState: _isHeaderCollapsed
+                                  ? CrossFadeState.showSecond
+                                  : CrossFadeState.showFirst,
+                              firstChild: Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Text(
+                                  isEn
+                                      ? 'Live FX rates, wealth budgets, compound interest & Islamic finance'
+                                      : 'เรทเงินโลกสด, ดอกเบี้ยทบต้น, วางแผนการเงิน & การเงินอิสลาม',
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ),
+                              secondChild: const SizedBox.shrink(),
+                            ),
+                          ],
+                        ),
+                      ),
+                      MeowMascotWidget(
+                        size: _isHeaderCollapsed ? 38 : 58,
+                        mascotId: widget.controller.selectedMascotId,
+                        accessory: widget.controller.selectedMascotAccessory,
+                        customPhotoPath: widget.controller.customAvatarPath,
+                        isCustomPhoto: widget.controller.isCustomAvatarEnabled,
+                        withPen: true,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
 
-              // 2. Scrollable Body
-              Expanded(
+                // 2. Scrollable Body
+                Expanded(
                 child: ListView(
                   padding: EdgeInsets.zero,
                   physics: const BouncingScrollPhysics(),
@@ -992,9 +1015,10 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
           ),
         ),
       ],
+     ),
     ),
-  );
-      },
+   );
+  },
     );
   }
 

@@ -19,7 +19,6 @@ import 'salary_auto_record_screen.dart';
 import '../widgets/custom_photo_avatar_dialog.dart';
 import '../utils/format_utils.dart';
 import '../widgets/meow_paywall_modal.dart';
-import '../config/app_config.dart';
 import '../services/ad_service.dart';
 
 class MeowHumanScreen extends StatefulWidget {
@@ -32,7 +31,9 @@ class MeowHumanScreen extends StatefulWidget {
 }
 
 class _MeowHumanScreenState extends State<MeowHumanScreen> {
- void _showLanguagePicker() {
+  bool _isHeaderCollapsed = false;
+
+  void _showLanguagePicker() {
   HapticFeedback.selectionClick();
   final isDark = widget.controller.isDarkMode;
   final currentLang = widget.controller.appLanguage;
@@ -221,92 +222,128 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
 
   return Scaffold(
    backgroundColor: bgColor,
-   body: ListView(
-    padding: EdgeInsets.zero,
-    children: [
-     // Dynamic Theme Header
-     Container(
-      decoration: BoxDecoration(
-       gradient: currentTheme.heroGradient,
-      ),
-      padding: EdgeInsets.only(
-       top: MediaQuery.of(context).padding.top + 16,
-       left: 20,
-       right: 20,
-       bottom: 20,
-      ),
-      child: Row(
-       children: [
-        Expanded(
-         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-           Text(
-            isEn ? 'Management & Settings' : 'จัดการ & ตั้งค่าระบบ',
-            style: const TextStyle(
-             color: Colors.white,
-             fontSize: 22,
-             fontWeight: FontWeight.bold,
-            ),
-           ),
-           const SizedBox(height: 4),
-           Text(
-            isEn
-              ? 'Manage accounts, categories, rules & customize'
-              : 'ศูนย์รวมการจัดการบัญชี หมวดหมู่ และปรับแต่ง',
-            style: const TextStyle(
-             color: Colors.white70,
-             fontSize: 13,
-             height: 1.3,
-            ),
-           ),
-          ],
+   body: NotificationListener<ScrollNotification>(
+    onNotification: (notification) {
+     if (notification.metrics.axis == Axis.vertical) {
+      final isScrolled = notification.metrics.pixels > 20.0;
+      if (isScrolled != _isHeaderCollapsed) {
+       setState(() {
+        _isHeaderCollapsed = isScrolled;
+       });
+      }
+     }
+     return false;
+    },
+    child: Column(
+     children: [
+      // Dynamic Theme Collapsible Pinned Header (Status bar area)
+      AnimatedContainer(
+       duration: const Duration(milliseconds: 220),
+       curve: Curves.easeInOut,
+       width: double.infinity,
+       decoration: BoxDecoration(
+        gradient: currentTheme.heroGradient,
+        boxShadow: [
+         BoxShadow(
+          color: currentTheme.primaryColor.withValues(alpha: isDark ? 0.3 : 0.15),
+          blurRadius: 16,
+          offset: const Offset(0, 4),
          ),
-        ),
-        GestureDetector(
-          onTap: () {
-            HapticFeedback.selectionClick();
-            CustomPhotoAvatarDialog.show(
-              context,
-              widget.controller,
-              onSaved: (_) => setState(() {}),
-            );
-          },
-          child: Stack(
-            alignment: Alignment.bottomRight,
-            children: [
-              MeowMascotWidget(
-                size: 78,
-                mascotId: widget.controller.selectedMascotId,
-                accessory: widget.controller.selectedMascotAccessory,
-                customPhotoPath: widget.controller.customAvatarPath,
-                isCustomPhoto: widget.controller.isCustomAvatarEnabled,
-                withPen: true,
+        ],
+       ),
+       padding: EdgeInsets.only(
+        top: MediaQuery.of(context).padding.top + (_isHeaderCollapsed ? 8 : 10),
+        left: 18,
+        right: 18,
+        bottom: _isHeaderCollapsed ? 8 : 12,
+       ),
+       child: Row(
+        children: [
+         Expanded(
+          child: Column(
+           crossAxisAlignment: CrossAxisAlignment.start,
+           mainAxisSize: MainAxisSize.min,
+           children: [
+            Text(
+             isEn ? 'Management & Settings' : 'จัดการ & ตั้งค่าระบบ',
+             style: TextStyle(
+              color: Colors.white,
+              fontSize: _isHeaderCollapsed ? 16.5 : 18,
+              fontWeight: FontWeight.bold,
+             ),
+            ),
+            AnimatedCrossFade(
+             duration: const Duration(milliseconds: 200),
+             crossFadeState: _isHeaderCollapsed
+                 ? CrossFadeState.showSecond
+                 : CrossFadeState.showFirst,
+             firstChild: Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+               isEn
+                 ? 'Manage accounts, categories, rules & customize'
+                 : 'ศูนย์รวมการจัดการบัญชี หมวดหมู่ และปรับแต่ง',
+               style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 11,
+               ),
               ),
-              Container(
-                padding: const EdgeInsets.all(5),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2563EB),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.3),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 14),
-              ),
-            ],
+             ),
+             secondChild: const SizedBox.shrink(),
+            ),
+           ],
           ),
-        ),
-       ],
+         ),
+         GestureDetector(
+           onTap: () {
+             HapticFeedback.selectionClick();
+             CustomPhotoAvatarDialog.show(
+               context,
+               widget.controller,
+               onSaved: (_) => setState(() {}),
+             );
+           },
+           child: Stack(
+             alignment: Alignment.bottomRight,
+             children: [
+               MeowMascotWidget(
+                 size: _isHeaderCollapsed ? 38 : 58,
+                 mascotId: widget.controller.selectedMascotId,
+                 accessory: widget.controller.selectedMascotAccessory,
+                 customPhotoPath: widget.controller.customAvatarPath,
+                 isCustomPhoto: widget.controller.isCustomAvatarEnabled,
+                 withPen: true,
+               ),
+               if (!_isHeaderCollapsed)
+                 Container(
+                   padding: const EdgeInsets.all(4),
+                   decoration: BoxDecoration(
+                     color: const Color(0xFF2563EB),
+                     shape: BoxShape.circle,
+                     border: Border.all(color: Colors.white, width: 1.5),
+                     boxShadow: [
+                       BoxShadow(
+                         color: Colors.black.withValues(alpha: 0.3),
+                         blurRadius: 4,
+                         offset: const Offset(0, 1),
+                       ),
+                     ],
+                   ),
+                   child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 10),
+                 ),
+             ],
+           ),
+         ),
+        ],
+       ),
       ),
-     ),
 
-     Padding(
+      // Scrollable Body
+      Expanded(
+       child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+         Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       child: Column(
        crossAxisAlignment: CrossAxisAlignment.start,
@@ -1193,8 +1230,12 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
      ),
     ],
    ),
-  );
- }
+  ),
+ ],
+),
+),
+);
+}
 
  Widget _buildSectionHeader({
   required String title,
