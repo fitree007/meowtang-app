@@ -146,12 +146,12 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
       setState(() {
         _isCompleted = true;
       });
-      HapticFeedback.lightImpact();
+      HapticFeedback.mediumImpact();
 
-      await Future.delayed(const Duration(milliseconds: 450));
+      await Future.delayed(const Duration(milliseconds: 750));
       if (!mounted) return;
 
-      _animateTo(0.0, durationMs: 240, onDone: () {
+      _animateTo(0.0, durationMs: 250, onDone: () {
         if (mounted) {
           setState(() {
             _isRefreshing = false;
@@ -282,48 +282,50 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
             child: Stack(
               clipBehavior: Clip.none,
               children: [
-                // 1. Slip Conveyor Stream: Positioned immediately adjacent to the cat
+                // 1. Slip Conveyor Stream or Prominent Completion Checkmark
                 Positioned(
                   left: 8,
                   top: 10,
                   child: SizedBox(
                     width: 165,
                     height: 52,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        _buildSingleConveyorSlip(swipeT),
-                        _buildSingleConveyorSlip((swipeT + 0.3333) % 1.0),
-                        _buildSingleConveyorSlip((swipeT + 0.6667) % 1.0),
+                    child: _isCompleted
+                        ? _buildCompletionCheckmark()
+                        : Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              _buildSingleConveyorSlip(swipeT),
+                              _buildSingleConveyorSlip((swipeT + 0.3333) % 1.0),
+                              _buildSingleConveyorSlip((swipeT + 0.6667) % 1.0),
 
-                        // Subtle scanner laser beam
-                        Positioned(
-                          left: 65,
-                          top: 0,
-                          bottom: 0,
-                          child: Container(
-                            width: 2,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Colors.transparent,
-                                  const Color(0xFF38BDF8).withValues(alpha: 0.8),
-                                  Colors.transparent,
-                                ],
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFF38BDF8).withValues(alpha: 0.5),
-                                  blurRadius: 5,
+                              // Subtle scanner laser beam
+                              Positioned(
+                                left: 65,
+                                top: 0,
+                                bottom: 0,
+                                child: Container(
+                                  width: 2,
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [
+                                        Colors.transparent,
+                                        const Color(0xFF38BDF8).withValues(alpha: 0.8),
+                                        Colors.transparent,
+                                      ],
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(0xFF38BDF8).withValues(alpha: 0.5),
+                                        blurRadius: 5,
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
-                    ),
                   ),
                 ),
 
@@ -331,7 +333,7 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
                 Positioned(
                   right: 28,
                   bottom: 10,
-                  child: _build3DAnimatedCat(swipeT),
+                  child: _build3DAnimatedCat(swipeT, isCompleted: _isCompleted),
                 ),
 
                 // 3. Status Badge / Completion Pill at bottom
@@ -342,7 +344,7 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
                   child: Center(
                     child: _isCompleted
                         ? Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2.5),
                             decoration: BoxDecoration(
                               color: const Color(0xFF10B981),
                               borderRadius: BorderRadius.circular(10),
@@ -353,13 +355,13 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.check_rounded, color: Colors.white, size: 10),
-                                const SizedBox(width: 3.5),
+                                const Icon(Icons.check_circle_rounded, color: Colors.white, size: 12),
+                                const SizedBox(width: 4),
                                 Text(
-                                  widget.isEnglish ? 'Done!' : 'เรียบร้อย!',
+                                  widget.isEnglish ? 'Updated!' : 'อัปเดตเรียบร้อย!',
                                   style: const TextStyle(
                                     color: Colors.white,
-                                    fontSize: 9.5,
+                                    fontSize: 10,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -399,34 +401,115 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
     );
   }
 
+  /// Prominent, animated success checkmark badge with glow and cute typography
+  Widget _buildCompletionCheckmark() {
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 360),
+      curve: Curves.elasticOut,
+      builder: (context, scale, child) {
+        return Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Transform.scale(
+                scale: scale,
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF10B981), Color(0xFF059669)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF10B981).withValues(alpha: 0.5),
+                        blurRadius: 10,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      Icons.check_rounded,
+                      color: Colors.white,
+                      size: 22,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Opacity(
+                opacity: scale.clamp(0.0, 1.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.isEnglish ? 'Success!' : 'เรียบร้อย!',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF10B981),
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      widget.isEnglish ? 'Up to date' : 'อัปเดตแล้ว',
+                      style: TextStyle(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w600,
+                        color: widget.isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   /// The user's authentic 3D clay/chibi mascot cat with:
   /// - Independently animated head (tilting & nodding with breathing rhythm)
   /// - Independently animated raised right arm with 1:1 synchronized swatting
   /// - Solid base body with blue fabric collar and golden bell
-  Widget _build3DAnimatedCat(double swipeT) {
+  Widget _build3DAnimatedCat(double swipeT, {bool isCompleted = false}) {
     const double catSize = 66.0;
 
     // Head animation: gentle playful tilt around neck
     final double headT = _idleCatController.value;
-    final double headAngle = math.sin(headT * math.pi * 2) * 0.052;
+    final double headAngle = isCompleted
+        ? math.sin(headT * math.pi * 4) * 0.07 // Happy nodding when completed!
+        : math.sin(headT * math.pi * 2) * 0.052;
     final double headBobY = math.cos(headT * math.pi * 2) * 1.2;
 
     // 1:1 Synchronized Swatting Cadence:
-    // Subphase 0.0 to 1.0 matches each passing slip
-    final double subPhase = (swipeT * 3.0) % 1.0;
     double armAngle;
-    if (subPhase < 0.35) {
-      final p = subPhase / 0.35;
-      armAngle = math.sin(p * math.pi * 0.5) * 0.16; // Prepares & lifts paw back (+9°)
-    } else if (subPhase < 0.50) {
-      final p = (subPhase - 0.35) / 0.15;
-      armAngle = 0.16 - (p * 0.58); // STRIKES down onto the slip (-24°) at impact (0.50)!
-    } else if (subPhase < 0.75) {
-      final p = (subPhase - 0.50) / 0.25;
-      armAngle = -0.42 + (p * 0.28); // Sweeps slip leftwards
+    if (isCompleted) {
+      // Cheerful celebratory pose when completed!
+      armAngle = 0.08 + math.sin(headT * math.pi * 4) * 0.05;
     } else {
-      final p = (subPhase - 0.75) / 0.25;
-      armAngle = -0.14 * (1.0 - p); // Smoothly returns to ready
+      final double subPhase = (swipeT * 3.0) % 1.0;
+      if (subPhase < 0.35) {
+        final p = subPhase / 0.35;
+        armAngle = math.sin(p * math.pi * 0.5) * 0.16; // Prepares & lifts paw back (+9°)
+      } else if (subPhase < 0.50) {
+        final p = (subPhase - 0.35) / 0.15;
+        armAngle = 0.16 - (p * 0.58); // STRIKES down onto the slip (-24°) at impact (0.50)!
+      } else if (subPhase < 0.75) {
+        final p = (subPhase - 0.50) / 0.25;
+        armAngle = -0.42 + (p * 0.28); // Sweeps slip leftwards
+      } else {
+        final p = (subPhase - 0.75) / 0.25;
+        armAngle = -0.14 * (1.0 - p); // Smoothly returns to ready
+      }
     }
 
     return SizedBox(
