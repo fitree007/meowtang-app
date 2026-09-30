@@ -3,11 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 /// A charming, polished pull-to-refresh indicator featuring the user's authentic
-/// 3D clay/chibi mascot cat with independently animated head and waving/swatting right arm,
-/// accompanied by a smooth conveyor of dark-gray money slips with a scanning laser.
-///
-/// Features a rock-solid Direct Touch Gesture Listener that guarantees 100% reliable
-/// single-pull activation without requiring rapid double pulls.
+/// 3D clay/chibi mascot cat with independently animated head and raised right arm,
+/// synchronized 1:1 with passing money slips that receive a cute pink paw stamp (🐾)
+/// upon being patted!
 class MeowSlipScanRefreshIndicator extends StatefulWidget {
   final Future<void> Function() onRefresh;
   final Widget child;
@@ -42,8 +40,8 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
     with TickerProviderStateMixin {
   // Effortless single-pull trigger distance (38px)
   static const double _triggerDistance = 38.0;
-  static const double _refreshingHeight = 78.0;
-  static const double _maxDragDisplacement = 96.0;
+  static const double _refreshingHeight = 80.0;
+  static const double _maxDragDisplacement = 98.0;
 
   double _dragOffset = 0.0;
   double _pointerStartY = 0.0;
@@ -57,7 +55,7 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
   late AnimationController _springBackController;
   late Animation<double> _springBackAnimation;
 
-  // Slip conveyor & swatting cadence controller (~1600ms per loop)
+  // Slip conveyor & swatting cadence controller (steady ~2100ms per 3-slip loop, 700ms/slip)
   late AnimationController _conveyorController;
   // Gentle head tilt & bobbing breathing controller (~2200ms per loop)
   late AnimationController _idleCatController;
@@ -73,7 +71,7 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
 
     _conveyorController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1600),
+      duration: const Duration(milliseconds: 2100),
     );
 
     _idleCatController = AnimationController(
@@ -234,7 +232,6 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
       child: NotificationListener<ScrollNotification>(
         onNotification: (notification) {
           _lastScrollMetrics = notification.metrics;
-          // Fallback scroll end handler
           if (notification is ScrollEndNotification) {
             if (_isPointerTracking) {
               _isPointerTracking = false;
@@ -280,18 +277,18 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
 
         return Center(
           child: SizedBox(
-            width: 275,
-            height: 74,
+            width: 290,
+            height: 76,
             child: Stack(
               clipBehavior: Clip.none,
               children: [
-                // 1. Slip Conveyor Stream (3 dark-gray slips moving smoothly leftwards)
+                // 1. Slip Conveyor Stream: Positioned closely adjacent to the cat
                 Positioned(
-                  left: 6,
+                  left: 14,
                   top: 10,
                   child: SizedBox(
-                    width: 145,
-                    height: 50,
+                    width: 195,
+                    height: 52,
                     child: Stack(
                       clipBehavior: Clip.none,
                       children: [
@@ -301,7 +298,7 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
 
                         // Subtle scanner laser beam
                         Positioned(
-                          left: 60,
+                          left: 78,
                           top: 0,
                           bottom: 0,
                           child: Container(
@@ -330,10 +327,10 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
                   ),
                 ),
 
-                // 2. The User's Authentic 3D Chibi Mascot Cat with Animated Head & Arm
+                // 2. The User's Authentic 3D Chibi Mascot Cat with Synchronized Arm & Head
                 Positioned(
-                  right: 8,
-                  bottom: 12,
+                  right: 20,
+                  bottom: 10,
                   child: _build3DAnimatedCat(swipeT),
                 ),
 
@@ -404,27 +401,32 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
 
   /// The user's authentic 3D clay/chibi mascot cat with:
   /// - Independently animated head (tilting & nodding with breathing rhythm)
-  /// - Independently animated raised right arm (batting & swatting at passing slips)
+  /// - Independently animated raised right arm with 1:1 synchronized swatting
   /// - Solid base body with blue fabric collar and golden bell
   Widget _build3DAnimatedCat(double swipeT) {
-    const double catSize = 64.0;
+    const double catSize = 66.0;
 
     // Head animation: gentle playful tilt around neck
     final double headT = _idleCatController.value;
-    final double headAngle = math.sin(headT * math.pi * 2) * 0.055; // ±3.1 degrees
+    final double headAngle = math.sin(headT * math.pi * 2) * 0.052;
     final double headBobY = math.cos(headT * math.pi * 2) * 1.2;
 
-    // Arm animation: swatting/waving rhythm synchronized with passing slips
-    final double armPhase = (swipeT * 3.0) % 1.0;
+    // 1:1 Synchronized Swatting Cadence:
+    // Subphase 0.0 to 1.0 matches each passing slip
+    final double subPhase = (swipeT * 3.0) % 1.0;
     double armAngle;
-    if (armPhase < 0.40) {
-      final p = armPhase / 0.40;
-      final ease = math.sin(p * math.pi);
-      armAngle = -ease * 0.38; // Swipes forward/down towards the slip
+    if (subPhase < 0.35) {
+      final p = subPhase / 0.35;
+      armAngle = math.sin(p * math.pi * 0.5) * 0.16; // Prepares & lifts paw back (+9°)
+    } else if (subPhase < 0.50) {
+      final p = (subPhase - 0.35) / 0.15;
+      armAngle = 0.16 - (p * 0.58); // STRIKES down onto the slip (-24°) at impact (0.50)!
+    } else if (subPhase < 0.75) {
+      final p = (subPhase - 0.50) / 0.25;
+      armAngle = -0.42 + (p * 0.28); // Sweeps slip leftwards
     } else {
-      final r = (armPhase - 0.40) / 0.60;
-      final ease = (1.0 - math.cos(r * math.pi)) * 0.5;
-      armAngle = -0.38 * (1.0 - ease); // Returns back to high waving pose
+      final p = (subPhase - 0.75) / 0.25;
+      armAngle = -0.14 * (1.0 - p); // Smoothly returns to ready
     }
 
     return SizedBox(
@@ -486,42 +488,46 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
   }
 
   Widget _buildSingleConveyorSlip(double u) {
-    // Slips glide smoothly from right (125) to left (-15)
-    final double posX = 125.0 - (u * 140.0);
-    final double dip = math.sin(u * math.pi) * 3.5;
-    final double tilt = math.sin(u * math.pi) * -0.07;
+    // Slips glide from 155 (right, under cat paw) to -35 (left)
+    final double posX = 155.0 - (u * 190.0);
+    final double dip = math.sin(u * math.pi) * 3.2;
+    final double tilt = math.sin(u * math.pi) * -0.06;
+
+    // Has paw stamp been printed?
+    // At u >= 0.22, the slip has passed under the cat's striking paw and received the paw stamp!
+    final bool hasStamp = u >= 0.22 && u <= 0.95;
 
     // Smooth opacity fade on entry and exit
     double opacity = 1.0;
-    if (u < 0.15) {
-      opacity = (u / 0.15).clamp(0.0, 1.0);
-    } else if (u > 0.85) {
-      opacity = ((1.0 - u) / 0.15).clamp(0.0, 1.0);
+    if (u < 0.10) {
+      opacity = (u / 0.10).clamp(0.0, 1.0);
+    } else if (u > 0.88) {
+      opacity = ((1.0 - u) / 0.12).clamp(0.0, 1.0);
     }
 
     return Positioned(
       left: posX,
-      top: 2 + dip,
+      top: 3 + dip,
       child: Opacity(
         opacity: opacity,
         child: Transform.rotate(
           angle: tilt,
-          child: _buildDarkGraySlip(),
+          child: _buildDarkGraySlip(hasStamp: hasStamp),
         ),
       ),
     );
   }
 
-  /// Minimalist Dark-Gray Money Slip (Neutral slate/dark gray only, no bank branding)
-  Widget _buildDarkGraySlip() {
+  /// Minimalist Dark-Gray Money Slip with Cute Pink Paw Stamp 🐾
+  Widget _buildDarkGraySlip({required bool hasStamp}) {
     return Container(
-      width: 34,
-      height: 44,
+      width: 35,
+      height: 45,
       decoration: BoxDecoration(
         color: const Color(0xFF1E293B), // Dark slate gray base
         borderRadius: BorderRadius.circular(5),
         border: Border.all(
-          color: const Color(0xFF475569), // Muted slate gray border
+          color: hasStamp ? const Color(0xFF64748B) : const Color(0xFF475569),
           width: 0.9,
         ),
         boxShadow: const [
@@ -532,84 +538,110 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Stack(
         children: [
-          // Dark Gray Top Band (Neutral, no bank name)
-          Container(
-            height: 8,
-            decoration: const BoxDecoration(
-              color: Color(0xFF334155),
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(4),
-                topRight: Radius.circular(4),
-              ),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 2.5),
-            alignment: Alignment.centerLeft,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  width: 10,
-                  height: 1.5,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF94A3B8),
-                    borderRadius: BorderRadius.circular(1),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Dark Gray Top Band (Neutral, no bank name)
+              Container(
+                height: 8,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF334155),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(4),
+                    topRight: Radius.circular(4),
                   ),
                 ),
-                const Icon(Icons.receipt_rounded, size: 5.5, color: Color(0xFF94A3B8)),
-              ],
-            ),
+                padding: const EdgeInsets.symmetric(horizontal: 2.5),
+                alignment: Alignment.centerLeft,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      width: 10,
+                      height: 1.5,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF94A3B8),
+                        borderRadius: BorderRadius.circular(1),
+                      ),
+                    ),
+                    const Icon(Icons.receipt_rounded, size: 5.5, color: Color(0xFF94A3B8)),
+                  ],
+                ),
+              ),
+
+              // Slip Body: Neutral Gray Lines & Currency Placeholder
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2.5, vertical: 2),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      const Text(
+                        '฿ •••••',
+                        style: TextStyle(
+                          fontSize: 5.5,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFFCBD5E1),
+                          letterSpacing: -0.2,
+                          height: 1,
+                        ),
+                      ),
+                      Container(
+                        width: 16,
+                        height: 1.2,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF334155),
+                          borderRadius: BorderRadius.circular(1),
+                        ),
+                      ),
+                      Container(
+                        width: 10,
+                        height: 1.2,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF334155),
+                          borderRadius: BorderRadius.circular(1),
+                        ),
+                      ),
+                      // Bottom barcode dashes
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: List.generate(4, (i) => Container(
+                          width: 1.2,
+                          height: 3,
+                          color: const Color(0xFF475569),
+                        )),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
 
-          // Slip Body: Neutral Gray Lines & Currency Placeholder
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2.5, vertical: 2),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  const Text(
-                    '฿ •••••',
-                    style: TextStyle(
-                      fontSize: 5.5,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFFCBD5E1),
-                      letterSpacing: -0.2,
-                      height: 1,
-                    ),
+          // Cute Pink Paw Stamp Overlay (🐾)
+          if (hasStamp)
+            Positioned.fill(
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.black.withValues(alpha: 0.25),
                   ),
-                  Container(
-                    width: 16,
-                    height: 1.2,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF334155),
-                      borderRadius: BorderRadius.circular(1),
-                    ),
+                  child: const Icon(
+                    Icons.pets_rounded,
+                    color: Color(0xFFF472B6), // Cute pink stamp
+                    size: 15,
+                    shadows: [
+                      Shadow(color: Color(0x88F472B6), blurRadius: 4),
+                    ],
                   ),
-                  Container(
-                    width: 10,
-                    height: 1.2,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF334155),
-                      borderRadius: BorderRadius.circular(1),
-                    ),
-                  ),
-                  // Bottom barcode dashes
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: List.generate(4, (i) => Container(
-                      width: 1.2,
-                      height: 3,
-                      color: const Color(0xFF475569),
-                    )),
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
