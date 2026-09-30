@@ -277,17 +277,17 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
 
         return Center(
           child: SizedBox(
-            width: 290,
+            width: 250,
             height: 76,
             child: Stack(
               clipBehavior: Clip.none,
               children: [
-                // 1. Slip Conveyor Stream: Positioned closely adjacent to the cat
+                // 1. Slip Conveyor Stream: Positioned immediately adjacent to the cat
                 Positioned(
-                  left: 14,
+                  left: 8,
                   top: 10,
                   child: SizedBox(
-                    width: 195,
+                    width: 165,
                     height: 52,
                     child: Stack(
                       clipBehavior: Clip.none,
@@ -298,7 +298,7 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
 
                         // Subtle scanner laser beam
                         Positioned(
-                          left: 78,
+                          left: 65,
                           top: 0,
                           bottom: 0,
                           child: Container(
@@ -329,7 +329,7 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
 
                 // 2. The User's Authentic 3D Chibi Mascot Cat with Synchronized Arm & Head
                 Positioned(
-                  right: 20,
+                  right: 28,
                   bottom: 10,
                   child: _build3DAnimatedCat(swipeT),
                 ),
@@ -488,14 +488,14 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
   }
 
   Widget _buildSingleConveyorSlip(double u) {
-    // Slips glide from 155 (right, under cat paw) to -35 (left)
-    final double posX = 155.0 - (u * 190.0);
-    final double dip = math.sin(u * math.pi) * 3.2;
+    // Slips glide from 135 (right, immediately adjacent to cat) to -38 (left)
+    final double posX = 135.0 - (u * 173.0);
+    final double dip = math.sin(u * math.pi) * 2.8;
     final double tilt = math.sin(u * math.pi) * -0.06;
 
     // Has paw stamp been printed?
-    // At u >= 0.22, the slip has passed under the cat's striking paw and received the paw stamp!
-    final bool hasStamp = u >= 0.22 && u <= 0.95;
+    // At u >= 0.18, the slip has passed under the cat's striking paw and received the paw stamp!
+    final bool hasStamp = u >= 0.18 && u <= 0.95;
 
     // Smooth opacity fade on entry and exit
     double opacity = 1.0;
