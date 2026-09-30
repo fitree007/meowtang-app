@@ -2,10 +2,10 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import 'meow_mascot_widget.dart';
 
-/// A custom pull-to-refresh indicator featuring an animated Cat reading & inspecting a money slip
-/// with laser scanning beam, paw-held receipt, and speech bubble status.
+/// A playful pull-to-refresh indicator inspired by the cat motion video.
+/// Features a seamless frameless design, a gentle short pull distance,
+/// and an animated cat peeking up and rapidly swatting/patting a floating money slip.
 class MeowSlipScanRefreshIndicator extends StatefulWidget {
   final Future<void> Function() onRefresh;
   final Widget child;
@@ -38,9 +38,10 @@ class MeowSlipScanRefreshIndicator extends StatefulWidget {
 
 class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndicator>
     with TickerProviderStateMixin {
-  static const double _triggerDistance = 75.0;
-  static const double _refreshingHeight = 98.0;
-  static const double _maxDragDisplacement = 135.0;
+  // Short effortless pull distance (46px instead of 75+px)
+  static const double _triggerDistance = 46.0;
+  static const double _refreshingHeight = 68.0;
+  static const double _maxDragDisplacement = 88.0;
 
   double _dragOffset = 0.0;
   bool _isDragging = false;
@@ -51,9 +52,10 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
   late AnimationController _springBackController;
   late Animation<double> _springBackAnimation;
 
-  late AnimationController _catBobController;
-  late AnimationController _slipLaserController;
-  late AnimationController _slipScrollController;
+  // Paw swatting animation (rapid, playful tap ~340ms)
+  late AnimationController _swatController;
+  // Eye blinking / head bob animation
+  late AnimationController _blinkController;
 
   @override
   void initState() {
@@ -61,56 +63,47 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
 
     _springBackController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 240),
     );
 
-    _catBobController = AnimationController(
+    _swatController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1100),
+      duration: const Duration(milliseconds: 360),
     );
 
-    _slipLaserController = AnimationController(
+    _blinkController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1400),
-    );
-
-    _slipScrollController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2800),
+      duration: const Duration(milliseconds: 2200),
     );
   }
 
   @override
   void dispose() {
     _springBackController.dispose();
-    _catBobController.dispose();
-    _slipLaserController.dispose();
-    _slipScrollController.dispose();
+    _swatController.dispose();
+    _blinkController.dispose();
     super.dispose();
   }
 
-  void _startScanningAnimations() {
-    if (!_catBobController.isAnimating) {
-      _catBobController.repeat(reverse: true);
+  void _startCatPlay() {
+    if (!_swatController.isAnimating) {
+      _swatController.repeat(reverse: true);
     }
-    if (!_slipLaserController.isAnimating) {
-      _slipLaserController.repeat(reverse: true);
-    }
-    if (!_slipScrollController.isAnimating) {
-      _slipScrollController.repeat();
+    if (!_blinkController.isAnimating) {
+      _blinkController.repeat();
     }
   }
 
-  void _stopScanningAnimations() {
-    _catBobController.stop();
-    _slipLaserController.stop();
-    _slipScrollController.stop();
+  void _stopCatPlay() {
+    _swatController.stop();
+    _blinkController.stop();
   }
 
   void _updateDrag(double rawOffset) {
     if (_isRefreshing) return;
 
-    const resistance = 0.58;
+    // Responsive 1:0.82 touch ratio
+    const resistance = 0.82;
     final newOffset = (rawOffset * resistance).clamp(0.0, _maxDragDisplacement);
 
     setState(() {
@@ -119,10 +112,10 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
 
     if (_dragOffset >= _triggerDistance) {
       if (!_hasHapticed) {
-        HapticFeedback.mediumImpact();
+        HapticFeedback.lightImpact();
         _hasHapticed = true;
       }
-      _startScanningAnimations();
+      _startCatPlay();
     } else {
       _hasHapticed = false;
     }
@@ -137,8 +130,8 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
         _isCompleted = false;
       });
 
-      _startScanningAnimations();
-      _animateTo(_refreshingHeight, durationMs: 220);
+      _startCatPlay();
+      _animateTo(_refreshingHeight, durationMs: 180);
 
       try {
         await widget.onRefresh();
@@ -151,10 +144,10 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
       });
       HapticFeedback.lightImpact();
 
-      await Future.delayed(const Duration(milliseconds: 550));
+      await Future.delayed(const Duration(milliseconds: 450));
       if (!mounted) return;
 
-      _animateTo(0.0, durationMs: 260, onDone: () {
+      _animateTo(0.0, durationMs: 220, onDone: () {
         if (mounted) {
           setState(() {
             _isRefreshing = false;
@@ -162,23 +155,23 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
             _dragOffset = 0.0;
             _hasHapticed = false;
           });
-          _stopScanningAnimations();
+          _stopCatPlay();
         }
       });
     } else {
-      _animateTo(0.0, durationMs: 250, onDone: () {
+      _animateTo(0.0, durationMs: 200, onDone: () {
         if (mounted) {
           setState(() {
             _dragOffset = 0.0;
             _hasHapticed = false;
           });
-          _stopScanningAnimations();
+          _stopCatPlay();
         }
       });
     }
   }
 
-  void _animateTo(double target, {int durationMs = 250, VoidCallback? onDone}) {
+  void _animateTo(double target, {int durationMs = 200, VoidCallback? onDone}) {
     _springBackAnimation = Tween<double>(
       begin: _dragOffset,
       end: target,
@@ -228,6 +221,24 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
     return false;
   }
 
+  Color _getMascotPrimaryColor() {
+    final id = widget.mascotId ?? 'cat_quill';
+    if (id.contains('white')) return const Color(0xFFF1F5F9);
+    if (id.contains('black')) return const Color(0xFF334155);
+    if (id.contains('calico')) return const Color(0xFFE2E8F0);
+    if (id.contains('pink')) return const Color(0xFFF472B6);
+    if (id.contains('blue') || id.contains('cyber')) return const Color(0xFF0EA5E9);
+    return const Color(0xFFF59E0B); // Default warm ginger/orange tabby
+  }
+
+  Color _getMascotEarColor() {
+    final id = widget.mascotId ?? 'cat_quill';
+    if (id.contains('white')) return const Color(0xFFFDA4AF);
+    if (id.contains('black')) return const Color(0xFF1E293B);
+    if (id.contains('calico')) return const Color(0xFFD97706);
+    return const Color(0xFFD97706);
+  }
+
   @override
   Widget build(BuildContext context) {
     final double topSafe = MediaQuery.of(context).padding.top;
@@ -239,21 +250,24 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          // Content translated smoothly with pull distance
+          // Content translated smoothly down by pull distance
           Transform.translate(
             offset: Offset(0, visibleHeight),
             child: widget.child,
           ),
 
-          // Cat Reading Slip Refresh Header
-          if (visibleHeight > 6.0)
+          // Open, Frameless Cat Playing with Slip (Seamlessly revealed behind content)
+          if (visibleHeight > 3.0)
             Positioned(
-              top: topSafe + 8,
-              left: 14,
-              right: 14,
-              child: Opacity(
-                opacity: (visibleHeight / 30.0).clamp(0.0, 1.0),
-                child: _buildCatReadingScannerCard(progress),
+              top: topSafe + 6,
+              left: 0,
+              right: 0,
+              height: visibleHeight,
+              child: ClipRect(
+                child: Opacity(
+                  opacity: (visibleHeight / 20.0).clamp(0.0, 1.0),
+                  child: _buildPlayfulCatScene(progress),
+                ),
               ),
             ),
         ],
@@ -261,454 +275,499 @@ class _MeowSlipScanRefreshIndicatorState extends State<MeowSlipScanRefreshIndica
     );
   }
 
-  Widget _buildCatReadingScannerCard(double progress) {
-    final isDark = widget.isDark;
-    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
-    final borderColor = _isCompleted
-        ? const Color(0xFF10B981)
-        : (_isRefreshing || progress >= 1.0
-            ? const Color(0xFF10B981).withValues(alpha: 0.6)
-            : (isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)));
+  Widget _buildPlayfulCatScene(double progress) {
+    final catColor = _getMascotPrimaryColor();
+    final earColor = _getMascotEarColor();
 
-    return Container(
-      height: 90,
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: borderColor, width: 1.3),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
-            blurRadius: 14,
-            offset: const Offset(0, 4),
-          ),
-          if (_isRefreshing || progress >= 1.0)
-            BoxShadow(
-              color: const Color(0xFF10B981).withValues(alpha: 0.18),
-              blurRadius: 12,
-              spreadRadius: 1,
-            ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(19),
-        child: Stack(
+    return AnimatedBuilder(
+      animation: Listenable.merge([_swatController, _blinkController]),
+      builder: (context, child) {
+        final swatVal = _swatController.value;
+        // Slip gently swings when the cat swats it
+        final slipTilt = _isRefreshing ? (math.sin(swatVal * math.pi) * 0.12) : (progress * 0.04);
+        final slipBounceY = _isRefreshing ? (math.sin(swatVal * math.pi) * 3.0) : 0.0;
+
+        return Stack(
+          alignment: Alignment.bottomCenter,
+          clipBehavior: Clip.none,
           children: [
-            // Soft gradient background
-            Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: isDark
-                        ? [const Color(0xFF0F172A), const Color(0xFF1E293B)]
-                        : [const Color(0xFFF8FAFC), const Color(0xFFEFF6FF)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-              ),
-            ),
-
-            // Main Content: [Cat with Slip] on Left + [Speech Bubble & Status] on Right
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: Row(
+            // Center Canvas: Cat on Right, Money Slip on Left/Center
+            SizedBox(
+              width: 220,
+              height: 64,
+              child: Stack(
+                clipBehavior: Clip.none,
                 children: [
-                  // 1. Animated Reading Cat & Paw-held Slip
-                  _buildCatWithSlip(progress),
-
-                  const SizedBox(width: 14),
-
-                  // 2. Interactive Speech Bubble & Status Info
-                  Expanded(
-                    child: _buildStatusBubble(progress),
+                  // 1. The Floating Money Slip (Being audited & patted)
+                  Positioned(
+                    left: 28,
+                    bottom: 4 + slipBounceY,
+                    child: Transform.rotate(
+                      angle: -0.05 + slipTilt,
+                      alignment: Alignment.topCenter,
+                      child: _buildFloatingSlip(),
+                    ),
                   ),
+
+                  // 2. The Cat peeking up from the bottom edge
+                  Positioned(
+                    right: 28,
+                    bottom: 0,
+                    child: _buildPeekingCat(catColor, earColor, swatVal),
+                  ),
+
+                  // 3. Status Sparkle / Checkmark when completed
+                  if (_isCompleted)
+                    Positioned(
+                      left: 48,
+                      top: 4,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981),
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: const [
+                            BoxShadow(color: Color(0x6610B981), blurRadius: 8),
+                          ],
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.check_rounded, color: Colors.white, size: 10),
+                            SizedBox(width: 3),
+                            Text(
+                              'เรียบร้อย!',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCatWithSlip(double progress) {
-    return AnimatedBuilder(
-      animation: _catBobController,
-      builder: (context, child) {
-        // Cat gently tilts head and bobs up and down when reading
-        final bobY = _isRefreshing ? (math.sin(_catBobController.value * math.pi) * 3.0) : 0.0;
-        final tiltAngle = _isRefreshing
-            ? (math.sin(_catBobController.value * math.pi * 2) * 0.05)
-            : 0.0;
-
-        return Transform.translate(
-          offset: Offset(0, bobY),
-          child: Transform.rotate(
-            angle: tiltAngle,
-            child: SizedBox(
-              width: 104,
-              height: 74,
-              child: Stack(
-                clipBehavior: Clip.none,
-                alignment: Alignment.centerLeft,
-                children: [
-                  // Cat Mascot Head
-                  Positioned(
-                    left: 2,
-                    top: 2,
-                    child: MeowMascotWidget(
-                      size: 54,
-                      isHeadOnly: true,
-                      mascotId: widget.mascotId ?? 'cat_quill',
-                      accessory: widget.mascotAccessory ?? 'none',
-                      outfit: widget.mascotOutfit ?? 'none',
-                      customPhotoPath: widget.customAvatarPath,
-                      isCustomPhoto: widget.isCustomAvatarEnabled,
-                    ),
-                  ),
-
-                  // Receipt Slip held in front of the Cat
-                  Positioned(
-                    left: 44,
-                    top: 4,
-                    child: _buildHeldSlip(),
-                  ),
-
-                  // Cat's Cute Paws holding the slip edges
-                  Positioned(
-                    left: 36,
-                    top: 22,
-                    child: _buildPaw(),
-                  ),
-                  Positioned(
-                    left: 88,
-                    top: 24,
-                    child: _buildPaw(),
-                  ),
-                ],
-              ),
-            ),
-          ),
         );
       },
     );
   }
 
-  Widget _buildHeldSlip() {
+  Widget _buildFloatingSlip() {
     final isDark = widget.isDark;
     return Container(
-      width: 52,
-      height: 64,
+      width: 44,
+      height: 52,
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF334155) : Colors.white,
-        borderRadius: BorderRadius.circular(6),
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(5),
         border: Border.all(
-          color: const Color(0xFF10B981).withValues(alpha: 0.5),
+          color: const Color(0xFF10B981).withValues(alpha: 0.6),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.1),
+            color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.12),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(5),
-        child: Stack(
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Header band
+          Container(
+            height: 10,
+            decoration: BoxDecoration(
+              color: const Color(0xFF10B981).withValues(alpha: 0.25),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(4),
+                topRight: Radius.circular(4),
+              ),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 3),
+            alignment: Alignment.centerLeft,
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Top Slip Header Band (Green KBank / SCB style)
-                Container(
-                  height: 12,
-                  color: const Color(0xFF10B981).withValues(alpha: 0.25),
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  alignment: Alignment.centerLeft,
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'KBank ฿',
-                        style: TextStyle(
-                          fontSize: 6.5,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF10B981),
-                        ),
-                      ),
-                      Icon(Icons.receipt_long_rounded, size: 8, color: Color(0xFF10B981)),
-                    ],
+                Text(
+                  'KBank ฿',
+                  style: TextStyle(
+                    fontSize: 5.5,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF10B981),
                   ),
                 ),
-
-                // Slip Body with Amount & Skeleton lines
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          '+฿ 500.00',
-                          style: TextStyle(
-                            fontSize: 7.5,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF10B981),
-                            letterSpacing: -0.2,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Container(
-                          width: 28,
-                          height: 2,
-                          decoration: BoxDecoration(
-                            color: isDark ? Colors.white24 : Colors.black12,
-                            borderRadius: BorderRadius.circular(1),
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Container(
-                          width: 18,
-                          height: 2,
-                          decoration: BoxDecoration(
-                            color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.06),
-                            borderRadius: BorderRadius.circular(1),
-                          ),
-                        ),
-                        const Spacer(),
-                        // Mini Barcode at bottom of slip
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: List.generate(6, (index) {
-                            return Container(
-                              width: (index % 2 == 0) ? 1.5 : 2.5,
-                              height: 6,
-                              color: isDark ? Colors.white30 : Colors.black26,
-                            );
-                          }),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // Jagged bottom edge
-                CustomPaint(
-                  size: const Size(double.infinity, 3),
-                  painter: _ZigZagEdgePainter(
-                    color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
-                  ),
-                ),
+                Icon(Icons.receipt_rounded, size: 6.5, color: Color(0xFF10B981)),
               ],
             ),
-
-            // Laser Beam Scanning down the Slip
-            if (_isRefreshing || _dragOffset >= _triggerDistance * 0.7)
-              AnimatedBuilder(
-                animation: _slipLaserController,
-                builder: (context, child) {
-                  final laserY = _slipLaserController.value * 52.0 + 8.0;
-                  return Positioned(
-                    top: laserY,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      height: 2.2,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [
-                            Colors.transparent,
-                            Color(0xFF38BDF8),
-                            Color(0xFF10B981),
-                            Color(0xFF38BDF8),
-                            Colors.transparent,
-                          ],
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF10B981).withValues(alpha: 0.9),
-                            blurRadius: 5,
-                            spreadRadius: 1,
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPaw() {
-    return Container(
-      width: 13,
-      height: 11,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: const Color(0xFFCBD5E1), width: 0.8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 2,
-            offset: const Offset(0, 1),
           ),
-        ],
-      ),
-      child: Center(
-        child: Container(
-          width: 5,
-          height: 4,
-          decoration: BoxDecoration(
-            color: const Color(0xFFFDA4AF), // Pink paw pad
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-      ),
-    );
-  }
 
-  Widget _buildStatusBubble(double progress) {
-    final isDark = widget.isDark;
-
-    String title;
-    String subtitle;
-    Color accentColor;
-    IconData icon;
-
-    if (_isCompleted) {
-      title = widget.isEnglish ? 'Scan Complete! ✨' : 'ตรวจสลิปเรียบร้อยแล้วเหมียว! ✨';
-      subtitle = widget.isEnglish ? 'Transactions up to date' : 'ข้อมูลการเงินเป็นปัจจุบันแล้ว';
-      accentColor = const Color(0xFF10B981);
-      icon = Icons.check_circle_rounded;
-    } else if (_isRefreshing) {
-      title = widget.isEnglish ? 'Cat is checking slip... 🔍' : 'เหมียวกำลังตรวจสลิปอยู่นะ... 🔍';
-      subtitle = widget.isEnglish ? 'Auditing numbers & syncing' : 'กำลังอ่านยอดเงิน & รีเฟรชข้อมูล';
-      accentColor = const Color(0xFF06B6D4);
-      icon = Icons.manage_search_rounded;
-    } else if (progress >= 1.0) {
-      title = widget.isEnglish ? 'Release for cat to read!' : 'ปล่อยให้เหมียวอ่านสลิปเลย!';
-      subtitle = widget.isEnglish ? 'Release screen to start' : 'ปล่อยมือเพื่อเริ่มสแกนสลิป';
-      accentColor = const Color(0xFF10B981);
-      icon = Icons.touch_app_rounded;
-    } else {
-      title = widget.isEnglish ? 'Pull down for cat to read' : 'ดึงลงให้เหมียวอ่านสลิป 🐾';
-      subtitle = widget.isEnglish ? 'Pull a bit more to scan' : 'ดึงลงอีกนิดเพื่อตรวจสลิป';
-      accentColor = widget.primaryColor;
-      icon = Icons.arrow_downward_rounded;
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        // AI Pill
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-              decoration: BoxDecoration(
-                color: accentColor.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(
-                  color: accentColor.withValues(alpha: 0.4),
-                  width: 0.8,
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
+          // Body lines
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  Container(
-                    width: 5,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: accentColor,
-                      shape: BoxShape.circle,
+                  const Text(
+                    '+฿ 500',
+                    style: TextStyle(
+                      fontSize: 7,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF10B981),
+                      letterSpacing: -0.2,
                     ),
                   ),
-                  const SizedBox(width: 4),
-                  Text(
-                    _isRefreshing || progress >= 1.0 ? 'AI AUDITING' : 'CAT SCANNER',
-                    style: TextStyle(
-                      fontSize: 8,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.5,
-                      color: accentColor,
+                  Container(
+                    width: 22,
+                    height: 1.5,
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white24 : Colors.black12,
+                      borderRadius: BorderRadius.circular(1),
                     ),
+                  ),
+                  Container(
+                    width: 14,
+                    height: 1.5,
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(1),
+                    ),
+                  ),
+                  // Dotted tear line at bottom
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: List.generate(5, (i) => Container(
+                      width: 2,
+                      height: 1,
+                      color: isDark ? Colors.white24 : Colors.black26,
+                    )),
                   ),
                 ],
               ),
             ),
-            Icon(icon, size: 14, color: accentColor),
-          ],
-        ),
+          ),
+        ],
+      ),
+    );
+  }
 
-        const SizedBox(height: 5),
+  Widget _buildPeekingCat(Color catColor, Color earColor, double swatVal) {
+    final bool isBlinking = _blinkController.value > 0.94;
+    // Paw reaches forward and taps down onto the slip
+    final pawReachX = -12.0 - (swatVal * 16.0);
+    final pawReachY = -18.0 - (math.sin(swatVal * math.pi) * 12.0);
+    final pawRotation = -0.3 + (swatVal * 0.45);
 
-        // Title
-        Text(
-          title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: _isCompleted ? const Color(0xFF10B981) : (isDark ? Colors.white : const Color(0xFF0F172A)),
+    return SizedBox(
+      width: 74,
+      height: 58,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.bottomRight,
+        children: [
+          // 1. Swatting Front Paw (Reaches out from cat's chest to bat the slip)
+          Positioned(
+            left: 20 + pawReachX,
+            bottom: 22 + pawReachY,
+            child: Transform.rotate(
+              angle: pawRotation,
+              alignment: Alignment.bottomRight,
+              child: _buildSwattingPaw(catColor),
+            ),
+          ),
+
+          // 2. Cat Body & Head Peeking Up
+          Positioned(
+            right: 4,
+            bottom: -4,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Ears
+                SizedBox(
+                  width: 44,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Left Ear
+                      CustomPaint(
+                        size: const Size(12, 14),
+                        painter: _EarPainter(outerColor: catColor, innerColor: earColor),
+                      ),
+                      // Right Ear
+                      Transform.scale(
+                        scaleX: -1,
+                        child: CustomPaint(
+                          size: const Size(12, 14),
+                          painter: _EarPainter(outerColor: catColor, innerColor: earColor),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Head Round Shape
+                Container(
+                  width: 50,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: catColor,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(25),
+                      topRight: Radius.circular(25),
+                      bottomLeft: Radius.circular(18),
+                      bottomRight: Radius.circular(18),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.18),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Eyes
+                      Positioned(
+                        top: 10,
+                        left: 10,
+                        right: 10,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            _buildEye(isBlinking),
+                            _buildEye(isBlinking),
+                          ],
+                        ),
+                      ),
+
+                      // Snout, Pink Nose & Mouth
+                      Positioned(
+                        bottom: 8,
+                        child: Column(
+                          children: [
+                            // Pink nose
+                            Container(
+                              width: 5,
+                              height: 4,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFDA4AF),
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                            const SizedBox(height: 1),
+                            // Muzzle smile (w)
+                            CustomPaint(
+                              size: const Size(10, 4),
+                              painter: _MouthPainter(),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Cute Cheeks
+                      Positioned(
+                        bottom: 11,
+                        left: 6,
+                        child: Container(
+                          width: 6,
+                          height: 3.5,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFDA4AF).withValues(alpha: 0.6),
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        bottom: 11,
+                        right: 6,
+                        child: Container(
+                          width: 6,
+                          height: 3.5,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFDA4AF).withValues(alpha: 0.6),
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // 3. Second resting paw resting at the edge
+          Positioned(
+            right: 38,
+            bottom: 0,
+            child: Container(
+              width: 11,
+              height: 8,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(4),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 2),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSwattingPaw(Color catColor) {
+    return Container(
+      width: 22,
+      height: 13,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(7),
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 0.8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 4,
+            offset: const Offset(-1, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          Container(
+            width: 3.5,
+            height: 6,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFDA4AF),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          Container(
+            width: 4,
+            height: 7,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFDA4AF),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          Container(
+            width: 3.5,
+            height: 6,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFDA4AF),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEye(bool isBlinking) {
+    if (_isCompleted) {
+      // Happy curved closed eye (^•^)
+      return Container(
+        width: 8,
+        height: 4,
+        decoration: const BoxDecoration(
+          border: Border(
+            top: BorderSide(color: Color(0xFF0F172A), width: 2),
           ),
         ),
+      );
+    }
 
-        const SizedBox(height: 2),
+    if (isBlinking) {
+      // Blinking eye line
+      return Container(
+        width: 7,
+        height: 2,
+        color: const Color(0xFF0F172A),
+      );
+    }
 
-        // Subtitle
-        Text(
-          subtitle,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 10,
-            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+    // Wide open focused eye with white sparkle highlight
+    return Container(
+      width: 7.5,
+      height: 7.5,
+      decoration: const BoxDecoration(
+        color: Color(0xFF0F172A),
+        shape: BoxShape.circle,
+      ),
+      child: Align(
+        alignment: Alignment.topRight,
+        child: Container(
+          width: 2.5,
+          height: 2.5,
+          margin: const EdgeInsets.only(top: 1, right: 1),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
           ),
         ),
-      ],
+      ),
     );
   }
 }
 
-class _ZigZagEdgePainter extends CustomPainter {
-  final Color color;
+class _EarPainter extends CustomPainter {
+  final Color outerColor;
+  final Color innerColor;
 
-  _ZigZagEdgePainter({required this.color});
+  _EarPainter({required this.outerColor, required this.innerColor});
 
   @override
   void paint(Canvas canvas, Size size) {
+    final outerPath = Path()
+      ..moveTo(0, size.height)
+      ..lineTo(size.width * 0.4, 0)
+      ..lineTo(size.width, size.height)
+      ..close();
+
+    final innerPath = Path()
+      ..moveTo(size.width * 0.25, size.height)
+      ..lineTo(size.width * 0.45, size.height * 0.35)
+      ..lineTo(size.width * 0.8, size.height)
+      ..close();
+
+    canvas.drawPath(outerPath, Paint()..color = outerColor);
+    canvas.drawPath(innerPath, Paint()..color = innerColor);
+  }
+
+  @override
+  bool shouldRepaint(covariant _EarPainter oldDelegate) =>
+      oldDelegate.outerColor != outerColor || oldDelegate.innerColor != innerColor;
+}
+
+class _MouthPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
+      ..color = const Color(0xFF0F172A)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
 
-    final path = Path();
-    const toothWidth = 4.0;
-    const toothHeight = 3.0;
-    int count = (size.width / toothWidth).ceil();
-
-    path.moveTo(0, 0);
-    for (int i = 0; i < count; i++) {
-      path.lineTo((i * toothWidth) + (toothWidth / 2), toothHeight);
-      path.lineTo((i + 1) * toothWidth, 0);
-    }
-    path.lineTo(size.width, size.height);
-    path.lineTo(0, size.height);
-    path.close();
+    final path = Path()
+      ..moveTo(0, 0)
+      ..quadraticBezierTo(size.width * 0.25, size.height, size.width * 0.5, size.height * 0.5)
+      ..quadraticBezierTo(size.width * 0.75, size.height, size.width, 0);
 
     canvas.drawPath(path, paint);
   }
 
   @override
-  bool shouldRepaint(covariant _ZigZagEdgePainter oldDelegate) => oldDelegate.color != color;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
