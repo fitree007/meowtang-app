@@ -120,27 +120,37 @@ class OcrEngineService {
         return false;
       }
 
-      // Layer 2: Must explicitly show transaction success/execution status
+      // Layer 2: Must explicitly show transaction success / transfer execution / payment context
       final bool hasTransferStatus = cleanText.contains('โอนเงินสำเร็จ') ||
           cleanText.contains('รายการสำเร็จ') ||
           cleanText.contains('ทำรายการสำเร็จ') ||
           cleanText.contains('ชำระเงินสำเร็จ') ||
           cleanText.contains('เติมเงินสำเร็จ') ||
+          cleanText.contains('โอนสำเร็จ') ||
+          cleanText.contains('สำเร็จ') ||
           cleanText.contains('transfer successful') ||
           cleanText.contains('payment successful') ||
           cleanText.contains('transaction successful');
 
-      // Layer 3: Must have genuine bank slip structural signatures (Ref ID, from/to account structure, or BOT ITMX slip QR)
+      // Layer 3: Must have genuine bank slip structural signatures or QR code
       final bool hasSlipStructure = cleanText.contains('รหัสอ้างอิง') ||
           cleanText.contains('หมายเลขอ้างอิง') ||
           cleanText.contains('เลขที่รายการ') ||
+          cleanText.contains('รหัสธุรกรรม') ||
+          cleanText.contains('เลขที่อ้างอิง') ||
           cleanText.contains('ref no') ||
           cleanText.contains('txid') ||
+          cleanText.contains('txn') ||
           cleanText.contains('จากบัญชี') ||
           cleanText.contains('ไปยังบัญชี') ||
-          (cleanText.contains('จาก') && cleanText.contains('ไปยัง')) ||
+          cleanText.contains('ไปยัง') ||
+          cleanText.contains('ผู้รับเงิน') ||
+          cleanText.contains('บันทึกช่วยจำ') ||
+          cleanText.contains('ค่าธรรมเนียม') ||
+          cleanText.contains('จำนวนเงิน') ||
+          cleanText.contains('ยอดเงิน') ||
           (cleanText.contains('จาก') && cleanText.contains('ถึง')) ||
-          (qrPayload != null && qrPayload.trim().isNotEmpty && qrPayload.contains('0103030'));
+          (qrPayload != null && qrPayload.trim().isNotEmpty && (qrPayload.contains('0103030') || qrPayload.contains('itmx')));
 
       // Layer 4: Must have a valid positive amount detected
       final double detectedAmount = extractAmountFromText(rawText);

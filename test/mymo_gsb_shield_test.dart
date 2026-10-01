@@ -67,5 +67,23 @@ MyMo by GSB
       );
       expect(isSlip, isTrue, reason: 'MyMo slip with BOT 0103030 QR code must be accepted');
     });
+
+    test('Accept MyMo screenshot slip with txn id and memo format', () {
+      final mymoTxnText = '''
+MyMo by GSB
+โอนสำเร็จ
+1 ต.ค. 2569 09:15
+ไปยัง น.ส.มาลี สดใส
+จำนวนเงิน 290.00 บาท
+รหัสธุรกรรม 2026100109151234
+บันทึกช่วยจำ ค่าอาหาร
+''';
+      final isSlip = OcrEngineService.isBankSlip(
+        mymoTxnText,
+        fileName: 'Screenshot_20261001-091522.png',
+        filePath: '/storage/emulated/0/Pictures/Screenshots/Screenshot_20261001-091522.png',
+      );
+      expect(isSlip, isTrue, reason: 'MyMo slip with txn id and memo must be accepted');
+    });
   });
 }

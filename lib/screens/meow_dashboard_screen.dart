@@ -229,15 +229,15 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
     HapticFeedback.lightImpact();
     // 1. Force refresh persistent database transactions & preferences from disk
     await widget.controller.reloadFromStorage();
-    // 2. Scan and auto-import new slips from device gallery
-    if (mounted && widget.controller.canImportMoreSlips && !_isAutoScanning) {
-      await _autoScanSlipsInBackground(showFeedback: false);
+    // 2. Scan and auto-import slips with forceRescan=true (deep 12-month scan to catch any unimported slips)
+    if (mounted && widget.controller.canImportMoreSlips) {
+      await _autoScanSlipsInBackground(showFeedback: false, forceRescan: true);
     }
     // 3. Keep widget in sync
     await widget.controller.syncAndroidWidget();
   }
 
-  Future<void> _autoScanSlipsInBackground({bool showFeedback = true}) async {
+  Future<void> _autoScanSlipsInBackground({bool showFeedback = true, bool forceRescan = false}) async {
     if (_isAutoScanning) return;
     if (!widget.controller.canImportMoreSlips) {
       if (showFeedback) {
@@ -287,7 +287,7 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
 
   try {
     await NativeBridgeService.requestAppPermissions();
-    final imported = await SlipAutoSyncService.scanAndAutoImportNewSlips(widget.controller);
+    final imported = await SlipAutoSyncService.scanAndAutoImportNewSlips(widget.controller, forceRescan: forceRescan);
    if (!mounted) return;
 
    if (imported.isNotEmpty) {

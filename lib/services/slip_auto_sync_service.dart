@@ -105,16 +105,19 @@ class SlipAutoSyncService {
     return !date.isBefore(start);
   }
 
-  /// Scans device storage for new bank slips and imports unimported slips from CURRENT & PREVIOUS month only.
-  /// On initial import, existing device slips do NOT consume monthly quota, keeping it clean at 0/15!
-  static Future<List<TransactionItem>> scanAndAutoImportNewSlips(ExpenseController controller) async {
+  /// Scans device storage for new bank slips.
+  /// When [forceRescan] is true (e.g. user manual pull-to-refresh), scans full 12-month archive to catch any missed slips.
+  static Future<List<TransactionItem>> scanAndAutoImportNewSlips(
+    ExpenseController controller, {
+    bool forceRescan = false,
+  }) async {
     controller.setProcessingSlips(true);
     try {
       _processedKeys.clear();
       _inFlightKeys.clear();
 
       final isCreator = AppConfig.isCreatorEdition;
-      final isInitialScan = !controller.storage.isInitialDeviceScanCompleted();
+      final isInitialScan = !controller.storage.isInitialDeviceScanCompleted() || forceRescan;
 
       // 0. Only perform full DB deduplication and registry seeding on initial scan or if empty
       if (isInitialScan || controller.storage.getImportedSlipIdentifiers().isEmpty) {
@@ -147,11 +150,11 @@ class SlipAutoSyncService {
 
       final now = DateTime.now();
       final startOfPreviousMonth = getStartOfPreviousMonth(now);
-      // 12-Month Cutoff for Initial Device Scan: exactly 12 calendar months backwards
+      // 12-Month Cutoff for Initial Device Scan / Force Rescan: exactly 12 calendar months backwards
       final twelveMonthsAgo = DateTime(now.year - 1, now.month, 1);
       final cutoffDate = isCreator ? DateTime(2000) : (isInitialScan ? twelveMonthsAgo : startOfPreviousMonth);
 
-      // In Creator Edition: 0 (all). In Initial Scan: 370 days (12 months). In Ongoing Scans: 2 months.
+      // In Creator Edition: 0 (all). In Initial Scan / Force Rescan: 370 days (12 months). In Ongoing Scans: 2 months.
       final daysToScan = isCreator ? 0 : (isInitialScan ? 370 : (now.difference(startOfPreviousMonth).inDays + 2));
 
       final slipFiles = await NativeBridgeService.scanBankSlips(daysLimit: daysToScan);
