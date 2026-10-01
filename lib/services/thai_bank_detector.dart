@@ -762,7 +762,7 @@ class ThaiBankDetector {
     // For standard Expense/Transfer slips, the bank is the SENDER / ISSUING bank.
     // Cut off the Receiver Section completely so recipient bank NEVER hijacks detection!
     final receiverRegex = RegExp(
-      r'(?:ไปยัง|ผู้รับเงิน|ผู้รับโอน|ผู้รับ|โอนไปยัง|โอนให้|เข้าบัญชี|เข้าบช|เลขที่บัญชีผู้รับ|บัญชีผู้รับ|ปลายทาง|scb\s*มณี\s*shop|มณี\s*shop|แม่มณี|รหัสผู้รับเงิน|รหัสร้านค้า|\bto\b|\breceiver\b|\brecipient\b)',
+      r'(?:ไปยัง|ผู้รับเงิน|ผู้รับโอน|ผู้รับ|โอนไปยัง|โอนให้|เข้าบัญชี|เข้าบช|เลขที่บัญชีผู้รับ|บัญชีผู้รับ|ปลายทาง|scb\s*มณี\s*shop|มณี\s*shop|แม่มณี|รหัสผู้รับเงิน|รหัสร้านค้า|\bto\b|\breceiver\b|\brecipient\b|(?:^|\n|\s)ถึง(?:\s|:|\n|$))',
       caseSensitive: false,
     );
     final receiverMatch = receiverRegex.firstMatch(lowerCleanOcr);

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ai_expense_tracker/services/ocr_engine_service.dart';
+import 'package:ai_expense_tracker/services/thai_bank_detector.dart';
 
 void main() {
   group('MyMo by GSB Screenshot Shield Tests', () {
@@ -86,22 +87,43 @@ MyMo by GSB
       expect(isSlip, isTrue, reason: 'MyMo slip with txn id and memo must be accepted');
     });
 
-    test('Accept MyMo screenshot in Picture folder with Thai filename and stylized my mo font', () {
-      final stylizedMymoText = '''
-my mo GSB
-โอนเงินสำเร็จ
-28 ก.ย. 67 14:30
-จาก นายสมหมาย
-ไปยัง บัญชีพร้อมเพย์ 0891234567
-จำนวนเงิน 500.00 บาท
-รหัสอ้างอิง: 2024092898765432
+    test('Accept exact real user MyMo top-up slip', () {
+      final realUserMymoSlip = '''
+รายการเติมเงินสำเร็จ
+จำนวนเงิน
+42.00
+0.00 ค่าธรรมเนียม
+รหัสอ้างอิง: 6274080955791000008B9790
+1 ต.ค. 2569 08:05
+จาก
+นาย กูรีดวน บินอูมา
+ธนาคารออมสิน
+0202xxxx1320
+ถึง
+น.ส. นุรฮายาตี ลือแบซา
+เติมเงินพร้อมเพย์
+004999xxxxx2840
+QR Code
+สแกน QR เพื่อตรวจสอบ
+รายละเอียดของรายการ
+mymo by GSB
 ''';
       final isSlip = OcrEngineService.isBankSlip(
-        stylizedMymoText,
-        fileName: 'ภาพหน้าจอ_20240928_143000.png',
-        filePath: '/storage/emulated/0/Picture/ภาพหน้าจอ_20240928_143000.png',
+        realUserMymoSlip,
+        fileName: 'Screenshot_20261001-080512.jpg',
+        filePath: '/storage/emulated/0/Picture/Screenshot_20261001-080512.jpg',
       );
-      expect(isSlip, isTrue, reason: 'MyMo screenshot in Picture folder with Thai filename must be accepted');
+      expect(isSlip, isTrue, reason: 'Exact user MyMo top-up screenshot must be accepted');
+
+      final amt = OcrEngineService.extractAmountFromText(realUserMymoSlip);
+      expect(amt, equals(42.0), reason: 'Amount must be exactly 42.00');
+
+      final parties = OcrEngineService.extractSenderAndReceiver(realUserMymoSlip, realUserMymoSlip.split('\n'));
+      expect(parties['sender'], contains('กูรีดวน'));
+      expect(parties['receiver'], contains('นุรฮายาตี'));
+
+      final bankIdent = ThaiBankDetector.identifySlipBank(rawOcrText: realUserMymoSlip);
+      expect(bankIdent.bankCode, equals('GSB'));
     });
   });
 }
