@@ -731,7 +731,7 @@ class MainActivity : FlutterActivity() {
                         detectedBank = "iBank (อิสลามแห่งประเทศไทย)"
                         isSlip = true
                     } else if (lowerPath.contains("screenshot") || lowerName.contains("screenshot") || lowerRelPath.contains("screenshot")) {
-                        detectedBank = "สลิปโอนเงิน (Screenshot)"
+                        detectedBank = "MyMo by GSB (ออมสิน)"
                         isSlip = true
                     } else if (slipKeywords.any { kw -> combinedSearch.contains(kw) }) {
                         detectedBank = "สลิปโอนเงิน"
@@ -1165,7 +1165,7 @@ class MainActivity : FlutterActivity() {
                         detectedBank = "iBank (อิสลามแห่งประเทศไทย)"
                         isSlip = true
                     } else if (lowerPath.contains("screenshot") || lowerName.contains("screenshot") || lowerRelPath.contains("screenshot")) {
-                        detectedBank = "สลิปโอนเงิน (Screenshot)"
+                        detectedBank = "MyMo by GSB (ออมสิน)"
                         isSlip = true
                     } else if (bankKeywords.any { kw -> combinedSearch.contains(kw) }) {
                         detectedBank = "สลิปโอนเงิน"

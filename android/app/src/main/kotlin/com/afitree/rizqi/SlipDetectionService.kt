@@ -328,7 +328,7 @@ class SlipDetectionService : Service() {
                         detectedBank = "iBank (อิสลามแห่งประเทศไทย)"
                         isSlip = true
                     } else if (lowerPath.contains("screenshot") || lowerName.contains("screenshot") || lowerRelPath.contains("screenshot")) {
-                        detectedBank = if (isIncomeSlip) "สลิปรับเงินโอนเข้า" else "สลิปโอนเงิน (Screenshot)"
+                        detectedBank = "MyMo by GSB (ออมสิน)"
                         isSlip = true
                     } else if (slipKeywords.any { kw -> lowerName.contains(kw) || lowerPath.contains(kw) }) {
                         detectedBank = if (isIncomeSlip) "สลิปรับเงินโอนเข้า" else "สลิปโอนเงิน"

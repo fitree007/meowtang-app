@@ -101,26 +101,20 @@ class OcrEngineService {
     static bool isBankSlip(String rawText, {String? fileName, String? filePath, String? qrPayload}) {
     final file = (fileName ?? filePath ?? '').toLowerCase().replaceAll('\\', '/');
 
-    // 0. Negative Filter: Reject Screenshots and Screen Captures UNLESS they contain bank slip evidence (e.g. MyMo by GSB screenshots)
+    // 0. Strict Filter: For Screenshots, ONLY allow MyMo by GSB (ธนาคารออมสิน) exclusively!
     if (file.contains('screenshot') || file.contains('screen_capture') || file.contains('capture_')) {
       final cleanText = rawText.toLowerCase();
-      final bool isBankSlipScreenshot = cleanText.contains('mymo') ||
+      final bool isMyMoOnly = cleanText.contains('mymo') ||
           cleanText.contains('gsb') ||
           cleanText.contains('ออมสิน') ||
           cleanText.contains('ธนาคารออมสิน') ||
           cleanText.contains('0103030') ||
-          cleanText.contains('030') ||
-          cleanText.contains('โอนเงินสำเร็จ') ||
-          cleanText.contains('รายการสำเร็จ') ||
-          cleanText.contains('โอนสำเร็จ') ||
-          cleanText.contains('transfer successful') ||
           (qrPayload != null &&
               qrPayload.trim().isNotEmpty &&
               (qrPayload.contains('0103030') ||
-                  qrPayload.contains('A000000677010114') ||
                   qrPayload.contains('mymo') ||
                   qrPayload.contains('gsb.or.th')));
-      if (!isBankSlipScreenshot) {
+      if (!isMyMoOnly) {
         return false;
       }
     }
