@@ -1170,13 +1170,13 @@ class OcrEngineService {
       }
 
       // Check Receiver Keywords
-      if (lower.startsWith('ไปยัง:') || lower.startsWith('ผู้รับ:') || lower.startsWith('ผู้รับเงิน:') || lower.startsWith('โอนไปยัง:') || lower.startsWith('โอนให้:') || lower.startsWith('to:')) {
+      if (lower.startsWith('ไปยัง:') || lower.startsWith('ไป ยัง:') || lower.startsWith('ผู้รับ:') || lower.startsWith('ผู้รับเงิน:') || lower.startsWith('ผู้รับโอน:') || lower.startsWith('โอนไปยัง:') || lower.startsWith('โอนให้:') || lower.startsWith('to:') || lower.startsWith('บัญชีผู้รับ:')) {
         final ext = cleanPersonOrShopName(line.substring(line.indexOf(':') + 1));
         if (ext.isNotEmpty && ext.length >= 2) receiverName = ext;
-      } else if (lower.startsWith('ไปยัง ') || lower.startsWith('ผู้รับ ') || lower.startsWith('ผู้รับเงิน ') || lower.startsWith('โอนไปยัง ') || lower.startsWith('โอนให้ ') || lower.startsWith('เข้าบัญชี ') || lower.startsWith('to ') || lower.startsWith('ถึง ')) {
+      } else if (lower.startsWith('ไปยัง ') || lower.startsWith('ไป ยัง ') || lower.startsWith('ไปที่ ') || lower.startsWith('ผู้รับ ') || lower.startsWith('ผู้รับเงิน ') || lower.startsWith('ผู้รับโอน ') || lower.startsWith('โอนไปยัง ') || lower.startsWith('โอนเข้า ') || lower.startsWith('โอนให้ ') || lower.startsWith('เข้าบัญชี ') || lower.startsWith('บัญชีผู้รับ ') || lower.startsWith('to ') || lower.startsWith('ถึง ')) {
         final ext = cleanPersonOrShopName(line);
         if (ext.isNotEmpty && ext.length >= 2) receiverName = ext;
-      } else if (lower == 'ไปยัง' || lower == 'ผู้รับ' || lower == 'ผู้รับเงิน' || lower == 'โอนไปยัง' || lower == 'โอนให้' || lower == 'เข้าบัญชี' || lower == 'to' || lower == 'ถึง') {
+      } else if (lower == 'ไปยัง' || lower == 'ไป ยัง' || lower == 'ไปที่' || lower == 'ผู้รับ' || lower == 'ผู้รับเงิน' || lower == 'ผู้รับโอน' || lower == 'โอนไปยัง' || lower == 'โอนเข้า' || lower == 'โอนให้' || lower == 'เข้าบัญชี' || lower == 'บัญชีผู้รับ' || lower == 'to' || lower == 'ถึง') {
         if (i + 1 < cleanLines.length) {
           final ext = cleanPersonOrShopName(cleanLines[i + 1]);
           if (ext.isNotEmpty && ext.length >= 2) receiverName = ext;

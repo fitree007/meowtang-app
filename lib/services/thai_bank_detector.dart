@@ -626,6 +626,45 @@ class ThaiBankDetector {
       }
     }
 
+    // --- Special Check: TrueMoney Wallet Preemption ---
+    // If the slip itself is explicitly TrueMoney (e.g. "truemoney", "ทรูมันนี่", "บัญชีทรูมันนี่", "จากวอลเล็ท"),
+    // TrueMoney transfers via PromptPay often include partner/settlement/receiving bank codes (like 025 BAY or others) in the QR code.
+    // The issuing wallet MUST NOT be hijacked by the recipient or routing bank!
+    final hasTrueMoneyKeyword = lowerRaw.contains('truemoney') ||
+        lowerRaw.contains('true money') ||
+        lowerRaw.contains('ทรูมันนี่') ||
+        lowerRaw.contains('บัญชีทรูมันนี่') ||
+        lowerRaw.contains('จากวอลเล็ท') ||
+        (lowerRaw.contains('วอลเล็ท') && !lowerRaw.contains('g-wallet'));
+
+    if (hasTrueMoneyKeyword) {
+      final receiverMarkerRegex = RegExp(
+        r'(?:ไปยัง|ผู้รับเงิน|ผู้รับโอน|ผู้รับ|โอนไปยัง|โอนให้|เข้าบัญชี|เข้าบช|ปลายทาง|\bto\b|\breceiver\b|\brecipient\b|->|→|↓|▼|(?:^|\n|\s)ถึง(?:\s|:|\n|$))',
+        caseSensitive: false,
+      );
+      final rMatch = receiverMarkerRegex.firstMatch(lowerRaw);
+      final rIndex = rMatch?.start ?? -1;
+
+      final tmnIndices = [
+        lowerRaw.indexOf('truemoney'),
+        lowerRaw.indexOf('true money'),
+        lowerRaw.indexOf('ทรูมันนี่'),
+        lowerRaw.indexOf('บัญชีทรูมันนี่'),
+        lowerRaw.indexOf('จากวอลเล็ท'),
+        lowerRaw.indexOf('วอลเล็ท'),
+      ].where((idx) => idx != -1).toList();
+
+      final tmnIndex = tmnIndices.isNotEmpty ? tmnIndices.reduce((a, b) => a < b ? a : b) : -1;
+
+      if (tmnIndex != -1 && (rIndex == -1 || tmnIndex < rIndex)) {
+        return const SlipBankIdentification(
+          bankCode: 'TRUEMONEY',
+          bankName: 'TrueMoney Wallet',
+          cleanBank: 'ทรูมันนี่',
+        );
+      }
+    }
+
     // --- Priority 1: QR Code BOT Bank Code (Highest Authority) ---
     String? code = qrSenderBankCode?.trim();
     if (code == null || code.isEmpty) {

@@ -165,6 +165,85 @@ mymo by GSB
         receiverName: 'น.ส. นุรฮายาตี ลือแบซา เติมเงินพร้อมเพย์',
       );
       expect(itemTopup.slipTransferDescription, equals('โอนจาก นาย กูรีดวน บินอูมา ➔ น.ส. นุรฮายาตี ลือแบซา'));
+
+      // Expense with valid sender but no receiver must NOT show "โอนโดย..."
+      final itemExpenseNoReceiver = TransactionItem(
+        id: '3',
+        title: 'โอนเงิน',
+        amount: 100.0,
+        type: TransactionType.expense,
+        date: DateTime.now(),
+        accountId: 'acc1',
+        categoryId: 'cat1',
+        categoryName: 'ทั่วไป',
+        senderName: 'นาย กูรีดวน บินอูมา',
+        receiverName: null,
+      );
+      expect(itemExpenseNoReceiver.slipTransferDescription, isNull, reason: 'Expense without receiver should stay clean');
+
+      // Income with sender shows "รับโอนจาก..."
+      final itemIncome = TransactionItem(
+        id: '4',
+        title: 'เงินเข้า',
+        amount: 500.0,
+        type: TransactionType.income,
+        date: DateTime.now(),
+        accountId: 'acc1',
+        categoryId: 'cat1',
+        categoryName: 'ทั่วไป',
+        senderName: 'นาย กูรีดวน บินอูมา',
+        receiverName: null,
+      );
+      expect(itemIncome.slipTransferDescription, equals('รับโอนจาก นาย กูรีดวน บินอูมา'));
+    });
+
+    test('TrueMoney Wallet slip with PromptPay QR containing 025 (Krungsri) is correctly identified as TRUEMONEY', () {
+      final tmnOcrText = '''
+truemoney
+฿ 1,840.00
+กูรีดวน บิน****
+บัญชีทรูมันนี่ ***_***-1742
+จากวอลเล็ท
+นายกูรีดวน บิน****
+06*-***-1742
+พร้อมเพย์
+วันที่ทำรายการ 5 ก.ค. 2569 23:00:22
+เลขที่อ้างอิง 50055856197973
+สถานที่ทำรายการ Chang Wat Pattani, ประเทศไทย
+สแกนคิวอาร์โค้ดนี้ เพื่อตรวจสอบรายการ
+''';
+
+      // QR payload contains 0103025 (BAY Krungsri receiving code)
+      final qrPayloadWithBay = '00020101021230670016A00000067701011401140103025020261001123456';
+
+      final bankIdent = ThaiBankDetector.identifySlipBank(
+        rawOcrText: tmnOcrText,
+        qrPayload: qrPayloadWithBay,
+        qrSenderBankCode: '025',
+        filePath: '/storage/emulated/0/Pictures/Screenshots/Screenshot_2026-07-05.jpg',
+      );
+
+      expect(bankIdent.bankCode, equals('TRUEMONEY'), reason: 'TrueMoney wallet preemption must override recipient bank 025');
+      expect(bankIdent.cleanBank, equals('ทรูมันนี่'));
+      expect(bankIdent.bankName, equals('TrueMoney Wallet'));
+    });
+
+    test('Krungthai NEXT slip with spaced "ไป ยัง" successfully extracts receiver', () {
+      final ktbOcrText = '''
+ธนาคารกรุงไทย
+โอนเงินสำเร็จ
+1 ต.ค. 2569 14:00
+จาก นายสมชาย ใจดี
+กรุงไทย xxx-x-xxxxx-x
+ไป ยัง น.ส. สมใจ หมายมั่น
+พร้อมเพย์ 081-xxx-xxxx
+จำนวนเงิน 500.00 บาท
+รหัสอ้างอิง 2026100114001234
+''';
+
+      final parties = OcrEngineService.extractSenderAndReceiver(ktbOcrText, ktbOcrText.split('\n'));
+      expect(parties['sender'], contains('สมชาย'));
+      expect(parties['receiver'], contains('สมใจ'));
     });
   });
 }

@@ -227,7 +227,12 @@ class TransactionItem {
     } else if (validR != null) {
       return 'โอนไปยัง $validR';
     } else if (validS != null) {
-      return 'โอนโดย $validS';
+      if (type == TransactionType.income) {
+        return 'รับโอนจาก $validS';
+      }
+      // For expense transactions, showing "โอนโดย [ผู้โอน]" when receiver is unknown is redundant,
+      // confusing, and prone to display OCR noise. Return null to keep card clean.
+      return null;
     }
     return null;
   }
