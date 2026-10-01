@@ -1164,7 +1164,9 @@ class MainActivity : FlutterActivity() {
                     } else if (combinedSearch.contains("ibank") || combinedSearch.contains("อิสลาม") || combinedSearch.contains("islamic")) {
                         detectedBank = "iBank (อิสลามแห่งประเทศไทย)"
                         isSlip = true
-                    } else if (lowerPath.contains("screenshot") || lowerName.contains("screenshot") || lowerRelPath.contains("screenshot")) {
+                    } else if (lowerPath.contains("screenshot") || lowerName.contains("screenshot") || lowerRelPath.contains("screenshot") ||
+                               lowerName.contains("ภาพหน้าจอ") || lowerPath.contains("ภาพหน้าจอ") || lowerRelPath.contains("ภาพหน้าจอ") ||
+                               lowerName.contains("screencap") || lowerPath.contains("screencap")) {
                         detectedBank = "MyMo by GSB (ออมสิน)"
                         isSlip = true
                     } else if (bankKeywords.any { kw -> combinedSearch.contains(kw) }) {
@@ -1173,10 +1175,11 @@ class MainActivity : FlutterActivity() {
                     }
 
                     if (isSlip && size > 1024) {
+                        val effectivePath = if (!path.isNullOrEmpty() && File(path).canRead()) path else contentUri
                         val item = mutableMapOf<String, Any>(
                             "id" to id.toString(),
                             "name" to name,
-                            "path" to (path ?: contentUri),
+                            "path" to effectivePath,
                             "uri" to contentUri,
                             "dateAdded" to dateAdded,
                             "size" to size,
@@ -1290,8 +1293,9 @@ class MainActivity : FlutterActivity() {
 
     private fun compressAndSaveSlipInternal(sourcePath: String, customName: String?): String? {
         return try {
-            val sourceFile = File(sourcePath)
-            if (!sourceFile.exists()) return null
+            val isContentUri = sourcePath.startsWith("content://")
+            val sourceFile = if (!isContentUri) File(sourcePath) else null
+            if (!isContentUri && (sourceFile == null || !sourceFile.exists())) return null
 
             val slipsDir = File(filesDir, "saved_slips")
             if (!slipsDir.exists()) {
@@ -1301,7 +1305,7 @@ class MainActivity : FlutterActivity() {
             val fileName = if (!customName.isNullOrEmpty()) {
                 if (customName.endsWith(".jpg") || customName.endsWith(".jpeg")) customName else "$customName.jpg"
             } else {
-                val cleanName = sourceFile.nameWithoutExtension
+                val cleanName = if (isContentUri) Uri.parse(sourcePath).lastPathSegment ?: "slip" else sourceFile!!.nameWithoutExtension
                 val hash = cleanName.hashCode().toString().replace("-", "")
                 "slip_${hash}.jpg"
             }
@@ -1314,7 +1318,13 @@ class MainActivity : FlutterActivity() {
             val options = android.graphics.BitmapFactory.Options().apply {
                 inJustDecodeBounds = true
             }
-            android.graphics.BitmapFactory.decodeFile(sourcePath, options)
+            if (isContentUri) {
+                contentResolver.openInputStream(Uri.parse(sourcePath))?.use { stream ->
+                    android.graphics.BitmapFactory.decodeStream(stream, null, options)
+                }
+            } else {
+                android.graphics.BitmapFactory.decodeFile(sourcePath, options)
+            }
 
             val maxDim = 1200
             var sampleSize = 1
@@ -1331,7 +1341,13 @@ class MainActivity : FlutterActivity() {
                 inPreferredConfig = android.graphics.Bitmap.Config.RGB_565
             }
 
-            val bitmap = android.graphics.BitmapFactory.decodeFile(sourcePath, decodeOptions) ?: return null
+            val bitmap = if (isContentUri) {
+                contentResolver.openInputStream(Uri.parse(sourcePath))?.use { stream ->
+                    android.graphics.BitmapFactory.decodeStream(stream, null, decodeOptions)
+                }
+            } else {
+                android.graphics.BitmapFactory.decodeFile(sourcePath, decodeOptions)
+            } ?: return null
 
             FileOutputStream(targetFile).use { out ->
                 bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 78, out)

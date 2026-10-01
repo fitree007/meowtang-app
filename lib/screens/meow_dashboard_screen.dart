@@ -231,14 +231,23 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
     await widget.controller.reloadFromStorage();
     // 2. Scan and auto-import slips with forceRescan=true (deep 12-month scan to catch any unimported slips)
     if (mounted && widget.controller.canImportMoreSlips) {
-      await _autoScanSlipsInBackground(showFeedback: false, forceRescan: true);
+      await _autoScanSlipsInBackground(showFeedback: true, forceRescan: true);
     }
     // 3. Keep widget in sync
     await widget.controller.syncAndroidWidget();
   }
 
   Future<void> _autoScanSlipsInBackground({bool showFeedback = true, bool forceRescan = false}) async {
-    if (_isAutoScanning) return;
+    if (_isAutoScanning) {
+      if (!forceRescan) return;
+      // If forceRescan is requested (e.g. user pulled to refresh), wait for existing background scan to finish
+      int waited = 0;
+      while (_isAutoScanning && waited < 40) {
+        await Future.delayed(const Duration(milliseconds: 100));
+        waited++;
+      }
+      _isAutoScanning = false;
+    }
     if (!widget.controller.canImportMoreSlips) {
       if (showFeedback) {
         if (widget.controller.canWatchRewardedAd) {
@@ -273,14 +282,14 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
       children: [
        SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
        SizedBox(width: 10),
-       Text('กำลังสแกนหาภาพสลิป...', style: TextStyle(fontSize: 13)),
+       Text('กำลังสแกนหาภาพสลิป (รวม MyMo/ออมสิน)...', style: TextStyle(fontSize: 13)),
       ],
      ),
      behavior: SnackBarBehavior.floating,
-     margin: const EdgeInsets.only(bottom: 90, left: 40, right: 40),
+     margin: const EdgeInsets.only(bottom: 90, left: 30, right: 30),
      backgroundColor: const Color(0xFF1E293B),
      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-     duration: const Duration(milliseconds: 1200),
+     duration: const Duration(milliseconds: 1800),
     ),
    );
   }
@@ -309,7 +318,7 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
       margin: const EdgeInsets.only(bottom: 90, left: 30, right: 30),
       backgroundColor: MeowTheme.incomeGreen,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 2000),
      ),
     );
    } else {
@@ -364,10 +373,9 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
     }
    }
   } finally {
+   _isAutoScanning = false;
    if (mounted) {
-    setState(() {
-     _isAutoScanning = false;
-    });
+    setState(() {});
    }
   }
  }

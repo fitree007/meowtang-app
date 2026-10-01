@@ -103,18 +103,27 @@ class OcrEngineService {
 
     // 0. Strict Filter: For Screenshots, ONLY allow genuine MyMo by GSB (ธนาคารออมสิน) slips exclusively!
     // Reject any casual chats, social media feeds, or other screens that casually mention GSB.
-    if (file.contains('screenshot') || file.contains('screen_capture') || file.contains('capture_')) {
+    if (file.contains('screenshot') || file.contains('screen_capture') || file.contains('capture_') || file.contains('ภาพหน้าจอ') || file.contains('screencap')) {
       final cleanText = rawText.toLowerCase();
       final bool hasMyMoKeyword = cleanText.contains('mymo') ||
+          cleanText.contains('my mo') ||
+          cleanText.contains('mym0') ||
+          cleanText.contains('myme') ||
+          cleanText.contains('mymb') ||
           cleanText.contains('gsb') ||
+          cleanText.contains('g sb') ||
           cleanText.contains('ออมสิน') ||
           cleanText.contains('ธนาคารออมสิน') ||
           cleanText.contains('0103030') ||
+          cleanText.contains('030') ||
+          cleanText.contains('1115') ||
+          cleanText.contains('gsb.or.th') ||
           (qrPayload != null &&
               qrPayload.trim().isNotEmpty &&
               (qrPayload.contains('0103030') ||
                   qrPayload.contains('mymo') ||
-                  qrPayload.contains('gsb.or.th')));
+                  qrPayload.contains('gsb') ||
+                  qrPayload.contains('itmx')));
 
       if (!hasMyMoKeyword) {
         return false;
@@ -128,6 +137,7 @@ class OcrEngineService {
           cleanText.contains('เติมเงินสำเร็จ') ||
           cleanText.contains('โอนสำเร็จ') ||
           cleanText.contains('สำเร็จ') ||
+          cleanText.contains('โอนเงิน') ||
           cleanText.contains('transfer successful') ||
           cleanText.contains('payment successful') ||
           cleanText.contains('transaction successful');
@@ -149,11 +159,15 @@ class OcrEngineService {
           cleanText.contains('ค่าธรรมเนียม') ||
           cleanText.contains('จำนวนเงิน') ||
           cleanText.contains('ยอดเงิน') ||
+          cleanText.contains('บาท') ||
           (cleanText.contains('จาก') && cleanText.contains('ถึง')) ||
           (qrPayload != null && qrPayload.trim().isNotEmpty && (qrPayload.contains('0103030') || qrPayload.contains('itmx')));
 
       // Layer 4: Must have a valid positive amount detected
-      final double detectedAmount = extractAmountFromText(rawText);
+      double detectedAmount = extractAmountFromText(rawText);
+      if (detectedAmount <= 0) {
+        detectedAmount = EasyOcrTesseractFusionService.extractAmount(rawText);
+      }
 
       // If screenshot fails any of the strict banking slip requirements, reject it immediately!
       if (!hasTransferStatus || !hasSlipStructure || detectedAmount <= 0) {

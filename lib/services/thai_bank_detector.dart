@@ -537,7 +537,7 @@ class ThaiBankDetector {
     if (text.contains('kma') || text.contains('krungsri') || text.contains('กรุงศรีอยุธยา') || text.contains('กรุงศรี') || text.contains('bay') || text.contains('ayudhya')) {
       return 'BAY';
     }
-    if (text.contains('mymo') || text.contains('gsb') || text.contains('ออมสิน') || text.contains('government savings')) {
+    if (text.contains('mymo') || text.contains('my mo') || text.contains('mym0') || text.contains('gsb') || text.contains('g sb') || text.contains('ออมสิน') || text.contains('0103030') || text.contains('government savings')) {
       return 'GSB';
     }
     if (text.contains('a-mobile') || text.contains('baac') || text.contains('ธ.ก.ส.') || text.contains('ธกส') || text.contains('เพื่อการเกษตรและสหกรณ์')) {

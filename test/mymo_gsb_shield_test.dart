@@ -85,5 +85,23 @@ MyMo by GSB
       );
       expect(isSlip, isTrue, reason: 'MyMo slip with txn id and memo must be accepted');
     });
+
+    test('Accept MyMo screenshot in Picture folder with Thai filename and stylized my mo font', () {
+      final stylizedMymoText = '''
+my mo GSB
+โอนเงินสำเร็จ
+28 ก.ย. 67 14:30
+จาก นายสมหมาย
+ไปยัง บัญชีพร้อมเพย์ 0891234567
+จำนวนเงิน 500.00 บาท
+รหัสอ้างอิง: 2024092898765432
+''';
+      final isSlip = OcrEngineService.isBankSlip(
+        stylizedMymoText,
+        fileName: 'ภาพหน้าจอ_20240928_143000.png',
+        filePath: '/storage/emulated/0/Picture/ภาพหน้าจอ_20240928_143000.png',
+      );
+      expect(isSlip, isTrue, reason: 'MyMo screenshot in Picture folder with Thai filename must be accepted');
+    });
   });
 }

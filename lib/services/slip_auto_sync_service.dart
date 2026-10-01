@@ -173,23 +173,55 @@ class SlipAutoSyncService {
         Directory('/storage/emulated/0/Download/MyMo'),
         Directory('/storage/emulated/0/Pictures/Screenshots'),
         Directory('/storage/emulated/0/DCIM/Screenshots'),
+        Directory('/storage/emulated/0/Pictures'),
+        Directory('/storage/emulated/0/Picture'),
+        Directory('/storage/emulated/0/DCIM'),
+        Directory('/storage/emulated/0/Download'),
       ];
+
+      final parentDirs = {
+        '/storage/emulated/0/Pictures',
+        '/storage/emulated/0/Picture',
+        '/storage/emulated/0/DCIM',
+        '/storage/emulated/0/Download',
+      };
 
       for (final dir in directSlipDirs) {
         try {
           if (await dir.exists()) {
+            final isParentDir = parentDirs.contains(dir.path);
             await for (final entity in dir.list(recursive: false)) {
               if (entity is File) {
                 final path = entity.path;
                 final ext = path.split('.').last.toLowerCase();
                 if (['jpg', 'jpeg', 'png', 'webp'].contains(ext)) {
+                  final name = path.split(RegExp(r'[\/\\]')).last;
+                  final lowerName = name.toLowerCase();
+
+                  // For top-level parent directories (like /Pictures or /DCIM), only scan files that look like slips or screenshots
+                  if (isParentDir) {
+                    final looksLikeSlipOrScreenshot = lowerName.contains('screenshot') ||
+                        lowerName.contains('screen_') ||
+                        lowerName.contains('ภาพหน้าจอ') ||
+                        lowerName.contains('screencap') ||
+                        lowerName.contains('mymo') ||
+                        lowerName.contains('gsb') ||
+                        lowerName.contains('ออมสิน') ||
+                        lowerName.contains('slip') ||
+                        lowerName.contains('โอน') ||
+                        lowerName.contains('paotang') ||
+                        lowerName.contains('เป๋าตัง');
+                    if (!looksLikeSlipOrScreenshot) {
+                      continue;
+                    }
+                  }
+
                   final stat = await entity.stat();
                   // Filter: cutoffDate (12 months for initial scan, 2 months for ongoing scans)
                   if (!isCreator && stat.modified.isBefore(cutoffDate)) {
                     continue;
                   }
                   if (stat.size > 1024) {
-                    final name = path.split(RegExp(r'[\/\\]')).last;
                     final baseName = DuplicateSlipChecker.extractBasename(name);
                     
                     // Strict deduplication check inside slip list (check path, name, and basename)
@@ -201,12 +233,11 @@ class SlipAutoSyncService {
                     });
 
                     if (!alreadyInList) {
-                      final lower = name.toLowerCase();
-                      final bank = (lower.contains('ibank') || lower.contains('อิสลาม'))
+                      final bank = (lowerName.contains('ibank') || lowerName.contains('อิสลาม'))
                           ? 'iBank (อิสลามแห่งประเทศไทย)'
-                          : ((lower.contains('mymo') || lower.contains('gsb') || lower.contains('ออมสิน'))
+                          : ((lowerName.contains('mymo') || lowerName.contains('gsb') || lowerName.contains('ออมสิน'))
                               ? 'MyMo by GSB (ออมสิน)'
-                              : (lower.contains('ไทยช่วยไทย') ? 'ไทยช่วยไทย (เป๋าตัง)' : (lower.contains('paotang') || lower.contains('เป๋าตัง') ? 'เป๋าตัง (PaoTang)' : 'สลิปโอนเงิน')));
+                              : (lowerName.contains('ไทยช่วยไทย') ? 'ไทยช่วยไทย (เป๋าตัง)' : (lowerName.contains('paotang') || lowerName.contains('เป๋าตัง') ? 'เป๋าตัง (PaoTang)' : 'สลิปโอนเงิน')));
                       allSlips.add({
                         'id': path.hashCode.toString(),
                         'name': name,
@@ -259,6 +290,7 @@ class SlipAutoSyncService {
       }
 
       final path = slip['path'] as String? ?? '';
+      final uri = slip['uri'] as String? ?? '';
       final name = slip['name'] as String? ?? '';
       final bankName = slip['bankName'] as String? ?? 'ธนาคารไทย';
       final timestamp = slip['dateAdded'] as num? ?? DateTime.now().millisecondsSinceEpoch;
@@ -269,9 +301,9 @@ class SlipAutoSyncService {
         continue;
       }
 
-      if (path.isEmpty && name.isEmpty) continue;
+      if (path.isEmpty && name.isEmpty && uri.isEmpty) continue;
 
-      final key = _getSlipKey(path, name);
+      final key = _getSlipKey(path.isNotEmpty ? path : uri, name);
       if (key.isNotEmpty) {
         if (_inFlightKeys.contains(key) || _processedKeys.contains(key)) {
           continue;
@@ -285,7 +317,7 @@ class SlipAutoSyncService {
           existingTransactions: controller.allTransactions,
           cachedDeletedSet: cachedDeletedSet,
           cachedImportedSet: cachedImportedSet,
-          filePath: path,
+          filePath: path.isNotEmpty ? path : uri,
           fileName: name,
         );
         if (isDup) {
@@ -301,6 +333,7 @@ class SlipAutoSyncService {
         final item = await _createTransactionFromSlip(
           controller: controller,
           path: path,
+          uri: uri,
           name: name,
           bankName: bankName,
           date: slipDate,
@@ -471,17 +504,21 @@ class SlipAutoSyncService {
   static Future<TransactionItem?> _createTransactionFromSlip({
     required ExpenseController controller,
     required String path,
+    String? uri,
     required String name,
     required String bankName,
     required DateTime date,
   }) async {
-    final file = File(path);
-    if (!file.existsSync() && !path.startsWith('content://')) {
+    final effectivePath = (path.isNotEmpty && File(path).existsSync())
+        ? path
+        : ((uri != null && uri.startsWith('content://')) ? uri : path);
+    final file = File(effectivePath);
+    if (!file.existsSync() && !effectivePath.startsWith('content://')) {
       return null;
     }
 
     // 1. Process image pixels with Google ML Kit native engine
-    final mlResult = await NativeBridgeService.processSlipImage(path);
+    final mlResult = await NativeBridgeService.processSlipImage(effectivePath);
     final qrPayload = mlResult['qrPayload'] as String? ?? '';
     final rawOcrText = mlResult['ocrText'] as String? ?? '';
 
@@ -491,7 +528,7 @@ class SlipAutoSyncService {
     final isSlipValid = OcrEngineService.isBankSlip(
       combined,
       fileName: name,
-      filePath: path,
+      filePath: effectivePath,
       qrPayload: qrPayload,
     );
 
@@ -499,7 +536,7 @@ class SlipAutoSyncService {
       return null;
     }
 
-    final cleanCombined = '$rawOcrText $name $bankName $path'.toLowerCase();
+    final cleanCombined = '$rawOcrText $name $bankName $effectivePath'.toLowerCase();
 
     // Check QR code payload first for sending bank code (066 = Islamic Bank of Thailand, 006 = Krungthai, 004 = KBank)
     QrSlipResult? qrSlipParsed;
@@ -824,7 +861,7 @@ class SlipAutoSyncService {
       }
     }
 
-    final persistentSlipPath = await SlipStorageService.persistSlipImage(path);
+    final persistentSlipPath = await SlipStorageService.persistSlipImage(effectivePath);
 
     // Auto-link slip directly to the corresponding bank account (e.g. IBANK, KBank, SCB, KTB)
     final targetBankCode = bankIdent.bankCode;
