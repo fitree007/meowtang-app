@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ai_expense_tracker/services/ocr_engine_service.dart';
 import 'package:ai_expense_tracker/services/thai_bank_detector.dart';
+import 'package:ai_expense_tracker/models/transaction_item.dart';
 
 void main() {
   group('MyMo by GSB Screenshot Shield Tests', () {
@@ -125,5 +126,46 @@ mymo by GSB
       final bankIdent = ThaiBankDetector.identifySlipBank(rawOcrText: realUserMymoSlip);
       expect(bankIdent.bankCode, equals('GSB'));
     });
+
+    test('Strict rejection of solitary titles and OCR gibberish noise', () {
+      expect(OcrEngineService.isValidPersonOrShopName('น.ส.'), isFalse);
+      expect(OcrEngineService.isValidPersonOrShopName('นาย'), isFalse);
+      expect(OcrEngineService.isValidPersonOrShopName('คุณ'), isFalse);
+      expect(OcrEngineService.isValidPersonOrShopName('น.ส. asdflkjsd'), isFalse);
+      expect(OcrEngineService.isValidPersonOrShopName('นาย qwrtyp'), isFalse);
+      expect(OcrEngineService.isValidPersonOrShopName('น.ส. นุรฮายาตี ลือแบซา'), isTrue);
+      expect(OcrEngineService.isValidPersonOrShopName('นาย กูรีดวน บินอูมา'), isTrue);
+    });
+
+    test('TransactionItem slipTransferDescription rejects OCR noise and cleans promptpay topup', () {
+      final itemNoise = TransactionItem(
+        id: '1',
+        title: 'โอนเงิน',
+        amount: 50.0,
+        type: TransactionType.expense,
+        date: DateTime.now(),
+        accountId: 'acc1',
+        categoryId: 'cat1',
+        categoryName: 'ทั่วไป',
+        senderName: 'น.ส. asdfghjk',
+        receiverName: null,
+      );
+      expect(itemNoise.slipTransferDescription, isNull, reason: 'Must not show gibberish name');
+
+      final itemTopup = TransactionItem(
+        id: '2',
+        title: 'โอนเงิน',
+        amount: 42.0,
+        type: TransactionType.expense,
+        date: DateTime.now(),
+        accountId: 'acc1',
+        categoryId: 'cat1',
+        categoryName: 'ทั่วไป',
+        senderName: 'นาย กูรีดวน บินอูมา',
+        receiverName: 'น.ส. นุรฮายาตี ลือแบซา เติมเงินพร้อมเพย์',
+      );
+      expect(itemTopup.slipTransferDescription, equals('โอนจาก นาย กูรีดวน บินอูมา ➔ น.ส. นุรฮายาตี ลือแบซา'));
+    });
   });
 }
+

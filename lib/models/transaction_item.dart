@@ -150,6 +150,15 @@ class TransactionItem {
     String _sanitizePartyName(String name) {
       var n = name.trim();
       n = n.replaceAll(RegExp(r'^[•|~_<>*^\\/#@\s]+|[•|~_<>*^\\/#@\s]+$'), '');
+      // Strip promptpay topup terms
+      n = n.replaceAll(
+        RegExp(
+          r'(?:เติมเงินพร้อมเพย์|รับเงินพร้อมเพย์|โอนเงินพร้อมเพย์|เติมเงิน|พร้อมเพย์|promptpay)',
+          caseSensitive: false,
+        ),
+        '',
+      ).trim();
+
       if (RegExp(r'[\u0E00-\u0E7F]').hasMatch(n) && RegExp(r'[a-zA-Z]').hasMatch(n)) {
         if (n.contains('/') || n.contains('|')) {
           final parts = n.split(RegExp(r'[/|]'));
@@ -173,15 +182,52 @@ class TransactionItem {
       return n.trim();
     }
 
-    if (s != null && s.isNotEmpty) s = _sanitizePartyName(s);
-    if (r != null && r.isNotEmpty) r = _sanitizePartyName(r);
+    bool _isValidPartyName(String raw) {
+      final n = _sanitizePartyName(raw);
+      if (n.isEmpty || n.length < 2) return false;
 
-    if (s != null && s.isNotEmpty && r != null && r.isNotEmpty) {
-      return 'โอนจาก $s ➔ $r';
-    } else if (r != null && r.isNotEmpty) {
-      return 'โอนไปยัง $r';
-    } else if (s != null && s.isNotEmpty) {
-      return 'โอนโดย $s';
+      // Standalone titles are not valid names
+      final standaloneTitles = {
+        'นาย', 'นาง', 'นางสาว', 'น.ส.', 'น.ส', 'ด.ช.', 'ด.ญ.', 'คุณ',
+        'บจก.', 'หจก.', 'บริษัท', 'ร้าน', 'บมจ.', 'mr', 'mr.', 'mrs', 'mrs.', 'ms', 'ms.', 'miss'
+      };
+      if (standaloneTitles.contains(n.toLowerCase())) return false;
+
+      final strippedTitle = n.replaceFirst(
+        RegExp(r'^(?:นาย|นาง|นางสาว|น\.ส\.|ด\.ช\.|ด\.ญ\.|คุณ|บจก\.|หจก\.|บริษัท|ร้าน|บมจ\.|MR\.|MRS\.|MS\.|MISS)\s*', caseSensitive: false),
+        '',
+      ).trim();
+
+      if (strippedTitle.isEmpty || strippedTitle.length < 2) return false;
+
+      // Reject strings with no Thai or English letters
+      if (!RegExp(r'[\u0E00-\u0E7FA-Za-z]').hasMatch(strippedTitle)) return false;
+
+      // Reject standalone English gibberish noise (no vowels or 5+ consecutive consonants)
+      if (RegExp(r'^[A-Za-z\s.\-_]+$').hasMatch(strippedTitle)) {
+        final lower = strippedTitle.toLowerCase();
+        if (!RegExp(r'[aeiouy]').hasMatch(lower)) return false;
+        if (RegExp(r'[bcdfghjklmnpqrstvwxyz]{5,}').hasMatch(lower)) return false;
+      }
+
+      // If it contains Thai characters, ensure at least 2 Thai characters
+      if (RegExp(r'[\u0E00-\u0E7F]').hasMatch(strippedTitle)) {
+        final thaiMatches = RegExp(r'[\u0E00-\u0E7F]').allMatches(strippedTitle).length;
+        if (thaiMatches < 2) return false;
+      }
+
+      return true;
+    }
+
+    final validS = (s != null && s.isNotEmpty && _isValidPartyName(s)) ? _sanitizePartyName(s) : null;
+    final validR = (r != null && r.isNotEmpty && _isValidPartyName(r)) ? _sanitizePartyName(r) : null;
+
+    if (validS != null && validR != null) {
+      return 'โอนจาก $validS ➔ $validR';
+    } else if (validR != null) {
+      return 'โอนไปยัง $validR';
+    } else if (validS != null) {
+      return 'โอนโดย $validS';
     }
     return null;
   }

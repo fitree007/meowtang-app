@@ -175,15 +175,11 @@ class SlipAutoSyncService {
         Directory('/storage/emulated/0/DCIM/Screenshots'),
         Directory('/storage/emulated/0/Pictures'),
         Directory('/storage/emulated/0/Picture'),
-        Directory('/storage/emulated/0/DCIM'),
-        Directory('/storage/emulated/0/Download'),
       ];
 
       final parentDirs = {
         '/storage/emulated/0/Pictures',
         '/storage/emulated/0/Picture',
-        '/storage/emulated/0/DCIM',
-        '/storage/emulated/0/Download',
       };
 
       for (final dir in directSlipDirs) {
@@ -256,6 +252,13 @@ class SlipAutoSyncService {
         } catch (_) {}
       }
 
+    // Sort slips descending by date (newest first) so recent slips are imported immediately
+    allSlips.sort((a, b) {
+      final aTime = a['dateAdded'] as num? ?? 0;
+      final bTime = b['dateAdded'] as num? ?? 0;
+      return bTime.compareTo(aTime);
+    });
+
     if (allSlips.isEmpty) {
       if (isInitialScan) {
         await controller.storage.setInitialDeviceScanCompleted(true);
@@ -281,6 +284,9 @@ class SlipAutoSyncService {
     final cachedDeletedSet = controller.storage.getDeletedSlips().map((s) => s.trim().toLowerCase()).toSet();
     final cachedImportedSet = controller.storage.getImportedSlipIdentifiers().map((s) => s.trim().toLowerCase()).toSet();
     int iterationCount = 0;
+    int unimportedProcessedCount = 0;
+    // For ongoing pull-to-refresh scans, cap maximum unimported files processed to keep pull-to-refresh instantaneous (1-2s)
+    final maxOcrPerCycle = isInitialScan ? 999999 : 30;
 
     for (final slip in allSlips) {
       iterationCount++;
@@ -324,6 +330,12 @@ class SlipAutoSyncService {
           if (key.isNotEmpty) _processedKeys.add(key);
           continue;
         }
+
+        // Cap new unimported files processed per ongoing refresh cycle to ensure 1-2s snappy responsiveness
+        if (unimportedProcessedCount >= maxOcrPerCycle) {
+          break;
+        }
+        unimportedProcessedCount++;
 
         // Monthly quota check: only enforced for ongoing scans in PlayStore edition, NOT for Creator Edition or initial scan
         if (!isCreator && !isInitialScan && !controller.canImportMoreSlips) {

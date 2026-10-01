@@ -1017,7 +1017,7 @@ class OcrEngineService {
     // Strip bank names & promptpay tags
     name = name.replaceAll(
       RegExp(
-        r'(?:ธนาคาร|ธ\.)?\s*(?:กสิกรไทย|ไทยพาณิชย์|กรุงไทย|กรุงเทพ|กรุงศรี|ทหารไทยธนชาต|ออมสิน|อิสลาม|เคจีไอ|เกียรตินาคิน|ttb|kbank|scb|ktb|bbl|gsb|ibank|promptpay|พร้อมเพย์|k plus|scb easy|krungthai next|true money|truemoney|เป๋าตัง|g-wallet)',
+        r'(?:ธนาคาร|ธ\.)?\s*(?:กสิกรไทย|ไทยพาณิชย์|กรุงไทย|กรุงเทพ|กรุงศรี|ทหารไทยธนชาต|ออมสิน|อิสลาม|เคจีไอ|เกียรตินาคิน|ttb|kbank|scb|ktb|bbl|gsb|ibank|เติมเงินพร้อมเพย์|รับเงินพร้อมเพย์|โอนเงินพร้อมเพย์|เติมเงิน|promptpay|พร้อมเพย์|k plus|scb easy|krungthai next|true money|truemoney|เป๋าตัง|g-wallet)',
         caseSensitive: false,
       ),
       '',
@@ -1092,7 +1092,50 @@ class OcrEngineService {
       }
     }
 
-    return name.trim();
+    final trimmed = name.trim();
+    if (!isValidPersonOrShopName(trimmed)) {
+      return '';
+    }
+
+    return trimmed;
+  }
+
+  /// Validates whether a candidate name is a genuine person/shop name,
+  /// strictly rejecting solitary titles (e.g. 'น.ส.', 'นาย') and OCR noise/gibberish (e.g. 'น.ส. asdflkjsd').
+  static bool isValidPersonOrShopName(String name) {
+    final clean = name.trim();
+    if (clean.isEmpty || clean.length < 2) return false;
+
+    final standaloneTitles = {
+      'นาย', 'นาง', 'นางสาว', 'น.ส.', 'น.ส', 'ด.ช.', 'ด.ญ.', 'คุณ',
+      'บจก.', 'หจก.', 'บริษัท', 'ร้าน', 'บมจ.', 'mr', 'mr.', 'mrs', 'mrs.', 'ms', 'ms.', 'miss'
+    };
+    if (standaloneTitles.contains(clean.toLowerCase())) return false;
+
+    final strippedTitle = clean.replaceFirst(
+      RegExp(r'^(?:นาย|นาง|นางสาว|น\.ส\.|ด\.ช\.|ด\.ญ\.|คุณ|บจก\.|หจก\.|บริษัท|ร้าน|บมจ\.|MR\.|MRS\.|MS\.|MISS)\s*', caseSensitive: false),
+      '',
+    ).trim();
+
+    if (strippedTitle.isEmpty || strippedTitle.length < 2) return false;
+
+    // Must contain Thai or English alphabetical characters
+    if (!RegExp(r'[\u0E00-\u0E7FA-Za-z]').hasMatch(strippedTitle)) return false;
+
+    // Reject standalone English gibberish noise (e.g. random consonants without vowels or long clusters)
+    if (RegExp(r'^[A-Za-z\s.\-_]+$').hasMatch(strippedTitle)) {
+      final lower = strippedTitle.toLowerCase();
+      if (!RegExp(r'[aeiouy]').hasMatch(lower)) return false;
+      if (RegExp(r'[bcdfghjklmnpqrstvwxyz]{5,}').hasMatch(lower)) return false;
+    }
+
+    // If it has Thai characters, ensure at least 2 Thai characters
+    if (RegExp(r'[\u0E00-\u0E7F]').hasMatch(strippedTitle)) {
+      final thaiMatches = RegExp(r'[\u0E00-\u0E7F]').allMatches(strippedTitle).length;
+      if (thaiMatches < 2) return false;
+    }
+
+    return true;
   }
 
   /// Robust helper to extract Sender and Receiver from slip lines (Supporting all Thai Banks including K PLUS, SCB, KTB, BBL, TTB, Paotang)
