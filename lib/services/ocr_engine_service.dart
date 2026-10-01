@@ -101,9 +101,28 @@ class OcrEngineService {
     static bool isBankSlip(String rawText, {String? fileName, String? filePath, String? qrPayload}) {
     final file = (fileName ?? filePath ?? '').toLowerCase().replaceAll('\\', '/');
 
-    // 0. Strict Negative Filter: Reject Screenshots and Screen Captures (แคปหน้าจอ)
+    // 0. Negative Filter: Reject Screenshots and Screen Captures UNLESS they contain bank slip evidence (e.g. MyMo by GSB screenshots)
     if (file.contains('screenshot') || file.contains('screen_capture') || file.contains('capture_')) {
-      return false;
+      final cleanText = rawText.toLowerCase();
+      final bool isBankSlipScreenshot = cleanText.contains('mymo') ||
+          cleanText.contains('gsb') ||
+          cleanText.contains('ออมสิน') ||
+          cleanText.contains('ธนาคารออมสิน') ||
+          cleanText.contains('0103030') ||
+          cleanText.contains('030') ||
+          cleanText.contains('โอนเงินสำเร็จ') ||
+          cleanText.contains('รายการสำเร็จ') ||
+          cleanText.contains('โอนสำเร็จ') ||
+          cleanText.contains('transfer successful') ||
+          (qrPayload != null &&
+              qrPayload.trim().isNotEmpty &&
+              (qrPayload.contains('0103030') ||
+                  qrPayload.contains('A000000677010114') ||
+                  qrPayload.contains('mymo') ||
+                  qrPayload.contains('gsb.or.th')));
+      if (!isBankSlipScreenshot) {
+        return false;
+      }
     }
 
     // 1. Strict Multi-Bank Passbook / BookBank / E-Passbook Rejection:
@@ -223,7 +242,7 @@ class OcrEngineService {
       'รายการสำเร็จ', 'โอนเงินสำเร็จ', 'โอนสำเร็จ', 'สำเร็จ', 'ไทยช่วยไทย', 'คนละครึ่ง',
       'เราชนะ', 'สวัสดิการแห่งรัฐ', 'เงินช่วยเหลือ', 'เป๋าตัง', 'paotang', 'g-wallet',
       'gwallet', 'k plus', 'kplus', 'kbank', 'krungthai next', 'krungthai', 'ktb',
-      'scb easy', 'scb', 'ibank', 'อิสลาม', 'ttb touch', 'ttb', 'mymo', 'truemoney',
+      'scb easy', 'scb', 'ibank', 'อิสลาม', 'ttb touch', 'ttb', 'mymo', 'gsb', 'ออมสิน', 'ธนาคารออมสิน', 'mymo by gsb', 'truemoney',
       'โอนเงิน', 'รับเงิน', 'เลขที่รายการ', 'รหัสอ้างอิง', 'หมายเลขอ้างอิง', 'ref no',
       'txid', 'สลิป', 'จำนวนเงิน', 'จำนวนเงินที่ชำระ', 'ยอดเงิน', 'ยอดโอน',
       'transfer successful', 'payment successful', 'transaction successful', 'bualuang', 'bbl'

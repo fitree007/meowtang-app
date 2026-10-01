@@ -48,7 +48,8 @@ class BankNotificationListenerService : NotificationListenerService() {
             "ktbcs.netbank" to "กรุงไทย (Krungthai NEXT)",
             "com.bbl.mobilebanking" to "กรุงเทพ (Bualuang m)",
             "com.tmbbank.oneapp" to "ttb touch",
-            "th.or.gsb.mymo" to "MyMo (ออมสิน)",
+            "th.or.gsb.mymo" to "MyMo by GSB (ออมสิน)",
+            "com.gsb.mymo" to "MyMo by GSB (ออมสิน)",
             "krungsri.kma" to "กรุงศรี (KMA)",
             "th.co.cimbthai.mo" to "CIMB Thai",
             "th.co.truemoney.wallet" to "TrueMoney Wallet",
@@ -178,7 +179,7 @@ class BankNotificationListenerService : NotificationListenerService() {
         if (lower.contains("scb") || lower.contains("ไทยพาณิชย์")) return "ไทยพาณิชย์ (SCB EASY)"
         if (lower.contains("krungthai") || lower.contains("ktb") || lower.contains("กรุงไทย")) return "กรุงไทย (Krungthai NEXT)"
         if (lower.contains("ttb") || lower.contains("ทีทีบี")) return "ttb touch"
-        if (lower.contains("mymo") || lower.contains("ออมสิน")) return "MyMo (ออมสิน)"
+        if (lower.contains("mymo") || lower.contains("ออมสิน") || lower.contains("gsb")) return "MyMo by GSB (ออมสิน)"
         if (lower.contains("bualuang") || lower.contains("bbl") || lower.contains("กรุงเทพ")) return "กรุงเทพ (Bualuang)"
         if (lower.contains("kma") || lower.contains("กรุงศรี")) return "กรุงศรี (KMA)"
         if (lower.contains("truemoney") || lower.contains("ทรูมันนี่")) return "TrueMoney Wallet"

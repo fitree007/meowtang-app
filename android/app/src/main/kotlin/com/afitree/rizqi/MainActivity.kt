@@ -689,7 +689,7 @@ class MainActivity : FlutterActivity() {
                     // Keyword validation for bank slip indicators
                     val slipKeywords = listOf(
                         "kplus", "kbank", "scb", "ktb", "krungthai", "truemoney", "promptpay", "bbl",
-                        "ttb", "mymo", "ibank", "paotang", "เป๋าตัง", "gwallet", "g-wallet", "ไทยช่วยไทย",
+                        "ttb", "mymo", "gsb", "ออมสิน", "ธนาคารออมสิน", "mymo by gsb", "ibank", "paotang", "เป๋าตัง", "gwallet", "g-wallet", "ไทยช่วยไทย",
                         "คนละครึ่ง", "เราชนะ", "สวัสดิการแห่งรัฐ", "เงินช่วยเหลือ",
                         "slip", "สลิป", "โอน", "สำเร็จ", "รายการสำเร็จ", "โอนเงินสำเร็จ"
                     )
@@ -724,11 +724,14 @@ class MainActivity : FlutterActivity() {
                     } else if (combinedSearch.contains("ttb")) {
                         detectedBank = "ttb touch"
                         isSlip = true
-                    } else if (combinedSearch.contains("mymo")) {
-                        detectedBank = "MyMo (ออมสิน)"
+                    } else if (combinedSearch.contains("mymo") || combinedSearch.contains("gsb") || combinedSearch.contains("ออมสิน")) {
+                        detectedBank = "MyMo by GSB (ออมสิน)"
                         isSlip = true
                     } else if (combinedSearch.contains("ibank") || combinedSearch.contains("อิสลาม")) {
                         detectedBank = "iBank (อิสลามแห่งประเทศไทย)"
+                        isSlip = true
+                    } else if (lowerPath.contains("screenshot") || lowerName.contains("screenshot") || lowerRelPath.contains("screenshot")) {
+                        detectedBank = "สลิปโอนเงิน (Screenshot)"
                         isSlip = true
                     } else if (slipKeywords.any { kw -> combinedSearch.contains(kw) }) {
                         detectedBank = "สลิปโอนเงิน"
@@ -1088,7 +1091,7 @@ class MainActivity : FlutterActivity() {
 
                 val bankKeywords = listOf(
                     "kplus", "kbank", "scb", "ktb", "krungthai", "truemoney", "promptpay", "bbl",
-                    "ttb", "mymo", "ibank", "paotang", "เป๋าตัง", "gwallet", "g-wallet", "ไทยช่วยไทย",
+                    "ttb", "mymo", "gsb", "ออมสิน", "ธนาคารออมสิน", "mymo by gsb", "ibank", "paotang", "เป๋าตัง", "gwallet", "g-wallet", "ไทยช่วยไทย",
                     "คนละครึ่ง", "เราชนะ", "สวัสดิการแห่งรัฐ", "เงินช่วยเหลือ",
                     "slip", "สลิป", "โอน", "สำเร็จ", "รายการสำเร็จ", "โอนเงินสำเร็จ"
                 )
@@ -1155,11 +1158,14 @@ class MainActivity : FlutterActivity() {
                     } else if (combinedSearch.contains("ttb")) {
                         detectedBank = "ttb touch"
                         isSlip = true
-                    } else if (combinedSearch.contains("mymo")) {
-                        detectedBank = "MyMo (ออมสิน)"
+                    } else if (combinedSearch.contains("mymo") || combinedSearch.contains("gsb") || combinedSearch.contains("ออมสิน")) {
+                        detectedBank = "MyMo by GSB (ออมสิน)"
                         isSlip = true
                     } else if (combinedSearch.contains("ibank") || combinedSearch.contains("อิสลาม") || combinedSearch.contains("islamic")) {
                         detectedBank = "iBank (อิสลามแห่งประเทศไทย)"
+                        isSlip = true
+                    } else if (lowerPath.contains("screenshot") || lowerName.contains("screenshot") || lowerRelPath.contains("screenshot")) {
+                        detectedBank = "สลิปโอนเงิน (Screenshot)"
                         isSlip = true
                     } else if (bankKeywords.any { kw -> combinedSearch.contains(kw) }) {
                         detectedBank = "สลิปโอนเงิน"
@@ -1246,7 +1252,7 @@ class MainActivity : FlutterActivity() {
             "th.co.truemoney.wallet" to "TrueMoney Wallet",
             "com.bbl.mPlus" to "Bualuang mBanking (กรุงเทพ)",
             "com.ttbbank.oneapp" to "ttb touch (ทหารไทยธนชาต)",
-            "com.gsb.mymo" to "MyMo (ธนาคารออมสิน)",
+            "com.gsb.mymo" to "MyMo by GSB (ธนาคารออมสิน)",
             "th.co.cimbthai.moo" to "CIMB Thai Digital",
             "th.co.lhbank.mobile" to "LHB You (LH Bank)"
         )

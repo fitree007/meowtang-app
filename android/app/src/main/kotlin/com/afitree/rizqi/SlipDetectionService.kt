@@ -281,7 +281,7 @@ class SlipDetectionService : Service() {
                     // 1. Bank Slip & Incoming Money Keywords Validation
                     val slipKeywords = listOf(
                         "kplus", "kbank", "scb", "ktb", "krungthai", "truemoney", "promptpay", "bbl",
-                        "ttb", "mymo", "ibank", "paotang", "เป๋าตัง", "gwallet", "g-wallet", "ไทยช่วยไทย",
+                        "ttb", "mymo", "gsb", "ออมสิน", "ธนาคารออมสิน", "mymo by gsb", "ibank", "paotang", "เป๋าตัง", "gwallet", "g-wallet", "ไทยช่วยไทย",
                         "คนละครึ่ง", "เราชนะ", "สวัสดิการแห่งรัฐ", "เงินช่วยเหลือ",
                         "slip", "สลิป", "โอน", "สำเร็จ", "รายการสำเร็จ", "โอนเงินสำเร็จ",
                         "เงินเข้า", "โอนเข้า", "รับเงิน", "ได้รับเงิน", "เงินโอนเข้า", "เงินเดือน", "ยอดเงินเข้า"
@@ -321,11 +321,14 @@ class SlipDetectionService : Service() {
                     } else if (combinedSearch.contains("ttb")) {
                         detectedBank = "ttb touch"
                         isSlip = true
-                    } else if (combinedSearch.contains("mymo")) {
-                        detectedBank = "MyMo (ออมสิน)"
+                    } else if (combinedSearch.contains("mymo") || combinedSearch.contains("gsb") || combinedSearch.contains("ออมสิน")) {
+                        detectedBank = "MyMo by GSB (ออมสิน)"
                         isSlip = true
                     } else if (lowerPath.contains("ibank") || lowerName.contains("ibank") || lowerPath.contains("อิสลาม") || lowerName.contains("อิสลาม")) {
                         detectedBank = "iBank (อิสลามแห่งประเทศไทย)"
+                        isSlip = true
+                    } else if (lowerPath.contains("screenshot") || lowerName.contains("screenshot") || lowerRelPath.contains("screenshot")) {
+                        detectedBank = if (isIncomeSlip) "สลิปรับเงินโอนเข้า" else "สลิปโอนเงิน (Screenshot)"
                         isSlip = true
                     } else if (slipKeywords.any { kw -> lowerName.contains(kw) || lowerPath.contains(kw) }) {
                         detectedBank = if (isIncomeSlip) "สลิปรับเงินโอนเข้า" else "สลิปโอนเงิน"

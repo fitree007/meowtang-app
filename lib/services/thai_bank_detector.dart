@@ -129,12 +129,12 @@ class ThaiBankDetector {
     ),
     ThaiBankInfo(
       code: 'GSB',
-      nameTh: 'ธนาคารออมสิน',
-      nameEn: 'Government Savings Bank (MyMo)',
-      shortName: 'GSB',
+      nameTh: 'MyMo by GSB (ธนาคารออมสิน)',
+      nameEn: 'MyMo by GSB (Government Savings Bank)',
+      shortName: 'MyMo GSB',
       brandColor: Color(0xFFEB198B),
       icon: Icons.account_balance,
-      keywords: ['ออมสิน', 'gsb', 'mymo'],
+      keywords: ['ออมสิน', 'gsb', 'mymo', 'mymo by gsb', 'mymo gsb', 'ggb', 'ธนาคารออมสิน', 'government savings'],
     ),
     ThaiBankInfo(
       code: 'UOB',
@@ -652,7 +652,7 @@ class ThaiBankDetector {
         case '025':
           return const SlipBankIdentification(bankCode: 'BAY', bankName: 'กรุงศรีอยุธยา (KMA)', cleanBank: 'กรุงศรีอยุธยา');
         case '030':
-          return const SlipBankIdentification(bankCode: 'GSB', bankName: 'MyMo (ออมสิน)', cleanBank: 'ออมสิน');
+          return const SlipBankIdentification(bankCode: 'GSB', bankName: 'MyMo by GSB (ออมสิน)', cleanBank: 'ออมสิน');
         case '034':
           return const SlipBankIdentification(bankCode: 'BAAC', bankName: 'ธ.ก.ส. (A-Mobile Plus)', cleanBank: 'ธ.ก.ส.');
         case '066':
@@ -692,8 +692,8 @@ class ThaiBankDetector {
       if (lowerQr.contains('ttbbank') || lowerQr.contains('ttb')) {
         return const SlipBankIdentification(bankCode: 'TTB', bankName: 'ทหารไทยธนชาต (ttb)', cleanBank: 'ทหารไทยธนชาต (ttb)');
       }
-      if (lowerQr.contains('gsb.or.th') || lowerQr.contains('mymo')) {
-        return const SlipBankIdentification(bankCode: 'GSB', bankName: 'MyMo (ออมสิน)', cleanBank: 'ออมสิน');
+      if (lowerQr.contains('gsb.or.th') || lowerQr.contains('mymo') || lowerQr.contains('0103030')) {
+        return const SlipBankIdentification(bankCode: 'GSB', bankName: 'MyMo by GSB (ออมสิน)', cleanBank: 'ออมสิน');
       }
       if (lowerQr.contains('krungsri') || lowerQr.contains('kma')) {
         return const SlipBankIdentification(bankCode: 'BAY', bankName: 'กรุงศรีอยุธยา (KMA)', cleanBank: 'กรุงศรีอยุธยา');
@@ -721,8 +721,8 @@ class ThaiBankDetector {
       if (pathLower.contains('ttb touch') || pathLower.contains('ttb')) {
         return const SlipBankIdentification(bankCode: 'TTB', bankName: 'ทหารไทยธนชาต (ttb)', cleanBank: 'ทหารไทยธนชาต (ttb)');
       }
-      if (pathLower.contains('mymo') || pathLower.contains('gsb')) {
-        return const SlipBankIdentification(bankCode: 'GSB', bankName: 'MyMo (ออมสิน)', cleanBank: 'ออมสิน');
+      if (pathLower.contains('mymo') || pathLower.contains('gsb') || pathLower.contains('ออมสิน')) {
+        return const SlipBankIdentification(bankCode: 'GSB', bankName: 'MyMo by GSB (ออมสิน)', cleanBank: 'ออมสิน');
       }
       if (pathLower.contains('kma') || pathLower.contains('krungsri')) {
         return const SlipBankIdentification(bankCode: 'BAY', bankName: 'กรุงศรีอยุธยา (KMA)', cleanBank: 'กรุงศรีอยุธยา');

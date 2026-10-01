@@ -157,15 +157,22 @@ class SlipAutoSyncService {
       final slipFiles = await NativeBridgeService.scanBankSlips(daysLimit: daysToScan);
       final allSlips = List<Map<String, dynamic>>.from(slipFiles);
 
-      // Direct Physical Folder scan for PaoTang & other slip directories to guarantee 100% detection (Asynchronous I/O)
-      final paoTangDirs = [
+      // Direct Physical Folder scan for PaoTang, MyMo by GSB & screenshots directories to guarantee 100% detection (Asynchronous I/O)
+      final directSlipDirs = [
         Directory('/storage/emulated/0/Pictures/PaoTang'),
         Directory('/storage/emulated/0/Pictures/เป๋าตัง'),
         Directory('/storage/emulated/0/DCIM/PaoTang'),
         Directory('/storage/emulated/0/Download/PaoTang'),
+        Directory('/storage/emulated/0/Pictures/MyMo'),
+        Directory('/storage/emulated/0/Pictures/GSB'),
+        Directory('/storage/emulated/0/Pictures/ออมสิน'),
+        Directory('/storage/emulated/0/DCIM/MyMo'),
+        Directory('/storage/emulated/0/Download/MyMo'),
+        Directory('/storage/emulated/0/Pictures/Screenshots'),
+        Directory('/storage/emulated/0/DCIM/Screenshots'),
       ];
 
-      for (final dir in paoTangDirs) {
+      for (final dir in directSlipDirs) {
         try {
           if (await dir.exists()) {
             await for (final entity in dir.list(recursive: false)) {
@@ -194,7 +201,9 @@ class SlipAutoSyncService {
                       final lower = name.toLowerCase();
                       final bank = (lower.contains('ibank') || lower.contains('อิสลาม'))
                           ? 'iBank (อิสลามแห่งประเทศไทย)'
-                          : (lower.contains('ไทยช่วยไทย') ? 'ไทยช่วยไทย (เป๋าตัง)' : 'เป๋าตัง (PaoTang)');
+                          : ((lower.contains('mymo') || lower.contains('gsb') || lower.contains('ออมสิน'))
+                              ? 'MyMo by GSB (ออมสิน)'
+                              : (lower.contains('ไทยช่วยไทย') ? 'ไทยช่วยไทย (เป๋าตัง)' : (lower.contains('paotang') || lower.contains('เป๋าตัง') ? 'เป๋าตัง (PaoTang)' : 'สลิปโอนเงิน')));
                       allSlips.add({
                         'id': path.hashCode.toString(),
                         'name': name,
