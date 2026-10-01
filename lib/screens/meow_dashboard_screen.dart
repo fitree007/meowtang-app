@@ -2340,7 +2340,6 @@ void _handleMascotPetting() {
 
                 // Transaction Cards with Smooth Swipe-Left-to-Delete and Tap-to-View Slip
                 ...txList.map((tx) {
-                 final transferText = tx.slipTransferDescription;
                  final cleanNote = tx.cleanNote;
 
                  return RepaintBoundary(
@@ -2758,39 +2757,6 @@ void _handleMascotPetting() {
                         ),
                        ],
 
-                       // Transfer Details (Who transferred to Whom)
-                       if (transferText != null && transferText.isNotEmpty) ...[
-                        Container(
-                         margin: const EdgeInsets.only(top: 5),
-                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                         decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF0F2744) : const Color(0xFFEFF6FF),
-                          borderRadius: BorderRadius.circular(7),
-                          border: Border.all(
-                           color: const Color(0xFF38BDF8).withValues(alpha: isDark ? 0.3 : 0.2),
-                           width: 0.8,
-                          ),
-                         ),
-                         child: Row(
-                          children: [
-                           const Icon(Icons.swap_horiz_rounded, color: Color(0xFF0284C7), size: 13),
-                           const SizedBox(width: 4),
-                           Expanded(
-                            child: Text(
-                             transferText,
-                             style: TextStyle(
-                              color: isDark ? const Color(0xFFBAE6FD) : const Color(0xFF0369A1),
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w500,
-                             ),
-                             maxLines: 2,
-                             overflow: TextOverflow.ellipsis,
-                            ),
-                           ),
-                          ],
-                         ),
-                        ),
-                       ],
 
                         // Stamped Date & Time & Minimalist Swipe Micro-Hints (Swipe Right: Edit | Date/Time | Delete :Swipe Left)
                         () {
