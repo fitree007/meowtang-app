@@ -101,10 +101,11 @@ class OcrEngineService {
     static bool isBankSlip(String rawText, {String? fileName, String? filePath, String? qrPayload}) {
     final file = (fileName ?? filePath ?? '').toLowerCase().replaceAll('\\', '/');
 
-    // 0. Strict Filter: For Screenshots, ONLY allow MyMo by GSB (ธนาคารออมสิน) exclusively!
+    // 0. Strict Filter: For Screenshots, ONLY allow genuine MyMo by GSB (ธนาคารออมสิน) slips exclusively!
+    // Reject any casual chats, social media feeds, or other screens that casually mention GSB.
     if (file.contains('screenshot') || file.contains('screen_capture') || file.contains('capture_')) {
       final cleanText = rawText.toLowerCase();
-      final bool isMyMoOnly = cleanText.contains('mymo') ||
+      final bool hasMyMoKeyword = cleanText.contains('mymo') ||
           cleanText.contains('gsb') ||
           cleanText.contains('ออมสิน') ||
           cleanText.contains('ธนาคารออมสิน') ||
@@ -114,7 +115,38 @@ class OcrEngineService {
               (qrPayload.contains('0103030') ||
                   qrPayload.contains('mymo') ||
                   qrPayload.contains('gsb.or.th')));
-      if (!isMyMoOnly) {
+
+      if (!hasMyMoKeyword) {
+        return false;
+      }
+
+      // Layer 2: Must explicitly show transaction success/execution status
+      final bool hasTransferStatus = cleanText.contains('โอนเงินสำเร็จ') ||
+          cleanText.contains('รายการสำเร็จ') ||
+          cleanText.contains('ทำรายการสำเร็จ') ||
+          cleanText.contains('ชำระเงินสำเร็จ') ||
+          cleanText.contains('เติมเงินสำเร็จ') ||
+          cleanText.contains('transfer successful') ||
+          cleanText.contains('payment successful') ||
+          cleanText.contains('transaction successful');
+
+      // Layer 3: Must have genuine bank slip structural signatures (Ref ID, from/to account structure, or BOT ITMX slip QR)
+      final bool hasSlipStructure = cleanText.contains('รหัสอ้างอิง') ||
+          cleanText.contains('หมายเลขอ้างอิง') ||
+          cleanText.contains('เลขที่รายการ') ||
+          cleanText.contains('ref no') ||
+          cleanText.contains('txid') ||
+          cleanText.contains('จากบัญชี') ||
+          cleanText.contains('ไปยังบัญชี') ||
+          (cleanText.contains('จาก') && cleanText.contains('ไปยัง')) ||
+          (cleanText.contains('จาก') && cleanText.contains('ถึง')) ||
+          (qrPayload != null && qrPayload.trim().isNotEmpty && qrPayload.contains('0103030'));
+
+      // Layer 4: Must have a valid positive amount detected
+      final double detectedAmount = extractAmountFromText(rawText);
+
+      // If screenshot fails any of the strict banking slip requirements, reject it immediately!
+      if (!hasTransferStatus || !hasSlipStructure || detectedAmount <= 0) {
         return false;
       }
     }
