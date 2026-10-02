@@ -33,7 +33,7 @@ enum MascotMood {
 }
 
 class ExpenseController extends ChangeNotifier {
-  static const String appVersion = '1.41.81';
+  static const String appVersion = '1.41.82';
 
   final StorageService _storage;
   final OcrEngineService _ocrEngine = OcrEngineService();
@@ -640,6 +640,13 @@ class ExpenseController extends ChangeNotifier {
 
   Future<void> setPremiumStatus(bool isPremium, {String tier = 'lifetime', DateTime? expiry}) async {
     await _storage.setPremium(isPremium, tier: tier, expiry: expiry);
+    notifyListeners();
+  }
+
+  bool get isInitialDeviceScanCompleted => _storage.isInitialDeviceScanCompleted();
+
+  Future<void> completeInitialDeviceScan() async {
+    await _storage.setInitialDeviceScanCompleted(true);
     notifyListeners();
   }
 
