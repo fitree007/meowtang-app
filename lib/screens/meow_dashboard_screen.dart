@@ -229,9 +229,9 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
     HapticFeedback.lightImpact();
     // 1. Force refresh persistent database transactions & preferences from disk
     await widget.controller.reloadFromStorage();
-    // 2. Scan and auto-import slips with forceRescan=true (deep 12-month scan to catch any unimported slips)
+    // 2. Fast scan for any recent new slips without doing a heavy 12-month forceRescan
     if (mounted && widget.controller.canImportMoreSlips) {
-      await _autoScanSlipsInBackground(showFeedback: true, forceRescan: true);
+      await _autoScanSlipsInBackground(showFeedback: true, forceRescan: false);
     }
     // 3. Keep widget in sync
     await widget.controller.syncAndroidWidget();
@@ -282,7 +282,7 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
       children: [
        SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
        SizedBox(width: 10),
-       Text('กำลังสแกนหาภาพสลิป (รวม MyMo/ออมสิน)...', style: TextStyle(fontSize: 13)),
+       Text('กำลังรีเฟรชข้อมูลและสแกนสลิปใหม่...', style: TextStyle(fontSize: 13)),
       ],
      ),
      behavior: SnackBarBehavior.floating,

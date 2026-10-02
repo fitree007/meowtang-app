@@ -117,7 +117,8 @@ class SlipAutoSyncService {
       _inFlightKeys.clear();
 
       final isCreator = AppConfig.isCreatorEdition;
-      final isInitialScan = !controller.storage.isInitialDeviceScanCompleted() || forceRescan;
+      final isFirstInstallScan = !controller.storage.isInitialDeviceScanCompleted();
+      final isInitialScan = isFirstInstallScan || forceRescan;
 
       // 0. Only perform full DB deduplication and registry seeding on initial scan or if empty
       if (isInitialScan || controller.storage.getImportedSlipIdentifiers().isEmpty) {
@@ -160,17 +161,12 @@ class SlipAutoSyncService {
       final slipFiles = await NativeBridgeService.scanBankSlips(daysLimit: daysToScan);
       final allSlips = List<Map<String, dynamic>>.from(slipFiles);
 
-      // Direct Physical Folder scan for PaoTang, MyMo by GSB & screenshots directories to guarantee 100% detection (Asynchronous I/O)
+      // Direct Physical Folder scan for PaoTang & screenshots directories to guarantee 100% detection (Asynchronous I/O)
       final directSlipDirs = [
         Directory('/storage/emulated/0/Pictures/PaoTang'),
         Directory('/storage/emulated/0/Pictures/เป๋าตัง'),
         Directory('/storage/emulated/0/DCIM/PaoTang'),
         Directory('/storage/emulated/0/Download/PaoTang'),
-        Directory('/storage/emulated/0/Pictures/MyMo'),
-        Directory('/storage/emulated/0/Pictures/GSB'),
-        Directory('/storage/emulated/0/Pictures/ออมสิน'),
-        Directory('/storage/emulated/0/DCIM/MyMo'),
-        Directory('/storage/emulated/0/Download/MyMo'),
         Directory('/storage/emulated/0/Pictures/Screenshots'),
         Directory('/storage/emulated/0/DCIM/Screenshots'),
         Directory('/storage/emulated/0/Pictures'),
@@ -200,9 +196,6 @@ class SlipAutoSyncService {
                         lowerName.contains('screen_') ||
                         lowerName.contains('ภาพหน้าจอ') ||
                         lowerName.contains('screencap') ||
-                        lowerName.contains('mymo') ||
-                        lowerName.contains('gsb') ||
-                        lowerName.contains('ออมสิน') ||
                         lowerName.contains('slip') ||
                         lowerName.contains('โอน') ||
                         lowerName.contains('paotang') ||
@@ -267,8 +260,8 @@ class SlipAutoSyncService {
       return [];
     }
 
-    // Background notification for initial 12-month scan
-    if (isInitialScan) {
+    // Background notification ONLY for initial first install scan (never during manual pull-to-refresh)
+    if (isFirstInstallScan) {
       NativeBridgeService.showScanProgressNotification(
         title: 'เหมียวตังค์: กำลังดึงและอ่านสลิปในเครื่อง... 🔄',
         message: 'ระบบกำลังค้นหาและอ่านสลิปย้อนหลัง 12 เดือนในเครื่องอัตโนมัติ',
