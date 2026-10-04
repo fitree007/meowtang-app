@@ -48,6 +48,8 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
         child: Column(
           children: [
             OnboardingStepHeader(
+              currentStep: 1,
+              totalSteps: 4,
               badgeText: isEn ? 'Step 1/4 • Select Language' : 'ขั้นตอนที่ 1/4 • เลือกภาษา',
               stepIcon: Icons.language_rounded,
               title: isEn ? 'Select Language' : 'เลือกภาษาการใช้งาน',

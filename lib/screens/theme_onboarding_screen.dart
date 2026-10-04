@@ -74,6 +74,8 @@ class _ThemeOnboardingScreenState extends State<ThemeOnboardingScreen> {
           children: [
             // 1. Top Header Info with Step Badge (Unified Minimalist)
             OnboardingStepHeader(
+              currentStep: 3,
+              totalSteps: 4,
               badgeText: isEn ? 'Step 3/4 • Theme' : 'ขั้นตอนที่ 3/4 • เลือกธีมแอพ',
               stepIcon: Icons.palette_rounded,
               title: isEn ? 'Choose Your Style & Mode' : 'เลือกสไตล์และโหมดการแสดงผล',

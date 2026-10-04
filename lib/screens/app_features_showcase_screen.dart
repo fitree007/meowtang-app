@@ -563,6 +563,8 @@ class AppFeaturesShowcaseScreen extends StatelessWidget {
           children: [
             if (!_isStandalone)
               OnboardingStepHeader(
+                currentStep: 4,
+                totalSteps: 4,
                 badgeText: isEn ? 'Step 4/4 • Features' : 'ขั้นตอนที่ 4/4 • จุดเด่นของแอพ',
                 stepIcon: Icons.auto_awesome_rounded,
                 title: isEn ? 'MeowTang Highlights' : 'จุดเด่นของเหมียวตังค์',

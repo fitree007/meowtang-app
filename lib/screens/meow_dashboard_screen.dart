@@ -425,24 +425,26 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
     setState(() {
      _statusMessage = 'ตรวจพบและบันทึกสลิปใหม่ ${imported.length} รายการแล้ว!';
     });
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-     SnackBar(
-      content: Row(
-       mainAxisAlignment: MainAxisAlignment.center,
-       children: [
-        const Icon(Icons.check_circle, color: Colors.white, size: 18),
-        const SizedBox(width: 8),
-        Text('ดึงสลิปสำเร็จ ${imported.length} รายการ', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-       ],
-      ),
-      behavior: SnackBarBehavior.floating,
-      margin: const EdgeInsets.only(bottom: 90, left: 30, right: 30),
-      backgroundColor: MeowTheme.incomeGreen,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      duration: const Duration(milliseconds: 2000),
-     ),
-    );
+    if (showFeedback) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+       SnackBar(
+        content: Row(
+         mainAxisAlignment: MainAxisAlignment.center,
+         children: [
+          const Icon(Icons.check_circle, color: Colors.white, size: 18),
+          const SizedBox(width: 8),
+          Text('ดึงสลิปสำเร็จ ${imported.length} รายการ', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+         ],
+        ),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.only(bottom: 90, left: 30, right: 30),
+        backgroundColor: MeowTheme.incomeGreen,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        duration: const Duration(milliseconds: 2000),
+       ),
+      );
+    }
    } else {
     setState(() {
      _statusMessage = 'สแกนแล้ว ไม่พบสลิปใหม่';
@@ -1604,7 +1606,7 @@ void _handleMascotPetting() {
   final lum1 = currentTheme.primaryColor.computeLuminance();
   final lum2 = currentTheme.primaryDark.computeLuminance();
   final avgLum = (lum1 + lum2) / 2.0;
-  final bool isHeroLight = avgLum > 0.55 || currentTheme.isGlass;
+  final bool isHeroLight = !isDark && (avgLum > 0.55 || currentTheme.isGlass);
   final Color heroContentColor = isHeroLight ? const Color(0xFF0F172A) : Colors.white;
   final Color heroContentMuted = isHeroLight ? const Color(0xFF475569) : Colors.white70;
   final Color heroPillBg = isHeroLight ? Colors.black.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.16);

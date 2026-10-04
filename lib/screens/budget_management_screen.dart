@@ -377,6 +377,8 @@ class _BudgetManagementScreenState extends State<BudgetManagementScreen> {
   Widget build(BuildContext context) {
     final currentTheme = widget.controller.currentTheme;
     final isDark = widget.controller.isDarkMode;
+    final heroTextColor = currentTheme.heroTextColor(isDark);
+    final heroTextMuted = currentTheme.heroTextMutedColor(isDark);
     final totalAllocated = _budgets.values.fold(0.0, (sum, val) => sum + val);
     final remainingBudget = (_totalBudget - totalAllocated).clamp(0.0, double.infinity);
 
@@ -581,7 +583,7 @@ class _BudgetManagementScreenState extends State<BudgetManagementScreen> {
                       Text(
                         'งบประมาณรวม ($_scopeTitleLabel)',
                         style: TextStyle(
-                          color: (currentTheme.primaryColor.computeLuminance() > 0.55) ? Colors.black87 : Colors.white70,
+                          color: heroTextMuted,
                           fontSize: 12.5,
                           fontWeight: FontWeight.w600,
                         ),
@@ -608,7 +610,7 @@ class _BudgetManagementScreenState extends State<BudgetManagementScreen> {
                   const SizedBox(height: 6),
                   Text(
                     _totalBudget > 0 ? '฿ ${FormatUtils.formatMoney(_totalBudget)}' : '฿ 0.00 (ยังไม่มียอด)',
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white),
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: heroTextColor),
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -620,13 +622,13 @@ class _BudgetManagementScreenState extends State<BudgetManagementScreen> {
                             Text(
                               'จัดสรรแล้ว',
                               style: TextStyle(
-                                color: (currentTheme.primaryColor.computeLuminance() > 0.55) ? Colors.black54 : Colors.white60,
+                                color: heroTextMuted,
                                 fontSize: 11,
                               ),
                             ),
                             Text(
                               '฿ ${FormatUtils.formatMoney(totalAllocated)}',
-                              style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                              style: TextStyle(color: heroTextColor, fontSize: 14, fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),
@@ -638,13 +640,13 @@ class _BudgetManagementScreenState extends State<BudgetManagementScreen> {
                             Text(
                               'คงเหลือจัดสรร',
                               style: TextStyle(
-                                color: (currentTheme.primaryColor.computeLuminance() > 0.55) ? Colors.black54 : Colors.white60,
+                                color: heroTextMuted,
                                 fontSize: 11,
                               ),
                             ),
                             Text(
                               '฿ ${FormatUtils.formatMoney(remainingBudget)}',
-                              style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                              style: TextStyle(color: heroTextColor, fontSize: 14, fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),

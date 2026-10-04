@@ -378,6 +378,8 @@ class _SavingGoalsScreenState extends State<SavingGoalsScreen> {
   Widget build(BuildContext context) {
     final currentTheme = widget.controller.currentTheme;
     final isDark = widget.controller.isDarkMode;
+    final heroTextColor = currentTheme.heroTextColor(isDark);
+    final heroTextMuted = currentTheme.heroTextMutedColor(isDark);
     final goals = widget.controller.savingGoals;
 
     final totalTarget = goals.fold(0.0, (sum, g) => sum + g.targetAmount);
@@ -440,7 +442,7 @@ class _SavingGoalsScreenState extends State<SavingGoalsScreen> {
                       Text(
                         'ความคืบหน้าเงินออมทุกเป้าหมาย',
                         style: TextStyle(
-                          color: (currentTheme.primaryColor.computeLuminance() > 0.55) ? Colors.black87 : Colors.white70,
+                          color: heroTextMuted,
                           fontSize: 12.5,
                           fontWeight: FontWeight.w600,
                         ),
@@ -453,7 +455,7 @@ class _SavingGoalsScreenState extends State<SavingGoalsScreen> {
                         ),
                         child: Text(
                           '${(totalProgress * 100).toInt()}% สำเร็จ',
-                          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                          style: TextStyle(color: heroTextColor, fontSize: 11, fontWeight: FontWeight.bold),
                         ),
                       ),
                     ],
@@ -461,7 +463,7 @@ class _SavingGoalsScreenState extends State<SavingGoalsScreen> {
                   const SizedBox(height: 6),
                   Text(
                     '฿ ${FormatUtils.formatMoney(totalSaved)} / ฿ ${FormatUtils.formatMoney(totalTarget)}',
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.white),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: heroTextColor),
                   ),
                   const SizedBox(height: 10),
                   ClipRRect(
@@ -469,7 +471,7 @@ class _SavingGoalsScreenState extends State<SavingGoalsScreen> {
                     child: LinearProgressIndicator(
                       value: totalProgress,
                       backgroundColor: Colors.white24,
-                      valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                      valueColor: AlwaysStoppedAnimation<Color>(heroTextColor),
                       minHeight: 8,
                     ),
                   ),

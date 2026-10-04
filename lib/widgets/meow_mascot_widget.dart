@@ -11,6 +11,8 @@ class MascotInfo {
   final Color primaryColor;
   final Color secondaryColor;
   final IconData icon;
+  final String? defaultAccessory;
+  final String? defaultOutfit;
 
   const MascotInfo({
     required this.id,
@@ -19,7 +21,12 @@ class MascotInfo {
     required this.primaryColor,
     required this.secondaryColor,
     required this.icon,
+    this.defaultAccessory,
+    this.defaultOutfit,
   });
+
+  String get signatureAccessory => defaultAccessory ?? 'pen';
+  String get signatureOutfit => defaultOutfit ?? 'none';
 }
 
 class AccessoryInfo {
@@ -65,6 +72,7 @@ class MascotCatalog {
       primaryColor: Color(0xFFF97316),
       secondaryColor: Color(0xFFEA580C),
       icon: Icons.pets,
+      defaultAccessory: 'pen',
     ),
     MascotInfo(
       id: 'cat_black',
@@ -73,6 +81,7 @@ class MascotCatalog {
       primaryColor: Color(0xFF1E293B),
       secondaryColor: Color(0xFF0F172A),
       icon: Icons.auto_awesome,
+      defaultAccessory: 'coin',
     ),
     MascotInfo(
       id: 'cat_persian',
@@ -81,6 +90,7 @@ class MascotCatalog {
       primaryColor: Color(0xFF38BDF8),
       secondaryColor: Color(0xFF0284C7),
       icon: Icons.workspace_premium,
+      defaultAccessory: 'crown',
     ),
     MascotInfo(
       id: 'cat_calico',
@@ -89,6 +99,7 @@ class MascotCatalog {
       primaryColor: Color(0xFFF59E0B),
       secondaryColor: Color(0xFFD97706),
       icon: Icons.favorite,
+      defaultAccessory: 'bowtie',
     ),
     MascotInfo(
       id: 'cat_muslim',
@@ -97,6 +108,7 @@ class MascotCatalog {
       primaryColor: Color(0xFF10B981),
       secondaryColor: Color(0xFF059669),
       icon: Icons.mosque,
+      defaultAccessory: 'songkok',
     ),
     MascotInfo(
       id: 'cat_samurai',
@@ -105,6 +117,7 @@ class MascotCatalog {
       primaryColor: Color(0xFFEF4444),
       secondaryColor: Color(0xFFDC2626),
       icon: Icons.military_tech,
+      defaultAccessory: 'headband',
     ),
     MascotInfo(
       id: 'cat_siamese',
@@ -113,6 +126,7 @@ class MascotCatalog {
       primaryColor: Color(0xFFD97706),
       secondaryColor: Color(0xFF78350F),
       icon: Icons.pets,
+      defaultAccessory: 'money_bag',
     ),
     MascotInfo(
       id: 'cat_grey',
@@ -121,6 +135,7 @@ class MascotCatalog {
       primaryColor: Color(0xFF64748B),
       secondaryColor: Color(0xFF475569),
       icon: Icons.pets,
+      defaultAccessory: 'gold_shades',
     ),
     MascotInfo(
       id: 'cat_tuxedo',
@@ -129,6 +144,8 @@ class MascotCatalog {
       primaryColor: Color(0xFF0F172A),
       secondaryColor: Color(0xFF334155),
       icon: Icons.pets,
+      defaultAccessory: 'bowtie',
+      defaultOutfit: 'outfit_suit',
     ),
     MascotInfo(
       id: 'cat_pink',
@@ -137,6 +154,7 @@ class MascotCatalog {
       primaryColor: Color(0xFFF472B6),
       secondaryColor: Color(0xFFEC4899),
       icon: Icons.favorite,
+      defaultAccessory: 'flower',
     ),
     MascotInfo(
       id: 'cat_egypt',
@@ -145,6 +163,7 @@ class MascotCatalog {
       primaryColor: Color(0xFFD97706),
       secondaryColor: Color(0xFF0F172A),
       icon: Icons.auto_awesome,
+      defaultAccessory: 'aurora_halo',
     ),
     MascotInfo(
       id: 'cat_sphynx',
@@ -153,6 +172,7 @@ class MascotCatalog {
       primaryColor: Color(0xFFF59E0B),
       secondaryColor: Color(0xFFD97706),
       icon: Icons.psychology,
+      defaultAccessory: 'magic_wand',
     ),
     MascotInfo(
       id: 'cat_golden',
@@ -161,6 +181,7 @@ class MascotCatalog {
       primaryColor: Color(0xFFF59E0B),
       secondaryColor: Color(0xFFB45309),
       icon: Icons.auto_awesome,
+      defaultAccessory: 'wings_grand',
     ),
     MascotInfo(
       id: 'shiba_gold',
@@ -169,6 +190,7 @@ class MascotCatalog {
       primaryColor: Color(0xFFEAB308),
       secondaryColor: Color(0xFFCA8A04),
       icon: Icons.pets,
+      defaultAccessory: 'scarf',
     ),
     MascotInfo(
       id: 'lion_gold',
@@ -177,6 +199,7 @@ class MascotCatalog {
       primaryColor: Color(0xFFF59E0B),
       secondaryColor: Color(0xFFD97706),
       icon: Icons.shield,
+      defaultAccessory: 'crown',
     ),
     MascotInfo(
       id: 'panda_saver',
@@ -185,6 +208,7 @@ class MascotCatalog {
       primaryColor: Color(0xFF334155),
       secondaryColor: Color(0xFF0F172A),
       icon: Icons.savings,
+      defaultAccessory: 'calculator',
     ),
     MascotInfo(
       id: 'fox_smart',
@@ -193,6 +217,7 @@ class MascotCatalog {
       primaryColor: Color(0xFFEA580C),
       secondaryColor: Color(0xFFC2410C),
       icon: Icons.psychology,
+      defaultAccessory: 'gold_shades',
     ),
     MascotInfo(
       id: 'owl_wise',
@@ -201,6 +226,7 @@ class MascotCatalog {
       primaryColor: Color(0xFF6366F1),
       secondaryColor: Color(0xFF4F46E5),
       icon: Icons.school,
+      defaultAccessory: 'grad_cap',
     ),
     MascotInfo(
       id: 'rabbit_rich',
@@ -209,6 +235,7 @@ class MascotCatalog {
       primaryColor: Color(0xFFEC4899),
       secondaryColor: Color(0xFFBE185D),
       icon: Icons.speed,
+      defaultAccessory: 'star',
     ),
     MascotInfo(
       id: 'bear_wealth',
@@ -217,6 +244,7 @@ class MascotCatalog {
       primaryColor: Color(0xFF854D0E),
       secondaryColor: Color(0xFF713F12),
       icon: Icons.security,
+      defaultAccessory: 'trophy',
     ),
     MascotInfo(
       id: 'robot_ai',
@@ -225,6 +253,7 @@ class MascotCatalog {
       primaryColor: Color(0xFF0EA5E9),
       secondaryColor: Color(0xFF0284C7),
       icon: Icons.smart_toy,
+      defaultAccessory: 'headphones',
     ),
   ];
 

@@ -465,14 +465,14 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> with SingleTi
            children: [
             Row(
              children: [
-              const Icon(Icons.analytics_rounded, color: Colors.white, size: 22),
+              Icon(Icons.analytics_rounded, color: currentTheme.heroTextColor(isDark), size: 22),
               const SizedBox(width: 8),
               Expanded(
                child: Text(
                 isEn ? 'Financial Analytics' : 'สรุปวิเคราะห์การเงิน',
                 style: TextStyle(
-                 color: Colors.white,
-                 fontSize: _isHeaderCollapsed ? 16.5 : 18,
+                 color: currentTheme.heroTextColor(isDark),
+                  fontSize: _isHeaderCollapsed ? 16.5 : 18,
                  fontWeight: FontWeight.bold,
                 ),
                 maxLines: 1,
@@ -492,9 +492,9 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> with SingleTi
                isEn
                    ? 'Income, expense trends & category breakdown'
                    : 'ภาพรวมรายรับรายจ่าย, หมวดหมู่ และแนวโน้ม',
-               style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 11,
+               style: TextStyle(
+                 color: currentTheme.heroTextMutedColor(isDark),
+                 fontSize: 11,
                ),
                maxLines: 1,
                overflow: TextOverflow.ellipsis,

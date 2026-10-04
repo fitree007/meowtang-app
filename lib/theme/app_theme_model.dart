@@ -164,6 +164,20 @@ class AppThemeModel {
         end: Alignment.bottomRight,
       );
 
+  bool isHeroLight(bool darkMode) {
+    if (darkMode) return false;
+    if (isGlass) return true;
+    return (primaryColor.computeLuminance() + primaryDark.computeLuminance()) / 2.0 > 0.55;
+  }
+
+  Color heroTextColor(bool darkMode) {
+    return isHeroLight(darkMode) ? const Color(0xFF0F172A) : Colors.white;
+  }
+
+  Color heroTextMutedColor(bool darkMode) {
+    return isHeroLight(darkMode) ? const Color(0xFF475569) : Colors.white.withValues(alpha: 0.75);
+  }
+
   ThemeData toThemeData() {
     return ThemeData(
       brightness: isDark ? Brightness.dark : Brightness.light,
@@ -424,16 +438,16 @@ class AppThemePresets {
     primaryDark: Color(0xFF1E293B),
     secondaryColor: Color(0xFF94A3B8),
     lightScaffoldBackground: Color(0xFFDCE2E9),
-    lightCardBackground: Color(0x59FFFFFF), // rgba(255, 255, 255, 0.35)
-    lightSurfaceBackground: Color(0x40FFFFFF), // rgba(255, 255, 255, 0.25)
+    lightCardBackground: Color(0xF0FFFFFF), // Solid frosted white for clear readability
+    lightSurfaceBackground: Color(0xE0FFFFFF),
     lightTextColor: Color(0xFF0F172A),
     lightTextSecondaryColor: Color(0xFF475569),
-    lightBorderColor: Color(0x80FFFFFF), // rgba(255, 255, 255, 0.50)
+    lightBorderColor: Color(0xFFCBD5E1),
     lightExpenseColor: Color(0xFFDC2626),
     lightIncomeColor: Color(0xFF16A34A),
     darkScaffoldBackground: Color(0xFF0A0D14),
-    darkCardBackground: Color(0x33FFFFFF), // rgba(255, 255, 255, 0.20)
-    darkSurfaceBackground: Color(0x24FFFFFF),
+    darkCardBackground: Color(0xF0151C28), // Deep slate frosted dark for crisp contrast
+    darkSurfaceBackground: Color(0xE01E293B),
     darkTextColor: Color(0xFFF8FAFC),
     darkTextSecondaryColor: Color(0xFF94A3B8),
     darkBorderColor: Color(0x66FFFFFF), // rgba(255, 255, 255, 0.40)

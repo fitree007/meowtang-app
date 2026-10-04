@@ -269,8 +269,8 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
                  ? (isEn ? 'Manage & Settings' : 'จัดการ & ตั้งค่า')
                  : (isEn ? 'Management & Settings' : 'จัดการ & ตั้งค่าระบบ'),
              style: TextStyle(
-              color: Colors.white,
-              fontSize: _isHeaderCollapsed ? 16.5 : 18,
+              color: currentTheme.heroTextColor(isDark),
+               fontSize: _isHeaderCollapsed ? 16.5 : 18,
               fontWeight: FontWeight.bold,
              ),
             ),
@@ -285,9 +285,9 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
                isEn
                  ? 'Manage accounts, categories, rules & customize'
                  : 'ศูนย์รวมการจัดการบัญชี หมวดหมู่ และปรับแต่ง',
-               style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 11,
+               style: TextStyle(
+                 color: currentTheme.heroTextMutedColor(isDark),
+                 fontSize: 11,
                ),
               ),
              ),
