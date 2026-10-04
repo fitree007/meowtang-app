@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ai_expense_tracker/services/storage_service.dart';
-import 'package:ai_expense_tracker/state/expense_controller.dart';
 import 'package:ai_expense_tracker/theme/app_theme_model.dart';
 
 void main() {

@@ -37,6 +37,8 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
@@ -378,30 +380,35 @@ class MainActivity : FlutterActivity() {
                     InputImage.fromFilePath(this@MainActivity, Uri.fromFile(file))
                 }
 
-                // 1. STEP 1: Barcode / QR Code Scanning
-                var qrPayload: String? = null
-                try {
-                    val barcodes = barcodeScanner.process(inputImage).await()
-                    for (barcode in barcodes) {
-                        if (barcode.format == Barcode.FORMAT_QR_CODE || barcode.valueType == Barcode.TYPE_TEXT || barcode.valueType == Barcode.TYPE_URL) {
-                            val raw = barcode.rawValue
-                            if (!raw.isNullOrEmpty()) {
-                                qrPayload = raw
-                                break
+                // Execute QR Code Scanning & OCR Text Recognition concurrently in parallel
+                val (qrPayload, ocrText) = coroutineScope {
+                    val qrDeferred = async {
+                        try {
+                            val barcodes = barcodeScanner.process(inputImage).await()
+                            for (barcode in barcodes) {
+                                if (barcode.format == Barcode.FORMAT_QR_CODE || barcode.valueType == Barcode.TYPE_TEXT || barcode.valueType == Barcode.TYPE_URL) {
+                                    val raw = barcode.rawValue
+                                    if (!raw.isNullOrEmpty()) {
+                                        return@async raw
+                                    }
+                                }
                             }
+                            null
+                        } catch (e: Exception) {
+                            null
                         }
                     }
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
 
-                // 2. STEP 2: OCR Text Recognition
-                var ocrText = ""
-                try {
-                    val visionText = textRecognizer.process(inputImage).await()
-                    ocrText = visionText.text ?: ""
-                } catch (e: Exception) {
-                    e.printStackTrace()
+                    val ocrDeferred = async {
+                        try {
+                            val visionText = textRecognizer.process(inputImage).await()
+                            visionText.text ?: ""
+                        } catch (e: Exception) {
+                            ""
+                        }
+                    }
+
+                    Pair(qrDeferred.await(), ocrDeferred.await())
                 }
 
                 val resMap = mapOf(

@@ -12,6 +12,7 @@ import 'package:flutter/services.dart';
 import '../models/transaction_item.dart';
 import '../state/expense_controller.dart';
 import '../theme/meow_theme.dart';
+import '../theme/app_theme_model.dart';
 
 import '../widgets/meow_mascot_widget.dart';
 import '../widgets/tactile_button.dart';
@@ -142,10 +143,30 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
   bool _isSortNewestFirst = true;
   bool _isBankFilterExpanded = true;
   late Set<String> _enabledBankCodes;
+  bool _isFirstTimeSyncing = false;
+  bool _hasDismissedFirstTimeSync = false;
+  bool _isFirstTimeSyncRunning = false;
+  String _firstTimeSyncStatus = 'กำลังเตรียมพร้อมข้อมูลบัญชีให้คุณ...';
+  double _firstTimeSyncProgress = 0.2;
+
+  void _setFirstTimeSyncing(bool value) {
+    if (!mounted) return;
+    if (!value) {
+      _hasDismissedFirstTimeSync = true;
+    }
+    setState(() => _isFirstTimeSyncing = value);
+    widget.controller.setFirstTimeSyncScreenVisible(value);
+  }
+
+  void _skipFirstTimeSlipSync() {
+    HapticFeedback.lightImpact();
+    _setFirstTimeSyncing(false);
+  }
 
   @override
   void initState() {
     super.initState();
+    _isFirstTimeSyncing = !widget.controller.isInitialDeviceScanCompleted;
     WidgetsBinding.instance.addObserver(this);
     MeowDashboardScreen.onScrollToTopRequested = _scrollToTop;
     MeowDashboardScreen.onSwitchTabRequested = (idx) => widget.onSwitchTab?.call(idx);
@@ -176,7 +197,7 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
       }
     });
 
-    widget.controller.setFirstTimeSyncScreenVisible(false);
+    widget.controller.setFirstTimeSyncScreenVisible(_isFirstTimeSyncing);
 
     // 0.1 Request OS permissions on app launch (Photos, Camera, Audio) for iOS & Android
     final permStatus = await NativeBridgeService.requestAppPermissions();
@@ -186,9 +207,11 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
       setState(() => _needsPhotoPermission = true);
     }
 
-    if (!widget.controller.isInitialDeviceScanCompleted) {
+    if (_isFirstTimeSyncing) {
       if (hasPhotos) {
         _runFirstTimeSlipSync();
+      } else {
+        _setFirstTimeSyncing(false);
       }
     } else {
       // 1. Initial background scan for unimported bank slips with gentle delay (2000ms) for smooth startup
@@ -279,20 +302,65 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
   }
 
   Future<void> _runFirstTimeSlipSync() async {
-    if (!mounted) return;
+    if (!mounted || _isFirstTimeSyncRunning) return;
     if (!await NativeBridgeService.hasPhotoPermission()) {
+      _setFirstTimeSyncing(false);
       return;
     }
+
+    _isFirstTimeSyncRunning = true;
+    if (!_hasDismissedFirstTimeSync) {
+      _setFirstTimeSyncing(true);
+    }
+
+    setState(() {
+      _firstTimeSyncProgress = 0.35;
+      _firstTimeSyncStatus = widget.controller.isEnglish
+          ? 'Scanning and importing bank slips in device... 🔍'
+          : 'กำลังค้นหาและดึงข้อมูลสลิปในเครื่อง... 🔍';
+    });
 
     try {
       final imported = await SlipAutoSyncService.scanAndAutoImportNewSlips(
         widget.controller,
         forceRescan: true,
+        onProgress: (savedCount) {
+          if (mounted) {
+            setState(() {
+              _firstTimeSyncProgress = (0.35 + (savedCount * 0.04)).clamp(0.35, 0.95);
+              _firstTimeSyncStatus = widget.controller.isEnglish
+                  ? 'Found $savedCount slips, continuing...'
+                  : 'บันทึกแล้ว $savedCount รายการ...';
+            });
+            // Auto-dismiss full-screen loading view once the first batch (10 items) is saved
+            // so the user can immediately interact with their transactions while scanning completes in background!
+            if (savedCount >= 10 && _isFirstTimeSyncing) {
+              _setFirstTimeSyncing(false);
+            }
+          }
+        },
       );
 
       if (!mounted) return;
 
-      if (imported.isNotEmpty) {
+      if (_isFirstTimeSyncing) {
+        setState(() {
+          _firstTimeSyncProgress = 1.0;
+          if (imported.isNotEmpty) {
+            _firstTimeSyncStatus = widget.controller.isEnglish
+                ? 'Found and recorded ${imported.length} slips! 🎉'
+                : 'ตรวจพบและบันทึกสลิปสำเร็จ ${imported.length} รายการ! 🎉';
+          } else {
+            _firstTimeSyncStatus = widget.controller.isEnglish
+                ? 'Ready to use! No slips found ✨'
+                : 'พร้อมใช้งานแล้ว ไม่พบไฟล์สลิป ✨';
+          }
+        });
+        await Future.delayed(const Duration(milliseconds: 600));
+        if (mounted) _setFirstTimeSyncing(false);
+      }
+
+      if (imported.isNotEmpty && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
@@ -317,7 +385,9 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
     } catch (_) {
       // Gracefully handle any error
     } finally {
+      _isFirstTimeSyncRunning = false;
       if (mounted) {
+        _setFirstTimeSyncing(false);
         if (await NativeBridgeService.hasPhotoPermission()) {
           await widget.controller.completeInitialDeviceScan();
         }
@@ -343,6 +413,9 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
   }
 
   Future<void> _autoScanSlipsInBackground({bool showFeedback = true, bool forceRescan = false}) async {
+    // The first-time sync screen owns the initial scan (resume after the permission dialog used to start a second one)
+    if (_isFirstTimeSyncing || _isFirstTimeSyncRunning) return;
+
     // Check (never request) photo access here: this runs on every app resume, and requesting made the
     // native "permission required" dialog pop up each time for users who had denied it.
     final hasPhotos = await NativeBridgeService.hasPhotoPermission();
@@ -356,6 +429,9 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
 
     // Permission granted after an earlier denial: run the free 12-month initial import now
     if (!widget.controller.isInitialDeviceScanCompleted) {
+      if (!_hasDismissedFirstTimeSync) {
+        _setFirstTimeSyncing(true);
+      }
       _runFirstTimeSlipSync();
       return;
     }
@@ -1594,6 +1670,172 @@ void _handleMascotPetting() {
 
 
 
+  Widget _buildFirstTimeSyncView(AppThemeModel currentTheme, bool isDark) {
+    final textPrimary = currentTheme.textColor;
+    final isEn = widget.controller.isEnglish;
+
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Mascot Container with glowing gradient background
+            Container(
+              width: 140,
+              height: 140,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    currentTheme.primaryColor.withValues(alpha: 0.35),
+                    currentTheme.primaryColor.withValues(alpha: 0.05),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+              child: Center(
+                child: MeowMascotWidget(
+                  size: 100,
+                  mascotId: widget.controller.selectedMascotId,
+                  accessory: widget.controller.selectedMascotAccessory,
+                  outfit: widget.controller.selectedMascotOutfit,
+                  customPhotoPath: widget.controller.customAvatarPath,
+                  isCustomPhoto: widget.controller.isCustomAvatarEnabled,
+                  animate: true,
+                  mood: MascotMood.happy,
+                  showMoodBadge: false,
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Title
+            Text(
+              isEn ? 'Welcome to MeowTang! 🐱' : 'ยินดีต้อนรับสู่เหมียวตังค์! 🐱',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: textPrimary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 10),
+
+            // Subtitle
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                isEn
+                    ? 'Automatically scanning and organizing your bank slips to get your account ready...'
+                    : 'ระบบกำลังค้นหาและดึงข้อมูลสลิปในเครื่อง เพื่อเตรียมพร้อมบัญชีให้คุณอัตโนมัติ...',
+                style: TextStyle(
+                  fontSize: 13.5,
+                  color: textPrimary.withValues(alpha: 0.7),
+                  height: 1.55,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 28),
+
+            // Animated Progress Bar
+            Container(
+              width: 240,
+              height: 8,
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 400),
+                  curve: Curves.easeOutCubic,
+                  width: 240 * _firstTimeSyncProgress.clamp(0.05, 1.0),
+                  height: 8,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        currentTheme.primaryColor,
+                        MeowTheme.incomeGreen,
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+
+            // Real-time Status Badge
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                border: Border.all(
+                  color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                ),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_firstTimeSyncProgress < 1.0) ...[
+                    SizedBox(
+                      width: 13,
+                      height: 13,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: currentTheme.primaryColor,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                  ] else ...[
+                    const Icon(Icons.check_circle_rounded, color: MeowTheme.incomeGreen, size: 16),
+                    const SizedBox(width: 8),
+                  ],
+                  Flexible(
+                    child: Text(
+                      _firstTimeSyncStatus,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: _firstTimeSyncProgress >= 1.0 ? MeowTheme.incomeGreen : currentTheme.primaryColor,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 36),
+
+            // Skip Button
+            TextButton(
+              onPressed: _skipFirstTimeSlipSync,
+              style: TextButton.styleFrom(
+                foregroundColor: textPrimary.withValues(alpha: 0.5),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color: textPrimary.withValues(alpha: 0.15),
+                  ),
+                ),
+              ),
+              child: Text(
+                isEn ? 'Skip to Dashboard →' : 'ข้ามขั้นตอนนี้ →',
+                style: const TextStyle(fontSize: 12.5),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
   final currentTheme = widget.controller.currentTheme;
@@ -1602,6 +1844,13 @@ void _handleMascotPetting() {
   final cardBg = currentTheme.cardBackground;
   final textPrimary = currentTheme.textColor;
   final borderColor = currentTheme.borderColor;
+
+  if (_isFirstTimeSyncing) {
+    return Scaffold(
+      backgroundColor: bgColor,
+      body: _buildFirstTimeSyncView(currentTheme, isDark),
+    );
+  }
 
   // Adaptive contrast for hero card header and icons
   final lum1 = currentTheme.primaryColor.computeLuminance();

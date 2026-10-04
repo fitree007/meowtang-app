@@ -1,6 +1,11 @@
 import '../models/transaction_item.dart';
 
 class DuplicateSlipChecker {
+  static const genericNames = {
+    'image.jpg', 'image.png', 'image.jpeg', 'download.jpg', 'download.png',
+    'slip.jpg', 'slip.png', 'photo.jpg', 'temp.jpg'
+  };
+
   /// Extracts clean filename/basename from a path or URI
   static String extractBasename(String? pathOrUri) {
     if (pathOrUri == null || pathOrUri.trim().isEmpty) return '';
@@ -102,7 +107,6 @@ class DuplicateSlipChecker {
       }
 
       // 2. Exact Filename / Basename Match (Skip generic names like image.jpg, download.jpg, slip.png)
-      final genericNames = {'image.jpg', 'image.png', 'image.jpeg', 'download.jpg', 'download.png', 'slip.jpg', 'slip.png', 'photo.jpg', 'temp.jpg'};
       final isGeneric = genericNames.contains(effectiveName.toLowerCase());
 
       if (effectiveName.isNotEmpty && !isGeneric) {

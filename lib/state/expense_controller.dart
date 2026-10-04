@@ -33,7 +33,7 @@ enum MascotMood {
 }
 
 class ExpenseController extends ChangeNotifier {
-  static const String appVersion = '1.41.92';
+  static const String appVersion = '1.41.93';
 
   final StorageService _storage;
   final OcrEngineService _ocrEngine = OcrEngineService();
@@ -648,7 +648,7 @@ class ExpenseController extends ChangeNotifier {
   // Whether the dashboard's full-screen first-time slip sync is showing (the bottom nav is hidden meanwhile).
   // Defaults to "initial scan not done yet" until the dashboard reports its real state.
   bool? _isFirstTimeSyncScreenVisible;
-  bool get isFirstTimeSyncScreenVisible => false;
+  bool get isFirstTimeSyncScreenVisible => _isFirstTimeSyncScreenVisible ?? false;
 
   void setFirstTimeSyncScreenVisible(bool visible) {
     if (_isFirstTimeSyncScreenVisible == visible) return;
@@ -1342,12 +1342,15 @@ class ExpenseController extends ChangeNotifier {
   Future<int> addTransactionsBatch(List<TransactionItem> items, {bool isInitialImport = false}) async {
     if (items.isEmpty) return 0;
 
+    final cachedDeletedSet = _storage.getDeletedSlips().map((s) => s.trim().toLowerCase()).toSet();
+    final cachedImportedSet = _storage.getImportedSlipIdentifiers().map((s) => s.trim().toLowerCase()).toSet();
+
     final toAdd = <TransactionItem>[];
     for (final item in items) {
       final isDup = DuplicateSlipChecker.isDuplicate(
         existingTransactions: _transactions,
-        deletedSlipIdentifiers: _storage.getDeletedSlips(),
-        importedSlipIdentifiers: _storage.getImportedSlipIdentifiers(),
+        cachedDeletedSet: cachedDeletedSet,
+        cachedImportedSet: cachedImportedSet,
         filePath: item.slipImageUrl,
         fileName: item.slipImageUrl != null ? DuplicateSlipChecker.extractBasename(item.slipImageUrl) : null,
         refId: item.slipRefId,
