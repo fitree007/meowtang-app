@@ -89,7 +89,14 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
       }
     } else if (_hasStoragePermission) {
       if (mounted) {
-        _autoScanSlipsInBackground(showFeedback: true);
+        if (!widget.controller.isInitialDeviceScanCompleted) {
+          setState(() {
+            _isFirstTimeSyncing = true;
+          });
+          _runFirstTimeSlipSync();
+        } else {
+          _autoScanSlipsInBackground(showFeedback: true);
+        }
       }
     }
   }
@@ -227,14 +234,23 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
   DateTime? _lastPausedTime;
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
+  void didChangeAppLifecycleState(AppLifecycleState state) async {
     if (state == AppLifecycleState.paused) {
       _lastPausedTime = DateTime.now();
     } else if (state == AppLifecycleState.resumed) {
       // 1. Immediately reload storage from disk (syncs widget voice entries in real-time)
       widget.controller.reloadFromStorage();
-      _checkPermissionStatus();
-      _autoScanSlipsInBackground(showFeedback: false);
+      await _checkPermissionStatus();
+      if (_hasStoragePermission && !widget.controller.isInitialDeviceScanCompleted) {
+        if (mounted) {
+          setState(() {
+            _isFirstTimeSyncing = true;
+          });
+          _runFirstTimeSlipSync();
+        }
+      } else {
+        _autoScanSlipsInBackground(showFeedback: false);
+      }
 
       // 2. Auto-refresh if user has been away for 5+ minutes (or on cold launch)
       if (_lastPausedTime != null && DateTime.now().difference(_lastPausedTime!).inMinutes >= 5) {
@@ -274,6 +290,17 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
 
   Future<void> _runFirstTimeSlipSync() async {
     if (!mounted) return;
+    final permStatus = await NativeBridgeService.checkAppPermissions();
+    final hasStorage = permStatus['storage'] == true;
+    if (!hasStorage) {
+      if (mounted) {
+        setState(() {
+          _isFirstTimeSyncing = false;
+        });
+      }
+      return;
+    }
+
     setState(() {
       _firstTimeSyncProgress = 0.35;
       _firstTimeSyncStatus = widget.controller.isEnglish
@@ -307,7 +334,10 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
       // Gracefully handle any error
     } finally {
       if (mounted) {
-        await widget.controller.completeInitialDeviceScan();
+        final permCheck = await NativeBridgeService.checkAppPermissions();
+        if (permCheck['storage'] == true) {
+          await widget.controller.completeInitialDeviceScan();
+        }
         setState(() {
           _firstTimeSyncProgress = 1.0;
           _isFirstTimeSyncing = false;

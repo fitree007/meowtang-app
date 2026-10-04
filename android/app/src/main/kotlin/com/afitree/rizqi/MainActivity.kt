@@ -1168,6 +1168,42 @@ class MainActivity : FlutterActivity() {
                     } else if (combinedSearch.contains("ibank") || combinedSearch.contains("อิสลาม") || combinedSearch.contains("islamic")) {
                         detectedBank = "iBank (อิสลามแห่งประเทศไทย)"
                         isSlip = true
+                    } else if (combinedSearch.contains("krungsri") || combinedSearch.contains("kma") || combinedSearch.contains("กรุงศรี") || combinedSearch.contains("bay")) {
+                        detectedBank = "กรุงศรี (Krungsri KMA)"
+                        isSlip = true
+                    } else if (combinedSearch.contains("kept")) {
+                        detectedBank = "Kept by Krungsri"
+                        isSlip = true
+                    } else if (combinedSearch.contains("make by kbank") || combinedSearch.contains("make kbank") || combinedSearch.contains("cloud pocket") || combinedSearch.contains("make_by_kbank")) {
+                        detectedBank = "MAKE by KBank"
+                        isSlip = true
+                    } else if (combinedSearch.contains("uob") || combinedSearch.contains("tmrw") || combinedSearch.contains("ยูโอบี")) {
+                        detectedBank = "ยูโอบี (UOB TMRW)"
+                        isSlip = true
+                    } else if (combinedSearch.contains("cimb") || combinedSearch.contains("ซีไอเอ็มบี")) {
+                        detectedBank = "ซีไอเอ็มบีไทย (CIMB Thai)"
+                        isSlip = true
+                    } else if (combinedSearch.contains("dime")) {
+                        detectedBank = "Dime! by KKP"
+                        isSlip = true
+                    } else if (combinedSearch.contains("kkp") || combinedSearch.contains("kiatnakin") || combinedSearch.contains("เกียรตินาคิน")) {
+                        detectedBank = "เกียรตินาคินภัทร (KKP MOBILE)"
+                        isSlip = true
+                    } else if (combinedSearch.contains("ghb") || combinedSearch.contains("อาคารสงเคราะห์") || combinedSearch.contains("ธอส")) {
+                        detectedBank = "อาคารสงเคราะห์ (GHB ALL GEN)"
+                        isSlip = true
+                    } else if (combinedSearch.contains("tisco") || combinedSearch.contains("ทิสโก้") || combinedSearch.contains("my wealth")) {
+                        detectedBank = "ทิสโก้ (TISCO My Wealth)"
+                        isSlip = true
+                    } else if (combinedSearch.contains("lhb") || combinedSearch.contains("lh bank") || combinedSearch.contains("แลนด์ แอนด์ เฮ้าส์")) {
+                        detectedBank = "แลนด์ แอนด์ เฮ้าส์ (LHB You)"
+                        isSlip = true
+                    } else if (combinedSearch.contains("baac") || combinedSearch.contains("ธกส") || combinedSearch.contains("ธ.ก.ส.") || combinedSearch.contains("a-mobile") || combinedSearch.contains("เกษตรและสหกรณ์")) {
+                        detectedBank = "ธ.ก.ส. (A-Mobile Plus)"
+                        isSlip = true
+                    } else if (combinedSearch.contains("shopeepay") || combinedSearch.contains("airpay") || combinedSearch.contains("ช้อปปี้เพย์")) {
+                        detectedBank = "ShopeePay"
+                        isSlip = true
                     } else if (lowerPath.contains("screenshot") || lowerName.contains("screenshot") || lowerRelPath.contains("screenshot") ||
                                lowerName.contains("ภาพหน้าจอ") || lowerPath.contains("ภาพหน้าจอ") || lowerRelPath.contains("ภาพหน้าจอ") ||
                                lowerName.contains("screencap") || lowerPath.contains("screencap")) {
@@ -1256,12 +1292,25 @@ class MainActivity : FlutterActivity() {
             "com.kasikorn.retail.mbanking.wap" to "K PLUS (กสิกรไทย)",
             "com.scb.phone" to "SCB EASY (ไทยพาณิชย์)",
             "ktbcs.netbank" to "Krungthai NEXT (กรุงไทย)",
-            "th.co.truemoney.wallet" to "TrueMoney Wallet",
             "com.bbl.mPlus" to "Bualuang mBanking (กรุงเทพ)",
             "com.ttbbank.oneapp" to "ttb touch (ทหารไทยธนชาต)",
             "com.gsb.mymo" to "MyMo by GSB (ธนาคารออมสิน)",
-            "th.co.cimbthai.moo" to "CIMB Thai Digital",
-            "th.co.lhbank.mobile" to "LHB You (LH Bank)"
+            "com.krungsri.kma" to "Krungsri KMA (กรุงศรี)",
+            "com.krungsri.kept" to "Kept by Krungsri",
+            "com.kasikornbank.make" to "MAKE by KBank",
+            "com.uob.mighty.th" to "UOB TMRW (ยูโอบี)",
+            "th.co.uob.tmrw" to "TMRW by UOB",
+            "th.co.cimbthai.moo" to "CIMB Thai Digital (ซีไอเอ็มบี)",
+            "co.th.kkp.dime" to "Dime! by KKP",
+            "com.kkp.mobile" to "KKP MOBILE (เกียรตินาคินภัทร)",
+            "com.ghb.all" to "GHB ALL GEN (ธอส.)",
+            "com.ghb.allgen" to "GHB ALL (ธอส.)",
+            "com.tisco.mywealth" to "TISCO My Wealth (ทิสโก้)",
+            "th.co.lhbank.mobile" to "LHB You (LH Bank)",
+            "com.baac.amobileplus" to "A-Mobile Plus (ธ.ก.ส.)",
+            "th.co.truemoney.wallet" to "TrueMoney Wallet",
+            "com.shopeepay.th" to "ShopeePay",
+            "com.airpay" to "ShopeePay (AirPay)"
         )
 
         val installedList = mutableListOf<Map<String, String>>()

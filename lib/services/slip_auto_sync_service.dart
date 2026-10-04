@@ -161,12 +161,35 @@ class SlipAutoSyncService {
       final slipFiles = await NativeBridgeService.scanBankSlips(daysLimit: daysToScan);
       final allSlips = List<Map<String, dynamic>>.from(slipFiles);
 
-      // Direct Physical Folder scan for PaoTang & screenshots directories to guarantee 100% detection (Asynchronous I/O)
+      // Direct Physical Folder scan for banking apps & screenshots directories to guarantee 100% detection (Asynchronous I/O)
       final directSlipDirs = [
         Directory('/storage/emulated/0/Pictures/PaoTang'),
         Directory('/storage/emulated/0/Pictures/เป๋าตัง'),
         Directory('/storage/emulated/0/DCIM/PaoTang'),
         Directory('/storage/emulated/0/Download/PaoTang'),
+        Directory('/storage/emulated/0/Pictures/KPlus'),
+        Directory('/storage/emulated/0/Pictures/K PLUS'),
+        Directory('/storage/emulated/0/DCIM/KPlus'),
+        Directory('/storage/emulated/0/Pictures/SCBEASY'),
+        Directory('/storage/emulated/0/Pictures/SCB EASY'),
+        Directory('/storage/emulated/0/Pictures/Krungthai NEXT'),
+        Directory('/storage/emulated/0/Pictures/Krungsri'),
+        Directory('/storage/emulated/0/Pictures/KMA'),
+        Directory('/storage/emulated/0/Pictures/Kept'),
+        Directory('/storage/emulated/0/Pictures/MAKE'),
+        Directory('/storage/emulated/0/Pictures/UOB'),
+        Directory('/storage/emulated/0/Pictures/TMRW'),
+        Directory('/storage/emulated/0/Pictures/CIMB'),
+        Directory('/storage/emulated/0/Pictures/Dime'),
+        Directory('/storage/emulated/0/Pictures/KKP'),
+        Directory('/storage/emulated/0/Pictures/GHB'),
+        Directory('/storage/emulated/0/Pictures/ธอส'),
+        Directory('/storage/emulated/0/Pictures/TISCO'),
+        Directory('/storage/emulated/0/Pictures/LHB'),
+        Directory('/storage/emulated/0/Pictures/BAAC'),
+        Directory('/storage/emulated/0/Pictures/ธกส'),
+        Directory('/storage/emulated/0/Pictures/TrueMoney'),
+        Directory('/storage/emulated/0/Pictures/ShopeePay'),
         Directory('/storage/emulated/0/Pictures/Screenshots'),
         Directory('/storage/emulated/0/DCIM/Screenshots'),
         Directory('/storage/emulated/0/Pictures'),
@@ -254,7 +277,10 @@ class SlipAutoSyncService {
 
     if (allSlips.isEmpty) {
       if (isInitialScan) {
-        await controller.storage.setInitialDeviceScanCompleted(true);
+        final perm = await NativeBridgeService.checkAppPermissions();
+        if (perm['storage'] == true) {
+          await controller.storage.setInitialDeviceScanCompleted(true);
+        }
         await NativeBridgeService.cancelScanProgressNotification();
       }
       return [];
@@ -502,6 +528,9 @@ class SlipAutoSyncService {
       'pictures/tisco', 'dcim/tisco', 'tisco',
       'pictures/lhb you', 'pictures/lhb', 'dcim/lhb', 'lhb',
       'pictures/ibank', 'pictures/islamicbank', 'dcim/ibank', 'ibank',
+      'pictures/make', 'dcim/make', 'make by kbank', 'make', 'cloud pocket',
+      'pictures/baac', 'dcim/baac', 'pictures/ธกส', 'pictures/a-mobile', 'baac', 'a-mobile', 'ธกส',
+      'pictures/shopeepay', 'pictures/airpay', 'dcim/shopeepay', 'shopeepay', 'airpay',
     ];
     return bankDirs.any((dir) => clean.contains(dir));
   }
