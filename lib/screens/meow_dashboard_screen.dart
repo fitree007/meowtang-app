@@ -57,6 +57,42 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
   final ScrollController _scrollController = ScrollController();
   bool _showScrollToTop = false;
   bool _isSubscriptionBannerDismissed = false;
+  bool _hasStoragePermission = true;
+
+  Future<void> _checkPermissionStatus() async {
+    try {
+      final status = await NativeBridgeService.checkAppPermissions();
+      final hasStorage = status['storage'] == true;
+      if (mounted && _hasStoragePermission != hasStorage) {
+        setState(() {
+          _hasStoragePermission = hasStorage;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _requestPermissionOrOpenSettings() async {
+    await NativeBridgeService.requestAppPermissions();
+    await _checkPermissionStatus();
+    if (!_hasStoragePermission && mounted) {
+      final opened = await NativeBridgeService.openAppSettings();
+      if (!opened && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              widget.controller.isEnglish
+                  ? 'Please enable Storage/Media permission in Device Settings > Apps > MeowTang'
+                  : 'โปรดไปที่ การตั้งค่ามือถือ > แอพ > เหมียวตังค์ > สิทธิ์ เพื่อเปิดสิทธิ์รูปภาพ',
+            ),
+          ),
+        );
+      }
+    } else if (_hasStoragePermission) {
+      if (mounted) {
+        _autoScanSlipsInBackground(showFeedback: true);
+      }
+    }
+  }
 
   // Batch delete & undo countdown state (3.5s)
   final List<TransactionItem> _pendingDeletedItems = [];
@@ -143,6 +179,7 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
 
     // 0.1 Request OS permissions on app launch (Photos, Camera, Audio) for iOS & Android
     await NativeBridgeService.requestAppPermissions();
+    await _checkPermissionStatus();
 
     if (_isFirstTimeSyncing) {
       _runFirstTimeSlipSync();
@@ -196,6 +233,7 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
     } else if (state == AppLifecycleState.resumed) {
       // 1. Immediately reload storage from disk (syncs widget voice entries in real-time)
       widget.controller.reloadFromStorage();
+      _checkPermissionStatus();
       _autoScanSlipsInBackground(showFeedback: false);
 
       // 2. Auto-refresh if user has been away for 5+ minutes (or on cold launch)
@@ -1912,6 +1950,9 @@ void _handleMascotPetting() {
           ],
          ),
         ),
+
+        // Permission Warning Banner if storage permission missing
+        _buildPermissionWarningBanner(context, isDark, widget.controller.isEnglish),
 
         // Account bar removed per user request
         // Main Theme Highlight Card
@@ -3920,6 +3961,113 @@ void _handleMascotPetting() {
    },
   );
  }
+
+  Widget _buildPermissionWarningBanner(BuildContext context, bool isDark, bool isEn) {
+    if (_hasStoragePermission) return const SizedBox.shrink();
+
+    final bannerBg = isDark ? const Color(0xFF271B11) : const Color(0xFFFFFBEB);
+    final bannerBorder = isDark ? const Color(0xFFB45309) : const Color(0xFFFDE68A);
+    final textDark = isDark ? const Color(0xFFFED7AA) : const Color(0xFF9A3412);
+    final textSub = isDark ? const Color(0xFFFDBA74) : const Color(0xFFB45309);
+
+    return Container(
+      margin: const EdgeInsets.only(left: 20, right: 20, top: 4, bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: bannerBg,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: bannerBorder, width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFF59E0B).withOpacity(0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF59E0B).withOpacity(0.18),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.warning_amber_rounded,
+              color: Color(0xFFF59E0B),
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isEn ? 'Storage Permission Needed' : 'ยังไม่ได้รับสิทธิ์เข้าถึงสลิปรูปภาพ 📸',
+                  style: TextStyle(
+                    color: textDark,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  isEn
+                      ? 'Slip auto-sync is disabled. Allow access to let MeowTang detect bank slips automatically.'
+                      : 'ระบบยังไม่สามารถตรวจจับและอ่านสลิปธนาคารให้อัตโนมัติได้ โปรดเปิดสิทธิ์รูปภาพ',
+                  style: TextStyle(
+                    color: textSub,
+                    fontSize: 11.5,
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                InkWell(
+                  onTap: () async {
+                    HapticFeedback.lightImpact();
+                    await _requestPermissionOrOpenSettings();
+                  },
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF59E0B),
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFF59E0B).withOpacity(0.3),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.settings_suggest_rounded, color: Colors.white, size: 15),
+                        const SizedBox(width: 6),
+                        Text(
+                          isEn ? 'Enable All Permissions' : 'เปิดสิทธิ์ทั้งหมดทันที 🐾',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 enum SwipeActionGlyphDirection { left, right }

@@ -306,6 +306,10 @@ class MainActivity : FlutterActivity() {
                         result.success(false)
                     }
                 }
+                "openAppSettings" -> {
+                    openAppSettings()
+                    result.success(true)
+                }
                 "compressAndSaveSlip" -> {
                     val filePath = call.argument<String>("filePath")
                     val customName = call.argument<String>("fileName")

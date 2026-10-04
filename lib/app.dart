@@ -72,7 +72,12 @@ class AiExpenseTrackerApp extends StatelessWidget {
                               controller: controller,
                               onCompleted: () {},
                             )
-                          : MainNavigationScreen(controller: controller),
+                          : !controller.isPermissionConfigured
+                              ? PermissionOnboardingScreen(
+                                  controller: controller,
+                                  onFinish: () {},
+                                )
+                              : MainNavigationScreen(controller: controller),
         );
       },
     );

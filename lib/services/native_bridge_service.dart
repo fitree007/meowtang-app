@@ -132,6 +132,16 @@ class NativeBridgeService {
     }
   }
 
+  /// Opens device application settings
+  static Future<bool> openAppSettings() async {
+    try {
+      final res = await _channel.invokeMethod('openAppSettings');
+      return res == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Starts real-time MediaStore ContentObserver & Foreground Service
   static Future<bool> startMediaObserver() async {
     try {
