@@ -273,301 +273,338 @@ class _MascotOnboardingScreenState extends State<MascotOnboardingScreen> {
               primaryColor: MeowTheme.mustardYellowDark,
               textColor: textPrimary,
               subtitleColor: textSecondary,
+              onBack: () async {
+                HapticFeedback.selectionClick();
+                await widget.controller.revertToLanguageSelection();
+              },
             ),
 
-            // Scrollable Content Area
+            // 2. FIXED Hero Mascot Showcase Card (รูปแนบ 3)
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 2, 16, 8),
+              padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: const Color(0xFFF1ECE1), width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 14,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  // Top Row: Index Badge & [ เลือกรูปของฉัน ] & Category Tag
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8F6F0),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${currentMascotIndex >= 0 ? currentMascotIndex + 1 : 1} / ${MascotCatalog.characters.length}',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF786C59),
+                          ),
+                        ),
+                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          TactileButton(
+                            onTap: _openCustomPhotoDialog,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
+                              decoration: BoxDecoration(
+                                color: isCustomPhoto ? const Color(0xFFFEF3C7) : const Color(0xFFF8F6F0),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: isCustomPhoto ? MeowTheme.mustardYellowDark : const Color(0xFFE2E8F0),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.add_a_photo_rounded,
+                                    size: 11.5,
+                                    color: isCustomPhoto ? const Color(0xFFB45309) : const Color(0xFF64748B),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    isEn ? 'My Photo' : 'เลือกรูปของฉัน',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: isCustomPhoto ? const Color(0xFFB45309) : const Color(0xFF475569),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0F172A),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              _getCategoryTag(currentMascot.id),
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  // Mascot Avatar in circular warm backdrop
+                  Stack(
+                    clipBehavior: Clip.none,
+                    alignment: Alignment.center,
+                    children: [
+                      Container(
+                        width: 86,
+                        height: 86,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0xFFFEF3C7),
+                          boxShadow: [
+                            BoxShadow(
+                              color: MeowTheme.mustardYellow.withValues(alpha: 0.2),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        alignment: Alignment.center,
+                        child: MeowMascotWidget(
+                          size: 66,
+                          mascotId: currentMascot.id,
+                          accessory: _selectedAccessory,
+                          outfit: _selectedOutfit,
+                          customPhotoPath: customPhoto,
+                          isCustomPhoto: isCustomPhoto,
+                          animate: true,
+                        ),
+                      ),
+                      Positioned(
+                        top: -2,
+                        right: -2,
+                        child: Container(
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: const Color(0xFFF59E0B), width: 1.8),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.1),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            currentAcc.icon,
+                            size: 14,
+                            color: const Color(0xFFD97706),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    thaiName,
+                    style: const TextStyle(
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w800,
+                      color: textPrimary,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                  if (enName.isNotEmpty) ...[
+                    Text(
+                      enName,
+                      style: const TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF94A3B8),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 2),
+                  Text(
+                    currentMascot.subtitle,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFFBEB),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.5)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.stars_rounded, size: 12, color: Color(0xFFD97706)),
+                        const SizedBox(width: 4),
+                        Text(
+                          'อุปกรณ์ประจำตัว: ${MascotCatalog.accessories.firstWhere((a) => a.id == currentMascot.signatureAccessory, orElse: () => MascotCatalog.accessories.first).name}',
+                          style: const TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFD97706),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // 3. FIXED SEGMENTED SWITCH: [ 🐾 มาสคอต 22 | ✨ อุปกรณ์ 36 ]
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
+              child: Container(
+                padding: const EdgeInsets.all(3.5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF3EDE3),
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Row(
+                  children: [
+                    // Tab 1: มาสคอต 22
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          setState(() => _activeTabIndex = 0);
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          curve: Curves.easeInOut,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: _activeTabIndex == 0 ? Colors.white : Colors.transparent,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: _activeTabIndex == 0
+                                ? [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.08),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.pets_rounded,
+                                size: 14,
+                                color: _activeTabIndex == 0 ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                isEn ? 'Mascot 22' : 'มาสคอต 22',
+                                style: TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: _activeTabIndex == 0 ? FontWeight.bold : FontWeight.w600,
+                                  color: _activeTabIndex == 0 ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Tab 2: อุปกรณ์ 36
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          setState(() => _activeTabIndex = 1);
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          curve: Curves.easeInOut,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: _activeTabIndex == 1 ? Colors.white : Colors.transparent,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: _activeTabIndex == 1
+                                ? [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.08),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.auto_awesome_rounded,
+                                size: 14,
+                                color: _activeTabIndex == 1 ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                isEn ? 'Accessory 36' : '✨ อุปกรณ์ 36',
+                                style: TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: _activeTabIndex == 1 ? FontWeight.bold : FontWeight.w600,
+                                  color: _activeTabIndex == 1 ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // 4. SCROLLABLE GRID ONLY (เฉพาะส่วนนี้ที่จะเลื่อน)
             Expanded(
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
                   children: [
-                    // 2. Hero Mascot Showcase Card (รูปแนบ 3)
-                    Container(
-                      margin: const EdgeInsets.only(top: 2, bottom: 12),
-                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: const Color(0xFFF1ECE1), width: 1.5),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.04),
-                            blurRadius: 16,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        children: [
-                          // Top Row: Index Badge & Category Tag
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF8F6F0),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  '${currentMascotIndex >= 0 ? currentMascotIndex + 1 : 1} / ${MascotCatalog.characters.length}',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF786C59),
-                                  ),
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF0F172A),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Text(
-                                  _getCategoryTag(currentMascot.id),
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          // Mascot Avatar in circular warm backdrop
-                          const SizedBox(height: 6),
-                          Stack(
-                            clipBehavior: Clip.none,
-                            alignment: Alignment.center,
-                            children: [
-                              Container(
-                                width: 104,
-                                height: 104,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: const Color(0xFFFEF3C7),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: MeowTheme.mustardYellow.withValues(alpha: 0.22),
-                                      blurRadius: 14,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
-                                ),
-                                alignment: Alignment.center,
-                                child: MeowMascotWidget(
-                                  size: 78,
-                                  mascotId: currentMascot.id,
-                                  accessory: _selectedAccessory,
-                                  outfit: _selectedOutfit,
-                                  customPhotoPath: customPhoto,
-                                  isCustomPhoto: isCustomPhoto,
-                                  animate: true,
-                                ),
-                              ),
-                              // Equipped Accessory Badge (Corner)
-                              Positioned(
-                                top: -2,
-                                right: -2,
-                                child: Container(
-                                  width: 32,
-                                  height: 32,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(color: const Color(0xFFF59E0B), width: 2),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.1),
-                                        blurRadius: 4,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Icon(
-                                    currentAcc.icon,
-                                    size: 16,
-                                    color: const Color(0xFFD97706),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-
-                          // Mascot Name
-                          Text(
-                            thaiName,
-                            style: const TextStyle(
-                              fontSize: 16.5,
-                              fontWeight: FontWeight.w800,
-                              color: textPrimary,
-                              letterSpacing: -0.2,
-                            ),
-                          ),
-                          if (enName.isNotEmpty) ...[
-                            const SizedBox(height: 2),
-                            Text(
-                              enName,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF94A3B8),
-                              ),
-                            ),
-                          ],
-                          const SizedBox(height: 4),
-                          // Mascot Subtitle
-                          Text(
-                            currentMascot.subtitle,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 11.5,
-                              color: textSecondary,
-                              height: 1.35,
-                            ),
-                          ),
-
-                          // Signature Item Pill
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFFBEB),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.5)),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.stars_rounded, size: 13, color: Color(0xFFD97706)),
-                                const SizedBox(width: 4.5),
-                                Text(
-                                  'อุปกรณ์ประจำตัว: ${MascotCatalog.accessories.firstWhere((a) => a.id == currentMascot.signatureAccessory, orElse: () => MascotCatalog.accessories.first).name}',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFFD97706),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // 3. EXACT USER SCREENSHOT SEGMENTED SWITCH: [ 🐾 มาสคอต 22 | ✨ อุปกรณ์ 36 ]
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 10),
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF3EDE3),
-                        borderRadius: BorderRadius.circular(26),
-                      ),
-                      child: Row(
-                        children: [
-                          // Tab 1: มาสคอต 22
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () {
-                                HapticFeedback.selectionClick();
-                                setState(() => _activeTabIndex = 0);
-                              },
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                curve: Curves.easeInOut,
-                                height: 44,
-                                decoration: BoxDecoration(
-                                  color: _activeTabIndex == 0 ? Colors.white : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(22),
-                                  boxShadow: _activeTabIndex == 0
-                                      ? [
-                                          BoxShadow(
-                                            color: Colors.black.withValues(alpha: 0.08),
-                                            blurRadius: 8,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ]
-                                      : null,
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.pets_rounded,
-                                      size: 15,
-                                      color: _activeTabIndex == 0 ? const Color(0xFF0F172A) : const Color(0xFF64748B),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      isEn ? 'Mascot 22' : 'มาสคอต 22',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: _activeTabIndex == 0 ? FontWeight.bold : FontWeight.w600,
-                                        color: _activeTabIndex == 0 ? const Color(0xFF0F172A) : const Color(0xFF64748B),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-
-                          // Tab 2: อุปกรณ์ 36
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () {
-                                HapticFeedback.selectionClick();
-                                setState(() => _activeTabIndex = 1);
-                              },
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                curve: Curves.easeInOut,
-                                height: 44,
-                                decoration: BoxDecoration(
-                                  color: _activeTabIndex == 1 ? Colors.white : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(22),
-                                  boxShadow: _activeTabIndex == 1
-                                      ? [
-                                          BoxShadow(
-                                            color: Colors.black.withValues(alpha: 0.08),
-                                            blurRadius: 8,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ]
-                                      : null,
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.auto_awesome_rounded,
-                                      size: 15,
-                                      color: _activeTabIndex == 1 ? const Color(0xFF0F172A) : const Color(0xFF64748B),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      isEn ? 'Equipment 36' : 'อุปกรณ์ 36',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: _activeTabIndex == 1 ? FontWeight.bold : FontWeight.w600,
-                                        color: _activeTabIndex == 1 ? const Color(0xFF0F172A) : const Color(0xFF64748B),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // 4. Dynamic Sub-filter Chips
                     if (_activeTabIndex == 0) ...[
                       // Mascot Filters: ทั้งหมด 21, แมว 13, เพื่อนสัตว์ 7, AI 1
                       SingleChildScrollView(
@@ -629,9 +666,9 @@ class _MascotOnboardingScreenState extends State<MascotOnboardingScreen> {
               ),
             ),
 
-            // 5. Bottom Action Area
+            // 5. FIXED BOTTOM BAR WITH BACK & CONFIRM BUTTONS
             Container(
-              padding: const EdgeInsets.fromLTRB(18, 10, 18, 16),
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
               decoration: BoxDecoration(
                 color: bgColor,
                 border: Border(top: BorderSide(color: Colors.black.withValues(alpha: 0.04))),
@@ -639,69 +676,113 @@ class _MascotOnboardingScreenState extends State<MascotOnboardingScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TactileButton(
-                    onTap: _onFinish,
-                    child: Container(
-                      width: double.infinity,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        color: MeowTheme.mustardYellow,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: MeowTheme.mustardYellow.withValues(alpha: 0.35),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            _activeTabIndex == 0
-                                ? (isEn ? 'Select $thaiName ➔' : 'เลือก $thaiName ➔')
-                                : (isEn ? 'Save Dressing' : '✔ บันทึกการแต่งตัว'),
-                            style: const TextStyle(
-                              color: Color(0xFF0F172A),
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800,
+                  SizedBox(
+                    height: 50,
+                    child: Row(
+                      children: [
+                        // Back Button (35%)
+                        Expanded(
+                          flex: 35,
+                          child: TactileButton(
+                            onTap: () async {
+                              HapticFeedback.selectionClick();
+                              await widget.controller.revertToLanguageSelection();
+                            },
+                            child: Container(
+                              height: 50,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF1F5F9),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.arrow_back_rounded, size: 16, color: Color(0xFF334155)),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    isEn ? 'Back' : 'ย้อนกลับ',
+                                    style: const TextStyle(
+                                      color: Color(0xFF334155),
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(width: 10),
+                        // Confirm Button (65%)
+                        Expanded(
+                          flex: 65,
+                          child: TactileButton(
+                            onTap: _onFinish,
+                            child: Container(
+                              height: 50,
+                              decoration: BoxDecoration(
+                                color: MeowTheme.mustardYellow,
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: MeowTheme.mustardYellow.withValues(alpha: 0.35),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      _activeTabIndex == 0
+                                          ? (isEn ? 'Select $thaiName ➔' : 'เลือก $thaiName ➔')
+                                          : (isEn ? 'Save Dressing' : '✔ บันทึกการแต่งตัว'),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: Color(0xFF0F172A),
+                                        fontSize: 14.5,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 8),
 
-                  // Secondary Action Link
-                  GestureDetector(
-                    onTap: _activeTabIndex == 0 ? _openCustomPhotoDialog : _resetToSignature,
-                    child: Padding(
-                      padding: const EdgeInsets.all(4.0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            _activeTabIndex == 0 ? Icons.add_a_photo_rounded : Icons.replay_rounded,
-                            size: 14,
-                            color: textSecondary,
-                          ),
-                          const SizedBox(width: 5),
-                          Text(
-                            _activeTabIndex == 0
-                                ? (isEn ? 'Use your own pet photo' : 'ใช้รูปสัตว์เลี้ยงของคุณเองแทน')
-                                : (isEn ? 'Reset to signature accessory' : 'รีเซ็ตเป็นอุปกรณ์ประจำตัวดั้งเดิม'),
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: textSecondary,
+                  // If in tab 1 (Dressing), show reset button below
+                  if (_activeTabIndex == 1) ...[
+                    const SizedBox(height: 6),
+                    GestureDetector(
+                      onTap: _resetToSignature,
+                      child: Padding(
+                        padding: const EdgeInsets.all(4.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.replay_rounded, size: 14, color: textSecondary),
+                            const SizedBox(width: 5),
+                            Text(
+                              isEn ? 'Reset to signature accessory' : 'รีเซ็ตเป็นอุปกรณ์ประจำตัวดั้งเดิม',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: textSecondary,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),
