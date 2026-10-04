@@ -148,7 +148,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Widget
             index: _currentIndex,
             children: screens,
           ),
-          bottomNavigationBar: widget.controller.isFirstTimeSyncScreenVisible ? null : Container(
+          bottomNavigationBar: Container(
             decoration: BoxDecoration(
               color: navBg,
               border: Border(top: BorderSide(color: borderCol, width: 1)),
