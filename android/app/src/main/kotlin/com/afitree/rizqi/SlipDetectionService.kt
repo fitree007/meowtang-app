@@ -327,7 +327,12 @@ class SlipDetectionService : Service() {
                     } else if (lowerPath.contains("ibank") || lowerName.contains("ibank") || lowerPath.contains("อิสลาม") || lowerName.contains("อิสลาม")) {
                         detectedBank = "iBank (อิสลามแห่งประเทศไทย)"
                         isSlip = true
-                    } else if (lowerPath.contains("screenshot") || lowerName.contains("screenshot") || lowerRelPath.contains("screenshot")) {
+                    } else if (detectExtraSlipBank(combinedSearch, lowerBucket) != null) {
+                        detectedBank = detectExtraSlipBank(combinedSearch, lowerBucket)!!
+                        isSlip = true
+                    } else if (lowerPath.contains("screenshot") || lowerName.contains("screenshot") || lowerRelPath.contains("screenshot") ||
+                               lowerName.contains("ภาพหน้าจอ") || lowerPath.contains("ภาพหน้าจอ") || lowerRelPath.contains("ภาพหน้าจอ") ||
+                               lowerName.contains("screencap") || lowerPath.contains("screencap")) {
                         detectedBank = "MyMo by GSB (ออมสิน)"
                         isSlip = true
                     } else if (slipKeywords.any { kw -> lowerName.contains(kw) || lowerPath.contains(kw) }) {

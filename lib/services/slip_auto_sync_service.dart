@@ -105,16 +105,49 @@ class SlipAutoSyncService {
     return !date.isBefore(start);
   }
 
+  static Future<List<TransactionItem>>? _activeScan;
+  static bool _activeScanIsForced = false;
+
   /// Scans device storage for new bank slips.
   /// When [forceRescan] is true (e.g. user manual pull-to-refresh), scans full 12-month archive to catch any missed slips.
   static Future<List<TransactionItem>> scanAndAutoImportNewSlips(
     ExpenseController controller, {
     bool forceRescan = false,
   }) async {
+    final active = _activeScan;
+    if (active != null) {
+      // Join the running scan; only queue a new one if a forced rescan was requested on top of a normal scan
+      if (!forceRescan || _activeScanIsForced) return active;
+      try {
+        await active;
+      } catch (_) {}
+      return scanAndAutoImportNewSlips(controller, forceRescan: true);
+    }
+
+    final scan = _runScan(controller, forceRescan: forceRescan);
+    _activeScan = scan;
+    _activeScanIsForced = forceRescan;
+    try {
+      return await scan;
+    } finally {
+      if (identical(_activeScan, scan)) _activeScan = null;
+    }
+  }
+
+  static Future<List<TransactionItem>> _runScan(
+    ExpenseController controller, {
+    required bool forceRescan,
+  }) async {
     controller.setProcessingSlips(true);
     try {
+      // Note: _inFlightKeys is NOT cleared here — the real-time observer may be processing a slip right now
       _processedKeys.clear();
-      _inFlightKeys.clear();
+
+      // Without photo access the device query returns nothing. Bail out WITHOUT marking the initial scan
+      // as completed, so the free 12-month import still runs once the user grants permission later.
+      if (!await NativeBridgeService.hasPhotoPermission()) {
+        return [];
+      }
 
       final isCreator = AppConfig.isCreatorEdition;
       final isFirstInstallScan = !controller.storage.isInitialDeviceScanCompleted();
@@ -277,8 +310,7 @@ class SlipAutoSyncService {
 
     if (allSlips.isEmpty) {
       if (isInitialScan) {
-        final perm = await NativeBridgeService.checkAppPermissions();
-        if (perm['storage'] == true) {
+        if (await NativeBridgeService.hasPhotoPermission()) {
           await controller.storage.setInitialDeviceScanCompleted(true);
         }
         await NativeBridgeService.cancelScanProgressNotification();
@@ -388,22 +420,12 @@ class SlipAutoSyncService {
 
           cachedImportedSet.addAll(newIds);
           pendingBatch.add(item);
-          importedSlips.add(item);
           pendingIdentifiers.addAll(newIds);
 
-          if (!isInitialScan) {
-            await controller.recordSlipImported(
-              slipDate: item.date,
-              isInitialImport: false,
-            );
-          }
-
-          // Consolidated batch save every 5 items or 1.2s to prevent UI rebuild thrashing and stutter
-          if (pendingBatch.length >= 5 || DateTime.now().difference(lastBatchSaveTime).inMilliseconds >= 1200) {
-            await controller.addTransactionsBatch(List.from(pendingBatch), isInitialImport: isInitialScan);
-            await controller.storage.addImportedSlipIdentifiers(List.from(pendingIdentifiers));
-            pendingBatch.clear();
-            pendingIdentifiers.clear();
+          // Consolidated batch save every 5 items or 1.2s to prevent UI rebuild thrashing and stutter.
+          // Ongoing scans flush every item so the monthly quota check above stays exact.
+          if (!isInitialScan || pendingBatch.length >= 5 || DateTime.now().difference(lastBatchSaveTime).inMilliseconds >= 1200) {
+            importedSlips.addAll(await _flushBatch(controller, pendingBatch, pendingIdentifiers, isInitialScan));
             lastBatchSaveTime = DateTime.now();
           }
 
@@ -418,10 +440,7 @@ class SlipAutoSyncService {
 
     // Flush any remaining batch
     if (pendingBatch.isNotEmpty) {
-      await controller.addTransactionsBatch(List.from(pendingBatch), isInitialImport: isInitialScan);
-      await controller.storage.addImportedSlipIdentifiers(List.from(pendingIdentifiers));
-      pendingBatch.clear();
-      pendingIdentifiers.clear();
+      importedSlips.addAll(await _flushBatch(controller, pendingBatch, pendingIdentifiers, isInitialScan));
     }
 
       if (isInitialScan) {
@@ -439,6 +458,33 @@ class SlipAutoSyncService {
     } finally {
       controller.setProcessingSlips(false);
     }
+  }
+
+  /// Saves the pending batch and returns only the items that were really added
+  /// (addTransactionsBatch silently drops duplicates). Quota is charged only for those.
+  static Future<List<TransactionItem>> _flushBatch(
+    ExpenseController controller,
+    List<TransactionItem> pendingBatch,
+    List<String> pendingIdentifiers,
+    bool isInitialScan,
+  ) async {
+    final batch = List<TransactionItem>.from(pendingBatch);
+    pendingBatch.clear();
+    final identifiers = List<String>.from(pendingIdentifiers);
+    pendingIdentifiers.clear();
+
+    await controller.addTransactionsBatch(batch, isInitialImport: isInitialScan);
+    await controller.storage.addImportedSlipIdentifiers(identifiers);
+
+    final savedIds = controller.allTransactions.map((t) => t.id).toSet();
+    final added = batch.where((t) => savedIds.contains(t.id)).toList();
+
+    if (!isInitialScan) {
+      for (final item in added) {
+        await controller.recordSlipImported(slipDate: item.date, isInitialImport: false);
+      }
+    }
+    return added;
   }
 
   /// Cleans up any existing duplicate transactions in the database (e.g. from previous double-scans)
@@ -528,7 +574,7 @@ class SlipAutoSyncService {
       'pictures/tisco', 'dcim/tisco', 'tisco',
       'pictures/lhb you', 'pictures/lhb', 'dcim/lhb', 'lhb',
       'pictures/ibank', 'pictures/islamicbank', 'dcim/ibank', 'ibank',
-      'pictures/make', 'dcim/make', 'make by kbank', 'make', 'cloud pocket',
+      'pictures/make', 'dcim/make', 'make by kbank', 'cloud pocket',
       'pictures/baac', 'dcim/baac', 'pictures/ธกส', 'pictures/a-mobile', 'baac', 'a-mobile', 'ธกส',
       'pictures/shopeepay', 'pictures/airpay', 'dcim/shopeepay', 'shopeepay', 'airpay',
     ];

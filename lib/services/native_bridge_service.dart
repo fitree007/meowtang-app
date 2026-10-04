@@ -132,6 +132,17 @@ class NativeBridgeService {
     }
   }
 
+  /// Whether a permission status map grants photo/storage access.
+  /// Missing keys (iOS, web, tests, channel errors) count as granted, matching the fallbacks above.
+  static bool isStorageGranted(Map<String, dynamic> status) {
+    return (status['storage'] ?? status['allGranted'] ?? true) == true;
+  }
+
+  /// Checks photo/storage access without showing any system dialog
+  static Future<bool> hasPhotoPermission() async {
+    return isStorageGranted(await checkAppPermissions());
+  }
+
   /// Opens device application settings
   static Future<bool> openAppSettings() async {
     try {

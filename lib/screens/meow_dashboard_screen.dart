@@ -57,48 +57,48 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
   final ScrollController _scrollController = ScrollController();
   bool _showScrollToTop = false;
   bool _isSubscriptionBannerDismissed = false;
-  bool _hasStoragePermission = true;
+  // Photo access denied: show the "grant permission" banner instead of nagging with a dialog on every resume
+  bool _needsPhotoPermission = false;
 
-  Future<void> _checkPermissionStatus() async {
-    try {
-      final status = await NativeBridgeService.checkAppPermissions();
-      final hasStorage = status['storage'] == true;
-      if (mounted && _hasStoragePermission != hasStorage) {
-        setState(() {
-          _hasStoragePermission = hasStorage;
-        });
-      }
-    } catch (_) {}
+  void _setFirstTimeSyncing(bool value) {
+    if (!mounted) return;
+    setState(() => _isFirstTimeSyncing = value);
+    widget.controller.setFirstTimeSyncScreenVisible(value);
   }
 
-  Future<void> _requestPermissionOrOpenSettings() async {
-    await NativeBridgeService.requestAppPermissions();
-    await _checkPermissionStatus();
-    if (!_hasStoragePermission && mounted) {
-      final opened = await NativeBridgeService.openAppSettings();
-      if (!opened && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              widget.controller.isEnglish
-                  ? 'Please enable Storage/Media permission in Device Settings > Apps > MeowTang'
-                  : 'โปรดไปที่ การตั้งค่ามือถือ > แอพ > เหมียวตังค์ > สิทธิ์ เพื่อเปิดสิทธิ์รูปภาพ',
-            ),
-          ),
-        );
-      }
-    } else if (_hasStoragePermission) {
-      if (mounted) {
-        if (!widget.controller.isInitialDeviceScanCompleted) {
-          setState(() {
-            _isFirstTimeSyncing = true;
-          });
-          _runFirstTimeSlipSync();
-        } else {
-          _autoScanSlipsInBackground(showFeedback: true);
-        }
-      }
+  /// Banner / snackbar action: asks for photo access. If the user denied permanently, the native side
+  /// shows its "go to Settings" dialog; the resume handler picks up the change when they come back.
+  Future<void> _requestPhotoPermission() async {
+    HapticFeedback.lightImpact();
+    final status = await NativeBridgeService.requestAppPermissions();
+    if (!mounted) return;
+    if (NativeBridgeService.isStorageGranted(status)) {
+      setState(() => _needsPhotoPermission = false);
+      _autoScanSlipsInBackground(showFeedback: true);
     }
+  }
+
+  void _showPhotoPermissionSnackBar() {
+    final isEn = widget.controller.isEnglish;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          isEn ? 'Photo access is off, so slips cannot be read' : 'ยังไม่ได้อนุญาตเข้าถึงรูปภาพ จึงดึงสลิปไม่ได้',
+          style: const TextStyle(fontSize: 13),
+        ),
+        action: SnackBarAction(
+          label: isEn ? 'Allow' : 'อนุญาต',
+          textColor: MeowTheme.mustardYellow,
+          onPressed: _requestPhotoPermission,
+        ),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.only(bottom: 90, left: 20, right: 20),
+        backgroundColor: const Color(0xFF1E293B),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        duration: const Duration(seconds: 4),
+      ),
+    );
   }
 
   // Batch delete & undo countdown state (3.5s)
@@ -184,12 +184,23 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
       }
     });
 
+    widget.controller.setFirstTimeSyncScreenVisible(_isFirstTimeSyncing);
+
     // 0.1 Request OS permissions on app launch (Photos, Camera, Audio) for iOS & Android
-    await NativeBridgeService.requestAppPermissions();
-    await _checkPermissionStatus();
+    final permStatus = await NativeBridgeService.requestAppPermissions();
+    final hasPhotos = NativeBridgeService.isStorageGranted(permStatus);
+    if (!mounted) return;
+    if (!hasPhotos) {
+      setState(() => _needsPhotoPermission = true);
+    }
 
     if (_isFirstTimeSyncing) {
-      _runFirstTimeSlipSync();
+      if (hasPhotos) {
+        _runFirstTimeSlipSync();
+      } else {
+        // Denied: go straight to the dashboard. The initial scan stays pending (and free) until permission is granted.
+        _setFirstTimeSyncing(false);
+      }
     } else {
       // 1. Initial background scan for unimported bank slips with gentle delay (2000ms) for smooth startup
       Future.delayed(const Duration(milliseconds: 2000), () {
@@ -234,30 +245,20 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
   DateTime? _lastPausedTime;
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) async {
+  void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused) {
       _lastPausedTime = DateTime.now();
     } else if (state == AppLifecycleState.resumed) {
       // 1. Immediately reload storage from disk (syncs widget voice entries in real-time)
       widget.controller.reloadFromStorage();
-      await _checkPermissionStatus();
-      if (_hasStoragePermission && !widget.controller.isInitialDeviceScanCompleted) {
-        if (mounted) {
-          setState(() {
-            _isFirstTimeSyncing = true;
-          });
-          _runFirstTimeSlipSync();
-        }
-      } else {
-        _autoScanSlipsInBackground(showFeedback: false);
-      }
+      _autoScanSlipsInBackground(showFeedback: false);
 
       // 2. Auto-refresh if user has been away for 5+ minutes (or on cold launch)
       if (_lastPausedTime != null && DateTime.now().difference(_lastPausedTime!).inMinutes >= 5) {
         _lastPausedTime = DateTime.now();
         Future.delayed(const Duration(milliseconds: 500), () {
           if (mounted) {
-            _handlePullToRefresh();
+            _handlePullToRefresh(userInitiated: false);
           }
         });
       }
@@ -290,14 +291,8 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
 
   Future<void> _runFirstTimeSlipSync() async {
     if (!mounted) return;
-    final permStatus = await NativeBridgeService.checkAppPermissions();
-    final hasStorage = permStatus['storage'] == true;
-    if (!hasStorage) {
-      if (mounted) {
-        setState(() {
-          _isFirstTimeSyncing = false;
-        });
-      }
+    if (!await NativeBridgeService.hasPhotoPermission()) {
+      _setFirstTimeSyncing(false);
       return;
     }
 
@@ -334,41 +329,60 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
       // Gracefully handle any error
     } finally {
       if (mounted) {
-        final permCheck = await NativeBridgeService.checkAppPermissions();
-        if (permCheck['storage'] == true) {
+        if (await NativeBridgeService.hasPhotoPermission()) {
           await widget.controller.completeInitialDeviceScan();
         }
         setState(() {
           _firstTimeSyncProgress = 1.0;
-          _isFirstTimeSyncing = false;
         });
+        _setFirstTimeSyncing(false);
       }
     }
   }
 
-  void _skipFirstTimeSlipSync() async {
+  void _skipFirstTimeSlipSync() {
     HapticFeedback.lightImpact();
-    await widget.controller.completeInitialDeviceScan();
-    if (mounted) {
-      setState(() {
-        _isFirstTimeSyncing = false;
-      });
-    }
+    // Only hides the screen: the scan keeps importing in the background and marks itself completed when done
+    _setFirstTimeSyncing(false);
   }
 
-  Future<void> _handlePullToRefresh() async {
-    HapticFeedback.lightImpact();
+  Future<void> _handlePullToRefresh({bool userInitiated = true}) async {
+    if (userInitiated) HapticFeedback.lightImpact();
     // 1. Force refresh persistent database transactions & preferences from disk
     await widget.controller.reloadFromStorage();
-    // 2. Fast scan for any recent new slips without doing a heavy 12-month forceRescan
-    if (mounted && widget.controller.canImportMoreSlips) {
-      await _autoScanSlipsInBackground(showFeedback: true, forceRescan: false);
+    // 2. Fast scan for any recent new slips without doing a heavy 12-month forceRescan.
+    // A real pull is not gated on quota: when the free quota is used up the scan shows the watch-ad / VIP
+    // dialog instead of silently doing nothing (users thought new slips were just not detected).
+    // The automatic refresh on resume stays silent.
+    if (mounted && (userInitiated || widget.controller.canImportMoreSlips)) {
+      await _autoScanSlipsInBackground(showFeedback: userInitiated, forceRescan: false);
     }
     // 3. Keep widget in sync
     await widget.controller.syncAndroidWidget();
   }
 
   Future<void> _autoScanSlipsInBackground({bool showFeedback = true, bool forceRescan = false}) async {
+    // The first-time sync screen owns the initial scan (resume after the permission dialog used to start a second one)
+    if (_isFirstTimeSyncing) return;
+
+    // Check (never request) photo access here: this runs on every app resume, and requesting made the
+    // native "permission required" dialog pop up each time for users who had denied it.
+    final hasPhotos = await NativeBridgeService.hasPhotoPermission();
+    if (!mounted) return;
+    if (!hasPhotos) {
+      if (!_needsPhotoPermission) setState(() => _needsPhotoPermission = true);
+      if (showFeedback) _showPhotoPermissionSnackBar();
+      return;
+    }
+    if (_needsPhotoPermission) setState(() => _needsPhotoPermission = false);
+
+    // Permission granted after an earlier denial: run the free 12-month initial import now
+    if (!widget.controller.isInitialDeviceScanCompleted) {
+      _setFirstTimeSyncing(true);
+      _runFirstTimeSlipSync();
+      return;
+    }
+
     if (_isAutoScanning) {
       if (!forceRescan) return;
       // If forceRescan is requested (e.g. user pulled to refresh), wait for existing background scan to finish
@@ -379,6 +393,7 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
       }
       _isAutoScanning = false;
     }
+    if (!mounted) return;
     if (!widget.controller.canImportMoreSlips) {
       if (showFeedback) {
         if (widget.controller.canWatchRewardedAd) {
@@ -426,7 +441,6 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
   }
 
   try {
-    await NativeBridgeService.requestAppPermissions();
     final imported = await SlipAutoSyncService.scanAndAutoImportNewSlips(widget.controller, forceRescan: forceRescan);
    if (!mounted) return;
 
@@ -3993,12 +4007,25 @@ void _handleMascotPetting() {
  }
 
   Widget _buildPermissionWarningBanner(BuildContext context, bool isDark, bool isEn) {
-    if (_hasStoragePermission) return const SizedBox.shrink();
+    if (!_needsPhotoPermission) return const SizedBox.shrink();
 
     final bannerBg = isDark ? const Color(0xFF271B11) : const Color(0xFFFFFBEB);
     final bannerBorder = isDark ? const Color(0xFFB45309) : const Color(0xFFFDE68A);
     final textDark = isDark ? const Color(0xFFFED7AA) : const Color(0xFF9A3412);
     final textSub = isDark ? const Color(0xFFFDBA74) : const Color(0xFFB45309);
+    final initialPending = !widget.controller.isInitialDeviceScanCompleted;
+
+    final title = initialPending
+        ? (isEn ? 'Import 12 Months of Slips Free 📸' : 'ดึงสลิปย้อนหลัง 12 เดือนฟรี 📸')
+        : (isEn ? 'Storage Permission Needed 📸' : 'ยังไม่ได้รับสิทธิ์เข้าถึงสลิปรูปภาพ 📸');
+
+    final subtitle = initialPending
+        ? (isEn
+            ? 'Allow photo access to import your last 12 months of slips for free without quota deduction!'
+            : 'อนุญาตเข้าถึงรูปภาพ เพื่อดึงสลิปย้อนหลัง 12 เดือนฟรี ไม่เสียโควต้าสลิป!')
+        : (isEn
+            ? 'Slip auto-sync is disabled. Allow access to let MeowTang detect bank slips automatically.'
+            : 'ระบบยังไม่สามารถตรวจจับและอ่านสลิปธนาคารให้อัตโนมัติได้ โปรดเปิดสิทธิ์รูปภาพ');
 
     return Container(
       margin: const EdgeInsets.only(left: 20, right: 20, top: 4, bottom: 10),
@@ -4036,7 +4063,7 @@ void _handleMascotPetting() {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isEn ? 'Storage Permission Needed' : 'ยังไม่ได้รับสิทธิ์เข้าถึงสลิปรูปภาพ 📸',
+                  title,
                   style: TextStyle(
                     color: textDark,
                     fontSize: 14,
@@ -4045,9 +4072,7 @@ void _handleMascotPetting() {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  isEn
-                      ? 'Slip auto-sync is disabled. Allow access to let MeowTang detect bank slips automatically.'
-                      : 'ระบบยังไม่สามารถตรวจจับและอ่านสลิปธนาคารให้อัตโนมัติได้ โปรดเปิดสิทธิ์รูปภาพ',
+                  subtitle,
                   style: TextStyle(
                     color: textSub,
                     fontSize: 11.5,
@@ -4056,10 +4081,7 @@ void _handleMascotPetting() {
                 ),
                 const SizedBox(height: 8),
                 InkWell(
-                  onTap: () async {
-                    HapticFeedback.lightImpact();
-                    await _requestPermissionOrOpenSettings();
-                  },
+                  onTap: _requestPhotoPermission,
                   borderRadius: BorderRadius.circular(10),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -4080,7 +4102,7 @@ void _handleMascotPetting() {
                         const Icon(Icons.settings_suggest_rounded, color: Colors.white, size: 15),
                         const SizedBox(width: 6),
                         Text(
-                          isEn ? 'Enable All Permissions' : 'เปิดสิทธิ์ทั้งหมดทันที 🐾',
+                          isEn ? 'Allow Permission' : 'อนุญาตสิทธิ์ทันที 🐾',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 12,

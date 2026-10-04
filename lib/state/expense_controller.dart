@@ -33,7 +33,7 @@ enum MascotMood {
 }
 
 class ExpenseController extends ChangeNotifier {
-  static const String appVersion = '1.41.84';
+  static const String appVersion = '1.41.85';
 
   final StorageService _storage;
   final OcrEngineService _ocrEngine = OcrEngineService();
@@ -644,6 +644,17 @@ class ExpenseController extends ChangeNotifier {
   }
 
   bool get isInitialDeviceScanCompleted => _storage.isInitialDeviceScanCompleted();
+
+  // Whether the dashboard's full-screen first-time slip sync is showing (the bottom nav is hidden meanwhile).
+  // Defaults to "initial scan not done yet" until the dashboard reports its real state.
+  bool? _isFirstTimeSyncScreenVisible;
+  bool get isFirstTimeSyncScreenVisible => _isFirstTimeSyncScreenVisible ?? !isInitialDeviceScanCompleted;
+
+  void setFirstTimeSyncScreenVisible(bool visible) {
+    if (_isFirstTimeSyncScreenVisible == visible) return;
+    _isFirstTimeSyncScreenVisible = visible;
+    notifyListeners();
+  }
 
   Future<void> completeInitialDeviceScan() async {
     await _storage.setInitialDeviceScanCompleted(true);

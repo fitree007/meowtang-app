@@ -57,7 +57,10 @@ class MainActivity : FlutterActivity() {
     private var pendingSpeechResult: MethodChannel.Result? = null
     private var pendingFileResult: MethodChannel.Result? = null
     private var inAppSpeechRecognizer: SpeechRecognizer? = null
-    private var pendingPermissionResult: MethodChannel.Result? = null
+    // All Dart callers waiting for the current permission dialog (a single slot dropped earlier callers, hanging their Future)
+    private val pendingPermissionResults = mutableListOf<MethodChannel.Result>()
+    // Android cancels a second requestPermissions() while one is showing, which used to fire a fake "denied" result
+    private var isPermissionRequestInFlight = false
 
     private var mediaObserver: ContentObserver? = null
     private var lastNotifiedSlipId: String? = null
@@ -164,7 +167,7 @@ class MainActivity : FlutterActivity() {
                     }
                 }
                 "requestAppPermissions" -> {
-                    pendingPermissionResult = result
+                    pendingPermissionResults.add(result)
                     requestPermissionsFromSystem()
                 }
                 "checkAppPermissions" -> {
@@ -734,7 +737,12 @@ class MainActivity : FlutterActivity() {
                     } else if (combinedSearch.contains("ibank") || combinedSearch.contains("อิสลาม")) {
                         detectedBank = "iBank (อิสลามแห่งประเทศไทย)"
                         isSlip = true
-                    } else if (lowerPath.contains("screenshot") || lowerName.contains("screenshot") || lowerRelPath.contains("screenshot")) {
+                    } else if (detectExtraSlipBank(combinedSearch, lowerBucket) != null) {
+                        detectedBank = detectExtraSlipBank(combinedSearch, lowerBucket)!!
+                        isSlip = true
+                    } else if (lowerPath.contains("screenshot") || lowerName.contains("screenshot") || lowerRelPath.contains("screenshot") ||
+                               lowerName.contains("ภาพหน้าจอ") || lowerPath.contains("ภาพหน้าจอ") || lowerRelPath.contains("ภาพหน้าจอ") ||
+                               lowerName.contains("screencap") || lowerPath.contains("screencap")) {
                         detectedBank = "MyMo by GSB (ออมสิน)"
                         isSlip = true
                     } else if (slipKeywords.any { kw -> combinedSearch.contains(kw) }) {
@@ -829,11 +837,19 @@ class MainActivity : FlutterActivity() {
         if (notGranted.isEmpty()) {
             registerMediaContentObserver()
             startBackgroundSlipService()
-            pendingPermissionResult?.success(checkPermissionsStatus())
-            pendingPermissionResult = null
+            deliverPermissionStatus(checkPermissionsStatus())
         } else {
+            // A dialog is already showing: its result will answer this caller too
+            if (isPermissionRequestInFlight) return
+            isPermissionRequestInFlight = true
             ActivityCompat.requestPermissions(this, notGranted.toTypedArray(), PERMISSION_REQUEST_CODE)
         }
+    }
+
+    private fun deliverPermissionStatus(status: Map<String, Boolean>) {
+        val waiting = pendingPermissionResults.toList()
+        pendingPermissionResults.clear()
+        waiting.forEach { it.success(status) }
     }
 
     private fun checkPermissionsStatus(): Map<String, Boolean> {
@@ -852,18 +868,19 @@ class MainActivity : FlutterActivity() {
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == PERMISSION_REQUEST_CODE) {
+            isPermissionRequestInFlight = false
             val status = checkPermissionsStatus()
             val isStorageGranted = status["storage"] == true
 
             if (isStorageGranted) {
                 registerMediaContentObserver()
                 startBackgroundSlipService()
-            } else {
+            } else if (grantResults.isNotEmpty()) {
+                // Empty grantResults = the request was cancelled by the system, not denied by the user
                 showPermissionDeniedDialog()
             }
 
-            pendingPermissionResult?.success(status)
-            pendingPermissionResult = null
+            deliverPermissionStatus(status)
         }
     }
 
@@ -1168,38 +1185,8 @@ class MainActivity : FlutterActivity() {
                     } else if (combinedSearch.contains("ibank") || combinedSearch.contains("อิสลาม") || combinedSearch.contains("islamic")) {
                         detectedBank = "iBank (อิสลามแห่งประเทศไทย)"
                         isSlip = true
-                    } else if (combinedSearch.contains("krungsri") || combinedSearch.contains("kma") || combinedSearch.contains("กรุงศรี") || combinedSearch.contains("bay")) {
-                        detectedBank = "กรุงศรี (Krungsri KMA)"
-                        isSlip = true
-                    } else if (combinedSearch.contains("kept")) {
-                        detectedBank = "Kept by Krungsri"
-                        isSlip = true
-                    } else if (combinedSearch.contains("make by kbank") || combinedSearch.contains("make kbank") || combinedSearch.contains("cloud pocket") || combinedSearch.contains("make_by_kbank")) {
-                        detectedBank = "MAKE by KBank"
-                        isSlip = true
-                    } else if (combinedSearch.contains("uob") || combinedSearch.contains("tmrw") || combinedSearch.contains("ยูโอบี")) {
-                        detectedBank = "ยูโอบี (UOB TMRW)"
-                        isSlip = true
-                    } else if (combinedSearch.contains("cimb") || combinedSearch.contains("ซีไอเอ็มบี")) {
-                        detectedBank = "ซีไอเอ็มบีไทย (CIMB Thai)"
-                        isSlip = true
-                    } else if (combinedSearch.contains("dime")) {
-                        detectedBank = "Dime! by KKP"
-                        isSlip = true
-                    } else if (combinedSearch.contains("kkp") || combinedSearch.contains("kiatnakin") || combinedSearch.contains("เกียรตินาคิน")) {
-                        detectedBank = "เกียรตินาคินภัทร (KKP MOBILE)"
-                        isSlip = true
-                    } else if (combinedSearch.contains("ghb") || combinedSearch.contains("อาคารสงเคราะห์") || combinedSearch.contains("ธอส")) {
-                        detectedBank = "อาคารสงเคราะห์ (GHB ALL GEN)"
-                        isSlip = true
-                    } else if (combinedSearch.contains("tisco") || combinedSearch.contains("ทิสโก้") || combinedSearch.contains("my wealth")) {
-                        detectedBank = "ทิสโก้ (TISCO My Wealth)"
-                        isSlip = true
-                    } else if (combinedSearch.contains("lhb") || combinedSearch.contains("lh bank") || combinedSearch.contains("แลนด์ แอนด์ เฮ้าส์")) {
-                        detectedBank = "แลนด์ แอนด์ เฮ้าส์ (LHB You)"
-                        isSlip = true
-                    } else if (combinedSearch.contains("baac") || combinedSearch.contains("ธกส") || combinedSearch.contains("ธ.ก.ส.") || combinedSearch.contains("a-mobile") || combinedSearch.contains("เกษตรและสหกรณ์")) {
-                        detectedBank = "ธ.ก.ส. (A-Mobile Plus)"
+                    } else if (detectExtraSlipBank(combinedSearch, lowerBucket) != null) {
+                        detectedBank = detectExtraSlipBank(combinedSearch, lowerBucket)!!
                         isSlip = true
                     } else if (combinedSearch.contains("shopeepay") || combinedSearch.contains("airpay") || combinedSearch.contains("ช้อปปี้เพย์")) {
                         detectedBank = "ShopeePay"

@@ -33,13 +33,13 @@ class _PermissionOnboardingScreenState extends State<PermissionOnboardingScreen>
 
   Future<void> _onConfirmAll() async {
     widget.controller.toggleThemeMode(_isDark);
+    // Request actual OS permissions for device first before triggering state update & navigation
+    await NativeBridgeService.requestAppPermissions();
     await widget.controller.savePermissions(
       bankAlbum: _storageAllowed,
       installedApps: true,
       mainAlbum: _storageAllowed,
     );
-    // Request actual OS permissions for device
-    await NativeBridgeService.requestAppPermissions();
     widget.onFinish();
   }
 

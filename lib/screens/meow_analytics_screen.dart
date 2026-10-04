@@ -102,8 +102,12 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> with SingleTi
     if (widget.controller.expenseCategories.isNotEmpty) {
       _selectedDrillCategoryId = widget.controller.expenseCategories.first.id;
     }
-    // Auto-trigger slip scan if app has no transactions yet and is not currently scanning
-    if (widget.controller.allTransactions.isEmpty && !widget.controller.isProcessingSlips) {
+    // Auto-trigger slip scan if app has no transactions yet and is not currently scanning.
+    // Skipped before the initial device scan: this screen is built at startup inside the IndexedStack,
+    // and scanning before photo permission is granted finds nothing and wrongly marks the initial scan as done.
+    if (widget.controller.isInitialDeviceScanCompleted &&
+        widget.controller.allTransactions.isEmpty &&
+        !widget.controller.isProcessingSlips) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           SlipAutoSyncService.scanAndAutoImportNewSlips(widget.controller);
