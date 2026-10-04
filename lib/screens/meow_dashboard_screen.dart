@@ -550,7 +550,8 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
     final lum1 = currentTheme.primaryColor.computeLuminance();
     final lum2 = currentTheme.primaryDark.computeLuminance();
     final avgLum = (lum1 + lum2) / 2.0;
-    final bool isHeroLight = avgLum > 0.55 || currentTheme.isGlass;
+    final isDark = widget.controller.isDarkMode;
+    final bool isHeroLight = !isDark && (avgLum > 0.55 || currentTheme.isGlass);
 
     // Detect if theme background is yellowish / golden / honey / orange
     final bool isThemeYellowish = currentTheme.id == 'classic_meow_gold' ||
