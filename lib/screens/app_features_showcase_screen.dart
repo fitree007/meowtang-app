@@ -4,20 +4,34 @@ import '../state/expense_controller.dart';
 import '../widgets/meow_mascot_widget.dart';
 import '../widgets/tactile_button.dart';
 import '../widgets/onboarding_step_header.dart';
-import 'main_navigation_screen.dart';
-import 'theme_onboarding_screen.dart';
 
-class FeatureHighlightItem {
+class FeatureMiniCard {
   final IconData icon;
   final String title;
-  final String description;
-  final Color color;
+  final String subtitle;
+  final Color iconColor;
+  final Color iconBgColor;
 
-  const FeatureHighlightItem({
+  const FeatureMiniCard({
     required this.icon,
     required this.title,
-    required this.description,
-    required this.color,
+    required this.subtitle,
+    required this.iconColor,
+    required this.iconBgColor,
+  });
+}
+
+class FeatureCategorySection {
+  final String title;
+  final Color headerColor;
+  final Color headerBgColor;
+  final List<FeatureMiniCard> items;
+
+  const FeatureCategorySection({
+    required this.title,
+    required this.headerColor,
+    required this.headerBgColor,
+    required this.items,
   });
 }
 
@@ -37,132 +51,469 @@ class AppFeaturesShowcaseScreen extends StatelessWidget {
 
   bool get _isStandalone => isFromOverview || isFromMenu;
 
-  List<FeatureHighlightItem> _getItems(bool isEn) {
+  List<FeatureCategorySection> _getCategories(bool isEn) {
     if (isEn) {
       return [
-        const FeatureHighlightItem(
-          icon: Icons.shield_rounded,
-          title: '100% Offline Vault',
-          description: 'Maximum security. All financial data stays strictly on your phone. No cloud sync, no tracking, zero risk.',
-          color: Color(0xFF059669),
+        FeatureCategorySection(
+          title: '🟠 Effortless & Automatic',
+          headerColor: const Color(0xFFC2410C),
+          headerBgColor: const Color(0xFFFFEDD5),
+          items: const [
+            FeatureMiniCard(
+              icon: Icons.receipt_long_rounded,
+              title: 'Auto Slip Scan',
+              subtitle: 'Anti-Duplicate',
+              iconColor: Color(0xFFEA580C),
+              iconBgColor: Color(0xFFFFEDD5),
+            ),
+            FeatureMiniCard(
+              icon: Icons.account_balance_rounded,
+              title: '22+ Thai Banks',
+              subtitle: '& PaoTang',
+              iconColor: Color(0xFFEA580C),
+              iconBgColor: Color(0xFFFFEDD5),
+            ),
+            FeatureMiniCard(
+              icon: Icons.mic_rounded,
+              title: 'Speak & Record',
+              subtitle: 'AI Powered',
+              iconColor: Color(0xFFEA580C),
+              iconBgColor: Color(0xFFFFEDD5),
+            ),
+            FeatureMiniCard(
+              icon: Icons.calculate_rounded,
+              title: 'Calculator',
+              subtitle: 'Built-in',
+              iconColor: Color(0xFFEA580C),
+              iconBgColor: Color(0xFFFFEDD5),
+            ),
+            FeatureMiniCard(
+              icon: Icons.notifications_active_rounded,
+              title: 'Auto Income',
+              subtitle: 'From Notifs',
+              iconColor: Color(0xFFEA580C),
+              iconBgColor: Color(0xFFFFEDD5),
+            ),
+            FeatureMiniCard(
+              icon: Icons.credit_card_rounded,
+              title: 'Multi-Account',
+              subtitle: '& Cards',
+              iconColor: Color(0xFFEA580C),
+              iconBgColor: Color(0xFFFFEDD5),
+            ),
+          ],
         ),
-        const FeatureHighlightItem(
-          icon: Icons.receipt_long_rounded,
-          title: '22 Banks & PaoTang Slip Auto-Scan',
-          description: 'Automatically scans & imports transfer slips from 22 Thai banks, PaoTang & e-Wallets with 100% duplicate prevention.',
-          color: Color(0xFF2563EB),
+        FeatureCategorySection(
+          title: '🔵 Insights & Planning',
+          headerColor: const Color(0xFF1D4ED8),
+          headerBgColor: const Color(0xFFDBEAFE),
+          items: const [
+            FeatureMiniCard(
+              icon: Icons.bar_chart_rounded,
+              title: 'Stats & Charts',
+              subtitle: 'Deep Analysis',
+              iconColor: Color(0xFF2563EB),
+              iconBgColor: Color(0xFFDBEAFE),
+            ),
+            FeatureMiniCard(
+              icon: Icons.calendar_month_rounded,
+              title: 'Calendar',
+              subtitle: 'Cash Flow',
+              iconColor: Color(0xFF2563EB),
+              iconBgColor: Color(0xFFDBEAFE),
+            ),
+            FeatureMiniCard(
+              icon: Icons.compare_arrows_rounded,
+              title: 'Compare',
+              subtitle: '2 Months Trend',
+              iconColor: Color(0xFF2563EB),
+              iconBgColor: Color(0xFFDBEAFE),
+            ),
+            FeatureMiniCard(
+              icon: Icons.flag_rounded,
+              title: 'Savings Goal',
+              subtitle: 'AI Predict Date',
+              iconColor: Color(0xFF2563EB),
+              iconBgColor: Color(0xFFDBEAFE),
+            ),
+            FeatureMiniCard(
+              icon: Icons.pie_chart_rounded,
+              title: 'Budget Plan',
+              subtitle: 'Monthly Limit',
+              iconColor: Color(0xFF2563EB),
+              iconBgColor: Color(0xFFDBEAFE),
+            ),
+            FeatureMiniCard(
+              icon: Icons.folder_special_rounded,
+              title: 'Project Budget',
+              subtitle: '& Grants',
+              iconColor: Color(0xFF2563EB),
+              iconBgColor: Color(0xFFDBEAFE),
+            ),
+          ],
         ),
-        const FeatureHighlightItem(
-          icon: Icons.subscriptions_rounded,
-          title: 'Subscription & Recurring Bill Vault',
-          description: 'Manage Netflix, YouTube, ChatGPT, iCloud & utilities. Auto billing countdowns, cycle estimates, and multi-currency support.',
-          color: Color(0xFF6366F1),
+        FeatureCategorySection(
+          title: '🟢 Smart Tools & Islamic Suite',
+          headerColor: const Color(0xFF15803D),
+          headerBgColor: const Color(0xFFDCFCE7),
+          items: const [
+            FeatureMiniCard(
+              icon: Icons.autorenew_rounded,
+              title: 'Subscriptions',
+              subtitle: 'Bill Tracker',
+              iconColor: Color(0xFF16A34A),
+              iconBgColor: Color(0xFFDCFCE7),
+            ),
+            FeatureMiniCard(
+              icon: Icons.currency_exchange_rounded,
+              title: 'Currency FX',
+              subtitle: '150+ Rates',
+              iconColor: Color(0xFF16A34A),
+              iconBgColor: Color(0xFFDCFCE7),
+            ),
+            FeatureMiniCard(
+              icon: Icons.monetization_on_rounded,
+              title: 'Gold & Silver',
+              subtitle: 'Live Prices',
+              iconColor: Color(0xFF16A34A),
+              iconBgColor: Color(0xFFDCFCE7),
+            ),
+            FeatureMiniCard(
+              icon: Icons.volunteer_activism_rounded,
+              title: 'Calculate',
+              subtitle: 'Zakat Nisab',
+              iconColor: Color(0xFF16A34A),
+              iconBgColor: Color(0xFFDCFCE7),
+            ),
+            FeatureMiniCard(
+              icon: Icons.balance_rounded,
+              title: 'Inheritance',
+              subtitle: 'Islamic Faraid',
+              iconColor: Color(0xFF16A34A),
+              iconBgColor: Color(0xFFDCFCE7),
+            ),
+            FeatureMiniCard(
+              icon: Icons.child_care_rounded,
+              title: 'Baby Hair',
+              subtitle: 'Weight Charity',
+              iconColor: Color(0xFF16A34A),
+              iconBgColor: Color(0xFFDCFCE7),
+            ),
+          ],
         ),
-        const FeatureHighlightItem(
-          icon: Icons.currency_exchange_rounded,
-          title: 'Currency & Metals Calculator (Real-Time)',
-          description: 'Convert between 150+ global currencies, and track live gold bar, ornament & silver prices with daily history charts.',
-          color: Color(0xFF0284C7),
-        ),
-        const FeatureHighlightItem(
-          icon: Icons.mic_rounded,
-          title: 'Thai Voice AI Recording',
-          description: 'Speak in natural Thai e.g. "Dinner 60 Baht" to automatically record amount and category in 1 second.',
-          color: Color(0xFF06B6D4),
-        ),
-        const FeatureHighlightItem(
-          icon: Icons.pie_chart_rounded,
-          title: 'Budget Planning & Saving Goals',
-          description: 'Set monthly budgets, manage research/project finances, track saving targets, and calculate time-to-goal.',
-          color: Color(0xFF10B981),
-        ),
-        const FeatureHighlightItem(
-          icon: Icons.volunteer_activism_rounded,
-          title: 'Zakat & Islamic Inheritance Suite',
-          description: 'Accurate Nisab Zakat calculator, Faraid inheritance distribution, baby hair charity, and Barakat Rizqi logs.',
-          color: Color(0xFFF59E0B),
-        ),
-        const FeatureHighlightItem(
-          icon: Icons.widgets_rounded,
-          title: 'Home Screen Widget & Privacy Eye',
-          description: 'One-tap voice recording shortcut on your home screen and privacy eye button to hide balances in public.',
-          color: Color(0xFF8B5CF6),
-        ),
-        const FeatureHighlightItem(
-          icon: Icons.file_download_rounded,
-          title: 'Export CSV & A4 PDF Reports',
-          description: 'Generate clean Excel/CSV spreadsheets and professional A4 PDF financial statements instantly.',
-          color: Color(0xFFD97706),
-        ),
-        const FeatureHighlightItem(
-          icon: Icons.palette_rounded,
-          title: '18 Themes & Custom Photo Avatar',
-          description: 'Choose from 18 bespoke color themes and set your own personal photo or favorite cat as profile.',
-          color: Color(0xFFEC4899),
+        FeatureCategorySection(
+          title: '🔴 Personalize Your Way',
+          headerColor: const Color(0xFFBE123C),
+          headerBgColor: const Color(0xFFFFE4E6),
+          items: const [
+            FeatureMiniCard(
+              icon: Icons.pets_rounded,
+              title: '21 Mascot Cats',
+              subtitle: 'Choose Companion',
+              iconColor: Color(0xFFE11D48),
+              iconBgColor: Color(0xFFFFE4E6),
+            ),
+            FeatureMiniCard(
+              icon: Icons.face_rounded,
+              title: 'Custom Photo',
+              subtitle: 'Set Own Avatar',
+              iconColor: Color(0xFFE11D48),
+              iconBgColor: Color(0xFFFFE4E6),
+            ),
+            FeatureMiniCard(
+              icon: Icons.palette_rounded,
+              title: '18 Themes',
+              subtitle: 'Handcrafted',
+              iconColor: Color(0xFFE11D48),
+              iconBgColor: Color(0xFFFFE4E6),
+            ),
+            FeatureMiniCard(
+              icon: Icons.brightness_medium_rounded,
+              title: 'Dark / Light',
+              subtitle: 'Auto Switch',
+              iconColor: Color(0xFFE11D48),
+              iconBgColor: Color(0xFFFFE4E6),
+            ),
+            FeatureMiniCard(
+              icon: Icons.widgets_rounded,
+              title: 'Widget',
+              subtitle: 'Home Screen',
+              iconColor: Color(0xFFE11D48),
+              iconBgColor: Color(0xFFFFE4E6),
+            ),
+            FeatureMiniCard(
+              icon: Icons.label_rounded,
+              title: 'Categories',
+              subtitle: '& Custom Tags',
+              iconColor: Color(0xFFE11D48),
+              iconBgColor: Color(0xFFFFE4E6),
+            ),
+          ],
         ),
       ];
     }
 
     return [
-      const FeatureHighlightItem(
+      FeatureCategorySection(
+        title: '🟠 จดง่าย อัตโนมัติ',
+        headerColor: const Color(0xFFC2410C),
+        headerBgColor: const Color(0xFFFFEDD5),
+        items: const [
+          FeatureMiniCard(
+            icon: Icons.receipt_long_rounded,
+            title: 'สลิปเข้าเอง',
+            subtitle: 'กันยอดซ้ำ',
+            iconColor: Color(0xFFEA580C),
+            iconBgColor: Color(0xFFFFEDD5),
+          ),
+          FeatureMiniCard(
+            icon: Icons.account_balance_rounded,
+            title: '22+ ธนาคาร',
+            subtitle: '& เป๋าตัง',
+            iconColor: Color(0xFFEA580C),
+            iconBgColor: Color(0xFFFFEDD5),
+          ),
+          FeatureMiniCard(
+            icon: Icons.mic_rounded,
+            title: 'พูดแล้วจด',
+            subtitle: 'ด้วย AI',
+            iconColor: Color(0xFFEA580C),
+            iconBgColor: Color(0xFFFFEDD5),
+          ),
+          FeatureMiniCard(
+            icon: Icons.calculate_rounded,
+            title: 'เครื่องคิดเลข',
+            subtitle: 'ในตัว',
+            iconColor: Color(0xFFEA580C),
+            iconBgColor: Color(0xFFFFEDD5),
+          ),
+          FeatureMiniCard(
+            icon: Icons.notifications_active_rounded,
+            title: 'ดึงรายรับ',
+            subtitle: 'จากแจ้งเตือน',
+            iconColor: Color(0xFFEA580C),
+            iconBgColor: Color(0xFFFFEDD5),
+          ),
+          FeatureMiniCard(
+            icon: Icons.credit_card_rounded,
+            title: 'หลายบัญชี',
+            subtitle: '& บัตรเครดิต',
+            iconColor: Color(0xFFEA580C),
+            iconBgColor: Color(0xFFFFEDD5),
+          ),
+        ],
+      ),
+      FeatureCategorySection(
+        title: '🔵 วิเคราะห์ & วางแผน',
+        headerColor: const Color(0xFF1D4ED8),
+        headerBgColor: const Color(0xFFDBEAFE),
+        items: const [
+          FeatureMiniCard(
+            icon: Icons.bar_chart_rounded,
+            title: 'สถิติ & กราฟ',
+            subtitle: 'วิเคราะห์เชิงลึก',
+            iconColor: Color(0xFF2563EB),
+            iconBgColor: Color(0xFFDBEAFE),
+          ),
+          FeatureMiniCard(
+            icon: Icons.calendar_month_rounded,
+            title: 'ปฏิทิน',
+            subtitle: 'รายรับ–รายจ่าย',
+            iconColor: Color(0xFF2563EB),
+            iconBgColor: Color(0xFFDBEAFE),
+          ),
+          FeatureMiniCard(
+            icon: Icons.compare_arrows_rounded,
+            title: 'เทียบ 2 เดือน',
+            subtitle: 'ดูแนวโน้ม',
+            iconColor: Color(0xFF2563EB),
+            iconBgColor: Color(0xFFDBEAFE),
+          ),
+          FeatureMiniCard(
+            icon: Icons.flag_rounded,
+            title: 'เป้าหมายออม',
+            subtitle: 'AI คาดวันครบ',
+            iconColor: Color(0xFF2563EB),
+            iconBgColor: Color(0xFFDBEAFE),
+          ),
+          FeatureMiniCard(
+            icon: Icons.pie_chart_rounded,
+            title: 'วางแผน',
+            subtitle: 'งบประมาณ',
+            iconColor: Color(0xFF2563EB),
+            iconBgColor: Color(0xFFDBEAFE),
+          ),
+          FeatureMiniCard(
+            icon: Icons.folder_special_rounded,
+            title: 'งบโปรเจกต์',
+            subtitle: '& ทุนวิจัย',
+            iconColor: Color(0xFF2563EB),
+            iconBgColor: Color(0xFFDBEAFE),
+          ),
+        ],
+      ),
+      FeatureCategorySection(
+        title: '🟢 เครื่องมือการเงิน & อิสลาม',
+        headerColor: const Color(0xFF15803D),
+        headerBgColor: const Color(0xFFDCFCE7),
+        items: const [
+          FeatureMiniCard(
+            icon: Icons.autorenew_rounded,
+            title: 'คุมค่า',
+            subtitle: 'Subscription',
+            iconColor: Color(0xFF16A34A),
+            iconBgColor: Color(0xFFDCFCE7),
+          ),
+          FeatureMiniCard(
+            icon: Icons.currency_exchange_rounded,
+            title: 'แปลงค่าเงิน',
+            subtitle: '150+ สกุล',
+            iconColor: Color(0xFF16A34A),
+            iconBgColor: Color(0xFFDCFCE7),
+          ),
+          FeatureMiniCard(
+            icon: Icons.monetization_on_rounded,
+            title: 'ราคาทอง',
+            subtitle: '& แร่เงิน',
+            iconColor: Color(0xFF16A34A),
+            iconBgColor: Color(0xFFDCFCE7),
+          ),
+          FeatureMiniCard(
+            icon: Icons.volunteer_activism_rounded,
+            title: 'คำนวณ',
+            subtitle: 'ซากาต',
+            iconColor: Color(0xFF16A34A),
+            iconBgColor: Color(0xFFDCFCE7),
+          ),
+          FeatureMiniCard(
+            icon: Icons.balance_rounded,
+            title: 'แบ่งมรดก',
+            subtitle: 'อิสลาม',
+            iconColor: Color(0xFF16A34A),
+            iconBgColor: Color(0xFFDCFCE7),
+          ),
+          FeatureMiniCard(
+            icon: Icons.child_care_rounded,
+            title: 'ทานน้ำหนัก',
+            subtitle: 'ผมทารก',
+            iconColor: Color(0xFF16A34A),
+            iconBgColor: Color(0xFFDCFCE7),
+          ),
+        ],
+      ),
+      FeatureCategorySection(
+        title: '🔴 ปรับแต่งในแบบคุณ',
+        headerColor: const Color(0xFFBE123C),
+        headerBgColor: const Color(0xFFFFE4E6),
+        items: const [
+          FeatureMiniCard(
+            icon: Icons.pets_rounded,
+            title: 'น้องแมว',
+            subtitle: '21 ตัว',
+            iconColor: Color(0xFFE11D48),
+            iconBgColor: Color(0xFFFFE4E6),
+          ),
+          FeatureMiniCard(
+            icon: Icons.face_rounded,
+            title: 'ใส่รูป',
+            subtitle: 'ตัวเองได้',
+            iconColor: Color(0xFFE11D48),
+            iconBgColor: Color(0xFFFFE4E6),
+          ),
+          FeatureMiniCard(
+            icon: Icons.palette_rounded,
+            title: 'ธีมสวย',
+            subtitle: '18 แบบ',
+            iconColor: Color(0xFFE11D48),
+            iconBgColor: Color(0xFFFFE4E6),
+          ),
+          FeatureMiniCard(
+            icon: Icons.brightness_medium_rounded,
+            title: 'โหมดมืด',
+            subtitle: '/ สว่าง',
+            iconColor: Color(0xFFE11D48),
+            iconBgColor: Color(0xFFFFE4E6),
+          ),
+          FeatureMiniCard(
+            icon: Icons.widgets_rounded,
+            title: 'วิดเจ็ต',
+            subtitle: 'หน้าจอ',
+            iconColor: Color(0xFFE11D48),
+            iconBgColor: Color(0xFFFFE4E6),
+          ),
+          FeatureMiniCard(
+            icon: Icons.label_rounded,
+            title: 'จัดหมวด',
+            subtitle: '& แท็ก',
+            iconColor: Color(0xFFE11D48),
+            iconBgColor: Color(0xFFFFE4E6),
+          ),
+        ],
+      ),
+    ];
+  }
+
+  List<FeatureMiniCard> _getSecurityItems(bool isEn) {
+    if (isEn) {
+      return const [
+        FeatureMiniCard(
+          icon: Icons.shield_rounded,
+          title: '100% Offline Vault',
+          subtitle: 'Never Sent to Cloud',
+          iconColor: Color(0xFF38BDF8),
+          iconBgColor: Color(0xFF0F172A),
+        ),
+        FeatureMiniCard(
+          icon: Icons.save_rounded,
+          title: 'Secure Backup',
+          subtitle: 'Own .rizqi Local File',
+          iconColor: Color(0xFFFBBF24),
+          iconBgColor: Color(0xFF0F172A),
+        ),
+        FeatureMiniCard(
+          icon: Icons.qr_code_2_rounded,
+          title: 'Easy Migration',
+          subtitle: 'Direct QR Code / LINE',
+          iconColor: Color(0xFF34D399),
+          iconBgColor: Color(0xFF0F172A),
+        ),
+        FeatureMiniCard(
+          icon: Icons.file_download_rounded,
+          title: 'Export Reports',
+          subtitle: 'Excel · CSV · PDF A4',
+          iconColor: Color(0xFFFB7185),
+          iconBgColor: Color(0xFF0F172A),
+        ),
+      ];
+    }
+    return const [
+      FeatureMiniCard(
         icon: Icons.shield_rounded,
-        title: '100% Offline Vault',
-        description: 'ความปลอดภัยสูงสุด ข้อมูลอยู่ในเครื่องของคุณ 100% ไม่ส่งขึ้น Cloud ไม่เชื่อมต่อภายนอก ปลอดภัยสมบูรณ์แบบ',
-        color: Color(0xFF059669),
+        title: 'ข้อมูลอยู่ในเครื่อง 100%',
+        subtitle: 'ไม่ส่งขึ้น Cloud',
+        iconColor: Color(0xFF38BDF8),
+        iconBgColor: Color(0xFF0F172A),
       ),
-      const FeatureHighlightItem(
-        icon: Icons.receipt_long_rounded,
-        title: 'สแกนสลิปอัจฉริยะ 22 ธนาคาร & เป๋าตัง',
-        description: 'ตรวจจับและบันทึกสลิปให้อัตโนมัติใน 0.3 วินาที แยกยอดโอนจริง พร้อมระบบป้องกันสลิปซ้ำ 100%',
-        color: Color(0xFF2563EB),
+      FeatureMiniCard(
+        icon: Icons.save_rounded,
+        title: 'สำรองข้อมูล',
+        subtitle: 'ไฟล์ .rizqi เก็บเอง',
+        iconColor: Color(0xFFFBBF24),
+        iconBgColor: Color(0xFF0F172A),
       ),
-      const FeatureHighlightItem(
-        icon: Icons.subscriptions_rounded,
-        title: 'คุมค่า Subscription & บิลประจำ',
-        description: 'จัดระเบียบสตรีมมิ่ง, ค่าเน็ต, ค่าน้ำไฟ แจ้งเตือนก่อนตัดรอบบิล คำนวณยอดเฉลี่ยรายปี และรองรับทุกสกุลเงิน',
-        color: Color(0xFF6366F1),
+      FeatureMiniCard(
+        icon: Icons.qr_code_2_rounded,
+        title: 'ย้ายเครื่องง่าย',
+        subtitle: 'ด้วย QR Code / LINE',
+        iconColor: Color(0xFF34D399),
+        iconBgColor: Color(0xFF0F172A),
       ),
-      const FeatureHighlightItem(
-        icon: Icons.currency_exchange_rounded,
-        title: 'เครื่องคิดเลขแปลงเงิน & คำนวณแร่ทอง/เงิน',
-        description: 'อัปเดตอัตราแลกเปลี่ยน 150+ สกุลเงินทั่วโลก และราคาทองคำแท่ง/รูปพรรณ/แร่เงินแบบเรียลไทม์ พร้อมกราฟแนวโน้ม',
-        color: Color(0xFF0284C7),
-      ),
-      const FeatureHighlightItem(
-        icon: Icons.mic_rounded,
-        title: 'บันทึกด้วยเสียง AI พูดภาษาไทย',
-        description: 'พูดภาษาไทย เช่น "กินข้าว 60 บาท" หรือ "เติมน้ำมัน 800" ระบบแยกยอดและลงหมวดหมู่อัตโนมัติใน 1 วิ',
-        color: Color(0xFF06B6D4),
-      ),
-      const FeatureHighlightItem(
-        icon: Icons.pie_chart_rounded,
-        title: 'วางแผนงบประมาณ & เป้าหมายการออม',
-        description: 'กำหนดงบรายจ่ายรายเดือน คุมงบโปรเจกต์งาน & ทุนวิจัย และคำนวณวัน-เดือน-ปีที่ต้องเก็บออมถึงเป้าหมาย',
-        color: Color(0xFF10B981),
-      ),
-      const FeatureHighlightItem(
-        icon: Icons.volunteer_activism_rounded,
-        title: 'ซะกาต & แบ่งมรดกอิสลามิก',
-        description: 'คำนวณซะกาตทองคำ/เงินออมตามพิกัดนิศอบ, แบ่งกองมรดกตามหลักฟะรออิฎ และทานน้ำหนักผมทารกแรกเกิด',
-        color: Color(0xFFF59E0B),
-      ),
-      const FeatureHighlightItem(
-        icon: Icons.widgets_rounded,
-        title: 'วิดเจ็ตหน้าจอโฮม & โหมดตาซ่อนยอด',
-        description: 'ปุ่มลัดจดเสียงบนหน้าจอหลักของมือถือ และปุ่มตาบนการ์ดเพื่อซ่อนยอดเงินเมื่ออยู่ในที่สาธารณะ',
-        color: Color(0xFF8B5CF6),
-      ),
-      const FeatureHighlightItem(
+      FeatureMiniCard(
         icon: Icons.file_download_rounded,
-        title: 'ส่งออกข้อมูล CSV & สเตทเมนต์ PDF A4',
-        description: 'ส่งออกข้อมูลเป็นไฟล์ Excel (CSV) และสร้างรายงานสเตทเมนต์ PDF A4 ระดับมืออาชีพ พิมพ์หรือแชร์ได้ทันที',
-        color: Color(0xFFD97706),
-      ),
-      const FeatureHighlightItem(
-        icon: Icons.palette_rounded,
-        title: 'ปรับแต่งธีม 18 สไตล์ & รูปโปรไฟล์ตัวเอง',
-        description: 'เลือกชุดสีธีมได้ 18 สไตล์ (คลาสสิก/พาสเทล/มินิมอล) พร้อมใส่อวาตาร์แมวหรือรูปถ่ายตัวเองได้อย่างอิสระ',
-        color: Color(0xFFEC4899),
+        title: 'ส่งออกรายงาน',
+        subtitle: 'Excel · CSV · PDF',
+        iconColor: Color(0xFFFB7185),
+        iconBgColor: Color(0xFF0F172A),
       ),
     ];
   }
@@ -182,7 +533,8 @@ class AppFeaturesShowcaseScreen extends StatelessWidget {
     final theme = controller.currentTheme;
     final isDark = controller.isDarkMode;
     final isEn = controller.isEnglish;
-    final items = _getItems(isEn);
+    final categories = _getCategories(isEn);
+    final securityItems = _getSecurityItems(isEn);
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackground,
@@ -239,90 +591,27 @@ class AppFeaturesShowcaseScreen extends StatelessWidget {
               ),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 physics: const BouncingScrollPhysics(),
                 children: [
-                  // Mascot Header Banner
-                  Container(
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: theme.cardBackground,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: theme.borderColor),
-                      boxShadow: [
-                        BoxShadow(
-                          color: theme.primaryColor.withValues(alpha: 0.08),
-                          blurRadius: 16,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        MeowMascotWidget(
-                          size: 64,
-                          mascotId: controller.selectedMascotId,
-                          accessory: 'star',
-                          customPhotoPath: controller.customAvatarPath,
-                          isCustomPhoto: controller.isCustomAvatarEnabled,
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: theme.primaryColor.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  isEn ? '⭐ Smart Financial Companion' : '⭐ ผู้ช่วยการเงินอัจฉริยะส่วนตัว',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: theme.primaryColor,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                isEn ? 'Everything in One App' : 'ครบจบทุกฟังก์ชันในแอพเดียว',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: theme.textColor,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                isEn
-                                    ? 'Effortless budgeting, ultra-secure, and tailored for you.'
-                                    : 'ช่วยคุมงบ จัดการเงินง่าย ปลอดภัยสูงสุด ออกแบบเพื่อคุณ',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: theme.textSecondaryColor,
-                                  height: 1.3,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 18),
-
-                  // Minimal List of Highlights
-                  ...items.map((item) => _buildMinimalFeatureCard(item, theme, isDark)),
+                  // Hero Header Banner
+                  _buildHeroHeader(theme, isDark, isEn),
 
                   const SizedBox(height: 16),
+
+                  // 4 Main Feature Categories (3-column grid)
+                  for (final category in categories) ...[
+                    _buildCategorySection(category, theme, isDark),
+                    const SizedBox(height: 14),
+                  ],
+
+                  // Security & Migration Dark Container
+                  _buildSecuritySection(securityItems, isEn),
+
+                  const SizedBox(height: 20),
                 ],
               ),
             ),
-
           ],
         ),
       ),
@@ -452,55 +741,332 @@ class AppFeaturesShowcaseScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildMinimalFeatureCard(FeatureHighlightItem item, dynamic theme, bool isDark) {
+  Widget _buildHeroHeader(dynamic theme, bool isDark, bool isEn) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: theme.cardBackground,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: theme.borderColor.withValues(alpha: 0.8)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: item.color.withValues(alpha: isDark ? 0.2 : 0.12),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(item.icon, color: item.color, size: 22),
+        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFFFFBEB),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: isDark ? const Color(0xFF334155) : const Color(0xFFFDE68A),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.amber.withValues(alpha: isDark ? 0.05 : 0.08),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        item.title,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: theme.textColor,
-                        ),
-                      ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Mascot Cat / Pill Badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF334155) : Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isDark ? const Color(0xFF475569) : const Color(0xFFFCD34D),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 6,
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  item.description,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: theme.textSecondaryColor,
-                    height: 1.35,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    MeowMascotWidget(
+                      size: 20,
+                      mascotId: controller.selectedMascotId,
+                      accessory: 'star',
+                      customPhotoPath: controller.customAvatarPath,
+                      isCustomPhoto: controller.isCustomAvatarEnabled,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'MeowTang เหมียวตังค์',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? const Color(0xFFF8FAFC) : const Color(0xFF92400E),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Text('🪙', style: TextStyle(fontSize: 11)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                isEn ? 'All-in-One ' : 'ครบจบ ',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  color: theme.textColor,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFDE047),
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFCA8A04).withValues(alpha: 0.25),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1.5),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  isEn ? 'Finance App' : 'ในแอปเดียว',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF854D0E),
+                    letterSpacing: -0.5,
                   ),
                 ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            isEn
+                ? 'Every feature you need to manage your money in one place'
+                : 'ทุกฟีเจอร์ที่ต้องใช้คุมเงิน รวมไว้ในที่เดียว',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w500,
+              color: theme.textSecondaryColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategorySection(FeatureCategorySection section, dynamic theme, bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Category Header Badge
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: isDark ? section.headerColor.withValues(alpha: 0.18) : section.headerBgColor,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: section.headerColor.withValues(alpha: isDark ? 0.35 : 0.2),
+            ),
+          ),
+          child: Text(
+            section.title,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: isDark ? section.headerColor.withValues(alpha: 0.9) : section.headerColor,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        // 3 Columns x 2 Rows Grid
+        Row(
+          children: [
+            Expanded(child: _buildItemCard(section.items[0], theme, isDark)),
+            const SizedBox(width: 8),
+            Expanded(child: _buildItemCard(section.items[1], theme, isDark)),
+            const SizedBox(width: 8),
+            Expanded(child: _buildItemCard(section.items[2], theme, isDark)),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(child: _buildItemCard(section.items[3], theme, isDark)),
+            const SizedBox(width: 8),
+            Expanded(child: _buildItemCard(section.items[4], theme, isDark)),
+            const SizedBox(width: 8),
+            Expanded(child: _buildItemCard(section.items[5], theme, isDark)),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildItemCard(FeatureMiniCard item, dynamic theme, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+        ),
+        boxShadow: isDark
+            ? null
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
               ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: isDark ? item.iconColor.withValues(alpha: 0.18) : item.iconBgColor,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(item.icon, size: 20, color: item.iconColor),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            item.title,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.bold,
+              color: theme.textColor,
+            ),
+          ),
+          const SizedBox(height: 1),
+          Text(
+            item.subtitle,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 9.5,
+              color: theme.textSecondaryColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSecuritySection(List<FeatureMiniCard> items, bool isEn) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFF334155)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.lock_rounded, size: 16, color: Color(0xFF38BDF8)),
+              const SizedBox(width: 6),
+              Text(
+                isEn ? '🔒 Ultra Secure & Full Ownership' : '🔒 ปลอดภัย & ย้ายข้อมูลได้เอง',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFFF8FAFC),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: _buildSecurityCard(items[0])),
+              const SizedBox(width: 8),
+              Expanded(child: _buildSecurityCard(items[1])),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(child: _buildSecurityCard(items[2])),
+              const SizedBox(width: 8),
+              Expanded(child: _buildSecurityCard(items[3])),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSecurityCard(FeatureMiniCard item) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A).withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF334155).withValues(alpha: 0.8)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: item.iconColor.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(item.icon, size: 18, color: item.iconColor),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            item.title,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 10.8,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 1),
+          Text(
+            item.subtitle,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 9.5,
+              color: Color(0xFF94A3B8),
             ),
           ),
         ],
