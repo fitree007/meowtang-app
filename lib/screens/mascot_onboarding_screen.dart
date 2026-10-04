@@ -273,10 +273,6 @@ class _MascotOnboardingScreenState extends State<MascotOnboardingScreen> {
               primaryColor: MeowTheme.mustardYellowDark,
               textColor: textPrimary,
               subtitleColor: textSecondary,
-              onBack: () async {
-                HapticFeedback.selectionClick();
-                await widget.controller.revertToLanguageSelection();
-              },
             ),
 
             // 2. FIXED Hero Mascot Showcase Card (รูปแนบ 3)
@@ -401,31 +397,6 @@ class _MascotOnboardingScreenState extends State<MascotOnboardingScreen> {
                           customPhotoPath: customPhoto,
                           isCustomPhoto: isCustomPhoto,
                           animate: true,
-                        ),
-                      ),
-                      Positioned(
-                        top: -2,
-                        right: -2,
-                        child: Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: const Color(0xFFF59E0B), width: 1.8),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.1),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Icon(
-                            currentAcc.icon,
-                            size: 14,
-                            color: const Color(0xFFD97706),
-                          ),
                         ),
                       ),
                     ],
@@ -581,7 +552,7 @@ class _MascotOnboardingScreenState extends State<MascotOnboardingScreen> {
                               ),
                               const SizedBox(width: 5),
                               Text(
-                                isEn ? 'Accessory 36' : '✨ อุปกรณ์ 36',
+                                isEn ? 'Accessories' : '✨ อุปกรณ์',
                                 style: TextStyle(
                                   fontSize: 13.5,
                                   fontWeight: _activeTabIndex == 1 ? FontWeight.bold : FontWeight.w600,
@@ -606,25 +577,25 @@ class _MascotOnboardingScreenState extends State<MascotOnboardingScreen> {
                 child: Column(
                   children: [
                     if (_activeTabIndex == 0) ...[
-                      // Mascot Filters: ทั้งหมด 21, แมว 13, เพื่อนสัตว์ 7, AI 1
+                      // Mascot Filters
                       SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
                         physics: const BouncingScrollPhysics(),
                         child: Row(
                           children: [
-                            _buildFilterChip('all', isEn ? 'All 21' : 'ทั้งหมด 21', _mascotCategoryFilter, (val) {
+                            _buildFilterChip('all', isEn ? 'All' : 'ทั้งหมด', _mascotCategoryFilter, (val) {
                               setState(() => _mascotCategoryFilter = val);
                             }),
                             const SizedBox(width: 6),
-                            _buildFilterChip('cat', isEn ? 'Cats 13' : 'แมว 13', _mascotCategoryFilter, (val) {
+                            _buildFilterChip('cat', isEn ? 'Cats' : 'แมว', _mascotCategoryFilter, (val) {
                               setState(() => _mascotCategoryFilter = val);
                             }),
                             const SizedBox(width: 6),
-                            _buildFilterChip('friend', isEn ? 'Animals 7' : 'เพื่อนสัตว์ 7', _mascotCategoryFilter, (val) {
+                            _buildFilterChip('friend', isEn ? 'Animals' : 'เพื่อนสัตว์', _mascotCategoryFilter, (val) {
                               setState(() => _mascotCategoryFilter = val);
                             }),
                             const SizedBox(width: 6),
-                            _buildFilterChip('ai', isEn ? 'AI 1' : 'AI 1', _mascotCategoryFilter, (val) {
+                            _buildFilterChip('ai', isEn ? 'AI' : 'AI', _mascotCategoryFilter, (val) {
                               setState(() => _mascotCategoryFilter = val);
                             }),
                           ],
@@ -635,29 +606,7 @@ class _MascotOnboardingScreenState extends State<MascotOnboardingScreen> {
                       // 4-Column Mascot Grid
                       _buildMascotGrid(),
                     ] else ...[
-                      // Accessories Filters: ทั้งหมด 36, อุปกรณ์ 30, ชุด 6
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        physics: const BouncingScrollPhysics(),
-                        child: Row(
-                          children: [
-                            _buildFilterChip('all', isEn ? 'All 36' : 'ทั้งหมด 36', _accCategoryFilter, (val) {
-                              setState(() => _accCategoryFilter = val);
-                            }),
-                            const SizedBox(width: 6),
-                            _buildFilterChip('acc', isEn ? 'Items 30' : '✨ อุปกรณ์ 30', _accCategoryFilter, (val) {
-                              setState(() => _accCategoryFilter = val);
-                            }),
-                            const SizedBox(width: 6),
-                            _buildFilterChip('outfit', isEn ? 'Outfits 6' : '👗 ชุด 6', _accCategoryFilter, (val) {
-                              setState(() => _accCategoryFilter = val);
-                            }),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-
-                      // 4-Column Accessories & Outfits Grid
+                      // 4-Column Accessories Grid (ชุดถูกเอาออกตามคำขอ)
                       _buildDressingGrid(),
                     ],
                     const SizedBox(height: 16),
@@ -962,32 +911,7 @@ class _MascotOnboardingScreenState extends State<MascotOnboardingScreen> {
   }
 
   Widget _buildDressingGrid() {
-    final List<Map<String, dynamic>> items = [];
-
-    // Add accessories
-    if (_accCategoryFilter == 'all' || _accCategoryFilter == 'acc') {
-      for (final a in MascotCatalog.accessories) {
-        items.add({
-          'id': a.id,
-          'name': a.name,
-          'icon': a.icon,
-          'isAccessory': true,
-        });
-      }
-    }
-
-    // Add outfits (excluding 'none')
-    if (_accCategoryFilter == 'all' || _accCategoryFilter == 'outfit') {
-      for (final o in MascotCatalog.outfits) {
-        if (o.id == 'none') continue;
-        items.add({
-          'id': o.id,
-          'name': o.name,
-          'icon': o.icon,
-          'isAccessory': false,
-        });
-      }
-    }
+    final List<AccessoryInfo> items = MascotCatalog.accessories;
 
     return GridView.builder(
       shrinkWrap: true,
@@ -1001,24 +925,17 @@ class _MascotOnboardingScreenState extends State<MascotOnboardingScreen> {
       itemCount: items.length,
       itemBuilder: (context, index) {
         final item = items[index];
-        final bool isAcc = item['isAccessory'] as bool;
-        final String itemId = item['id'] as String;
-        final String itemName = item['name'] as String;
-        final IconData itemIcon = item['icon'] as IconData;
+        final String itemId = item.id;
+        final String itemName = item.name;
+        final IconData itemIcon = item.icon;
 
-        final bool isSelected = isAcc
-            ? _selectedAccessory == itemId
-            : _selectedOutfit == itemId;
+        final bool isSelected = _selectedAccessory == itemId;
 
         return GestureDetector(
           onTap: () {
             HapticFeedback.selectionClick();
             setState(() {
-              if (isAcc) {
-                _selectedAccessory = itemId;
-              } else {
-                _selectedOutfit = itemId;
-              }
+              _selectedAccessory = itemId;
             });
           },
           child: AnimatedContainer(

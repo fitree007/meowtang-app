@@ -656,7 +656,7 @@ class ThaiBankDetector {
     // If the slip itself is explicitly TrueMoney (e.g. "truemoney", "ทรูมันนี่", "บัญชีทรูมันนี่", "จากวอลเล็ท"),
     // TrueMoney transfers via PromptPay often include partner/settlement/receiving bank codes (like 025 BAY or others) in the QR code.
     // The issuing wallet MUST NOT be hijacked by the recipient or routing bank!
-    // However: If another bank issued the slip (e.g. Krungthai, KBank, SCB paying a bill or topping up TrueMoney),
+    // However: If another bank issued the slip (e.g. Krungthai, KBank, SCB, BBL, TTB paying a bill or topping up TrueMoney),
     // TrueMoney is the RECIPIENT/BILLER, NOT the issuing bank!
     final hasTrueMoneyKeyword = lowerRaw.contains('truemoney') ||
         lowerRaw.contains('true money') ||
@@ -666,15 +666,23 @@ class ThaiBankDetector {
         (lowerRaw.contains('วอลเล็ท') && !lowerRaw.contains('g-wallet'));
 
     if (hasTrueMoneyKeyword) {
+      // Check if QR code explicitly identifies a commercial bank (except 025 BAY which TrueMoney uses for settlement)
+      // Note: 066 is iBank - do not touch!
+      final String? botCode = qrSenderBankCode?.trim() ??
+          (qrPayload != null ? RegExp(r'0103(002|004|006|011|014|022|024|025|030|033|034|066|067|069|073)').firstMatch(qrPayload)?.group(1) : null);
+
+      final bool isQrCommercialBankNotBay = botCode != null && botCode != '025' && botCode != '066';
+
       final bool isBillPaymentOrTopUp = lowerRaw.contains('จ่ายบิล') ||
           lowerRaw.contains('ชำระบิล') ||
           lowerRaw.contains('เติมเงิน') ||
           lowerRaw.contains('24358') ||
+          lowerRaw.contains('14000') ||
           lowerRaw.contains('เบอร์โทรศัพท์ลูกค้า') ||
           lowerRaw.contains('หมายเลขการทำรายการ');
 
       final receiverMarkerRegex = RegExp(
-        r'(?:ไปยัง|ผู้รับเงิน|ผู้รับโอน|ผู้รับ|โอนไปยัง|โอนให้|เข้าบัญชี|เข้าบช|ปลายทาง|\bto\b|\breceiver\b|\brecipient\b|->|→|↓|▼|(?:^|\n|\s)ถึง(?:\s|:|\n|$))',
+        r'(?:ไปยัง|ผู้รับเงิน|ผู้รับโอน|ผู้รับ|โอนไปยัง|โอนให้|โอนไป|เข้าบัญชี|เข้าบช|ปลายทาง|\bto\b|\breceiver\b|\brecipient\b|->|→|↓|▼|(?:^|\n|\s)ถึง(?:\s|:|\n|$))',
         caseSensitive: false,
       );
       final rMatch = receiverMarkerRegex.firstMatch(lowerRaw);
@@ -694,13 +702,19 @@ class ThaiBankDetector {
       final bool hasExplicitSenderWallet = lowerRaw.contains('จากวอลเล็ท') ||
           lowerRaw.contains('จาก บัญชีทรูมันนี่') ||
           lowerRaw.contains('โอนเงินจาก บัญชีทรูมันนี่') ||
-          lowerRaw.contains('โอนเงินจาก วอลเล็ท');
+          lowerRaw.contains('โอนเงินจาก วอลเล็ท') ||
+          lowerRaw.contains('โอนเงินจาก truemoney');
 
       // TrueMoney is the issuing bank ONLY when:
       // 1. It is NOT a bill payment or top-up from another bank TO TrueMoney
-      // 2. No other commercial bank appears in the header or before TrueMoney (unless explicitly from TrueMoney wallet)
-      // 3. TrueMoney appears before any receiver marker, or explicitly says "จาก บัญชีทรูมันนี่"
+      // 2. The QR code does NOT belong to another commercial bank (e.g. 004 KBANK, 014 SCB, 006 KTB, 002 BBL, 011 TTB, 030 GSB, 034 BAAC)
+      // 3. No other commercial bank appears in the header or before TrueMoney (unless explicitly from TrueMoney wallet)
+      // 4. TrueMoney appears before any receiver marker, or explicitly says "จาก บัญชีทรูมันนี่"
+      final bool hasCommercialBankSender = firstCommercialBankIdx != -1 && (rIndex == -1 || firstCommercialBankIdx < rIndex);
+
       if (!isBillPaymentOrTopUp &&
+          !isQrCommercialBankNotBay &&
+          !hasCommercialBankSender &&
           tmnIndex != -1 &&
           (firstCommercialBankIdx == -1 || tmnIndex < firstCommercialBankIdx || hasExplicitSenderWallet)) {
         if (hasExplicitSenderWallet || (rIndex != -1 && tmnIndex < rIndex) || (rIndex == -1 && firstCommercialBankIdx == -1)) {

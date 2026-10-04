@@ -68,7 +68,7 @@ class _ThemeOnboardingScreenState extends State<ThemeOnboardingScreen> {
     final activeTheme = baseTheme.copyWithMode(_isDark);
 
     return Scaffold(
-      backgroundColor: activeTheme.scaffoldBackground,
+      backgroundColor: const Color(0xFFFDFBF7),
       body: SafeArea(
         child: Column(
           children: [

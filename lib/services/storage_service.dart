@@ -124,7 +124,7 @@ class StorageService {
   }
 
   String getMascotId() {
-    return _prefs.getString(_keyMascotId) ?? 'cat_quill';
+    return _prefs.getString(_keyMascotId) ?? 'cat_meowtang';
   }
 
   Future<void> saveMascotId(String id) async {

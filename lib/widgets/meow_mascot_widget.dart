@@ -66,6 +66,15 @@ class OutfitInfo {
 class MascotCatalog {
   static const List<MascotInfo> characters = [
     MascotInfo(
+      id: 'cat_meowtang',
+      name: 'เหมี่ยวตังค์ออริจินัล (MeowTang Cat)',
+      subtitle: 'แมวส้มโลโก้แอพ หน้าตาน่ารัก นำโชค เรียกทรัพย์ สดใสร่าเริง',
+      primaryColor: Color(0xFFF97316),
+      secondaryColor: Color(0xFFFBBF24),
+      icon: Icons.pets,
+      defaultAccessory: 'gold_coin',
+    ),
+    MascotInfo(
       id: 'cat_quill',
       name: 'เหมี่ยวส้มจอมวางแผน (Ginger Tabby)',
       subtitle: 'แมวส้มลายสลิดตาแป๋ว จดทุกบาท วางแผนรอบคอบ',
@@ -423,8 +432,8 @@ class _MeowMascotWidgetState extends State<MeowMascotWidget> with SingleTickerPr
 
   @override
   Widget build(BuildContext context) {
-    final activeId = widget.mascotId ?? 'cat_quill';
-    final activeAcc = widget.accessory ?? 'pen';
+    final activeId = widget.mascotId ?? 'cat_meowtang';
+    final activeAcc = widget.accessory ?? 'gold_coin';
     final activeOutfit = widget.outfit ?? 'none';
 
     Widget mascotCore;
@@ -796,9 +805,14 @@ class _UniversalMascotPainter extends CustomPainter {
       case 'robot_ai':
         _paintRobot(canvas, w, h);
         break;
+      case 'cat_meowtang':
+        _paintMeowTangLogoCat(canvas, w, h);
+        break;
       case 'cat_quill':
-      default:
         _paintGingerTabbyCat(canvas, w, h);
+        break;
+      default:
+        _paintMeowTangLogoCat(canvas, w, h);
         break;
     }
 
@@ -877,6 +891,185 @@ class _UniversalMascotPainter extends CustomPainter {
       ..close();
     canvas.drawPath(rightInner, goldBright);
     if (isGrand) canvas.drawPath(rightInner, whiteFeather);
+  }
+
+  /// 0. MeowTang Original Cat (แมวส้มโลโก้แอพ 3D มีมิติ ครึ่งตัว)
+  void _paintMeowTangLogoCat(Canvas canvas, double w, double h) {
+    // 3D Lighting & Dimensions (Half-body bust)
+    final Rect headRect = Rect.fromCenter(
+      center: Offset(w * 0.50, isHeadOnly ? h * 0.50 : h * 0.44),
+      width: w * 0.58,
+      height: w * 0.52,
+    );
+    final RRect headRRect = RRect.fromRectAndRadius(headRect, Radius.circular(w * 0.16));
+
+    if (!isHeadOnly) {
+      // 3D Torso / Bust (ครึ่งตัว สวยงามมีมิติ)
+      final torsoRect = Rect.fromLTRB(w * 0.22, h * 0.54, w * 0.78, h * 0.98);
+      final torsoPaint = Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFFFA000), Color(0xFFFF5722)],
+        ).createShader(torsoRect);
+
+      final torsoPath = Path()
+        ..moveTo(w * 0.30, h * 0.58)
+        ..quadraticBezierTo(w * 0.18, h * 0.80, w * 0.22, h * 0.98)
+        ..lineTo(w * 0.78, h * 0.98)
+        ..quadraticBezierTo(w * 0.82, h * 0.80, w * 0.70, h * 0.58)
+        ..close();
+      canvas.drawPath(torsoPath, torsoPaint);
+
+      // Chest / Belly warm glow
+      final chestPath = Path()
+        ..moveTo(w * 0.36, h * 0.64)
+        ..quadraticBezierTo(w * 0.30, h * 0.82, w * 0.36, h * 0.98)
+        ..lineTo(w * 0.64, h * 0.98)
+        ..quadraticBezierTo(w * 0.70, h * 0.82, w * 0.64, h * 0.64)
+        ..close();
+      canvas.drawPath(
+        chestPath,
+        Paint()
+          ..shader = const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFFFFFBEB), Color(0xFFFFEDD5)],
+          ).createShader(torsoRect),
+      );
+
+      // Cute Paws resting forward in 3D
+      final pawPaint = Paint()..color = const Color(0xFFFFFBEB);
+      final pawBorder = Paint()
+        ..color = const Color(0xFFF97316).withValues(alpha: 0.3)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = w * 0.015;
+      canvas.drawOval(Rect.fromCenter(center: Offset(w * 0.34, h * 0.94), width: w * 0.14, height: w * 0.08), pawPaint);
+      canvas.drawOval(Rect.fromCenter(center: Offset(w * 0.34, h * 0.94), width: w * 0.14, height: w * 0.08), pawBorder);
+      canvas.drawOval(Rect.fromCenter(center: Offset(w * 0.66, h * 0.94), width: w * 0.14, height: w * 0.08), pawPaint);
+      canvas.drawOval(Rect.fromCenter(center: Offset(w * 0.66, h * 0.94), width: w * 0.14, height: w * 0.08), pawBorder);
+
+      // Collar with Gold Bell
+      final collarPath = Path()
+        ..moveTo(w * 0.28, h * 0.61)
+        ..quadraticBezierTo(w * 0.50, h * 0.70, w * 0.72, h * 0.61)
+        ..lineTo(w * 0.72, h * 0.66)
+        ..quadraticBezierTo(w * 0.50, h * 0.75, w * 0.28, h * 0.66)
+        ..close();
+      canvas.drawPath(collarPath, Paint()..color = const Color(0xFFE11D48));
+      canvas.drawCircle(Offset(w * 0.50, h * 0.71), w * 0.045, Paint()..color = const Color(0xFFFBBF24));
+      canvas.drawCircle(Offset(w * 0.50, h * 0.71), w * 0.035, Paint()..color = const Color(0xFFF59E0B));
+    }
+
+    // 3D Ears with cute pointy squircle curves
+    final earY = isHeadOnly ? h * 0.50 : h * 0.44;
+    final leftEar = Path()
+      ..moveTo(w * 0.22, earY - w * 0.12)
+      ..lineTo(w * 0.24, earY - w * 0.36)
+      ..quadraticBezierTo(w * 0.26, earY - w * 0.40, w * 0.32, earY - w * 0.36)
+      ..lineTo(w * 0.42, earY - w * 0.22)
+      ..close();
+    final rightEar = Path()
+      ..moveTo(w * 0.78, earY - w * 0.12)
+      ..lineTo(w * 0.76, earY - w * 0.36)
+      ..quadraticBezierTo(w * 0.74, earY - w * 0.40, w * 0.68, earY - w * 0.36)
+      ..lineTo(w * 0.58, earY - w * 0.22)
+      ..close();
+
+    final earPaint = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0xFFFFB703), Color(0xFFFB8500)],
+      ).createShader(headRect);
+
+    canvas.drawPath(leftEar, earPaint);
+    canvas.drawPath(rightEar, earPaint);
+
+    // Inner Ears (Soft Warm Pink)
+    final innerEarPaint = Paint()..color = const Color(0xFFFDA4AF);
+    final leftInnerEar = Path()
+      ..moveTo(w * 0.26, earY - w * 0.16)
+      ..lineTo(w * 0.28, earY - w * 0.32)
+      ..lineTo(w * 0.38, earY - w * 0.22)
+      ..close();
+    final rightInnerEar = Path()
+      ..moveTo(w * 0.74, earY - w * 0.16)
+      ..lineTo(w * 0.72, earY - w * 0.32)
+      ..lineTo(w * 0.62, earY - w * 0.22)
+      ..close();
+    canvas.drawPath(leftInnerEar, innerEarPaint);
+    canvas.drawPath(rightInnerEar, innerEarPaint);
+
+    // Head Squircle with 3D gradient (Warm Bright Orange to Yellow)
+    final headPaint = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0xFFFFB703), Color(0xFFFB8500), Color(0xFFFF5400)],
+        stops: [0.0, 0.55, 1.0],
+      ).createShader(headRect);
+    canvas.drawRRect(headRRect, headPaint);
+
+    // Top 3D Gloss Highlight
+    final highlightPaint = Paint()
+      ..shader = RadialGradient(
+        center: const Alignment(-0.35, -0.45),
+        radius: 0.7,
+        colors: [
+          Colors.white.withValues(alpha: 0.35),
+          Colors.white.withValues(alpha: 0.0),
+        ],
+      ).createShader(headRect);
+    canvas.drawRRect(headRRect, highlightPaint);
+
+    // Whiskers (cute coral-orange dashes like the logo)
+    final whiskerPaint = Paint()
+      ..color = const Color(0xFFEA580C)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = w * 0.024
+      ..strokeCap = StrokeCap.round;
+
+    final wy = earY + w * 0.07;
+    // Left Whiskers
+    canvas.drawLine(Offset(w * 0.14, wy - w * 0.04), Offset(w * 0.27, wy - w * 0.015), whiskerPaint);
+    canvas.drawLine(Offset(w * 0.14, wy + w * 0.05), Offset(w * 0.27, wy + w * 0.025), whiskerPaint);
+    // Right Whiskers
+    canvas.drawLine(Offset(w * 0.86, wy - w * 0.04), Offset(w * 0.73, wy - w * 0.015), whiskerPaint);
+    canvas.drawLine(Offset(w * 0.86, wy + w * 0.05), Offset(w * 0.73, wy + w * 0.025), whiskerPaint);
+
+    // Eyes (Dark Espresso with glossy catchlight)
+    final eyePaint = Paint()..color = const Color(0xFF281E19);
+    final ey = earY - w * 0.02;
+    canvas.drawOval(Rect.fromCenter(center: Offset(w * 0.39, ey), width: w * 0.072, height: w * 0.096), eyePaint);
+    canvas.drawOval(Rect.fromCenter(center: Offset(w * 0.61, ey), width: w * 0.072, height: w * 0.096), eyePaint);
+    // Specular Catchlights in eyes
+    final catchlight = Paint()..color = Colors.white;
+    canvas.drawCircle(Offset(w * 0.405, ey - w * 0.02), w * 0.018, catchlight);
+    canvas.drawCircle(Offset(w * 0.625, ey - w * 0.02), w * 0.018, catchlight);
+
+    // Pink Triangle Nose
+    final ny = earY + w * 0.05;
+    final nosePath = Path()
+      ..moveTo(w * 0.47, ny)
+      ..lineTo(w * 0.53, ny)
+      ..lineTo(w * 0.50, ny + w * 0.035)
+      ..close();
+    canvas.drawPath(nosePath, Paint()..color = const Color(0xFFF43F5E));
+
+    // Big Happy Open Smiling Mouth with Tongue
+    final my = earY + w * 0.09;
+    final mouthPath = Path()
+      ..moveTo(w * 0.40, my)
+      ..quadraticBezierTo(w * 0.50, my + w * 0.16, w * 0.60, my)
+      ..close();
+    canvas.drawPath(mouthPath, Paint()..color = const Color(0xFF881337));
+    // Tongue
+    final tonguePath = Path()
+      ..moveTo(w * 0.44, my + w * 0.08)
+      ..quadraticBezierTo(w * 0.50, my + w * 0.16, w * 0.56, my + w * 0.08)
+      ..close();
+    canvas.drawPath(tonguePath, Paint()..color = const Color(0xFFFB7185));
   }
 
   /// 1. Ginger Tabby Cat (เหมี่ยวส้มจอมวางแผน)

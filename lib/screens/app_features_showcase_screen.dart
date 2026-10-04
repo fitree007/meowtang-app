@@ -537,7 +537,7 @@ class AppFeaturesShowcaseScreen extends StatelessWidget {
     final securityItems = _getSecurityItems(isEn);
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackground,
+      backgroundColor: _isStandalone ? theme.scaffoldBackground : const Color(0xFFFDFBF7),
       appBar: _isStandalone
           ? AppBar(
               backgroundColor: Colors.transparent,
@@ -745,69 +745,23 @@ class AppFeaturesShowcaseScreen extends StatelessWidget {
 
   Widget _buildHeroHeader(dynamic theme, bool isDark, bool isEn) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFFFFBEB),
-        borderRadius: BorderRadius.circular(22),
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: isDark ? const Color(0xFF334155) : const Color(0xFFFDE68A),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.amber.withValues(alpha: isDark ? 0.05 : 0.08),
-            blurRadius: 14,
-            offset: const Offset(0, 4),
+            color: Colors.amber.withValues(alpha: isDark ? 0.05 : 0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Column(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Mascot Cat / Pill Badge
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF334155) : Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isDark ? const Color(0xFF475569) : const Color(0xFFFCD34D),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 6,
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    MeowMascotWidget(
-                      size: 20,
-                      mascotId: controller.selectedMascotId,
-                      accessory: 'star',
-                      customPhotoPath: controller.customAvatarPath,
-                      isCustomPhoto: controller.isCustomAvatarEnabled,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'MeowTang เหมียวตังค์',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? const Color(0xFFF8FAFC) : const Color(0xFF92400E),
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    const Text('🪙', style: TextStyle(fontSize: 11)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [

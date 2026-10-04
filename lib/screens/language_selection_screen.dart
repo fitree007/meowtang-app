@@ -38,7 +38,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
   @override
   Widget build(BuildContext context) {
     final isEn = _selectedLang == 'en';
-    const bgColor = Color(0xFFF8FAFC);
+    const bgColor = Color(0xFFFDFBF7);
     const textPrimary = Color(0xFF0F172A);
     const textSecondary = Color(0xFF64748B);
 

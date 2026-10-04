@@ -69,5 +69,68 @@ TrueMoney Wallet
       expect(bankIdent.bankCode, 'TRUEMONEY');
       expect(bankIdent.cleanBank, 'ทรูมันนี่');
     });
+
+    test('5. KBank payment/topup to TrueMoney is identified as KBANK, NOT TrueMoney', () {
+      const kbankToTrueMoneySlip = '''
+ธนาคารกสิกรไทย
+โอนเงินสำเร็จ
+รหัสอ้างอิง: 2026100412345678
+จาก นายสมชาย ใจดี
+กสิกรไทย xxx-x-x1234-x
+ไปยัง ทรูมันนี่ วอลเล็ท
+089-xxx-5678
+จำนวนเงิน 150.00 บาท
+ค่าธรรมเนียม 0.00 บาท
+''';
+
+      final bankIdent = ThaiBankDetector.identifySlipBank(
+        rawOcrText: kbankToTrueMoneySlip,
+        qrSenderBankCode: '004',
+      );
+
+      expect(bankIdent.bankCode, 'KBANK');
+      expect(bankIdent.cleanBank, 'กสิกรไทย');
+    });
+
+    test('6. SCB payment to TrueMoney is identified as SCB', () {
+      const scbToTrueMoneySlip = '''
+ธนาคารไทยพาณิชย์
+โอนเงินสำเร็จ
+จาก นายมานะ อดทน
+SCB xxx-xxxxxx-x
+ไปยัง บัญชีทรูมันนี่
+จำนวนเงิน 300.00 บาท
+''';
+
+      final bankIdent = ThaiBankDetector.identifySlipBank(
+        rawOcrText: scbToTrueMoneySlip,
+        qrSenderBankCode: '014',
+      );
+
+      expect(bankIdent.bankCode, 'SCB');
+      expect(bankIdent.cleanBank, 'ไทยพาณิชย์');
+    });
+
+    test('7. iBank and PaoTang are preserved and unaffected', () {
+      const ibankSlip = '''
+ธนาคารอิสลามแห่งประเทศไทย
+โอนเงินสำเร็จ
+จาก นายอับดุลเลาะห์
+ไปยัง ร้านค้าฮาลาล
+จำนวนเงิน 1000.00 บาท
+''';
+      final ibankIdent = ThaiBankDetector.identifySlipBank(rawOcrText: ibankSlip, qrSenderBankCode: '066');
+      expect(ibankIdent.bankCode, 'IBANK');
+
+      const paotangSlip = '''
+เป๋าตัง (PaoTang)
+G-Wallet
+โอนเงินสำเร็จ
+จำนวนเงิน 250.00 บาท
+''';
+      final paotangIdent = ThaiBankDetector.identifySlipBank(rawOcrText: paotangSlip);
+      expect(paotangIdent.bankCode, 'PAOTANG');
+    });
   });
 }
+
