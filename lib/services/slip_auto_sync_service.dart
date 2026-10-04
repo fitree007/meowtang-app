@@ -896,10 +896,22 @@ class SlipAutoSyncService {
         title = 'รับเงินโอนผ่าน$cleanBank';
       }
     } else {
+      final isBillPayment = rawOcrText.contains('จ่ายบิล') ||
+          rawOcrText.contains('ชำระบิล') ||
+          rawOcrText.contains('เติมเงิน') ||
+          rawOcrText.contains('ชำระค่าบริการ');
       if (receiverName != 'ไม่ระบุผู้รับ' && receiverName.trim().isNotEmpty) {
-        title = 'โอนให้ $receiverName';
+        if (isBillPayment) {
+          title = 'จ่ายบิล $receiverName';
+        } else {
+          title = 'โอนให้ $receiverName';
+        }
       } else {
-        title = 'โอนเงินผ่าน$cleanBank';
+        if (isBillPayment) {
+          title = 'จ่ายบิลผ่าน$cleanBank';
+        } else {
+          title = 'โอนเงินผ่าน$cleanBank';
+        }
       }
     }
 

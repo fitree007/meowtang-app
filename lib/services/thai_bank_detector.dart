@@ -584,8 +584,31 @@ class ThaiBankDetector {
   }) {
     // --- Priority 0: Explicit Sender Account Bank in OCR Text ---
     // If OCR text explicitly states the sender bank (e.g. "บัญชีไอแบงก์", "จาก ... ธนาคาร..."),
-    // this prevents merchant payment QRs (like SCB Mae Manee 014) from falsely overriding the sender bank!
     final lowerRaw = rawOcrText.toLowerCase();
+    // Helper: Find earliest index of any commercial bank (excluding wallets like TrueMoney/PaoTang)
+    int getFirstBankIndex(String text) {
+      const bankPatterns = [
+        'krungthai', 'กรุงไทย', 'ktb',
+        'k plus', 'kplus', 'kbank', 'กสิกรไทย', 'กสิกร', 'kasikorn',
+        'scb easy', 'scb', 'ไทยพาณิชย์', 'siam commercial',
+        'bualuang', 'bangkok bank', 'กรุงเทพ', 'bbl',
+        'ttb touch', 'ttb', 'ทหารไทยธนชาต', 'ทหารไทย', 'ธนชาต',
+        'mymo', 'gsb', 'ออมสิน',
+        'kma', 'krungsri', 'กรุงศรีอยุธยา', 'กรุงศรี', 'bay',
+        'uob', 'cimb', 'kkp', 'เกียรตินาคิน', 'baac', 'ธ.ก.ส.', 'lhbank', 'แลนด์ แอนด์ เฮ้าส์',
+      ];
+      int minIdx = -1;
+      for (final p in bankPatterns) {
+        final idx = text.indexOf(p);
+        if (idx != -1 && (minIdx == -1 || idx < minIdx)) {
+          minIdx = idx;
+        }
+      }
+      return minIdx;
+    }
+
+    final int firstCommercialBankIdx = getFirstBankIndex(lowerRaw);
+
     final bool hasIBankKeyword = lowerRaw.contains('บัญชีไอแบงก์') ||
         lowerRaw.contains('บัญชีไอแบงค์') ||
         lowerRaw.contains('ธนาคารอิสลาม') ||
@@ -617,7 +640,10 @@ class ThaiBankDetector {
 
       final ibankIndex = ibankIndices.isNotEmpty ? ibankIndices.reduce((a, b) => a < b ? a : b) : -1;
 
-      if (ibankIndex != -1 && (rIndex == -1 || ibankIndex < rIndex)) {
+      // Only preempt if iBank appears before receiver AND before any other commercial bank in header
+      if (ibankIndex != -1 &&
+          (firstCommercialBankIdx == -1 || ibankIndex < firstCommercialBankIdx) &&
+          (rIndex == -1 || ibankIndex < rIndex)) {
         return const SlipBankIdentification(
           bankCode: 'IBANK',
           bankName: 'iBank (อิสลามแห่งประเทศไทย)',
@@ -630,6 +656,8 @@ class ThaiBankDetector {
     // If the slip itself is explicitly TrueMoney (e.g. "truemoney", "ทรูมันนี่", "บัญชีทรูมันนี่", "จากวอลเล็ท"),
     // TrueMoney transfers via PromptPay often include partner/settlement/receiving bank codes (like 025 BAY or others) in the QR code.
     // The issuing wallet MUST NOT be hijacked by the recipient or routing bank!
+    // However: If another bank issued the slip (e.g. Krungthai, KBank, SCB paying a bill or topping up TrueMoney),
+    // TrueMoney is the RECIPIENT/BILLER, NOT the issuing bank!
     final hasTrueMoneyKeyword = lowerRaw.contains('truemoney') ||
         lowerRaw.contains('true money') ||
         lowerRaw.contains('ทรูมันนี่') ||
@@ -638,6 +666,13 @@ class ThaiBankDetector {
         (lowerRaw.contains('วอลเล็ท') && !lowerRaw.contains('g-wallet'));
 
     if (hasTrueMoneyKeyword) {
+      final bool isBillPaymentOrTopUp = lowerRaw.contains('จ่ายบิล') ||
+          lowerRaw.contains('ชำระบิล') ||
+          lowerRaw.contains('เติมเงิน') ||
+          lowerRaw.contains('24358') ||
+          lowerRaw.contains('เบอร์โทรศัพท์ลูกค้า') ||
+          lowerRaw.contains('หมายเลขการทำรายการ');
+
       final receiverMarkerRegex = RegExp(
         r'(?:ไปยัง|ผู้รับเงิน|ผู้รับโอน|ผู้รับ|โอนไปยัง|โอนให้|เข้าบัญชี|เข้าบช|ปลายทาง|\bto\b|\breceiver\b|\brecipient\b|->|→|↓|▼|(?:^|\n|\s)ถึง(?:\s|:|\n|$))',
         caseSensitive: false,
@@ -656,12 +691,25 @@ class ThaiBankDetector {
 
       final tmnIndex = tmnIndices.isNotEmpty ? tmnIndices.reduce((a, b) => a < b ? a : b) : -1;
 
-      if (tmnIndex != -1 && (rIndex == -1 || tmnIndex < rIndex)) {
-        return const SlipBankIdentification(
-          bankCode: 'TRUEMONEY',
-          bankName: 'TrueMoney Wallet',
-          cleanBank: 'ทรูมันนี่',
-        );
+      final bool hasExplicitSenderWallet = lowerRaw.contains('จากวอลเล็ท') ||
+          lowerRaw.contains('จาก บัญชีทรูมันนี่') ||
+          lowerRaw.contains('โอนเงินจาก บัญชีทรูมันนี่') ||
+          lowerRaw.contains('โอนเงินจาก วอลเล็ท');
+
+      // TrueMoney is the issuing bank ONLY when:
+      // 1. It is NOT a bill payment or top-up from another bank TO TrueMoney
+      // 2. No other commercial bank appears in the header or before TrueMoney (unless explicitly from TrueMoney wallet)
+      // 3. TrueMoney appears before any receiver marker, or explicitly says "จาก บัญชีทรูมันนี่"
+      if (!isBillPaymentOrTopUp &&
+          tmnIndex != -1 &&
+          (firstCommercialBankIdx == -1 || tmnIndex < firstCommercialBankIdx || hasExplicitSenderWallet)) {
+        if (hasExplicitSenderWallet || (rIndex != -1 && tmnIndex < rIndex) || (rIndex == -1 && firstCommercialBankIdx == -1)) {
+          return const SlipBankIdentification(
+            bankCode: 'TRUEMONEY',
+            bankName: 'TrueMoney Wallet',
+            cleanBank: 'ทรูมันนี่',
+          );
+        }
       }
     }
 

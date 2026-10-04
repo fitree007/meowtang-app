@@ -1012,6 +1012,10 @@ class OcrEngineService {
 
   /// Clean person or business name extracted from slip without distorting Thai characters
   static String cleanPersonOrShopName(String raw) {
+    final inputTrimmed = raw.trim();
+    if (inputTrimmed.contains('ทรูมันนี่') || inputTrimmed.toLowerCase().contains('truemoney')) {
+      return 'ทรูมันนี่';
+    }
     var name = fixThaiOcrGlitches(raw);
 
     // Strip bank names & promptpay tags
@@ -1189,11 +1193,22 @@ class OcrEngineService {
         if (nextLower.startsWith('รหัสผู้รับเงิน') ||
             nextLower.startsWith('หมายเลขร้านค้า') ||
             nextLower.startsWith('biller id') ||
+            nextLower.startsWith('เบอร์โทรศัพท์ลูกค้า') ||
+            nextLower.startsWith('หมายเลขการทำรายการ') ||
             nextLower.startsWith('รหัสอ้างอิง 1: spl')) {
           final ext = cleanPersonOrShopName(cleanLines[i]);
           if (ext.isNotEmpty && ext.length >= 2 && ext != senderName) {
             receiverName ??= ext;
           }
+        }
+      }
+
+      // Check if line itself contains Biller like "ทรูมันนี่ (24358)" or "ทรูมันนี่"
+      final lineLower = cleanLines[i].toLowerCase();
+      if ((lineLower.contains('ทรูมันนี่') || lineLower.contains('truemoney')) &&
+          (lineLower.contains('24358') || rawText.contains('จ่ายบิล') || rawText.contains('ชำระบิล') || rawText.contains('เติมเงิน'))) {
+        if (cleanLines[i] != senderName) {
+          receiverName ??= 'ทรูมันนี่';
         }
       }
     }
