@@ -62,7 +62,6 @@ class SlipDetectionService : Service() {
 
     private fun startScanForeground(title: String, message: String) {
         acquireWakeLock()
-        isScanningForeground = true
 
         val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
@@ -98,10 +97,16 @@ class SlipDetectionService : Service() {
 
         val notification = builder.build()
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(SCAN_NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        if (!isScanningForeground) {
+            isScanningForeground = true
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(SCAN_NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+            } else {
+                startForeground(SCAN_NOTIFICATION_ID, notification)
+            }
         } else {
-            startForeground(SCAN_NOTIFICATION_ID, notification)
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.notify(SCAN_NOTIFICATION_ID, notification)
         }
     }
 
@@ -127,9 +132,10 @@ class SlipDetectionService : Service() {
                 }
             }
             wakeLock?.let {
-                if (!it.isHeld) {
-                    it.acquire(15 * 60 * 1000L) // 15 minutes safety timeout
+                if (it.isHeld) {
+                    it.release()
                 }
+                it.acquire(15 * 60 * 1000L) // Refresh/extend 15 minutes safety timeout
             }
         } catch (e: Exception) {
             e.printStackTrace()

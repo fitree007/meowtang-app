@@ -138,6 +138,8 @@ class SlipAutoSyncService {
     ExpenseController controller, {
     required bool forceRescan,
   }) async {
+    final isFirstInstallScan = !controller.storage.isInitialDeviceScanCompleted();
+    final isInitialScan = isFirstInstallScan || forceRescan;
     controller.setProcessingSlips(true);
     try {
       // Note: _inFlightKeys is NOT cleared here — the real-time observer may be processing a slip right now
@@ -150,8 +152,6 @@ class SlipAutoSyncService {
       }
 
       final isCreator = AppConfig.isCreatorEdition;
-      final isFirstInstallScan = !controller.storage.isInitialDeviceScanCompleted();
-      final isInitialScan = isFirstInstallScan || forceRescan;
 
       // 0. Only perform full DB deduplication and registry seeding on initial scan or if empty
       if (isInitialScan || controller.storage.getImportedSlipIdentifiers().isEmpty) {
@@ -319,10 +319,10 @@ class SlipAutoSyncService {
     }
 
     // Background notification ONLY for initial first install scan (never during manual pull-to-refresh)
-    if (isFirstInstallScan) {
+    if (isInitialScan) {
       NativeBridgeService.showScanProgressNotification(
-        title: 'เหมียวตังค์: กำลังดึงและอ่านสลิปในเครื่อง... 🔄',
-        message: 'ระบบกำลังค้นหาและอ่านสลิปย้อนหลัง 12 เดือนในเครื่องอัตโนมัติ',
+        title: 'เหมียวตังค์: กำลังดึงและอ่านสลิป... 🔄',
+        message: 'กำลังค้นหาสลิปในเครื่อง...',
       );
     }
 
@@ -425,8 +425,16 @@ class SlipAutoSyncService {
           // Consolidated batch save every 5 items or 1.2s to prevent UI rebuild thrashing and stutter.
           // Ongoing scans flush every item so the monthly quota check above stays exact.
           if (!isInitialScan || pendingBatch.length >= 5 || DateTime.now().difference(lastBatchSaveTime).inMilliseconds >= 1200) {
-            importedSlips.addAll(await _flushBatch(controller, pendingBatch, pendingIdentifiers, isInitialScan));
+            final saved = await _flushBatch(controller, pendingBatch, pendingIdentifiers, isInitialScan);
+            importedSlips.addAll(saved);
             lastBatchSaveTime = DateTime.now();
+
+            if (isInitialScan && importedSlips.isNotEmpty) {
+              NativeBridgeService.showScanProgressNotification(
+                title: 'เหมียวตังค์: กำลังดึงและอ่านสลิป... 🔄',
+                message: 'บันทึกแล้ว ${importedSlips.length} รายการ',
+              );
+            }
           }
 
           if (key.isNotEmpty) _processedKeys.add(key);
@@ -440,25 +448,35 @@ class SlipAutoSyncService {
 
     // Flush any remaining batch
     if (pendingBatch.isNotEmpty) {
-      importedSlips.addAll(await _flushBatch(controller, pendingBatch, pendingIdentifiers, isInitialScan));
-    }
-
-      if (isInitialScan) {
-        await NativeBridgeService.cancelScanProgressNotification();
-        if (importedSlips.isNotEmpty) {
-          await NativeBridgeService.showScanCompletedNotification(
-            title: 'เหมียวตังค์: ดึงสลิปสำเร็จแล้ว! 🎉',
-            message: 'บันทึกย้อนหลังเรียบร้อย ${importedSlips.length} รายการ (โควต้าเดือนนี้ยังเหลือเต็ม 0/10 สลิป)',
-          );
-        }
-        await controller.storage.setInitialDeviceScanCompleted(true);
+      final saved = await _flushBatch(controller, pendingBatch, pendingIdentifiers, isInitialScan);
+      importedSlips.addAll(saved);
+      if (isInitialScan && importedSlips.isNotEmpty) {
+        NativeBridgeService.showScanProgressNotification(
+          title: 'เหมียวตังค์: กำลังดึงและอ่านสลิป... 🔄',
+          message: 'บันทึกแล้ว ${importedSlips.length} รายการ',
+        );
       }
-
-      return importedSlips;
-    } finally {
-      controller.setProcessingSlips(false);
     }
+
+    if (isInitialScan) {
+      await NativeBridgeService.cancelScanProgressNotification();
+      if (importedSlips.isNotEmpty) {
+        await NativeBridgeService.showScanCompletedNotification(
+          title: 'เหมียวตังค์: ดึงสลิปสำเร็จแล้ว! 🎉',
+          message: 'บันทึกย้อนหลังเรียบร้อย ${importedSlips.length} รายการ',
+        );
+      }
+      await controller.storage.setInitialDeviceScanCompleted(true);
+    }
+
+    return importedSlips;
+  } finally {
+    if (isInitialScan) {
+      await NativeBridgeService.cancelScanProgressNotification();
+    }
+    controller.setProcessingSlips(false);
   }
+}
 
   /// Saves the pending batch and returns only the items that were really added
   /// (addTransactionsBatch silently drops duplicates). Quota is charged only for those.
