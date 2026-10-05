@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../state/expense_controller.dart';
 import '../models/transaction_item.dart';
 import '../services/native_bridge_service.dart';
@@ -48,8 +49,56 @@ class _OnlineSlipVerifierScreenState extends State<OnlineSlipVerifierScreen>
 
     if (widget.initialImagePath != null && widget.initialImagePath!.isNotEmpty) {
       _imagePath = widget.initialImagePath;
-      _startVerification();
+      // Wait for the first frame: verification may need to show the consent dialog
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _startVerification();
+      });
     }
+  }
+
+  static const String _consentKey = 'meow_online_slip_verify_consent_v1';
+
+  /// Asks once before sending slip QR data to the external verification service
+  /// (Google Play user-data policy: disclose and get consent before data leaves the device).
+  Future<bool> _ensureOnlineVerifyConsent() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_consentKey) == true) return true;
+    if (!mounted) return false;
+
+    final isEn = widget.controller.isEnglish;
+    final accepted = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: Text(isEn ? 'Verify slip online?' : 'ตรวจสลิปออนไลน์?'),
+        content: Text(
+          isEn
+              ? 'To check that the slip is genuine, MeowTang will send the QR code data on the slip and the amount '
+                  'to an external slip verification service (slip-c.oiio.download).\n\n'
+                  'The slip image and your other financial data are not sent.'
+              : 'เพื่อตรวจว่าสลิปเป็นของจริง เหมียวตังค์จะส่งข้อมูลใน QR Code ของสลิปและยอดเงิน '
+                  'ไปยังบริการตรวจสลิปภายนอก (slip-c.oiio.download)\n\n'
+                  'ตัวรูปสลิปและข้อมูลการเงินอื่นของคุณจะไม่ถูกส่ง',
+          style: const TextStyle(height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(isEn ? 'Cancel' : 'ยกเลิก'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(isEn ? 'Agree & verify' : 'ยอมรับและตรวจสลิป'),
+          ),
+        ],
+      ),
+    );
+
+    if (accepted == true) {
+      await prefs.setBool(_consentKey, true);
+      return true;
+    }
+    return false;
   }
 
   @override
@@ -78,6 +127,8 @@ class _OnlineSlipVerifierScreenState extends State<OnlineSlipVerifierScreen>
       );
       return;
     }
+
+    if (!await _ensureOnlineVerifyConsent() || !mounted) return;
 
     HapticFeedback.mediumImpact();
     setState(() {
