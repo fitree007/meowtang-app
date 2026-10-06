@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../state/expense_controller.dart';
 import '../theme/meow_theme.dart';
-import '../widgets/meow_mascot_widget.dart';
 import '../widgets/tactile_button.dart';
 import '../services/native_bridge_service.dart';
 import '../services/category_matcher_service.dart';
@@ -19,6 +18,7 @@ import 'theme_shop_screen.dart';
 import 'data_backup_restore_screen.dart';
 import 'salary_auto_record_screen.dart';
 import '../widgets/custom_photo_avatar_dialog.dart';
+import '../widgets/meow_page_header.dart';
 import '../utils/format_utils.dart';
 import '../widgets/meow_paywall_modal.dart';
 import '../services/ad_service.dart';
@@ -176,18 +176,22 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
 
   return Scaffold(
    backgroundColor: ctl.currentTheme.scaffoldBackground,
-   body: SafeArea(
-    bottom: false,
+   body: Column(
+    children: [
+     // Same coloured top bar as the stats and premium tabs; the mascot opens the photo picker.
+     MeowPageHeader(
+      controller: ctl,
+      title: isEn ? 'Menu' : 'เมนู',
+      subtitle: isEn ? 'Your account, settings & help' : 'บัญชีของคุณ การตั้งค่า และความช่วยเหลือ',
+      onMascotTap: () {
+       HapticFeedback.selectionClick();
+       CustomPhotoAvatarDialog.show(context, ctl, onSaved: (_) => setState(() {}));
+      },
+     ),
+     Expanded(
     child: ListView(
-     padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+     padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
      children: [
-      Padding(
-       padding: const EdgeInsets.fromLTRB(4, 8, 4, 14),
-       child: Text(
-        isEn ? 'Menu' : 'เมนู',
-        style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: -0.3, color: c.text),
-       ),
-      ),
       _buildProfileCard(c, isEn),
       const SizedBox(height: 16),
       _buildMoneyCard(c, isEn),
@@ -312,6 +316,8 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
       ),
      ],
     ),
+     ),
+    ],
    ),
   );
  }
@@ -478,36 +484,6 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
   final max = ctl.maxFreeSlipsPerMonth;
   final adsLeft = (ctl.maxMonthlyRewardedAds - ctl.currentMonthAdWatchesCount).clamp(0, ctl.maxMonthlyRewardedAds);
 
-  final avatar = GestureDetector(
-   onTap: () {
-    HapticFeedback.selectionClick();
-    CustomPhotoAvatarDialog.show(context, ctl, onSaved: (_) => setState(() {}));
-   },
-   child: Stack(
-    clipBehavior: Clip.none,
-    children: [
-     MeowMascotWidget(
-      size: 56,
-      mascotId: ctl.selectedMascotId,
-      accessory: ctl.selectedMascotAccessory,
-      customPhotoPath: ctl.customAvatarPath,
-      isCustomPhoto: ctl.isCustomAvatarEnabled,
-      isHeadOnly: true,
-     ),
-     Positioned(
-      right: -2,
-      bottom: -2,
-      child: Container(
-       width: 24,
-       height: 24,
-       decoration: BoxDecoration(color: c.card, shape: BoxShape.circle, border: Border.all(color: c.line)),
-       child: Icon(Icons.photo_camera_outlined, size: 14, color: c.icon),
-      ),
-     ),
-    ],
-   ),
-  );
-
   return Container(
    decoration: BoxDecoration(color: c.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: c.line)),
    child: Column(
@@ -516,8 +492,6 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
       padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
       child: Row(
        children: [
-        avatar,
-        const SizedBox(width: 14),
         Expanded(
          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

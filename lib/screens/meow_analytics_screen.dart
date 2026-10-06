@@ -11,7 +11,7 @@ import 'category_management_screen.dart';
 import 'compare_analytics_screen.dart';
 import '../widgets/transaction_detail_sheet.dart';
 import '../services/slip_auto_sync_service.dart';
-import '../widgets/meow_mascot_widget.dart';
+import '../widgets/meow_page_header.dart';
 
 enum AnalyticsMainTab {
   overview,
@@ -476,70 +476,29 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> {
   }
 
   Widget _buildHeader() {
-    final theme = _c.currentTheme;
-    final heroText = theme.heroTextColor(_isDark);
-    final heroMuted = theme.heroTextMutedColor(_isDark);
     final subtitle = switch (_activeTab) {
       AnalyticsMainTab.overview => '${_isEn ? 'Financial summary' : 'สรุปวิเคราะห์การเงิน'} • ${_formatPeriodTitle()}',
       AnalyticsMainTab.categoryTags => _isEn ? 'Categories & sub-tags' : 'หมวดหมู่ & #แท็กย่อย',
       AnalyticsMainTab.comparison => _isEn ? 'Compare your money' : 'เปรียบเทียบการเงิน',
     };
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        gradient: theme.heroGradient,
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(22)),
-      ),
-      padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 10, 16, 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(_isEn ? 'Statistics' : 'สถิติ', style: TextStyle(color: heroText, fontSize: 22, fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 2),
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 200),
-                      child: Text(
-                        subtitle,
-                        key: ValueKey(subtitle),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: heroMuted, fontSize: 12.5),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 10),
-              MeowMascotWidget(
-                size: 44,
-                mascotId: _c.selectedMascotId,
-                accessory: _c.selectedMascotAccessory,
-                customPhotoPath: _c.customAvatarPath,
-                isCustomPhoto: _c.isCustomAvatarEnabled,
-                withPen: true,
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Container(
-            height: 44,
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(color: heroText.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(14)),
-            child: Row(
-              children: [
-                _headerTab(AnalyticsMainTab.overview, _isEn ? 'Overview' : 'ภาพรวม'),
-                _headerTab(AnalyticsMainTab.categoryTags, _isEn ? 'Categories & #tags' : 'หมวดหมู่ & #แท็ก'),
-                _headerTab(AnalyticsMainTab.comparison, _isEn ? 'Compare' : 'เทียบเดือน'),
-              ],
-            ),
-          ),
-        ],
+    return MeowPageHeader(
+      controller: _c,
+      title: _isEn ? 'Statistics' : 'สถิติ',
+      subtitle: subtitle,
+      bottom: Container(
+        height: 44,
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: _c.currentTheme.heroTextColor(_isDark).withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            _headerTab(AnalyticsMainTab.overview, _isEn ? 'Overview' : 'ภาพรวม'),
+            _headerTab(AnalyticsMainTab.categoryTags, _isEn ? 'Categories & #tags' : 'หมวดหมู่ & #แท็ก'),
+            _headerTab(AnalyticsMainTab.comparison, _isEn ? 'Compare' : 'เทียบเดือน'),
+          ],
+        ),
       ),
     );
   }
