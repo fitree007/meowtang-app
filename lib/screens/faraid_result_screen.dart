@@ -40,11 +40,15 @@ class FaraidResultScreen extends StatelessWidget {
   final MunasakhatResult chain;
   final FaraidEstateSummary summary;
 
+  /// Set when the first estate waits on a fetus or a missing heir.
+  final UncertainResult? uncertain;
+
   const FaraidResultScreen({
     super.key,
     required this.controller,
     required this.chain,
     required this.summary,
+    this.uncertain,
   });
 
   String _money(double v) => '฿${FormatUtils.formatCurrency(v)}';
@@ -56,6 +60,17 @@ class FaraidResultScreen extends StatelessWidget {
     for (final stage in chain.stages) {
       b.writeln('');
       b.writeln('■ ขั้นที่ ${stage.index + 1}: ${stage.title} — กองมรดก ${_money(stage.estate)}');
+      final u = uncertain;
+      if (stage.index == 0 && u != null) {
+        b.writeln('(มีทายาทที่ยังไม่แน่นอน — แบ่งให้เฉพาะส่วนที่แน่นอนก่อน)');
+        for (final e in u.known.entries) {
+          b.write('• ${e.key.th} ${e.value} คน: รับได้ทันที ${_money(u.paidNow(e.key).toDouble() * stage.estate)}');
+          if (e.value > 1) b.write(' (คนละ ${_money(u.minPerPerson[e.key]!.toDouble() * stage.estate)})');
+          b.writeln();
+        }
+        b.writeln('• กันไว้ก่อน (الموقوف): ${_money(u.reserved.toDouble() * stage.estate)}');
+        continue;
+      }
       final passed = chain.passedOn(stage.index);
       for (final s in stage.result.shares) {
         final per = s.perPerson.toDouble() * stage.estate;
@@ -132,18 +147,14 @@ class FaraidResultScreen extends StatelessWidget {
               theme: theme,
             ),
             const SizedBox(height: 8),
-            _FinalRecipients(chain: chain, theme: theme, money: _money),
+            _FinalRecipients(chain: chain, uncertain: uncertain, theme: theme, money: _money),
           ],
           for (final stage in chain.stages) ...[
             const SizedBox(height: 18),
-            _StageSection(
-              stage: stage,
-              chain: chain,
-              theme: theme,
-              isDark: isDark,
-              money: _money,
-              showHeader: multi,
-            ),
+            if (stage.index == 0 && uncertain != null)
+              _UncertainSection(result: uncertain!, estate: stage.estate, theme: theme, isDark: isDark, money: _money)
+            else
+              _StageSection(stage: stage, chain: chain, theme: theme, isDark: isDark, money: _money, showHeader: multi),
           ],
           const SizedBox(height: 18),
           _NoticeBox(
@@ -245,15 +256,36 @@ class _SectionTitle extends StatelessWidget {
 
 class _FinalRecipients extends StatelessWidget {
   final MunasakhatResult chain;
+  final UncertainResult? uncertain;
   final AppThemeModel theme;
   final String Function(double) money;
 
-  const _FinalRecipients({required this.chain, required this.theme, required this.money});
+  const _FinalRecipients({required this.chain, required this.uncertain, required this.theme, required this.money});
 
   @override
   Widget build(BuildContext context) {
     final rows = <Widget>[];
     for (final stage in chain.stages) {
+      final u = uncertain;
+      if (stage.index == 0 && u != null) {
+        for (final e in u.known.entries) {
+          final paid = u.paidNow(e.key).toDouble() * stage.estate;
+          if (paid <= 0) continue;
+          rows.add(
+            _row(
+              'ขั้น 1',
+              '${e.key.th}${e.value > 1 ? ' ${e.value} คน' : ''}',
+              null,
+              paid,
+              e.value > 1 ? paid / e.value : null,
+            ),
+          );
+        }
+        rows.add(
+          _row('ขั้น 1', 'กันไว้ก่อน (الموقوف)', 'รอทารกคลอด / ศาลตัดสิน', u.reserved.toDouble() * stage.estate, null),
+        );
+        continue;
+      }
       final passed = chain.passedOn(stage.index);
       for (final s in stage.result.shares) {
         if (!s.share.isPositive) continue;
@@ -282,7 +314,7 @@ class _FinalRecipients extends StatelessWidget {
                     Text('${s.type.th}${alive > 1 ? ' $alive คน' : ''}',
                         style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: theme.textColor)),
                     if (stage.index > 0)
-                      Text('ทายาทของ${stage.title.replaceAll(' (เสียชีวิตตามมา)', '')}',
+                      Text('ทายาทของ${stage.title.replaceAll(' (เสียชีวิตตามมา)', '').replaceAll(' (เสียชีวิตพร้อมกัน)', '')}',
                           style: TextStyle(fontSize: 11, color: theme.textSecondaryColor)),
                   ],
                 ),
@@ -333,6 +365,255 @@ class _FinalRecipients extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: rows),
     );
   }
+
+  Widget _row(String badge, String title, String? sub, double amount, double? each) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+            decoration: BoxDecoration(
+              color: theme.primaryColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              badge,
+              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: theme.primaryColor),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: theme.textColor),
+                ),
+                if (sub != null) Text(sub, style: TextStyle(fontSize: 11, color: theme.textSecondaryColor)),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                money(amount),
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: theme.textColor),
+              ),
+              if (each != null)
+                Text('คนละ ${money(each)}', style: TextStyle(fontSize: 11, color: theme.textSecondaryColor)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Al-Haml / al-Mafqud: what can be paid now, what is held back, and how each outcome settles it.
+class _UncertainSection extends StatelessWidget {
+  final UncertainResult result;
+  final double estate;
+  final AppThemeModel theme;
+  final bool isDark;
+  final String Function(double) money;
+
+  const _UncertainSection({
+    required this.result,
+    required this.estate,
+    required this.theme,
+    required this.isDark,
+    required this.money,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final u = result;
+    const amber = Color(0xFFF59E0B);
+    final reserved = u.reserved.toDouble() * estate;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionTitle(
+          title: 'ขั้นที่ 1: แบ่งเฉพาะส่วนที่แน่นอนก่อน',
+          ar: 'الموقوف',
+          theme: theme,
+          subtitle:
+              'กองมรดก ${money(estate)} • คิดครบทุกกรณีที่เป็นไปได้ ${u.outcomes.length} กรณี '
+              'แต่ละคนได้รับส่วนที่น้อยที่สุดในทุกกรณีไปก่อน ที่เหลือกันไว้ (มัซฮับชาฟิอีย์)',
+        ),
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: theme.cardBackground,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: theme.borderColor),
+          ),
+          child: Column(
+            children: [
+              for (final e in u.known.entries)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${e.key.th}${e.value > 1 ? ' ${e.value} คน' : ''}',
+                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: theme.textColor),
+                            ),
+                            Text(
+                              u.paidNow(e.key).isPositive
+                                  ? 'รับได้ทันที ${u.paidNow(e.key)} ของกองมรดก'
+                                  : 'ยังไม่ได้รับ เพราะบางกรณีถูกกันสิทธิ์',
+                              style: TextStyle(fontSize: 11, color: theme.textSecondaryColor),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            money(u.paidNow(e.key).toDouble() * estate),
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: theme.textColor),
+                          ),
+                          if (e.value > 1)
+                            Text(
+                              'คนละ ${money(u.minPerPerson[e.key]!.toDouble() * estate)}',
+                              style: TextStyle(fontSize: 11, color: theme.textSecondaryColor),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              const Divider(height: 14),
+              Row(
+                children: [
+                  const Icon(Icons.lock_clock_rounded, color: amber, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'กันไว้ก่อน ${u.reserved} (الموقوف)',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: theme.textColor),
+                    ),
+                  ),
+                  Text(
+                    money(reserved),
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: amber),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        _SectionTitle(
+          title: 'เมื่อทราบผลแล้ว ส่วนที่กันไว้แบ่งอย่างไร',
+          ar: 'تقدير الاحتمالات',
+          theme: theme,
+          subtitle: 'แตะกรณีที่เกิดขึ้นจริงเพื่อดูว่าแต่ละคนได้รับเพิ่มเท่าไร',
+        ),
+        const SizedBox(height: 8),
+        for (final o in u.outcomes) _outcomeTile(context, o),
+      ],
+    );
+  }
+
+  Widget _outcomeTile(BuildContext context, ScenarioOutcome o) {
+    final r = o.result;
+    final lines = <Widget>[];
+    for (final s in r.shares) {
+      if (!s.share.isPositive) continue;
+      final full = s.share.toDouble() * estate;
+      final knownCount = result.known[s.type] ?? 0;
+      final paid = (result.minPerPerson[s.type] ?? Frac.zero).toDouble() * estate * knownCount;
+      final extraPeople = s.count - knownCount;
+      final topUp = full - paid;
+      final who = extraPeople > 0 && knownCount > 0
+          ? '${s.type.th} ${s.count} คน (รวมคนใหม่ $extraPeople)'
+          : '${s.type.th}${s.count > 1 ? ' ${s.count} คน' : ''}${knownCount == 0 ? ' (คนใหม่)' : ''}';
+      lines.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text('$who • ${s.fractionLabel}', style: TextStyle(fontSize: 12.5, color: theme.textColor)),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    money(full),
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: theme.textColor),
+                  ),
+                  if (topUp > 0.005)
+                    Text(
+                      'รับเพิ่มจากส่วนที่กันไว้ ${money(topUp)}',
+                      style: const TextStyle(fontSize: 11, color: Color(0xFF059669), fontWeight: FontWeight.w600),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    for (final b in r.blocked) {
+      lines.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 3),
+          child: Text(
+            '• ${b.type.th} ไม่ได้รับ — ${b.reason}',
+            style: TextStyle(fontSize: 11.5, height: 1.35, color: theme.textSecondaryColor),
+          ),
+        ),
+      );
+    }
+    if (r.unallocated.isPositive) {
+      lines.add(
+        Text(
+          '• ส่วนที่เหลือ ${money(r.unallocated.toDouble() * estate)} ตกแก่ญาติสายอื่น / บัยตุลมาล',
+          style: TextStyle(fontSize: 11.5, color: theme.textSecondaryColor),
+        ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: theme.cardBackground,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(color: theme.borderColor),
+        ),
+        child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 12),
+          childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+          title: Text(
+            o.scenario.label.isEmpty ? 'กรณีปกติ' : o.scenario.label,
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: theme.textColor),
+          ),
+          subtitle: Text(
+            'ฐาน ${r.asl}${r.awlTo != null ? ' → เอาล์ ${r.awlTo}' : ''}${r.isRadd ? ' • ร็อด' : ''}${r.specialCase != null ? ' • ${r.specialCase}' : ''}',
+            style: TextStyle(fontSize: 11, color: theme.textSecondaryColor),
+          ),
+          children: lines,
+        ),
+        ),
+      ),
+    );
+  }
 }
 
 class _StageSection extends StatelessWidget {
@@ -364,10 +645,16 @@ class _StageSection extends StatelessWidget {
         if (showHeader) ...[
           _SectionTitle(
             title: 'ขั้นที่ ${stage.index + 1}: ${stage.title}',
-            ar: stage.index == 0 ? 'المسألة الأولى' : 'المسألة الثانية',
+            ar: stage.index == 0
+                ? 'المسألة الأولى'
+                : stage.simultaneous
+                ? 'الغرقى والهدمى'
+                : 'المسألة الثانية',
             theme: theme,
             subtitle: stage.index == 0
                 ? 'กองมรดก ${money(stage.estate)}'
+                : stage.simultaneous
+                ? 'ไม่รับมรดกจากผู้ตายคนแรก เพราะไม่รู้ว่าใครเสียชีวิตก่อน → แบ่งเฉพาะทรัพย์สินของตนเอง ${money(stage.estate)} ให้ทายาทของผู้ตายคนนี้'
                 : 'ได้รับจากขั้นก่อน ${money(stage.inherited)} (= ${stage.fractionOfOriginal} ของมรดกเดิม)'
                     '${stage.ownAssets > 0 ? ' + ทรัพย์สินส่วนตัว ${money(stage.ownAssets)}' : ''} → แบ่งให้ทายาทของผู้ตายคนนี้ ${money(stage.estate)}',
           ),
@@ -681,11 +968,12 @@ class _StepsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.cardBackground,
+    return Material(
+      color: theme.cardBackground,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: theme.borderColor),
+        side: BorderSide(color: theme.borderColor),
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),

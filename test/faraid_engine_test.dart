@@ -242,4 +242,82 @@ void main() {
       expect(chain.errors.length, 1);
     });
   });
+
+  group('Uncertain heirs (al-Haml, al-Mafqud)', () {
+    test('fetus of the deceased, up to twins: heirs get their smallest share', () {
+      final u = FaraidEngine.calculateUncertain(
+        const FaraidInput(deceasedMale: true, heirs: {HeirType.wife: 1, HeirType.father: 1, HeirType.mother: 1}),
+        [FaraidEngine.fetusScenarios(HeirType.son, HeirType.daughter, 2)],
+      );
+      expect(u.outcomes.length, 6); // stillborn, 1 boy, 1 girl, 2 boys, boy+girl, 2 girls
+      expect(u.minPerPerson[HeirType.wife], Frac(1, 9)); // 2 daughters: 24 raised to 27
+      expect(u.minPerPerson[HeirType.mother], Frac(4, 27));
+      expect(u.minPerPerson[HeirType.father], Frac(4, 27));
+      expect(u.reserved, Frac(16, 27));
+      expect(u.paidNow(HeirType.wife) + u.paidNow(HeirType.mother) + u.paidNow(HeirType.father) + u.reserved, Frac.one);
+    });
+
+    test('one missing son: share held back until the ruling', () {
+      final u = FaraidEngine.calculateUncertain(
+        const FaraidInput(deceasedMale: true, heirs: {HeirType.wife: 1, HeirType.son: 1, HeirType.daughter: 1}),
+        [FaraidEngine.missingScenarios(HeirType.son, 1)],
+      );
+      expect(u.outcomes.length, 2);
+      expect(u.minPerPerson[HeirType.wife], Frac(1, 8));
+      expect(u.minPerPerson[HeirType.son], Frac(7, 20));
+      expect(u.minPerPerson[HeirType.daughter], Frac(7, 40));
+      expect(u.reserved, Frac(7, 20));
+    });
+
+    test('missing son blocks the brother in one outcome, so the brother gets nothing yet', () {
+      final u = FaraidEngine.calculateUncertain(
+        const FaraidInput(deceasedMale: true, heirs: {HeirType.wife: 1, HeirType.fullBrother: 1}),
+        [FaraidEngine.missingScenarios(HeirType.son, 1)],
+      );
+      expect(u.minPerPerson[HeirType.wife], Frac(1, 8));
+      expect(u.minPerPerson[HeirType.fullBrother], Frac.zero);
+      expect(u.reserved, Frac(7, 8));
+    });
+
+    test('fetus and missing heir together use every combination', () {
+      final u = FaraidEngine.calculateUncertain(
+        const FaraidInput(deceasedMale: true, heirs: {HeirType.wife: 1, HeirType.son: 1}),
+        [FaraidEngine.fetusScenarios(HeirType.son, HeirType.daughter, 1), FaraidEngine.missingScenarios(HeirType.son, 1)],
+      );
+      expect(u.outcomes.length, 6);
+      expect(u.minPerPerson[HeirType.son], Frac(7, 24)); // 3 sons alive: 7/8 / 3
+    });
+  });
+
+  group('Simultaneous deaths (al-Gharqa)', () {
+    test('each estate goes only to its own living heirs', () {
+      final chain = FaraidEngine.calculateChain(
+        estate: 1200000,
+        root: const FaraidInput(deceasedMale: true, heirs: {HeirType.wife: 1, HeirType.daughter: 1, HeirType.fullBrother: 1}),
+        simultaneous: const [
+          SimultaneousDeath(
+            label: 'ลูกชาย',
+            isMale: true,
+            heirs: {HeirType.wife: 1, HeirType.mother: 1, HeirType.fullSister: 1},
+            ownAssets: 300000,
+          ),
+        ],
+      );
+      expect(chain.stages.length, 2);
+      final first = chain.stages[0].result;
+      expect(first.shareOf(HeirType.wife)!.share, Frac(1, 8));
+      expect(first.shareOf(HeirType.daughter)!.share, Frac(1, 2));
+      expect(first.shareOf(HeirType.fullBrother)!.share, Frac(3, 8));
+
+      final son = chain.stages[1];
+      expect(son.simultaneous, isTrue);
+      expect(son.inherited, 0); // nothing from the father
+      expect(son.estate, 300000);
+      // 1/4 + 1/3 + 1/2 = 13/12, so the base 12 is raised to 13
+      expect(son.result.shareOf(HeirType.wife)!.share, Frac(3, 13));
+      expect(son.result.shareOf(HeirType.mother)!.share, Frac(4, 13));
+      expect(son.result.shareOf(HeirType.fullSister)!.share, Frac(6, 13));
+      expect(chain.passedOn(0), isEmpty);
+    });
+  });
 }
