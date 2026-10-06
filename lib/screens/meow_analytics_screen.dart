@@ -1,124 +1,142 @@
-import '../services/excel_export_service.dart';
-import '../widgets/export_success_modal.dart';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:path_provider/path_provider.dart';
 import '../models/transaction_item.dart';
 import '../models/category_item.dart';
 import '../state/expense_controller.dart';
-import '../theme/meow_theme.dart';
 import '../widgets/analytics_carousel_chart_card.dart';
-import '../widgets/tactile_button.dart';
+import '../widgets/meow_fx.dart';
 import '../widgets/meow_wheel_date_picker.dart';
 import '../utils/format_utils.dart';
-import '../services/pdf_statement_service.dart';
-import 'saving_goals_screen.dart';
 import 'category_management_screen.dart';
-import 'budget_management_screen.dart';
 import 'compare_analytics_screen.dart';
 import '../widgets/transaction_detail_sheet.dart';
-import '../widgets/slip_image_viewer_dialog.dart';
 import '../services/slip_auto_sync_service.dart';
 import '../widgets/meow_mascot_widget.dart';
 
 enum AnalyticsMainTab {
- overview,
- categoryTags,
- comparison,
+  overview,
+  categoryTags,
+  comparison,
 }
 
 enum PeriodFilterType {
- day,
- month,
- year,
- customRange,
- allTime,
+  day,
+  month,
+  year,
+  customRange,
+  allTime,
 }
 
-enum CustomRangeUnit {
- days,
- months,
- years,
+/// Income/expense totals for one set of transactions (transfers are ignored).
+class _PeriodStats {
+  double income = 0;
+  double expense = 0;
+  int incomeCount = 0;
+  int expenseCount = 0;
+  final Map<String, double> expenseByCat = {};
+
+  _PeriodStats(Iterable<TransactionItem> txs) {
+    for (final t in txs) {
+      if (t.type == TransactionType.income) {
+        income += t.amount;
+        incomeCount++;
+      } else if (t.type == TransactionType.expense) {
+        expense += t.amount;
+        expenseCount++;
+        expenseByCat[t.categoryId] = (expenseByCat[t.categoryId] ?? 0) + t.amount;
+      }
+    }
+  }
+
+  double get net => income - expense;
+  int get count => incomeCount + expenseCount;
+  double get savingsRate => income > 0 ? net / income * 100 : 0;
 }
 
 class MeowAnalyticsScreen extends StatefulWidget {
- final ExpenseController controller;
+  final ExpenseController controller;
 
- const MeowAnalyticsScreen({super.key, required this.controller});
+  const MeowAnalyticsScreen({super.key, required this.controller});
 
- @override
- State<MeowAnalyticsScreen> createState() => _MeowAnalyticsScreenState();
+  @override
+  State<MeowAnalyticsScreen> createState() => _MeowAnalyticsScreenState();
 }
 
-class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> with SingleTickerProviderStateMixin {
- AnalyticsMainTab _activeTab = AnalyticsMainTab.overview;
- bool _isHeaderCollapsed = false;
+class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> {
+  AnalyticsMainTab _activeTab = AnalyticsMainTab.overview;
 
- // Period filter states (Overview & Category Tags)
- PeriodFilterType _periodType = PeriodFilterType.month;
- CustomRangeUnit _rangeUnit = CustomRangeUnit.days;
- DateTime _currentAnchorDate = DateTime.now();
- DateTimeRange _customDateRange = DateTimeRange(
-  start: DateTime.now().subtract(const Duration(days: 30)),
-  end: DateTime.now(),
- );
+  // Period filter (overview and categories share it)
+  PeriodFilterType _periodType = PeriodFilterType.month;
+  DateTime _currentAnchorDate = DateTime.now();
+  DateTimeRange _customDateRange = DateTimeRange(
+    start: DateTime.now().subtract(const Duration(days: 30)),
+    end: DateTime.now(),
+  );
 
- // Chart settings
- TransactionType _selectedType = TransactionType.expense;
+  TransactionType _selectedType = TransactionType.expense;
+  bool _showAllCategories = false;
+  bool _showEmptyCategories = false;
 
- // Category & #Tag Drilldown state
- String? _selectedDrillCategoryId;
+  // Categories tab
+  String? _selectedDrillCategoryId;
+  String? _expandedTag;
+  static const String _untaggedKey = '\u0000untagged';
 
- // 2-Month Comparison state
- DateTime _compareMonthA = DateTime.now();
- DateTime _compareMonthB = DateTime(DateTime.now().year, DateTime.now().month == 1 ? 12 : DateTime.now().month - 1);
+  // Compare tab
+  bool _compareYears = false;
+  DateTime _compareMonthA = DateTime(DateTime.now().year, DateTime.now().month);
+  DateTime _compareMonthB = DateTime(DateTime.now().year, DateTime.now().month - 1);
+  int _compareYearA = DateTime.now().year;
+  int _compareYearB = DateTime.now().year - 1;
 
- // Thai Date Formatter Utilities
- static const List<String> _thaiMonths = [
-  'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
-  'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
- ];
+  static const List<String> _thaiMonths = [
+    'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+    'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+  ];
+  static const List<String> _thaiMonthsShort = [
+    'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+    'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
+  ];
+  static const List<String> _enMonths = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  static const List<String> _enMonthsShort = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ];
 
- static const List<String> _thaiMonthsShort = [
-  'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
-  'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
- ];
+  ExpenseController get _c => widget.controller;
+  bool get _isEn => _c.isEnglish;
+  bool get _isDark => _c.isDarkMode;
 
- static const List<String> _enMonths = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'
- ];
-
- static const List<String> _enMonthsShort = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
- ];
+  Color get _text => _c.currentTheme.textColor;
+  Color get _sub => _c.currentTheme.textSecondaryColor;
+  Color get _card => _c.currentTheme.cardBackground;
+  Color get _line => _c.currentTheme.borderColor;
+  Color get _track => _isDark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFEEF0F4);
+  Color get _seg => _isDark ? Colors.white.withValues(alpha: 0.06) : const Color(0xFFF1F3F8);
+  Color get _accent => _isDark ? const Color(0xFF93C5FD) : _c.currentTheme.primaryDark;
+  Color get _income => _isDark ? const Color(0xFF34D399) : const Color(0xFF059669);
+  Color get _expense => _isDark ? const Color(0xFFF87171) : const Color(0xFFDC2626);
+  static const Color _compareB = Color(0xFF38BDF8);
 
   @override
   void initState() {
     super.initState();
-    widget.controller.addListener(_onControllerUpdate);
-    if (widget.controller.expenseCategories.isNotEmpty) {
-      _selectedDrillCategoryId = widget.controller.expenseCategories.first.id;
-    }
+    _c.addListener(_onControllerUpdate);
     // Auto-trigger slip scan if app has no transactions yet and is not currently scanning.
     // Skipped before the initial device scan: this screen is built at startup inside the IndexedStack,
     // and scanning before photo permission is granted finds nothing and wrongly marks the initial scan as done.
-    if (widget.controller.isInitialDeviceScanCompleted &&
-        widget.controller.allTransactions.isEmpty &&
-        !widget.controller.isProcessingSlips) {
+    if (_c.isInitialDeviceScanCompleted && _c.allTransactions.isEmpty && !_c.isProcessingSlips) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          SlipAutoSyncService.scanAndAutoImportNewSlips(widget.controller);
-        }
+        if (mounted) SlipAutoSyncService.scanAndAutoImportNewSlips(_c);
       });
     }
   }
 
   @override
   void dispose() {
-    widget.controller.removeListener(_onControllerUpdate);
+    _c.removeListener(_onControllerUpdate);
     super.dispose();
   }
 
@@ -126,2424 +144,1911 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> with SingleTi
     if (mounted) setState(() {});
   }
 
- String _formatPeriodTitle() {
-  final d = _currentAnchorDate;
-  final isEn = widget.controller.isEnglish;
-  final yearStr = isEn ? '${d.year}' : '${d.year + 543}';
+  // ---------------------------------------------------------------------------
+  // Period helpers
+  // ---------------------------------------------------------------------------
+  String _yearStr(int y) => _isEn ? '$y' : '${y + 543}';
+  String _monthLong(int m) => _isEn ? _enMonths[m - 1] : _thaiMonths[m - 1];
+  String _monthShort(int m) => _isEn ? _enMonthsShort[m - 1] : _thaiMonthsShort[m - 1];
+  String _monthYearLong(DateTime d) => '${_monthLong(d.month)} ${_yearStr(d.year)}';
 
-  switch (_periodType) {
-   case PeriodFilterType.day:
-    final mStr = isEn ? _enMonths[d.month - 1] : _thaiMonths[d.month - 1];
-    return '${d.day} $mStr $yearStr';
-   case PeriodFilterType.month:
-    final mStr = isEn ? _enMonths[d.month - 1] : _thaiMonths[d.month - 1];
-    return '$mStr $yearStr';
-   case PeriodFilterType.year:
-    return isEn ? 'Year $yearStr' : 'ปี พ.ศ. $yearStr';
-   case PeriodFilterType.customRange:
-    final start = _customDateRange.start;
-    final end = _customDateRange.end;
-    final startY = isEn ? '${start.year}' : '${start.year + 543}';
-    final endY = isEn ? '${end.year}' : '${end.year + 543}';
-    return '${start.day}/${start.month}/$startY - ${end.day}/${end.month}/$endY';
-   case PeriodFilterType.allTime:
-    return isEn ? 'All Time Statistics' : 'สถิติตลอดเวลา (All Time)';
+  String _formatPeriodTitle() {
+    final d = _currentAnchorDate;
+    switch (_periodType) {
+      case PeriodFilterType.day:
+        return '${d.day} ${_monthLong(d.month)} ${_yearStr(d.year)}';
+      case PeriodFilterType.month:
+        return _monthYearLong(d);
+      case PeriodFilterType.year:
+        return _isEn ? 'Year ${d.year}' : 'ปี ${d.year + 543}';
+      case PeriodFilterType.customRange:
+        final s = _customDateRange.start;
+        final e = _customDateRange.end;
+        return '${s.day}/${s.month}/${_yearStr(s.year)} - ${e.day}/${e.month}/${_yearStr(e.year)}';
+      case PeriodFilterType.allTime:
+        return _isEn ? 'All time' : 'ทั้งหมด';
+    }
   }
- }
 
- String _formatMonthYear(DateTime d) {
-  final isEn = widget.controller.isEnglish;
-  final yearStr = isEn ? '${d.year}' : '${d.year + 543}';
-  final mStr = isEn ? _enMonthsShort[d.month - 1] : _thaiMonthsShort[d.month - 1];
-  return '$mStr $yearStr';
- }
-
- void _prevPeriod() {
-  HapticFeedback.selectionClick();
-  setState(() {
-   if (_periodType == PeriodFilterType.day) {
-    _currentAnchorDate = _currentAnchorDate.subtract(const Duration(days: 1));
-   } else if (_periodType == PeriodFilterType.month) {
-    _currentAnchorDate = DateTime(_currentAnchorDate.year, _currentAnchorDate.month - 1, 1);
-   } else if (_periodType == PeriodFilterType.year) {
-    _currentAnchorDate = DateTime(_currentAnchorDate.year - 1, 1, 1);
-   }
-  });
- }
-
- void _nextPeriod() {
-  HapticFeedback.selectionClick();
-  setState(() {
-   if (_periodType == PeriodFilterType.day) {
-    _currentAnchorDate = _currentAnchorDate.add(const Duration(days: 1));
-   } else if (_periodType == PeriodFilterType.month) {
-    _currentAnchorDate = DateTime(_currentAnchorDate.year, _currentAnchorDate.month + 1, 1);
-   } else if (_periodType == PeriodFilterType.year) {
-    _currentAnchorDate = DateTime(_currentAnchorDate.year + 1, 1, 1);
-   }
-  });
- }
-
- Future<void> _pickDateOrRange() async {
-  HapticFeedback.selectionClick();
-  if (_periodType == PeriodFilterType.customRange) {
-   final picked = await showDateRangePicker(
-    context: context,
-    firstDate: DateTime(2000),
-    lastDate: DateTime(2040),
-    initialDateRange: _customDateRange,
-    helpText: widget.controller.isEnglish ? 'Select Date Range' : 'เลือกช่วงวันที่ต้องการดูสถิติ',
-    saveText: widget.controller.isEnglish ? 'Done' : 'เลือกช่วงนี้',
-    builder: (context, child) => Theme(
-     data: ThemeData.dark().copyWith(
-      colorScheme: const ColorScheme.dark(
-       primary: MeowTheme.mustardYellow,
-       onPrimary: MeowTheme.textDarkPrimary,
-       surface: MeowTheme.navySurface,
-      ),
-     ),
-     child: child!,
-    ),
-   );
-   if (picked != null) {
-    setState(() => _customDateRange = picked);
-   }
-  } else if (_periodType == PeriodFilterType.day) {
-   final picked = await MeowWheelDatePicker.showWheelDatePicker(
-    context: context,
-    initialDate: _currentAnchorDate,
-    isEnglish: widget.controller.isEnglish,
-    isDarkMode: widget.controller.isDarkMode,
-   );
-   if (picked != null) {
-    setState(() => _currentAnchorDate = picked);
-   }
-  } else if (_periodType == PeriodFilterType.month) {
-   final picked = await MeowWheelDatePicker.showWheelMonthYearPicker(
-    context: context,
-    initialDate: _currentAnchorDate,
-    isEnglish: widget.controller.isEnglish,
-    isDarkMode: widget.controller.isDarkMode,
-   );
-   if (picked != null) {
-    setState(() => _currentAnchorDate = picked);
-   }
-  } else if (_periodType == PeriodFilterType.year) {
-   final picked = await MeowWheelDatePicker.showWheelYearPicker(
-    context: context,
-    initialYear: _currentAnchorDate.year,
-    isEnglish: widget.controller.isEnglish,
-    isDarkMode: widget.controller.isDarkMode,
-   );
-   if (picked != null) {
-    setState(() => _currentAnchorDate = DateTime(picked, _currentAnchorDate.month, 1));
-   }
+  String get _periodTypeLabel {
+    switch (_periodType) {
+      case PeriodFilterType.day:
+        return _isEn ? 'Day' : 'รายวัน';
+      case PeriodFilterType.month:
+        return _isEn ? 'Month' : 'รายเดือน';
+      case PeriodFilterType.year:
+        return _isEn ? 'Year' : 'รายปี';
+      case PeriodFilterType.customRange:
+        return _isEn ? 'Range' : 'ช่วงเวลา';
+      case PeriodFilterType.allTime:
+        return _isEn ? 'All' : 'ทั้งหมด';
+    }
   }
- }
 
- // Filtered Transactions for Current Period
- List<TransactionItem> get _filteredTransactions {
-  final all = widget.controller.allTransactions;
-
-  if (_periodType == PeriodFilterType.allTime) {
-   return all;
-  } else if (_periodType == PeriodFilterType.day) {
-   return all.where((t) =>
-     t.date.year == _currentAnchorDate.year &&
-     t.date.month == _currentAnchorDate.month &&
-     t.date.day == _currentAnchorDate.day).toList();
-  } else if (_periodType == PeriodFilterType.month) {
-   return all.where((t) =>
-     t.date.year == _currentAnchorDate.year &&
-     t.date.month == _currentAnchorDate.month).toList();
-  } else if (_periodType == PeriodFilterType.year) {
-   return all.where((t) => t.date.year == _currentAnchorDate.year).toList();
-  } else {
-   final start = _customDateRange.start;
-   final end = _customDateRange.end.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1));
-   return all.where((t) => t.date.isAfter(start.subtract(const Duration(seconds: 1))) && t.date.isBefore(end)).toList();
+  /// "this month" / "this year" wording for the summary card title.
+  String get _summaryTitle {
+    final now = DateTime.now();
+    final d = _currentAnchorDate;
+    switch (_periodType) {
+      case PeriodFilterType.day:
+        final today = d.year == now.year && d.month == now.month && d.day == now.day;
+        return today ? (_isEn ? 'Today' : 'สรุปวันนี้') : (_isEn ? 'Summary for the day' : 'สรุปวันที่ ${d.day} ${_monthShort(d.month)}');
+      case PeriodFilterType.month:
+        final cur = d.year == now.year && d.month == now.month;
+        return cur ? (_isEn ? 'This month' : 'สรุปเดือนนี้') : (_isEn ? 'Summary for ${_monthYearLong(d)}' : 'สรุป${_monthYearLong(d)}');
+      case PeriodFilterType.year:
+        return d.year == now.year ? (_isEn ? 'This year' : 'สรุปปีนี้') : (_isEn ? 'Summary for ${d.year}' : 'สรุปปี ${d.year + 543}');
+      case PeriodFilterType.customRange:
+        return _isEn ? 'Selected range' : 'สรุปช่วงที่เลือก';
+      case PeriodFilterType.allTime:
+        return _isEn ? 'All time' : 'สรุปทั้งหมด';
+    }
   }
- }
 
- double get _totalIncome => _filteredTransactions
-   .where((t) => t.type == TransactionType.income)
-   .fold(0.0, (sum, t) => sum + t.amount);
+  void _prevPeriod() => _shiftPeriod(-1);
+  void _nextPeriod() => _shiftPeriod(1);
 
- double get _totalExpense => _filteredTransactions
-   .where((t) => t.type == TransactionType.expense)
-   .fold(0.0, (sum, t) => sum + t.amount);
-
- double get _netSavings => _totalIncome - _totalExpense;
-
- void _showExportOptionsModal() {
-  final isDark = widget.controller.isDarkMode;
-  final isEn = widget.controller.isEnglish;
-
-  showModalBottomSheet(
-   context: context,
-   backgroundColor: isDark ? MeowTheme.navySurface : Colors.white,
-   shape: const RoundedRectangleBorder(
-    borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-   ),
-   builder: (ctx) => Padding(
-    padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-    child: Column(
-     mainAxisSize: MainAxisSize.min,
-     crossAxisAlignment: CrossAxisAlignment.start,
-     children: [
-      Center(
-       child: Container(
-        width: 40,
-        height: 4,
-        decoration: BoxDecoration(
-         color: Colors.grey.withOpacity(0.3),
-         borderRadius: BorderRadius.circular(2),
-        ),
-       ),
-      ),
-      const SizedBox(height: 14),
-      Row(
-       children: [
-        const Icon(Icons.file_download, color: MeowTheme.mustardYellow, size: 22),
-        const SizedBox(width: 8),
-        Text(
-         isEn ? 'Export Financial Report' : 'ส่งออกรายงานสรุปบัญชี',
-         style: TextStyle(
-          color: isDark ? Colors.white : const Color(0xFF0F172A),
-          fontSize: 17,
-          fontWeight: FontWeight.bold,
-         ),
-        ),
-       ],
-      ),
-      const SizedBox(height: 16),
-      ListTile(
-       leading: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-         color: MeowTheme.expenseRed.withOpacity(0.12),
-         borderRadius: BorderRadius.circular(12),
-        ),
-        child: const Icon(Icons.picture_as_pdf, color: MeowTheme.expenseRed, size: 24),
-       ),
-       title: Text(isEn ? 'Monthly PDF Financial Statement' : 'รายงานสรุปบัญชีรายเดือน PDF (A4)', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-       subtitle: Text(isEn ? 'Professional PDF with breakdowns & tables' : 'เอกสารหัวบิลเหมียวตังค์ พร้อมตารางแจกแจงระดับมืออาชีพ', style: const TextStyle(fontSize: 12)),
-       onTap: () {
-        Navigator.pop(ctx);
-        _exportPdfStatement();
-       },
-      ),
-      const Divider(height: 14),
-      ListTile(
-       leading: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-         color: MeowTheme.incomeGreen.withOpacity(0.12),
-         borderRadius: BorderRadius.circular(12),
-        ),
-        child: const Icon(Icons.table_chart, color: MeowTheme.incomeGreen, size: 24),
-       ),
-       title: Text(isEn ? 'Excel Spreadsheet (.csv UTF-8 BOM)' : 'ส่งออกไฟล์ Excel (.csv ภาษาไทย 100%)', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-       subtitle: Text(isEn ? 'Open in Microsoft Excel or Google Sheets' : 'เปิดดูในโปรแกรม Excel ได้ทันที ภาษาไทยไม่เพี้ยน', style: const TextStyle(fontSize: 12)),
-       onTap: () {
-        Navigator.pop(ctx);
-        _exportExcelCsv();
-       },
-      ),
-     ],
-    ),
-   ),
-  );
- }
-
- Future<void> _exportPdfStatement() async {
-  try {
-   final isEn = widget.controller.isEnglish;
-   final pdfBytes = await PdfStatementService.generateMonthlyStatementPdf(
-    transactions: widget.controller.allTransactions,
-    accounts: widget.controller.accounts,
-    selectedMonth: _currentAnchorDate,
-    isEnglish: isEn,
-   );
-
-   final dir = await getApplicationDocumentsDirectory();
-   final monthStr = '${_currentAnchorDate.year}_${_currentAnchorDate.month}';
-   final file = File('${dir.path}/meowtang_statement_$monthStr.pdf');
-   await file.writeAsBytes(pdfBytes);
-
-   if (mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(
-     SnackBar(
-      content: Text(' ส่งออกรายงาน PDF สำเร็จแล้ว (${file.path.split(RegExp(r'[/\\]')).last})'),
-      backgroundColor: MeowTheme.incomeGreen,
-     ),
-    );
-   }
-  } catch (e) {
-   if (mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(
-     SnackBar(content: Text('เกิดข้อผิดพลาดในการสร้าง PDF: $e'), backgroundColor: MeowTheme.expenseRed),
-    );
-   }
-  }
- }
-
- Future<void> _exportExcelCsv() async {
-  try {
-   final csvContent = widget.controller.exportToExcelCsv();
-   final dir = await getApplicationDocumentsDirectory();
-   final monthStr = '${_currentAnchorDate.year}_${_currentAnchorDate.month}';
-   final file = File('${dir.path}/rizqi_report_$monthStr.csv');
-   await file.writeAsString(csvContent);
-
-   if (mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(
-     SnackBar(
-      content: Text(' บันทึกไฟล์ Excel สำเร็จแล้ว (${file.path.split(RegExp(r'[/\\]')).last})'),
-      backgroundColor: MeowTheme.incomeGreen,
-     ),
-    );
-   }
-  } catch (e) {
-   if (mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(
-     SnackBar(content: Text('เกิดข้อผิดพลาดในการส่งออก Excel: $e'), backgroundColor: MeowTheme.expenseRed),
-    );
-   }
-  }
- }
-
- @override
- Widget build(BuildContext context) {
-  final currentTheme = widget.controller.currentTheme;
-  final isDark = widget.controller.isDarkMode;
-  final isEn = widget.controller.isEnglish;
-
-  return Scaffold(
-   backgroundColor: currentTheme.scaffoldBackground,
-   body: NotificationListener<ScrollNotification>(
-    onNotification: (notification) {
-     if (notification.metrics.axis == Axis.vertical) {
-      final isScrolled = notification.metrics.pixels > 20.0;
-      if (isScrolled != _isHeaderCollapsed) {
-       setState(() {
-        _isHeaderCollapsed = isScrolled;
-       });
+  void _shiftPeriod(int step) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      final d = _currentAnchorDate;
+      if (_periodType == PeriodFilterType.day) {
+        _currentAnchorDate = DateTime(d.year, d.month, d.day + step);
+      } else if (_periodType == PeriodFilterType.month) {
+        _currentAnchorDate = DateTime(d.year, d.month + step, 1);
+      } else if (_periodType == PeriodFilterType.year) {
+        _currentAnchorDate = DateTime(d.year + step, 1, 1);
       }
-     }
-     return false;
-    },
-    child: Column(
-     children: [
-      // 1. Collapsing Pinned Hero Header (Status bar area)
-      AnimatedContainer(
-       duration: const Duration(milliseconds: 220),
-       curve: Curves.easeInOut,
-       width: double.infinity,
-       decoration: BoxDecoration(
-        gradient: currentTheme.heroGradient,
-        boxShadow: [
-         BoxShadow(
-          color: currentTheme.primaryColor.withValues(alpha: isDark ? 0.3 : 0.15),
-          blurRadius: 16,
-          offset: const Offset(0, 4),
-         ),
-        ],
-       ),
-       padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top + (_isHeaderCollapsed ? 11 : 14),
-        left: 18,
-        right: 18,
-        bottom: _isHeaderCollapsed ? 8 : 12,
-       ),
-       child: Row(
+      _expandedTag = null;
+    });
+  }
+
+  Future<void> _pickDateOrRange() async {
+    HapticFeedback.selectionClick();
+    if (_periodType == PeriodFilterType.customRange) {
+      final picked = await showDateRangePicker(
+        context: context,
+        firstDate: DateTime(2000),
+        lastDate: DateTime(2040),
+        initialDateRange: _customDateRange,
+        helpText: _isEn ? 'Select Date Range' : 'เลือกช่วงวันที่ต้องการดูสถิติ',
+        saveText: _isEn ? 'Done' : 'เลือกช่วงนี้',
+      );
+      if (picked != null) setState(() => _customDateRange = picked);
+    } else if (_periodType == PeriodFilterType.day) {
+      final picked = await MeowWheelDatePicker.showWheelDatePicker(
+        context: context,
+        initialDate: _currentAnchorDate,
+        isEnglish: _isEn,
+        isDarkMode: _isDark,
+      );
+      if (picked != null) setState(() => _currentAnchorDate = picked);
+    } else if (_periodType == PeriodFilterType.month) {
+      final picked = await MeowWheelDatePicker.showWheelMonthYearPicker(
+        context: context,
+        initialDate: _currentAnchorDate,
+        isEnglish: _isEn,
+        isDarkMode: _isDark,
+      );
+      if (picked != null) setState(() => _currentAnchorDate = picked);
+    } else if (_periodType == PeriodFilterType.year) {
+      final picked = await MeowWheelDatePicker.showWheelYearPicker(
+        context: context,
+        initialYear: _currentAnchorDate.year,
+        isEnglish: _isEn,
+        isDarkMode: _isDark,
+      );
+      if (picked != null) setState(() => _currentAnchorDate = DateTime(picked, _currentAnchorDate.month, 1));
+    }
+  }
+
+  /// [start, end) of the selected period, or null for "all time".
+  DateTimeRange? _rangeOf(PeriodFilterType type, DateTime d) {
+    switch (type) {
+      case PeriodFilterType.day:
+        return DateTimeRange(start: DateTime(d.year, d.month, d.day), end: DateTime(d.year, d.month, d.day + 1));
+      case PeriodFilterType.month:
+        return DateTimeRange(start: DateTime(d.year, d.month), end: DateTime(d.year, d.month + 1));
+      case PeriodFilterType.year:
+        return DateTimeRange(start: DateTime(d.year), end: DateTime(d.year + 1));
+      case PeriodFilterType.customRange:
+        final s = _customDateRange.start;
+        final e = _customDateRange.end;
+        return DateTimeRange(start: DateTime(s.year, s.month, s.day), end: DateTime(e.year, e.month, e.day + 1));
+      case PeriodFilterType.allTime:
+        return null;
+    }
+  }
+
+  List<TransactionItem> _inRange(DateTimeRange? r) {
+    final all = _c.allTransactions;
+    if (r == null) return all;
+    return all.where((t) => !t.date.isBefore(r.start) && t.date.isBefore(r.end)).toList();
+  }
+
+  List<TransactionItem> get _filteredTransactions => _inRange(_rangeOf(_periodType, _currentAnchorDate));
+
+  /// The period right before the selected one (day/month/year only).
+  DateTimeRange? get _previousRange {
+    final d = _currentAnchorDate;
+    switch (_periodType) {
+      case PeriodFilterType.day:
+        return _rangeOf(PeriodFilterType.day, DateTime(d.year, d.month, d.day - 1));
+      case PeriodFilterType.month:
+        return _rangeOf(PeriodFilterType.month, DateTime(d.year, d.month - 1));
+      case PeriodFilterType.year:
+        return _rangeOf(PeriodFilterType.year, DateTime(d.year - 1));
+      case PeriodFilterType.customRange:
+      case PeriodFilterType.allTime:
+        return null;
+    }
+  }
+
+  String get _previousLabel {
+    final d = _currentAnchorDate;
+    switch (_periodType) {
+      case PeriodFilterType.day:
+        return _isEn ? 'yesterday' : 'เมื่อวาน';
+      case PeriodFilterType.month:
+        return _monthShort(DateTime(d.year, d.month - 1).month);
+      case PeriodFilterType.year:
+        return _isEn ? '${d.year - 1}' : 'ปี ${d.year + 542}';
+      default:
+        return '';
+    }
+  }
+
+  /// Days counted for "average per day": a period still in progress counts up to today.
+  int _daysForAverage(DateTimeRange? r) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day + 1);
+    DateTime start;
+    DateTime end;
+    if (r == null) {
+      final all = _c.allTransactions;
+      if (all.isEmpty) return 1;
+      start = all.map((t) => t.date).reduce((a, b) => a.isBefore(b) ? a : b);
+      start = DateTime(start.year, start.month, start.day);
+      end = today;
+    } else {
+      start = r.start;
+      end = r.end.isAfter(today) && r.start.isBefore(today) ? today : r.end;
+    }
+    final days = end.difference(start).inHours / 24;
+    return days.round().clamp(1, 100000);
+  }
+
+  CategoryItem _categoryOf(String id, {String? fallbackName, TransactionType type = TransactionType.expense}) {
+    for (final c in _c.categories) {
+      if (c.id == id) return c;
+    }
+    return CategoryItem(
+      id: id,
+      name: fallbackName ?? (_isEn ? 'General' : 'ทั่วไป'),
+      iconKey: 'category',
+      colorValue: 0xFF64748B,
+      type: type == TransactionType.income ? CategoryType.income : CategoryType.expense,
+    );
+  }
+
+  String _baht(double v) => '฿${FormatUtils.formatCurrency(v, trimZero: true)}';
+  String _pct(double v) => '${v.toStringAsFixed(1)}%';
+
+  // ---------------------------------------------------------------------------
+  // Shared UI pieces
+  // ---------------------------------------------------------------------------
+  BoxDecoration get _cardDeco => BoxDecoration(
+        color: _card,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _line),
+      );
+
+  Widget _cardBox({required Widget child, EdgeInsets padding = const EdgeInsets.all(16)}) =>
+      Container(padding: padding, decoration: _cardDeco, child: child);
+
+  /// Two or more options in a grey track; the selected one is a white pill.
+  Widget _segmented<T>({
+    required List<(T, String)> options,
+    required T value,
+    required ValueChanged<T> onChanged,
+    Color? selectedText,
+    double height = 40,
+    double fontSize = 13,
+  }) {
+    return Container(
+      height: height,
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(color: _seg, borderRadius: BorderRadius.circular(12)),
+      child: Row(
         children: [
-         Expanded(
-          child: Column(
-           crossAxisAlignment: CrossAxisAlignment.start,
-           mainAxisSize: MainAxisSize.min,
-           children: [
-            Row(
-             children: [
-              Icon(Icons.analytics_rounded, color: currentTheme.heroTextColor(isDark), size: 22),
-              const SizedBox(width: 8),
-              Expanded(
-               child: Text(
-                isEn ? 'Financial Analytics' : 'สรุปวิเคราะห์การเงิน',
-                style: TextStyle(
-                 color: currentTheme.heroTextColor(isDark),
-                  fontSize: _isHeaderCollapsed ? 16.5 : 18,
-                 fontWeight: FontWeight.bold,
+          for (final o in options)
+            Expanded(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  if (o.$1 == value) return;
+                  HapticFeedback.selectionClick();
+                  onChanged(o.$1);
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOut,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: o.$1 == value ? _card : Colors.transparent,
+                    borderRadius: BorderRadius.circular(9),
+                    boxShadow: o.$1 == value && !_isDark
+                        ? [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 3, offset: const Offset(0, 1))]
+                        : null,
+                  ),
+                  child: Text(
+                    o.$2,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: fontSize,
+                      fontWeight: o.$1 == value ? FontWeight.w700 : FontWeight.w500,
+                      color: o.$1 == value ? (selectedText ?? _accent) : _sub,
+                    ),
+                  ),
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-               ),
               ),
-             ],
             ),
-            AnimatedCrossFade(
-             duration: const Duration(milliseconds: 200),
-             crossFadeState: _isHeaderCollapsed
-                 ? CrossFadeState.showSecond
-                 : CrossFadeState.showFirst,
-             firstChild: Padding(
-              padding: const EdgeInsets.only(top: 2, left: 30),
-              child: Text(
-               isEn
-                   ? 'Income, expense trends & category breakdown'
-                   : 'ภาพรวมรายรับรายจ่าย, หมวดหมู่ และแนวโน้ม',
-               style: TextStyle(
-                 color: currentTheme.heroTextMutedColor(isDark),
-                 fontSize: 11,
-               ),
-               maxLines: 1,
-               overflow: TextOverflow.ellipsis,
-              ),
-             ),
-             secondChild: const SizedBox.shrink(),
-            ),
-           ],
-          ),
-         ),
-         const SizedBox(width: 10),
-         MeowMascotWidget(
-           size: _isHeaderCollapsed ? 38 : 52,
-           mascotId: widget.controller.selectedMascotId,
-           accessory: widget.controller.selectedMascotAccessory,
-           customPhotoPath: widget.controller.customAvatarPath,
-           isCustomPhoto: widget.controller.isCustomAvatarEnabled,
-           withPen: true,
-         ),
         ],
-       ),
       ),
+    );
+  }
 
-      // 2. 3 Main Segmented Tabs (Placed outside Status Bar!)
-      Padding(
-       padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-       child: Container(
-        height: 48,
-        padding: const EdgeInsets.all(3),
-        decoration: BoxDecoration(
-         color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-         borderRadius: BorderRadius.circular(14),
-         border: Border.all(
-          color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
-          width: 1,
-         ),
-        ),
-        child: Row(
-         children: [
-          _buildMainTabButton(
-           AnalyticsMainTab.overview,
-           line1: isEn ? 'Overview' : 'ภาพรวม',
-           icon: Icons.pie_chart_rounded,
-          ),
-          _buildTabDivider(isDark),
-          _buildMainTabButton(
-           AnalyticsMainTab.categoryTags,
-           line1: isEn ? 'Categories' : 'หมวดหมู่',
-           line2: isEn ? '#Tags' : '#แท็ก',
-           icon: Icons.label_rounded,
-          ),
-          _buildTabDivider(isDark),
-          _buildMainTabButton(
-           AnalyticsMainTab.comparison,
-           line1: isEn ? 'Compare' : 'เทียบ 2 เดือน',
-           icon: Icons.compare_arrows_rounded,
-          ),
-         ],
-        ),
-       ),
+  Widget _typeSegment({VoidCallback? onChangedExtra, required bool categories}) => _segmented<TransactionType>(
+        options: [
+          (TransactionType.expense, categories ? (_isEn ? 'Expense categories' : 'หมวดหมู่รายจ่าย') : (_isEn ? 'Expense share' : 'สัดส่วนรายจ่าย')),
+          (TransactionType.income, categories ? (_isEn ? 'Income categories' : 'หมวดหมู่รายรับ') : (_isEn ? 'Income share' : 'สัดส่วนรายรับ')),
+        ],
+        value: _selectedType,
+        selectedText: _selectedType == TransactionType.expense ? _expense : _income,
+        onChanged: (t) => setState(() {
+          _selectedType = t;
+          _showAllCategories = false;
+          _selectedDrillCategoryId = null;
+          _expandedTag = null;
+          onChangedExtra?.call();
+        }),
+      );
+
+  /// Small rounded chip that shows a change, e.g. "▼ ฿2,650 (12.6%)".
+  Widget _deltaChip(String text, {bool? good}) {
+    final color = good == null ? _sub : (good ? _income : _expense);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(7)),
+      child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color)),
+    );
+  }
+
+  Widget _categoryTile(CategoryItem cat, {double size = 40}) => Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(color: cat.color.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(size * 0.3)),
+        child: Icon(cat.icon, color: cat.color, size: size * 0.5),
+      );
+
+  /// Counts a number up from zero the first time it is shown.
+  Widget _countUp(double value, TextStyle style, {String Function(double)? format, String prefix = ''}) => FxProgress(
+        value: value,
+        builder: (_, v) => Text('$prefix${(format ?? _baht)(v)}', style: style, maxLines: 1),
+      );
+
+  // ---------------------------------------------------------------------------
+  // Build
+  // ---------------------------------------------------------------------------
+  @override
+  Widget build(BuildContext context) {
+    final theme = _c.currentTheme;
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackground,
+      body: Column(
+        children: [
+          _buildHeader(),
+          Expanded(child: _buildActiveTabContent()),
+        ],
       ),
+    );
+  }
 
-      // 3. Tab Content
-      Expanded(
-       child: _buildActiveTabContent(),
+  Widget _buildHeader() {
+    final theme = _c.currentTheme;
+    final heroText = theme.heroTextColor(_isDark);
+    final heroMuted = theme.heroTextMutedColor(_isDark);
+    final subtitle = switch (_activeTab) {
+      AnalyticsMainTab.overview => '${_isEn ? 'Financial summary' : 'สรุปวิเคราะห์การเงิน'} • ${_formatPeriodTitle()}',
+      AnalyticsMainTab.categoryTags => _isEn ? 'Categories & sub-tags' : 'หมวดหมู่ & #แท็กย่อย',
+      AnalyticsMainTab.comparison => _isEn ? 'Compare your money' : 'เปรียบเทียบการเงิน',
+    };
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: theme.heroGradient,
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(22)),
       ),
-     ],
-    ),
-   ),
-  );
- }
-
- Widget _buildTabDivider(bool isDark) {
-  return Container(
-   width: 1,
-   height: 22,
-   margin: const EdgeInsets.symmetric(horizontal: 1),
-   color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
-  );
- }
-
- Widget _buildMainTabButton(
-  AnalyticsMainTab tab, {
-  required String line1,
-  String? line2,
-  required IconData icon,
- }) {
-  final isSelected = _activeTab == tab;
-  final currentTheme = widget.controller.currentTheme;
-  final isDark = widget.controller.isDarkMode;
-
-  return Expanded(
-   child: GestureDetector(
-    onTap: () {
-     HapticFeedback.selectionClick();
-     setState(() => _activeTab = tab);
-    },
-    child: AnimatedContainer(
-     duration: const Duration(milliseconds: 200),
-     curve: Curves.easeInOut,
-     margin: const EdgeInsets.symmetric(horizontal: 1),
-     decoration: BoxDecoration(
-      color: isSelected
-          ? (isDark ? const Color(0xFF334155) : Colors.white)
-          : Colors.transparent,
-      borderRadius: BorderRadius.circular(11),
-      border: isSelected
-          ? Border.all(
-              color: isDark ? const Color(0xFF38BDF8) : currentTheme.primaryColor.withValues(alpha: 0.35),
-              width: 1.2,
-            )
-          : null,
-      boxShadow: isSelected
-          ? [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.08),
-                blurRadius: 4,
-                offset: const Offset(0, 1),
+      padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 10, 16, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(_isEn ? 'Statistics' : 'สถิติ', style: TextStyle(color: heroText, fontSize: 22, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 2),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      child: Text(
+                        subtitle,
+                        key: ValueKey(subtitle),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: heroMuted, fontSize: 12.5),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ]
-          : [],
-     ),
-     alignment: Alignment.center,
-     padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 3),
-     child: Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-       Icon(
-        icon,
-        size: 14,
-        color: isSelected
-            ? (isDark ? const Color(0xFF38BDF8) : currentTheme.primaryDark)
-            : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
-       ),
-       const SizedBox(width: 4),
-       Flexible(
-        child: Column(
-         mainAxisSize: MainAxisSize.min,
-         mainAxisAlignment: MainAxisAlignment.center,
-         crossAxisAlignment: CrossAxisAlignment.start,
-         children: [
-          Text(
-           line1,
-           maxLines: 1,
-           overflow: TextOverflow.ellipsis,
-           style: TextStyle(
-            color: isSelected
-                ? (isDark ? Colors.white : currentTheme.primaryDark)
-                : (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569)),
-            fontSize: line2 != null ? 10.5 : 11.5,
-            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-            height: 1.15,
-           ),
+              const SizedBox(width: 10),
+              MeowMascotWidget(
+                size: 44,
+                mascotId: _c.selectedMascotId,
+                accessory: _c.selectedMascotAccessory,
+                customPhotoPath: _c.customAvatarPath,
+                isCustomPhoto: _c.isCustomAvatarEnabled,
+                withPen: true,
+              ),
+            ],
           ),
-          if (line2 != null)
-           Text(
-            line2,
+          const SizedBox(height: 12),
+          Container(
+            height: 44,
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(color: heroText.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(14)),
+            child: Row(
+              children: [
+                _headerTab(AnalyticsMainTab.overview, _isEn ? 'Overview' : 'ภาพรวม'),
+                _headerTab(AnalyticsMainTab.categoryTags, _isEn ? 'Categories & #tags' : 'หมวดหมู่ & #แท็ก'),
+                _headerTab(AnalyticsMainTab.comparison, _isEn ? 'Compare' : 'เทียบเดือน'),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _headerTab(AnalyticsMainTab tab, String label) {
+    final selected = _activeTab == tab;
+    final heroText = _c.currentTheme.heroTextColor(_isDark);
+    return Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          if (selected) return;
+          HapticFeedback.selectionClick();
+          setState(() => _activeTab = tab);
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected ? _card : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Text(
+            label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-             color: isSelected
-                 ? (isDark ? const Color(0xFF38BDF8) : currentTheme.primaryColor)
-                 : (isDark ? const Color(0xFF38BDF8).withValues(alpha: 0.8) : currentTheme.primaryColor.withValues(alpha: 0.8)),
-             fontSize: 9.5,
-             fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-             height: 1.1,
+              fontSize: 13,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              color: selected ? _accent : heroText.withValues(alpha: 0.85),
             ),
-           ),
-         ],
+          ),
         ),
-       ),
-      ],
-     ),
-    ),
-   ),
-  );
- }
-
- Widget _buildActiveTabContent() {
-  switch (_activeTab) {
-   case AnalyticsMainTab.overview:
-    return _buildOverviewTab();
-   case AnalyticsMainTab.categoryTags:
-    return _buildCategoryTagsTab();
-   case AnalyticsMainTab.comparison:
-    return _buildComparisonTab();
+      ),
+    );
   }
- }
 
- // ==========================================
- // TAB 1: OVERVIEW
- // ==========================================
- Widget _buildOverviewTab() {
-  final isDark = widget.controller.isDarkMode;
-  final isEn = widget.controller.isEnglish;
-  final cardBg = isDark ? MeowTheme.navySurface : Colors.white;
-  final borderColor = isDark ? MeowTheme.borderColor : const Color(0xFFE2E8F0);
-
-  return ListView(
-   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-   children: [
-    // Period Filter Type Chips (วัน / เดือน / ปี / ช่วงเวลา / ทั้งหมด)
-    SingleChildScrollView(
-     scrollDirection: Axis.horizontal,
-     child: Row(
-      children: [
-       _buildPeriodTypeChip(PeriodFilterType.day, isEn ? 'Day' : 'รายวัน'),
-       const SizedBox(width: 8),
-       _buildPeriodTypeChip(PeriodFilterType.month, isEn ? 'Month' : 'รายเดือน'),
-       const SizedBox(width: 8),
-       _buildPeriodTypeChip(PeriodFilterType.year, isEn ? 'Year' : 'รายปี'),
-       const SizedBox(width: 8),
-       _buildPeriodTypeChip(PeriodFilterType.customRange, isEn ? 'Custom Range' : 'ช่วงเวลา'),
-       const SizedBox(width: 8),
-       _buildPeriodTypeChip(PeriodFilterType.allTime, isEn ? 'All Time' : 'ตลอดเวลา'),
-      ],
-     ),
-    ),
-    const SizedBox(height: 12),
-
-    // Period Navigator Bar (with Wheel Picker Trigger)
-    if (_periodType != PeriodFilterType.allTime) ...[
-     Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-      decoration: BoxDecoration(
-       color: cardBg,
-       borderRadius: BorderRadius.circular(16),
-       border: Border.all(color: borderColor),
-      ),
-      child: Row(
-       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-       children: [
-        IconButton(
-         icon: const Icon(Icons.chevron_left, size: 24),
-         onPressed: _prevPeriod,
-         padding: EdgeInsets.zero,
-         constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-        ),
-        Expanded(
-         child: GestureDetector(
-          onTap: _pickDateOrRange,
-          child: Row(
-           mainAxisAlignment: MainAxisAlignment.center,
-           children: [
-            const Icon(Icons.calendar_month, color: MeowTheme.actionBlue, size: 16),
-            const SizedBox(width: 6),
-            Flexible(
-             child: Text(
-              _formatPeriodTitle(),
-              style: TextStyle(
-               color: isDark ? Colors.white : const Color(0xFF0F172A),
-               fontSize: 14,
-               fontWeight: FontWeight.bold,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-             ),
-            ),
-            const SizedBox(width: 2),
-            const Icon(Icons.arrow_drop_down, color: MeowTheme.actionBlue, size: 18),
-           ],
-          ),
-         ),
-        ),
-        IconButton(
-         icon: const Icon(Icons.chevron_right, size: 24),
-         onPressed: _nextPeriod,
-         padding: EdgeInsets.zero,
-         constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-        ),
-       ],
-      ),
-     ),
-     const SizedBox(height: 12),
-    ],
-
-    // 1. Type Segment (Expense vs Income Chart breakdown)
-    Row(
-     children: [
-      Expanded(
-       child: GestureDetector(
-        onTap: () {
-         HapticFeedback.selectionClick();
-         setState(() => _selectedType = TransactionType.expense);
+  Widget _buildActiveTabContent() {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 220),
+      switchInCurve: Curves.easeOut,
+      child: KeyedSubtree(
+        key: ValueKey(_activeTab),
+        child: switch (_activeTab) {
+          AnalyticsMainTab.overview => _buildOverviewTab(),
+          AnalyticsMainTab.categoryTags => _buildCategoryTagsTab(),
+          AnalyticsMainTab.comparison => _buildComparisonTab(),
         },
-        child: Container(
-         padding: const EdgeInsets.symmetric(vertical: 9),
-         decoration: BoxDecoration(
-          color: _selectedType == TransactionType.expense ? MeowTheme.expenseRed : cardBg,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: _selectedType == TransactionType.expense ? MeowTheme.expenseRed : borderColor),
-         ),
-         alignment: Alignment.center,
-         child: Text(
-          isEn ? 'Expense Breakdown' : 'สัดส่วนรายจ่าย',
-          style: TextStyle(
-           color: _selectedType == TransactionType.expense ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF334155)),
-           fontWeight: FontWeight.bold,
-           fontSize: 13,
-          ),
-         ),
-        ),
-       ),
       ),
-      const SizedBox(width: 10),
-      Expanded(
-       child: GestureDetector(
-        onTap: () {
-         HapticFeedback.selectionClick();
-         setState(() => _selectedType = TransactionType.income);
-        },
-        child: Container(
-         padding: const EdgeInsets.symmetric(vertical: 9),
-         decoration: BoxDecoration(
-          color: _selectedType == TransactionType.income ? MeowTheme.incomeGreen : cardBg,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: _selectedType == TransactionType.income ? MeowTheme.incomeGreen : borderColor),
-         ),
-         alignment: Alignment.center,
-         child: Text(
-          isEn ? 'Income Breakdown' : 'สัดส่วนรายรับ',
-          style: TextStyle(
-           color: _selectedType == TransactionType.income ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF334155)),
-           fontWeight: FontWeight.bold,
-           fontSize: 13,
-          ),
-         ),
-        ),
-       ),
-      ),
-     ],
-    ),
-    const SizedBox(height: 12),
+    );
+  }
 
-    // 2. Visual Chart Card (กราฟวิเคราะห์ 3 รูปแบบ อยู่ด้านบนสุดทันที)
-    _buildChartCard(),
-    const SizedBox(height: 14),
-
-    // 3. 3-Metric Summary Hero Card
-    Container(
-     padding: const EdgeInsets.all(16),
-     decoration: BoxDecoration(
-      color: cardBg,
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: borderColor),
-      boxShadow: isDark ? [] : [
-       BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 3))
-      ],
-     ),
-     child: Column(
-      children: [
-       Row(
+  // ---------------------------------------------------------------------------
+  // Period card (overview) and period sheet (categories)
+  // ---------------------------------------------------------------------------
+  Widget _buildPeriodCard({VoidCallback? afterChange}) {
+    void changed() => afterChange?.call();
+    return _cardBox(
+      padding: const EdgeInsets.all(10),
+      child: Column(
         children: [
-         // Income Box
-         Expanded(
-          child: Container(
-           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-           decoration: BoxDecoration(
-            color: MeowTheme.incomeGreen.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(14),
-           ),
-           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-             Row(
+          _segmented<PeriodFilterType>(
+            height: 40,
+            fontSize: 12.5,
+            options: [
+              (PeriodFilterType.day, _isEn ? 'Day' : 'รายวัน'),
+              (PeriodFilterType.month, _isEn ? 'Month' : 'รายเดือน'),
+              (PeriodFilterType.year, _isEn ? 'Year' : 'รายปี'),
+              (PeriodFilterType.customRange, _isEn ? 'Range' : 'ช่วงเวลา'),
+              (PeriodFilterType.allTime, _isEn ? 'All' : 'ทั้งหมด'),
+            ],
+            value: _periodType,
+            onChanged: (t) {
+              setState(() {
+                _periodType = t;
+                _expandedTag = null;
+              });
+              changed();
+            },
+          ),
+          if (_periodType != PeriodFilterType.allTime) ...[
+            const SizedBox(height: 8),
+            Row(
               children: [
-               const Icon(Icons.arrow_downward, color: MeowTheme.incomeGreen, size: 15),
-               const SizedBox(width: 4),
-               Expanded(
-                child: Text(
-                 isEn ? 'Income' : 'รายรับ',
-                 style: const TextStyle(color: MeowTheme.incomeGreen, fontSize: 12, fontWeight: FontWeight.bold),
-                 maxLines: 1,
-                 overflow: TextOverflow.ellipsis,
+                if (_periodType != PeriodFilterType.customRange)
+                  _navButton(Icons.chevron_left_rounded, () {
+                    _prevPeriod();
+                    changed();
+                  }),
+                Expanded(
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: () async {
+                      await _pickDateOrRange();
+                      changed();
+                    },
+                    child: SizedBox(
+                      height: 44,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.calendar_today_outlined, size: 16, color: _accent),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              _formatPeriodTitle(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: _text, fontSize: 15, fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                          const SizedBox(width: 2),
+                          Icon(Icons.expand_more_rounded, size: 18, color: _sub),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
-               ),
+                if (_periodType != PeriodFilterType.customRange)
+                  _navButton(Icons.chevron_right_rounded, () {
+                    _nextPeriod();
+                    changed();
+                  }),
               ],
-             ),
-             const SizedBox(height: 4),
-             FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(
-               '฿${FormatUtils.formatCurrency(_totalIncome)}',
-               style: const TextStyle(color: MeowTheme.incomeGreen, fontSize: 17, fontWeight: FontWeight.bold),
-              ),
-             ),
-            ],
-           ),
-          ),
-         ),
-         const SizedBox(width: 10),
-         // Expense Box
-         Expanded(
-          child: Container(
-           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-           decoration: BoxDecoration(
-            color: MeowTheme.expenseRed.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(14),
-           ),
-           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-             Row(
-              children: [
-               const Icon(Icons.arrow_upward, color: MeowTheme.expenseRed, size: 15),
-               const SizedBox(width: 4),
-               Expanded(
-                child: Text(
-                 isEn ? 'Expense' : 'รายจ่าย',
-                 style: const TextStyle(color: MeowTheme.expenseRed, fontSize: 12, fontWeight: FontWeight.bold),
-                 maxLines: 1,
-                 overflow: TextOverflow.ellipsis,
-                ),
-               ),
-              ],
-             ),
-             const SizedBox(height: 4),
-             FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(
-               '฿${FormatUtils.formatCurrency(_totalExpense)}',
-               style: const TextStyle(color: MeowTheme.expenseRed, fontSize: 17, fontWeight: FontWeight.bold),
-              ),
-             ),
-            ],
-           ),
-          ),
-         ),
-        ],
-       ),
-       const SizedBox(height: 10),
-       // Net Savings Bar
-       Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-         color: _netSavings >= 0 ? MeowTheme.actionBlue.withOpacity(0.08) : Colors.red.withOpacity(0.08),
-         borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-         children: [
-          Expanded(
-           child: Row(
-            children: [
-             Icon(
-              _netSavings >= 0 ? Icons.account_balance_wallet_rounded : Icons.warning_amber_rounded,
-              color: _netSavings >= 0 ? MeowTheme.actionBlue : Colors.red,
-              size: 16,
-             ),
-             const SizedBox(width: 6),
-             Expanded(
-              child: Text(
-               isEn ? 'Net Savings:' : 'เงินคงเหลือสุทธิ:',
-               style: TextStyle(
-                color: isDark ? Colors.white70 : const Color(0xFF334155),
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-               ),
-               maxLines: 1,
-               overflow: TextOverflow.ellipsis,
-              ),
-             ),
-            ],
-           ),
-          ),
-          const SizedBox(width: 8),
-          Flexible(
-           child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-             '${_netSavings >= 0 ? "+" : ""}฿${FormatUtils.formatCurrency(_netSavings)}',
-             style: TextStyle(
-              color: _netSavings >= 0 ? MeowTheme.actionBlue : Colors.red,
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-             ),
             ),
-           ),
-          ),
-         ],
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _navButton(IconData icon, VoidCallback onTap) => Material(
+        color: _seg,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: SizedBox(width: 44, height: 44, child: Icon(icon, color: _text, size: 22)),
         ),
-       ),
-      ],
-     ),
-    ),
-    // 4. Category Breakdown List
-    _buildCategoryList(),
-   ],
-  );
- }
+      );
 
- Widget _buildPeriodTypeChip(PeriodFilterType type, String label) {
-  final isSelected = _periodType == type;
-  final isDark = widget.controller.isDarkMode;
-  final currentTheme = widget.controller.currentTheme;
-
-  return GestureDetector(
-   onTap: () {
+  void _showPeriodSheet() {
     HapticFeedback.selectionClick();
-    setState(() => _periodType = type);
-   },
-   child: Container(
-    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-    decoration: BoxDecoration(
-     color: isSelected ? currentTheme.primaryColor : (isDark ? currentTheme.cardBackground : Colors.white),
-     borderRadius: BorderRadius.circular(12),
-     border: Border.all(
-      color: isSelected ? currentTheme.primaryColor : currentTheme.borderColor,
-     ),
-    ),
-    child: Text(
-     label,
-     style: TextStyle(
-      color: isSelected ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF334155)),
-      fontSize: 12,
-      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-     ),
-    ),
-   ),
-  );
- }
- Widget _buildChartCard() {
-  final items = _filteredTransactions.where((t) => t.type == _selectedType).toList();
-  final total = _selectedType == TransactionType.expense ? _totalExpense : _totalIncome;
-
-  return AnalyticsCarouselChartCard(
-   transactions: items,
-   selectedType: _selectedType,
-   totalAmount: total,
-   periodTypeStr: _periodType.name,
-   anchorDate: _currentAnchorDate,
-   isDark: widget.controller.isDarkMode,
-   isEnglish: widget.controller.isEnglish,
-   allCategories: widget.controller.categories,
-   isProcessingSlips: widget.controller.isProcessingSlips,
-   isInitialScan: !widget.controller.storage.isInitialDeviceScanCompleted(),
-   hasNoTransactionsAtAll: widget.controller.allTransactions.isEmpty,
-   onTriggerScan: () {
-     SlipAutoSyncService.scanAndAutoImportNewSlips(widget.controller);
-   },
-  );
- }
-
- Widget _buildCategoryList() {
-  final isDark = widget.controller.isDarkMode;
-  final isEn = widget.controller.isEnglish;
-  final cardBg = isDark ? MeowTheme.navySurface : Colors.white;
-  final borderColor = isDark ? MeowTheme.borderColor : const Color(0xFFE2E8F0);
-
-  final items = _filteredTransactions.where((t) => t.type == _selectedType).toList();
-  if (items.isEmpty) return const SizedBox.shrink();
-
-  final catMap = <String, double>{};
-  final catCountMap = <String, int>{};
-  for (final tx in items) {
-   catMap[tx.categoryId] = (catMap[tx.categoryId] ?? 0.0) + tx.amount;
-   catCountMap[tx.categoryId] = (catCountMap[tx.categoryId] ?? 0) + 1;
-  }
-
-  final total = _selectedType == TransactionType.expense ? _totalExpense : _totalIncome;
-  final sortedCats = catMap.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
-
-  return Container(
-   padding: const EdgeInsets.all(18),
-   decoration: BoxDecoration(
-    color: cardBg,
-    borderRadius: BorderRadius.circular(20),
-    border: Border.all(color: borderColor),
-   ),
-   child: Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-     Text(
-      isEn ? 'Category Breakdown' : 'แจกแจงตามหมวดหมู่',
-      style: TextStyle(
-       color: isDark ? Colors.white : const Color(0xFF0F172A),
-       fontSize: 16,
-       fontWeight: FontWeight.bold,
-      ),
-     ),
-     const SizedBox(height: 14),
-     ...sortedCats.map((e) {
-      final cat = widget.controller.categories.firstWhere(
-       (c) => c.id == e.key,
-       orElse: () => CategoryItem(
-        id: e.key,
-        name: 'ทั่วไป',
-        iconKey: 'category',
-        colorValue: 0xFF3B82F6,
-        type: _selectedType == TransactionType.income ? CategoryType.income : CategoryType.expense,
-       ),
-      );
-      final pct = total > 0 ? (e.value / total) : 0.0;
-      final count = catCountMap[e.key] ?? 1;
-
-      return Padding(
-       padding: const EdgeInsets.only(bottom: 14),
-       child: Column(
-        children: [
-         Row(
-          children: [
-           Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-             color: Color(cat.colorValue).withOpacity(0.15),
-             borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(cat.icon, color: Color(cat.colorValue), size: 18),
-           ),
-           const SizedBox(width: 12),
-           Expanded(
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: _c.currentTheme.scaffoldBackground,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
             child: Column(
-             crossAxisAlignment: CrossAxisAlignment.start,
-             children: [
-              Text(
-               cat.name,
-               style: TextStyle(
-                color: isDark ? Colors.white : const Color(0xFF0F172A),
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-               ),
-              ),
-              Text(
-               '$count ${isEn ? "entries" : "รายการ"} (${(pct * 100).toStringAsFixed(1)}%)',
-               style: TextStyle(color: isDark ? Colors.white54 : Colors.grey, fontSize: 11),
-              ),
-             ],
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(width: 40, height: 4, decoration: BoxDecoration(color: _line, borderRadius: BorderRadius.circular(2))),
+                ),
+                const SizedBox(height: 14),
+                Text(_isEn ? 'Period' : 'ช่วงเวลาที่ดู', style: TextStyle(color: _text, fontSize: 16, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 10),
+                _buildPeriodCard(afterChange: () {
+                  if (ctx.mounted) setSheet(() {});
+                }),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _c.currentTheme.primaryColor,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    onPressed: () => Navigator.pop(ctx),
+                    child: Text(_isEn ? 'Done' : 'เสร็จ', style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.white)),
+                  ),
+                ),
+              ],
             ),
-           ),
-           Text(
-            '฿${FormatUtils.formatCurrency(e.value)}',
-            style: TextStyle(
-             color: isDark ? Colors.white : const Color(0xFF0F172A),
-             fontSize: 15,
-             fontWeight: FontWeight.bold,
-            ),
-           ),
-          ],
-         ),
-         const SizedBox(height: 6),
-         ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(
-           value: pct,
-           backgroundColor: isDark ? Colors.white10 : const Color(0xFFF1F5F9),
-           valueColor: AlwaysStoppedAnimation<Color>(Color(cat.colorValue)),
-           minHeight: 6,
           ),
-         ),
-        ],
-       ),
-      );
-     }),
-    ],
-   ),
-  );
- }
-
- // ==========================================
- // TAB 2: CATEGORY & #TAGS DRILLDOWN
- // ==========================================
- Widget _buildCategoryTagsTab() {
-  final isDark = widget.controller.isDarkMode;
-  final isEn = widget.controller.isEnglish;
-  final cardBg = isDark ? MeowTheme.navySurface : Colors.white;
-  final borderColor = isDark ? MeowTheme.borderColor : const Color(0xFFE2E8F0);
-
-  final availableCats = _selectedType == TransactionType.income
-    ? widget.controller.incomeCategories
-    : widget.controller.expenseCategories;
-
-  if (_selectedDrillCategoryId == null && availableCats.isNotEmpty) {
-   _selectedDrillCategoryId = availableCats.first.id;
+        ),
+      ),
+    );
   }
 
-  final selectedCat = widget.controller.categories.firstWhere(
-   (c) => c.id == _selectedDrillCategoryId,
-   orElse: () => availableCats.isNotEmpty ? availableCats.first : widget.controller.categories.first,
-  );
+  // ---------------------------------------------------------------------------
+  // TAB 1: OVERVIEW
+  // ---------------------------------------------------------------------------
+  Widget _buildOverviewTab() {
+    final txs = _filteredTransactions;
+    final stats = _PeriodStats(txs);
+    var i = 0;
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+      children: [
+        FxFadeUp(index: i++, child: _buildPeriodCard()),
+        const SizedBox(height: 12),
+        FxFadeUp(index: i++, child: _buildSummaryCard(stats)),
+        const SizedBox(height: 12),
+        FxFadeUp(index: i++, child: _typeSegment(categories: false)),
+        const SizedBox(height: 10),
+        FxFadeUp(index: i++, child: _buildChartCard(txs, stats)),
+        const SizedBox(height: 12),
+        FxFadeUp(index: i++, child: _buildCategoryList(txs, stats)),
+      ],
+    );
+  }
 
-  // Filter transactions by selected category in current period
-  final categoryTxs = _filteredTransactions.where((t) => t.categoryId == selectedCat.id && t.type == _selectedType).toList();
-  final catTotal = categoryTxs.fold(0.0, (sum, t) => sum + t.amount);
-
-  // Extract tags under this category
-  final Map<String, double> tagAmounts = {};
-  final Map<String, int> tagCounts = {};
-  double untaggedAmount = 0.0;
-  int untaggedCount = 0;
-
-  for (final tx in categoryTxs) {
-   if (tx.tags.isNotEmpty) {
-    for (final t in tx.tags) {
-     final clean = t.trim();
-     if (clean.isNotEmpty) {
-      tagAmounts[clean] = (tagAmounts[clean] ?? 0.0) + tx.amount;
-      tagCounts[clean] = (tagCounts[clean] ?? 0) + 1;
-     }
+  Widget _buildSummaryCard(_PeriodStats s) {
+    final prevRange = _previousRange;
+    Widget? badge;
+    if (prevRange != null) {
+      final prev = _PeriodStats(_inRange(prevRange));
+      if (prev.expense > 0) {
+        final change = (s.expense - prev.expense) / prev.expense * 100;
+        final down = change <= 0;
+        badge = _deltaChip(
+          '${down ? '▼' : '▲'} ${_pct(change.abs())} ${_isEn ? 'vs' : 'จาก'} $_previousLabel',
+          good: down,
+        );
+      }
     }
-   } else {
-    untaggedAmount += tx.amount;
-    untaggedCount += 1;
-   }
-  }
+    final days = _daysForAverage(_rangeOf(_periodType, _currentAnchorDate));
+    final perDay = (s.expense / days).roundToDouble();
+    final used = s.income > 0 ? (s.expense / s.income).clamp(0.0, 1.0) : (s.expense > 0 ? 1.0 : 0.0);
 
-  final sortedTags = tagAmounts.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
-
-  // Calculate totals and counts for all categories in current period
-  final Map<String, double> catPeriodTotals = {};
-  final Map<String, int> catPeriodCounts = {};
-  for (final cat in availableCats) {
-   final txs = _filteredTransactions.where((t) => t.categoryId == cat.id && t.type == _selectedType);
-   catPeriodTotals[cat.id] = txs.fold(0.0, (s, t) => s + t.amount);
-   catPeriodCounts[cat.id] = txs.length;
-  }
-
-  return ListView(
-   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-   children: [
-    // Category Type Filter (รายจ่าย / รายรับ)
-    Row(
-     children: [
-      Expanded(
-       child: GestureDetector(
-        onTap: () {
-         HapticFeedback.selectionClick();
-         setState(() {
-          _selectedType = TransactionType.expense;
-          if (widget.controller.expenseCategories.isNotEmpty) {
-           _selectedDrillCategoryId = widget.controller.expenseCategories.first.id;
-          }
-         });
-        },
-        child: Container(
-         padding: const EdgeInsets.symmetric(vertical: 8),
-         decoration: BoxDecoration(
-          color: _selectedType == TransactionType.expense ? MeowTheme.expenseRed : cardBg,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: _selectedType == TransactionType.expense ? MeowTheme.expenseRed : borderColor),
-         ),
-         alignment: Alignment.center,
-         child: Text(
-          isEn ? 'Expense Categories' : 'หมวดหมู่รายจ่าย',
-          style: TextStyle(
-           color: _selectedType == TransactionType.expense ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF334155)),
-           fontWeight: FontWeight.bold,
-           fontSize: 12,
+    Widget column(String label, double amount, Color color, String foot, {String prefix = ''}) => Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 4),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: _countUp(amount, TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: color), prefix: prefix),
+              ),
+              const SizedBox(height: 2),
+              Text(foot, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11.5, color: _sub)),
+            ],
           ),
-         ),
-        ),
-       ),
-      ),
-      const SizedBox(width: 8),
-      Expanded(
-       child: GestureDetector(
-        onTap: () {
-         HapticFeedback.selectionClick();
-         setState(() {
-          _selectedType = TransactionType.income;
-          if (widget.controller.incomeCategories.isNotEmpty) {
-           _selectedDrillCategoryId = widget.controller.incomeCategories.first.id;
-          }
-         });
-        },
-        child: Container(
-         padding: const EdgeInsets.symmetric(vertical: 8),
-         decoration: BoxDecoration(
-          color: _selectedType == TransactionType.income ? MeowTheme.incomeGreen : cardBg,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: _selectedType == TransactionType.income ? MeowTheme.incomeGreen : borderColor),
-         ),
-         alignment: Alignment.center,
-         child: Text(
-          isEn ? 'Income Categories' : 'หมวดหมู่รายรับ',
-          style: TextStyle(
-           color: _selectedType == TransactionType.income ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF334155)),
-           fontWeight: FontWeight.bold,
-           fontSize: 12,
-          ),
-         ),
-        ),
-       ),
-      ),
-     ],
-    ),
-    const SizedBox(height: 14),
+        );
+    Widget divider() => Container(width: 1, height: 52, margin: const EdgeInsets.symmetric(horizontal: 10), color: _line);
 
-    // Header with Category Count and Manage Categories Button
-    Padding(
-     padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
-     child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-       Text(
-        '${isEn ? "All Categories" : "เลือกดูหมวดหมู่"} (${availableCats.length} ${isEn ? "categories" : "หมวด"})',
-        style: TextStyle(
-         color: isDark ? Colors.white : const Color(0xFF0F172A),
-         fontWeight: FontWeight.bold,
-         fontSize: 14,
-        ),
-       ),
-       TactileButton(
-        onTap: () {
-         HapticFeedback.selectionClick();
-         Navigator.push(
-          context,
-          MaterialPageRoute(
-           builder: (_) => CategoryManagementScreen(controller: widget.controller),
+    final netColor = s.net >= 0 ? _accent : _expense;
+    final items = _isEn ? 'items' : 'รายการ';
+    return _cardBox(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(_summaryTitle,
+                    maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: _text)),
+              ),
+              ?badge,
+            ],
           ),
-         );
-        },
-        child: Container(
-         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-         decoration: BoxDecoration(
-          color: MeowTheme.mustardYellow.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: MeowTheme.mustardYellow.withOpacity(0.35)),
-         ),
-         child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-           const Icon(Icons.tune_rounded, size: 14, color: MeowTheme.mustardYellow),
-           const SizedBox(width: 4),
-           Text(
-            isEn ? 'Manage' : 'จัดการหมวดหมู่',
-            style: const TextStyle(
-             color: MeowTheme.mustardYellow,
-             fontWeight: FontWeight.bold,
-             fontSize: 12,
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              column(_isEn ? 'Income' : 'รายรับ', s.income, _income, '${s.incomeCount} $items'),
+              divider(),
+              column(_isEn ? 'Expense' : 'รายจ่าย', s.expense, _expense, '${s.expenseCount} $items'),
+              divider(),
+              column(
+                _isEn ? 'Left over' : 'คงเหลือ',
+                s.net.abs(),
+                netColor,
+                s.income > 0 ? '${_isEn ? 'Saved' : 'ออม'} ${_pct(s.savingsRate)}' : '—',
+                prefix: s.net >= 0 ? '+' : '-',
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: SizedBox(
+              height: 8,
+              child: FxProgress(
+                value: used,
+                builder: (_, v) => Row(
+                  children: [
+                    Expanded(flex: (v * 1000).round(), child: Container(color: _expense)),
+                    Expanded(flex: ((1 - v) * 1000).round(), child: Container(color: s.income > 0 ? _income : _track)),
+                  ],
+                ),
+              ),
             ),
-           ),
-          ],
-         ),
-        ),
-       ),
-      ],
-     ),
-    ),
-    const SizedBox(height: 8),
-
-    // 2-Column Grid of Category Cards
-    GridView.builder(
-     shrinkWrap: true,
-     physics: const NeverScrollableScrollPhysics(),
-     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-      crossAxisCount: 2,
-      childAspectRatio: 2.1,
-      crossAxisSpacing: 8,
-      mainAxisSpacing: 8,
-     ),
-     itemCount: availableCats.length,
-     itemBuilder: (context, idx) {
-      final cat = availableCats[idx];
-      final isSelected = cat.id == selectedCat.id;
-      final catTotalAmt = catPeriodTotals[cat.id] ?? 0.0;
-      final catCount = catPeriodCounts[cat.id] ?? 0;
-
-      return GestureDetector(
-       onTap: () {
-        HapticFeedback.selectionClick();
-        setState(() => _selectedDrillCategoryId = cat.id);
-       },
-       child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-         color: isSelected
-           ? Color(cat.colorValue).withOpacity(isDark ? 0.25 : 0.12)
-           : cardBg,
-         borderRadius: BorderRadius.circular(14),
-         border: Border.all(
-          color: isSelected
-            ? Color(cat.colorValue)
-            : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
-          width: isSelected ? 2 : 1,
-         ),
-         boxShadow: isSelected
-           ? [
-             BoxShadow(
-              color: Color(cat.colorValue).withOpacity(0.2),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-             ),
-            ]
-           : null,
-        ),
-        child: Row(
-         children: [
-          Container(
-           width: 36,
-           height: 36,
-           decoration: BoxDecoration(
-            color: Color(cat.colorValue).withOpacity(0.2),
-            borderRadius: BorderRadius.circular(10),
-           ),
-           child: Icon(cat.icon, color: Color(cat.colorValue), size: 20),
           ),
-          const SizedBox(width: 8),
-          Expanded(
-           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
+          const SizedBox(height: 8),
+          Row(
             children: [
-             Text(
-              cat.name,
-              style: TextStyle(
-               color: isDark ? Colors.white : const Color(0xFF0F172A),
-               fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-               fontSize: 13,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-             ),
-             const SizedBox(height: 2),
-             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-               Text(
-                '$catCount ${isEn ? "tx" : "รายการ"}',
-                style: TextStyle(
-                 color: isDark ? Colors.white54 : Colors.grey,
-                 fontSize: 10,
-                ),
-               ),
-               Flexible(
+              Expanded(
                 child: Text(
-                 '฿${FormatUtils.formatCurrency(catTotalAmt)}',
-                 style: TextStyle(
-                  color: Color(cat.colorValue),
-                  fontWeight: FontWeight.bold,
-                  fontSize: 11,
-                 ),
-                 maxLines: 1,
-                 overflow: TextOverflow.ellipsis,
+                  s.income > 0
+                      ? (_isEn ? 'Spent ${_pct(s.expense / s.income * 100)} of income' : 'ใช้ไป ${(s.expense / s.income * 100).toStringAsFixed(0)}% ของรายรับ')
+                      : (_isEn ? 'No income in this period' : 'ยังไม่มีรายรับในช่วงนี้'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 12, color: _sub),
                 ),
-               ),
-              ],
-             ),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text.rich(
+                  TextSpan(children: [
+                    TextSpan(text: _isEn ? 'Avg ' : 'เฉลี่ยจ่าย '),
+                    TextSpan(text: _baht(perDay), style: TextStyle(fontWeight: FontWeight.w700, color: _text)),
+                    TextSpan(text: _isEn ? '/day' : '/วัน'),
+                  ]),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 12, color: _sub),
+                ),
+              ),
             ],
-           ),
           ),
-         ],
-        ),
-       ),
-      );
-     },
-    ),
-    const SizedBox(height: 14),
-
-    // Category Hero Banner
-    Container(
-     padding: const EdgeInsets.all(16),
-     decoration: BoxDecoration(
-      color: cardBg,
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: borderColor),
-     ),
-     child: Row(
-      children: [
-       Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-         color: Color(selectedCat.colorValue).withOpacity(0.15),
-         shape: BoxShape.circle,
-        ),
-        child: Icon(selectedCat.icon, color: Color(selectedCat.colorValue), size: 26),
-       ),
-       const SizedBox(width: 12),
-       Expanded(
-        child: Column(
-         crossAxisAlignment: CrossAxisAlignment.start,
-         children: [
-          Text(
-           '${isEn ? "Category" : "หมวดหมู่"}: ${selectedCat.name}',
-           style: TextStyle(
-            color: isDark ? Colors.white : const Color(0xFF0F172A),
-            fontSize: 15,
-            fontWeight: FontWeight.bold,
-           ),
-           maxLines: 1,
-           overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 2),
-          Text(
-           '${categoryTxs.length} ${isEn ? "transactions in" : "รายการใน"} ${_formatPeriodTitle()}',
-           style: TextStyle(color: isDark ? Colors.white54 : Colors.grey, fontSize: 11.5),
-           maxLines: 1,
-           overflow: TextOverflow.ellipsis,
-          ),
-         ],
-        ),
-       ),
-       const SizedBox(width: 8),
-       Flexible(
-        child: FittedBox(
-         fit: BoxFit.scaleDown,
-         child: Text(
-          '฿${FormatUtils.formatCurrency(catTotal)}',
-          style: TextStyle(
-           color: Color(selectedCat.colorValue),
-           fontSize: 19,
-           fontWeight: FontWeight.bold,
-          ),
-         ),
-        ),
-       ),
-      ],
-     ),
-    ),
-    const SizedBox(height: 14),
-
-    // #Tags Breakdown Section
-    Container(
-     padding: const EdgeInsets.all(16),
-     decoration: BoxDecoration(
-      color: cardBg,
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: borderColor),
-     ),
-     child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-       Row(
-        children: [
-         const Icon(Icons.tag, color: MeowTheme.mustardYellow, size: 20),
-         const SizedBox(width: 6),
-         Expanded(
-          child: Text(
-           '# ${isEn ? "Sub-tags in" : "แท็กย่อยใน"} ${selectedCat.name}',
-           style: TextStyle(
-            color: isDark ? Colors.white : const Color(0xFF0F172A),
-            fontSize: 15,
-            fontWeight: FontWeight.bold,
-           ),
-           maxLines: 1,
-           overflow: TextOverflow.ellipsis,
-          ),
-         ),
         ],
-       ),
-       const SizedBox(height: 12),
-       if (sortedTags.isEmpty && untaggedAmount == 0) ...[
-        Padding(
-         padding: const EdgeInsets.all(20),
-         child: Center(
-          child: Text(
-           isEn ? 'No transactions found in this category' : 'ยังไม่มีรายการในหมวดหมู่นี้',
-           style: const TextStyle(color: Colors.grey, fontSize: 13),
-          ),
-         ),
-        ),
-       ] else ...[
-        ...sortedTags.map((e) {
-         final pct = catTotal > 0 ? (e.value / catTotal) : 0.0;
-         final count = tagCounts[e.key] ?? 1;
-         final matchingTxs = categoryTxs.where((t) => t.tags.contains(e.key)).toList();
+      ),
+    );
+  }
 
-         return InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () {
-           _showTagDetailBottomSheet(
-            context,
-            e.key,
-            matchingTxs,
-            Color(selectedCat.colorValue),
-           );
-          },
-          child: Padding(
-           padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-           child: Column(
+  Widget _buildChartCard(List<TransactionItem> txs, _PeriodStats s) {
+    final items = txs.where((t) => t.type == _selectedType).toList();
+    final total = _selectedType == TransactionType.expense ? s.expense : s.income;
+    return AnalyticsCarouselChartCard(
+      transactions: items,
+      selectedType: _selectedType,
+      totalAmount: total,
+      periodTypeStr: _periodType.name,
+      anchorDate: _currentAnchorDate,
+      isDark: _isDark,
+      isEnglish: _isEn,
+      allCategories: _c.categories,
+      isProcessingSlips: _c.isProcessingSlips,
+      isInitialScan: !_c.storage.isInitialDeviceScanCompleted(),
+      hasNoTransactionsAtAll: _c.allTransactions.isEmpty,
+      onTriggerScan: () => SlipAutoSyncService.scanAndAutoImportNewSlips(_c),
+    );
+  }
+
+  Widget _buildCategoryList(List<TransactionItem> txs, _PeriodStats s) {
+    final items = txs.where((t) => t.type == _selectedType).toList();
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    final amounts = <String, double>{};
+    final counts = <String, int>{};
+    final names = <String, String>{};
+    for (final tx in items) {
+      amounts[tx.categoryId] = (amounts[tx.categoryId] ?? 0) + tx.amount;
+      counts[tx.categoryId] = (counts[tx.categoryId] ?? 0) + 1;
+      names[tx.categoryId] = tx.categoryName;
+    }
+    final total = _selectedType == TransactionType.expense ? s.expense : s.income;
+    final sorted = amounts.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    final visible = _showAllCategories ? sorted : sorted.take(5).toList();
+
+    return _cardBox(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Flexible(
+                child: Text(_isEn ? 'By category' : 'แจกแจงตามหมวดหมู่',
+                    maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: _text, fontSize: 15, fontWeight: FontWeight.w700)),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _isEn ? '${sorted.length} categories • tap for #tags' : '${sorted.length} หมวด • แตะเพื่อดู #แท็ก',
+                  textAlign: TextAlign.right,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: _sub, fontSize: 11.5),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          for (var k = 0; k < visible.length; k++)
+            _categoryRow(
+              _categoryOf(visible[k].key, fallbackName: names[visible[k].key], type: _selectedType),
+              visible[k].value,
+              counts[visible[k].key] ?? 0,
+              total > 0 ? visible[k].value / total : 0,
+              first: k == 0,
+            ),
+          if (sorted.length > 5)
+            Center(
+              child: TextButton(
+                onPressed: () => setState(() => _showAllCategories = !_showAllCategories),
+                child: Text(
+                  _showAllCategories
+                      ? (_isEn ? 'Show less' : 'แสดงน้อยลง')
+                      : (_isEn ? 'Show all ${sorted.length} categories' : 'ดูทั้งหมด ${sorted.length} หมวด'),
+                  style: TextStyle(color: _accent, fontWeight: FontWeight.w700, fontSize: 13),
+                ),
+              ),
+            )
+          else
+            const SizedBox(height: 10),
+        ],
+      ),
+    );
+  }
+
+  Widget _categoryRow(CategoryItem cat, double amount, int count, double share, {bool first = false}) {
+    return InkWell(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() {
+          _selectedDrillCategoryId = cat.id;
+          _expandedTag = null;
+          _activeTab = AnalyticsMainTab.categoryTags;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(border: first ? null : Border(top: BorderSide(color: _line.withValues(alpha: 0.6)))),
+        child: Row(
+          children: [
+            _categoryTile(cat),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(cat.name,
+                            maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: _text, fontSize: 14.5, fontWeight: FontWeight.w600)),
+                      ),
+                      Text(_baht(amount), style: TextStyle(color: _text, fontSize: 14.5, fontWeight: FontWeight.w700)),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  FxBar(value: share, color: cat.color, track: _track, height: 6),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Expanded(child: Text('$count ${_isEn ? 'items' : 'รายการ'}', style: TextStyle(color: _sub, fontSize: 11.5))),
+                      Text(_pct(share * 100), style: TextStyle(color: _sub, fontSize: 11.5)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 6),
+            Icon(Icons.chevron_right_rounded, size: 20, color: _sub),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // TAB 2: CATEGORIES & #TAGS
+  // ---------------------------------------------------------------------------
+  Widget _buildCategoryTagsTab() {
+    final txs = _filteredTransactions.where((t) => t.type == _selectedType).toList();
+    final available = _selectedType == TransactionType.income ? _c.incomeCategories : _c.expenseCategories;
+
+    final totals = <String, double>{};
+    final counts = <String, int>{};
+    for (final t in txs) {
+      totals[t.categoryId] = (totals[t.categoryId] ?? 0) + t.amount;
+      counts[t.categoryId] = (counts[t.categoryId] ?? 0) + 1;
+    }
+    // Categories with money first (largest first), then the empty ones.
+    final cats = [...available]..sort((a, b) => (totals[b.id] ?? 0).compareTo(totals[a.id] ?? 0));
+    for (final id in totals.keys) {
+      if (!cats.any((c) => c.id == id)) {
+        final name = txs.firstWhere((t) => t.categoryId == id).categoryName;
+        cats.insert(0, _categoryOf(id, fallbackName: name, type: _selectedType));
+      }
+    }
+    cats.sort((a, b) => (totals[b.id] ?? 0).compareTo(totals[a.id] ?? 0));
+    // Only categories used in this period, unless there are none or the user asks for all.
+    final used = cats.where((c) => (totals[c.id] ?? 0) > 0).toList();
+    final emptyCount = cats.length - used.length;
+    final shown = used.isEmpty || _showEmptyCategories ? cats : used;
+
+    final periodTotal = totals.values.fold(0.0, (a, b) => a + b);
+    CategoryItem? selected;
+    if (cats.isNotEmpty) {
+      selected = cats.firstWhere((c) => c.id == _selectedDrillCategoryId, orElse: () => cats.first);
+    }
+
+    var i = 0;
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+      children: [
+        FxFadeUp(
+          index: i++,
+          child: Row(
+            children: [
+              Expanded(
+                child: Material(
+                  color: _card,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: _line)),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: _showPeriodSheet,
+                    child: SizedBox(
+                      height: 48,
+                      child: Row(
+                        children: [
+                          const SizedBox(width: 12),
+                          Icon(Icons.calendar_today_outlined, size: 16, color: _accent),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _periodType == PeriodFilterType.month || _periodType == PeriodFilterType.allTime
+                                  ? _formatPeriodTitle()
+                                  : '$_periodTypeLabel • ${_formatPeriodTitle()}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: _text, fontSize: 14, fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                          Icon(Icons.expand_more_rounded, size: 20, color: _sub),
+                          const SizedBox(width: 8),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                height: 48,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _accent,
+                    side: BorderSide(color: _line),
+                    backgroundColor: _card,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => CategoryManagementScreen(controller: _c)),
+                  ),
+                  icon: const Icon(Icons.edit_outlined, size: 16),
+                  label: Text(_isEn ? 'Manage' : 'จัดการหมวด', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        FxFadeUp(index: i++, child: _typeSegment(categories: true)),
+        const SizedBox(height: 16),
+        if (selected == null)
+          _emptyCard(_isEn ? 'No categories yet' : 'ยังไม่มีหมวดหมู่')
+        else ...[
+          Padding(
+            padding: const EdgeInsets.only(left: 2, bottom: 8),
+            child: Text(
+              _isEn ? 'Choose a category (${used.length})' : 'เลือกหมวดหมู่ (${used.length} หมวด)',
+              style: TextStyle(color: _sub, fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+          ),
+          FxFadeUp(index: i++, child: _categoryGrid(shown, totals, selected)),
+          if (used.isNotEmpty && emptyCount > 0)
+            Center(
+              child: TextButton(
+                onPressed: () => setState(() => _showEmptyCategories = !_showEmptyCategories),
+                child: Text(
+                  _showEmptyCategories
+                      ? (_isEn ? 'Hide unused categories' : 'ซ่อนหมวดที่ยังไม่มีรายการ')
+                      : (_isEn ? 'Show $emptyCount unused categories' : 'แสดงหมวดที่ยังไม่มีรายการ ($emptyCount)'),
+                  style: TextStyle(color: _accent, fontWeight: FontWeight.w600, fontSize: 13),
+                ),
+              ),
+            ),
+          const SizedBox(height: 14),
+          FxFadeUp(
+            index: i++,
+            child: _categoryHero(selected, totals[selected.id] ?? 0, counts[selected.id] ?? 0, periodTotal),
+          ),
+          const SizedBox(height: 12),
+          FxFadeUp(index: i++, child: _tagsCard(selected, txs.where((t) => t.categoryId == selected!.id).toList())),
+        ],
+      ],
+    );
+  }
+
+  Widget _emptyCard(String text) => _cardBox(
+        padding: const EdgeInsets.all(24),
+        child: Center(child: Text(text, style: TextStyle(color: _sub, fontSize: 13.5))),
+      );
+
+  Widget _categoryGrid(List<CategoryItem> cats, Map<String, double> totals, CategoryItem selected) {
+    return LayoutBuilder(builder: (context, box) {
+      const gap = 8.0;
+      final w = (box.maxWidth - gap * 2) / 3;
+      return Wrap(
+        spacing: gap,
+        runSpacing: gap,
+        children: [
+          for (final cat in cats)
+            SizedBox(
+              width: w,
+              child: FxPress(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  setState(() {
+                    _selectedDrillCategoryId = cat.id;
+                    _expandedTag = null;
+                  });
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: cat.id == selected.id ? cat.color.withValues(alpha: _isDark ? 0.18 : 0.08) : _card,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: cat.id == selected.id ? cat.color : _line, width: cat.id == selected.id ? 1.6 : 1),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(cat.icon, color: cat.color, size: 24),
+                      const SizedBox(height: 6),
+                      Text(cat.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: _text, fontSize: 12.5, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 2),
+                      Text(
+                        _baht(totals[cat.id] ?? 0),
+                        maxLines: 1,
+                        style: TextStyle(color: (totals[cat.id] ?? 0) > 0 ? _sub : _sub.withValues(alpha: 0.6), fontSize: 11.5),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      );
+    });
+  }
+
+  Widget _categoryHero(CategoryItem cat, double total, int count, double periodTotal) {
+    final base = cat.color;
+    final onHero = base.computeLuminance() > 0.6 ? const Color(0xFF0F172A) : Colors.white;
+    String? compare;
+    final prevRange = _previousRange;
+    if (prevRange != null) {
+      final prev = _inRange(prevRange).where((t) => t.categoryId == cat.id && t.type == _selectedType).fold(0.0, (a, t) => a + t.amount);
+      if (prev > 0) {
+        final delta = total - prev;
+        compare = '${delta <= 0 ? '▼' : '▲'} ${_baht(delta.abs())} (${(delta.abs() / prev * 100).toStringAsFixed(0)}%)';
+      }
+    }
+    Widget tile(String label, String value) => Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(color: onHero.withValues(alpha: 0.16), borderRadius: BorderRadius.circular(12)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: onHero.withValues(alpha: 0.85), fontSize: 11)),
+                const SizedBox(height: 2),
+                Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: onHero, fontSize: 14, fontWeight: FontWeight.w800)),
+              ],
+            ),
+          ),
+        );
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: base, borderRadius: BorderRadius.circular(20)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(color: onHero.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(13)),
+                child: Icon(cat.icon, color: onHero, size: 24),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(cat.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: onHero, fontSize: 16, fontWeight: FontWeight.w700)),
+                    Text(
+                      _isEn ? '$count items in ${_formatPeriodTitle()}' : '$count รายการ ใน ${_formatPeriodTitle()}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: onHero.withValues(alpha: 0.85), fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: _countUp(total, TextStyle(color: onHero, fontSize: 30, fontWeight: FontWeight.w800)),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              tile(_isEn ? 'Share of total' : 'สัดส่วนจากทั้งหมด', periodTotal > 0 ? _pct(total / periodTotal * 100) : '—'),
+              if (compare != null) ...[
+                const SizedBox(width: 8),
+                tile(_isEn ? 'vs $_previousLabel' : 'เทียบ $_previousLabel', compare),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _tagsCard(CategoryItem cat, List<TransactionItem> catTxs) {
+    final total = catTxs.fold(0.0, (a, t) => a + t.amount);
+    final amounts = <String, double>{};
+    final counts = <String, int>{};
+    double untagged = 0;
+    int untaggedCount = 0;
+    for (final tx in catTxs) {
+      final tags = tx.tags.map((t) => t.trim()).where((t) => t.isNotEmpty).toSet();
+      if (tags.isEmpty) {
+        untagged += tx.amount;
+        untaggedCount++;
+      } else {
+        for (final t in tags) {
+          amounts[t] = (amounts[t] ?? 0) + tx.amount;
+          counts[t] = (counts[t] ?? 0) + 1;
+        }
+      }
+    }
+    final sorted = amounts.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    final rows = <(String, String, double, int)>[
+      for (final e in sorted) (e.key, '#${e.key}', e.value, counts[e.key] ?? 0),
+      if (untagged > 0) (_untaggedKey, _isEn ? 'No #tag' : 'ไม่ได้ระบุ #แท็ก', untagged, untaggedCount),
+    ];
+
+    List<TransactionItem> txsFor(String key) {
+      final list = key == _untaggedKey
+          ? catTxs.where((t) => t.tags.every((x) => x.trim().isEmpty)).toList()
+          : catTxs.where((t) => t.tags.any((x) => x.trim() == key)).toList();
+      return list..sort((a, b) => b.date.compareTo(a.date));
+    }
+
+    return Column(
+      children: [
+        _cardBox(
+          padding: const EdgeInsets.fromLTRB(16, 16, 12, 8),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-               Expanded(
-                child: Row(
-                 children: [
-                  Flexible(
-                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                     color: Color(selectedCat.colorValue).withOpacity(0.15),
-                     borderRadius: BorderRadius.circular(8),
-                    ),
+              Row(
+                children: [
+                  Expanded(
                     child: Text(
-                     '#${e.key}',
-                     style: TextStyle(color: Color(selectedCat.colorValue), fontWeight: FontWeight.bold, fontSize: 13),
-                     maxLines: 1,
-                     overflow: TextOverflow.ellipsis,
+                      _isEn ? '# Sub-tags in ${cat.name}' : '# แท็กย่อยใน${cat.name}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: _text, fontSize: 15, fontWeight: FontWeight.w700),
                     ),
-                   ),
                   ),
-                  const SizedBox(width: 6),
-                  Text(
-                   '$count ${isEn ? "times" : "ครั้ง"}',
-                   style: TextStyle(color: isDark ? Colors.white54 : Colors.grey, fontSize: 11),
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(Icons.chevron_right_rounded, size: 14, color: isDark ? Colors.white38 : Colors.grey),
-                 ],
-                ),
-               ),
-               const SizedBox(width: 8),
-               Flexible(
-                child: FittedBox(
-                 fit: BoxFit.scaleDown,
-                 child: Text(
-                  '฿${FormatUtils.formatCurrency(e.value)}',
-                  style: TextStyle(
-                   color: isDark ? Colors.white : const Color(0xFF0F172A),
-                   fontSize: 14,
-                   fontWeight: FontWeight.bold,
-                  ),
-                 ),
-                ),
-               ),
-              ],
-             ),
-             const SizedBox(height: 6),
-             ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-               value: pct,
-               backgroundColor: isDark ? Colors.white10 : const Color(0xFFF1F5F9),
-               valueColor: AlwaysStoppedAnimation<Color>(Color(selectedCat.colorValue)),
-               minHeight: 6,
+                  if (rows.isNotEmpty) Text(_isEn ? 'Tap to see items' : 'แตะเพื่อดูรายการ', style: TextStyle(color: _sub, fontSize: 11.5)),
+                ],
               ),
-             ),
+              const SizedBox(height: 6),
+              if (rows.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  child: Center(
+                    child: Text(_isEn ? 'No items in this category yet' : 'ยังไม่มีรายการในหมวดนี้', style: TextStyle(color: _sub, fontSize: 13)),
+                  ),
+                )
+              else
+                for (var k = 0; k < rows.length; k++)
+                  InkWell(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() => _expandedTag = _expandedTag == rows[k].$1 ? null : rows[k].$1);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      decoration: BoxDecoration(border: k == 0 ? null : Border(top: BorderSide(color: _line.withValues(alpha: 0.6)))),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        rows[k].$2,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: rows[k].$1 == _untaggedKey ? _sub : _text,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                    Text(_baht(rows[k].$3), style: TextStyle(color: _text, fontSize: 14, fontWeight: FontWeight.w700)),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                FxBar(
+                                  value: total > 0 ? rows[k].$3 / total : 0,
+                                  color: rows[k].$1 == _untaggedKey ? _sub.withValues(alpha: 0.4) : cat.color,
+                                  track: _track,
+                                  height: 6,
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    Expanded(child: Text('${rows[k].$4} ${_isEn ? 'times' : 'ครั้ง'}', style: TextStyle(color: _sub, fontSize: 11.5))),
+                                    Text(total > 0 ? _pct(rows[k].$3 / total * 100) : '', style: TextStyle(color: _sub, fontSize: 11.5)),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          AnimatedRotation(
+                            turns: _expandedTag == rows[k].$1 ? 0.25 : 0,
+                            duration: const Duration(milliseconds: 180),
+                            child: Icon(Icons.chevron_right_rounded, size: 20, color: _sub),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
             ],
-           ),
           ),
-         );
-        }),
-        if (untaggedAmount > 0) ...[
-         InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () {
-           final untaggedTxs = categoryTxs.where((t) => t.tags.isEmpty).toList();
-           _showTagDetailBottomSheet(
-            context,
-            isEn ? 'Un-tagged' : 'ไม่ได้ระบุแท็ก',
-            untaggedTxs,
-            Color(selectedCat.colorValue),
-           );
-          },
-          child: Padding(
-           padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-             Expanded(
-              child: Row(
-               children: [
-                Text(
-                 isEn ? 'Other / Un-tagged items' : 'รายการที่ไม่ได้ระบุ #แท็ก',
-                 style: TextStyle(color: isDark ? Colors.white54 : Colors.grey, fontSize: 12),
-                 maxLines: 1,
-                 overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(width: 4),
-                Icon(Icons.chevron_right_rounded, size: 14, color: isDark ? Colors.white38 : Colors.grey),
-               ],
-              ),
-             ),
-             const SizedBox(width: 8),
-             Flexible(
-              child: FittedBox(
-               fit: BoxFit.scaleDown,
-               child: Text(
-                '฿${FormatUtils.formatCurrency(untaggedAmount)}',
-                style: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 13),
-               ),
-              ),
-             ),
-            ],
-           ),
-          ),
-         ),
-        ],
-       ],
-      ],
-     ),
-    ),
-   ],
-  );
- }
-
- void _showTagDetailBottomSheet(
-  BuildContext context,
-  String tagName,
-  List<TransactionItem> matchingTxs,
-  Color themeColor,
- ) {
-  final currentTheme = widget.controller.currentTheme;
-  final isDark = widget.controller.isDarkMode;
-  final isEn = widget.controller.isEnglish;
-  final totalAmount = matchingTxs.fold<double>(0.0, (sum, t) => sum + t.amount);
-
-  showModalBottomSheet(
-   context: context,
-   isScrollControlled: true,
-   backgroundColor: Colors.transparent,
-   builder: (ctx) => Container(
-    padding: const EdgeInsets.all(20),
-    decoration: BoxDecoration(
-     color: currentTheme.cardBackground,
-     borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-     border: Border.all(color: currentTheme.borderColor),
-    ),
-    child: SafeArea(
-     child: Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-       Center(
-        child: Container(
-         width: 40,
-         height: 4,
-         decoration: BoxDecoration(
-          color: isDark ? Colors.white24 : Colors.grey.shade300,
-          borderRadius: BorderRadius.circular(2),
-         ),
         ),
-       ),
-       const SizedBox(height: 14),
-       Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        AnimatedSize(
+          duration: const Duration(milliseconds: 240),
+          curve: Curves.easeOut,
+          alignment: Alignment.topCenter,
+          child: _expandedTag == null || !rows.any((r) => r.$1 == _expandedTag)
+              ? const SizedBox(width: double.infinity)
+              : Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: _tagItemsCard(
+                    rows.firstWhere((r) => r.$1 == _expandedTag).$2,
+                    txsFor(_expandedTag!),
+                    cat.color,
+                  ),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _tagItemsCard(String title, List<TransactionItem> txs, Color color) {
+    final total = txs.fold(0.0, (a, t) => a + t.amount);
+    const maxShown = 50;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+      decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(20), border: Border.all(color: color, width: 1.4)),
+      child: Column(
         children: [
-         Expanded(
-          child: Row(
-           children: [
-            Container(
-             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-             decoration: BoxDecoration(
-              color: themeColor.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(10),
-             ),
-             child: Text(
-              tagName.startsWith('#') ? tagName : '#$tagName',
-              style: TextStyle(
-               color: themeColor,
-               fontWeight: FontWeight.bold,
-               fontSize: 16,
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '$title (${txs.length} ${_isEn ? 'items' : 'รายการ'})',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: _text, fontSize: 14.5, fontWeight: FontWeight.w700),
+                ),
               ),
-             ),
+              Text(_baht(total), style: TextStyle(color: _text, fontSize: 14.5, fontWeight: FontWeight.w800)),
+            ],
+          ),
+          const SizedBox(height: 4),
+          for (var k = 0; k < txs.length && k < maxShown; k++) _txRow(txs[k], first: k == 0),
+          if (txs.length > maxShown)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Text(
+                _isEn ? '+${txs.length - maxShown} more' : 'และอีก ${txs.length - maxShown} รายการ',
+                style: TextStyle(color: _sub, fontSize: 12),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _txRow(TransactionItem tx, {bool first = false}) {
+    final isInc = tx.type == TransactionType.income;
+    final isExp = tx.type == TransactionType.expense;
+    final color = isInc ? _income : (isExp ? _expense : _sub);
+    final hasSlip = tx.slipImageUrl != null && tx.slipImageUrl!.isNotEmpty;
+    final y = _isEn ? tx.date.year : tx.date.year + 543;
+    return InkWell(
+      onTap: () => TransactionDetailSheet.show(context, _c, tx),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 11),
+        decoration: BoxDecoration(border: first ? null : Border(top: BorderSide(color: _line.withValues(alpha: 0.6)))),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(tx.title,
+                            maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: _text, fontSize: 13.5, fontWeight: FontWeight.w600)),
+                      ),
+                      if (hasSlip) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                          decoration: BoxDecoration(color: _accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                          child: Text(_isEn ? 'slip' : 'สลิป', style: TextStyle(color: _accent, fontSize: 10.5, fontWeight: FontWeight.w700)),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text('${tx.date.day}/${tx.date.month}/$y • ${tx.categoryName}',
+                      maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: _sub, fontSize: 11.5)),
+                ],
+              ),
             ),
             const SizedBox(width: 8),
-            Text(
-             '(${matchingTxs.length} ${isEn ? "items" : "รายการ"})',
-             style: TextStyle(color: currentTheme.textSecondaryColor, fontSize: 13),
-            ),
-           ],
-          ),
-         ),
-         Text(
-          '฿${FormatUtils.formatCurrency(totalAmount)}',
-          style: TextStyle(
-           fontSize: 17,
-           fontWeight: FontWeight.bold,
-           color: currentTheme.textColor,
-          ),
-         ),
-        ],
-       ),
-       const SizedBox(height: 6),
-       Text(
-        isEn ? 'Tap any transaction to view full details and slip:' : 'แตะรายการเพื่อดูรายละเอียด หมวดหมู่ และรูปสลิป:',
-        style: TextStyle(fontSize: 11.5, color: currentTheme.textSecondaryColor),
-       ),
-       const Divider(height: 20),
-       ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.5),
-        child: matchingTxs.isEmpty
-          ? Center(
-            child: Text(
-             isEn ? 'No transactions found' : 'ไม่พบรายการ',
-             style: TextStyle(color: currentTheme.textSecondaryColor),
-            ),
-           )
-          : ListView.separated(
-            shrinkWrap: true,
-            itemCount: matchingTxs.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 6),
-            itemBuilder: (context, idx) {
-             final tx = matchingTxs[idx];
-             final isExp = tx.type == TransactionType.expense;
-             final isInc = tx.type == TransactionType.income;
-             final color = isInc ? const Color(0xFF10B981) : (isExp ? const Color(0xFFEF4444) : const Color(0xFF3B82F6));
-             final hasSlip = tx.slipImageUrl != null && tx.slipImageUrl!.isNotEmpty;
+            Text('${isInc ? '+' : (isExp ? '-' : '')}${_baht(tx.amount)}', style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.w700)),
+          ],
+        ),
+      ),
+    );
+  }
 
-             return Material(
-              color: Colors.transparent,
-              child: InkWell(
-               borderRadius: BorderRadius.circular(14),
-               onTap: () {
-                TransactionDetailSheet.show(context, widget.controller, tx);
-               },
-               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(
-                 color: currentTheme.surfaceBackground,
-                 borderRadius: BorderRadius.circular(14),
-                 border: Border.all(color: currentTheme.borderColor.withOpacity(0.5)),
-                ),
-                child: Row(
-                 children: [
-                  Container(
-                   width: 36,
-                   height: 36,
-                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(10),
-                   ),
-                   child: Icon(
-                    isInc ? Icons.arrow_downward_rounded : (isExp ? Icons.arrow_upward_rounded : Icons.swap_horiz_rounded),
-                    color: color,
-                    size: 18,
-                   ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                     Row(
-                      children: [
-                       Flexible(
-                        child: Text(
-                         tx.title,
-                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: currentTheme.textColor),
-                         maxLines: 1,
-                         overflow: TextOverflow.ellipsis,
-                        ),
-                       ),
-                       if (hasSlip) ...[
-                        const SizedBox(width: 4),
-                        Container(
-                         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                         decoration: BoxDecoration(
-                          color: const Color(0xFF10B981).withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(6),
-                         ),
-                         child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                           Icon(Icons.receipt_rounded, size: 10, color: Color(0xFF10B981)),
-                           SizedBox(width: 2),
-                           Text('สลิป', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF10B981))),
-                          ],
-                         ),
-                        ),
-                       ],
-                      ],
-                     ),
-                     const SizedBox(height: 2),
-                     Text(
-                      '${tx.date.day}/${tx.date.month}/${tx.date.year + 543} • ${tx.categoryName}',
-                      style: TextStyle(fontSize: 11, color: currentTheme.textSecondaryColor),
-                     ),
-                    ],
-                   ),
-                  ),
-                  const SizedBox(width: 8),
-                  Column(
-                   crossAxisAlignment: CrossAxisAlignment.end,
-                   children: [
-                    Text(
-                     '${isInc ? "+" : (isExp ? "-" : "")}฿${FormatUtils.formatCurrency(tx.amount)}',
-                     style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13.5,
-                      color: color,
-                     ),
-                    ),
-                   ],
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(Icons.chevron_right_rounded, size: 16, color: currentTheme.textSecondaryColor),
-                 ],
-                ),
-               ),
+  // ---------------------------------------------------------------------------
+  // TAB 3: COMPARE
+  // ---------------------------------------------------------------------------
+  DateTimeRange get _rangeA => _compareYears
+      ? DateTimeRange(start: DateTime(_compareYearA), end: DateTime(_compareYearA + 1))
+      : DateTimeRange(start: DateTime(_compareMonthA.year, _compareMonthA.month), end: DateTime(_compareMonthA.year, _compareMonthA.month + 1));
+
+  DateTimeRange get _rangeB => _compareYears
+      ? DateTimeRange(start: DateTime(_compareYearB), end: DateTime(_compareYearB + 1))
+      : DateTimeRange(start: DateTime(_compareMonthB.year, _compareMonthB.month), end: DateTime(_compareMonthB.year, _compareMonthB.month + 1));
+
+  String get _labelA => _compareYears ? (_isEn ? '$_compareYearA' : 'ปี ${_compareYearA + 543}') : _monthYearLong(_compareMonthA);
+  String get _labelB => _compareYears ? (_isEn ? '$_compareYearB' : 'ปี ${_compareYearB + 543}') : _monthYearLong(_compareMonthB);
+  String get _shortA => _compareYears ? _yearStr(_compareYearA) : _monthShort(_compareMonthA.month);
+  String get _shortB => _compareYears ? _yearStr(_compareYearB) : _monthShort(_compareMonthB.month);
+
+  /// Running total of spending: per day for months, per month for years.
+  List<double> _cumulative(List<TransactionItem> txs, DateTimeRange r) {
+    final buckets = _compareYears ? 12 : r.end.difference(r.start).inHours ~/ 24;
+    final now = DateTime.now();
+    var last = buckets;
+    if (r.start.isBefore(now) && r.end.isAfter(now)) {
+      last = _compareYears ? now.month : now.day;
+    }
+    final perBucket = List<double>.filled(buckets, 0);
+    for (final t in txs) {
+      if (t.type != TransactionType.expense) continue;
+      final idx = _compareYears ? t.date.month - 1 : t.date.day - 1;
+      if (idx >= 0 && idx < buckets) perBucket[idx] += t.amount;
+    }
+    final out = <double>[];
+    var sum = 0.0;
+    for (var k = 0; k < last; k++) {
+      sum += perBucket[k];
+      out.add(sum);
+    }
+    return out;
+  }
+
+  Future<void> _pickCompare(bool isA) async {
+    HapticFeedback.selectionClick();
+    if (_compareYears) {
+      final picked = await MeowWheelDatePicker.showWheelYearPicker(
+        context: context,
+        initialYear: isA ? _compareYearA : _compareYearB,
+        isEnglish: _isEn,
+        isDarkMode: _isDark,
+      );
+      if (picked != null) setState(() => isA ? _compareYearA = picked : _compareYearB = picked);
+    } else {
+      final picked = await MeowWheelDatePicker.showWheelMonthYearPicker(
+        context: context,
+        initialDate: isA ? _compareMonthA : _compareMonthB,
+        isEnglish: _isEn,
+        isDarkMode: _isDark,
+        title: isA
+            ? (_isEn ? 'Select month A (main)' : 'เลือกเดือน A (ช่วงหลัก)')
+            : (_isEn ? 'Select month B (compare)' : 'เลือกเดือน B (เปรียบเทียบ)'),
+      );
+      if (picked != null) {
+        setState(() => isA ? _compareMonthA = DateTime(picked.year, picked.month) : _compareMonthB = DateTime(picked.year, picked.month));
+      }
+    }
+  }
+
+  Widget _buildComparisonTab() {
+    final txA = _inRange(_rangeA);
+    final txB = _inRange(_rangeB);
+    final a = _PeriodStats(txA);
+    final b = _PeriodStats(txB);
+    var i = 0;
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+      children: [
+        FxFadeUp(
+          index: i++,
+          child: _segmented<bool>(
+            options: [(false, _isEn ? 'Compare 2 months' : 'เทียบ 2 เดือน'), (true, _isEn ? 'Compare 2 years' : 'เทียบ 2 ปี')],
+            value: _compareYears,
+            onChanged: (v) => setState(() => _compareYears = v),
+          ),
+        ),
+        const SizedBox(height: 12),
+        FxFadeUp(index: i++, child: _comparePickers()),
+        const SizedBox(height: 12),
+        if (a.count == 0 && b.count == 0)
+          FxFadeUp(index: i++, child: _emptyCard(_isEn ? 'No transactions in either period yet' : 'ทั้งสองช่วงยังไม่มีรายการให้เทียบ'))
+        else ...[
+          FxFadeUp(index: i++, child: _verdictCard(a, b)),
+          const SizedBox(height: 12),
+          FxFadeUp(index: i++, child: _metricsTable(a, b)),
+          const SizedBox(height: 12),
+          FxFadeUp(index: i++, child: _cumulativeCard(_cumulative(txA, _rangeA), _cumulative(txB, _rangeB), a, b)),
+          const SizedBox(height: 12),
+          ..._highlightsAndCategories(a, b, i),
+        ],
+      ],
+    );
+  }
+
+  Widget _comparePickers() {
+    Widget box(bool isA) {
+      final color = isA ? _accent : _compareB;
+      return Expanded(
+        child: Material(
+          color: _card,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: color, width: 1.6)),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () => _pickCompare(isA),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(isA ? (_isEn ? 'A • main' : 'A • ช่วงหลัก') : (_isEn ? 'B • compare with' : 'B • เปรียบเทียบ'),
+                      style: TextStyle(color: color, fontSize: 11.5, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 2),
+                  Text(isA ? _labelA : _labelB,
+                      maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: _text, fontSize: 15, fontWeight: FontWeight.w700)),
+                  Text(_isEn ? 'Tap to change' : 'แตะเพื่อเปลี่ยน', style: TextStyle(color: _sub, fontSize: 11)),
+                ],
               ),
-             );
-            },
-           ),
-       ),
-      ],
-     ),
-    ),
-   ),
-  );
- }
-
- // ==========================================
- // TAB 3: 2-MONTH COMPARISON
- // ==========================================
- Widget _buildComparisonTab() {
-  final currentTheme = widget.controller.currentTheme;
-  final isDark = widget.controller.isDarkMode;
-  final isEn = widget.controller.isEnglish;
-  final cardBg = currentTheme.cardBackground;
-  final borderColor = currentTheme.borderColor;
-
-  final comparisonData = widget.controller.compareTwoMonths(_compareMonthA, _compareMonthB);
-
-  final double incomeA = comparisonData['incomeA'] as double;
-  final double incomeB = comparisonData['incomeB'] as double;
-  final double incomeDelta = comparisonData['incomeDelta'] as double;
-  final double incomeDeltaPct = comparisonData['incomeDeltaPercent'] as double;
-
-  final double expenseA = comparisonData['expenseA'] as double;
-  final double expenseB = comparisonData['expenseB'] as double;
-  final double expenseDelta = comparisonData['expenseDelta'] as double;
-  final double expenseDeltaPct = comparisonData['expenseDeltaPercent'] as double;
-
-  final double netA = comparisonData['netA'] as double;
-  final double netB = comparisonData['netB'] as double;
-  final double netDelta = comparisonData['netDelta'] as double;
-
-  final int txCountA = comparisonData['txCountA'] as int? ?? 0;
-  final int txCountB = comparisonData['txCountB'] as int? ?? 0;
-
-  final double dailyAvgA = comparisonData['dailyAvgExpenseA'] as double? ?? 0.0;
-  final double dailyAvgB = comparisonData['dailyAvgExpenseB'] as double? ?? 0.0;
-  final double dailyAvgDelta = comparisonData['dailyAvgExpenseDelta'] as double? ?? 0.0;
-
-  final Map<String, dynamic>? topSpike = comparisonData['topSpike'] as Map<String, dynamic>?;
-  final Map<String, dynamic>? topSaved = comparisonData['topSaved'] as Map<String, dynamic>?;
-
-  final List<Map<String, dynamic>> categoryDeltas = comparisonData['categoryDeltas'] as List<Map<String, dynamic>>;
-
-  final String verdictTitle = comparisonData['verdictTitle'] as String? ?? 'สรุปการเปรียบเทียบ';
-  final String verdictDesc = comparisonData['verdictDescription'] as String? ?? '';
-  final bool verdictIsPositive = comparisonData['verdictIsPositive'] as bool? ?? true;
-
-  return ListView(
-   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-   children: [
-    // Month Selector Cards (Month A vs Month B) with Swap Button
-    Row(
-     children: [
-      // Month A Selector
-      Expanded(
-       child: GestureDetector(
-        onTap: () async {
-         HapticFeedback.selectionClick();
-         final picked = await MeowWheelDatePicker.showWheelMonthYearPicker(
-          context: context,
-          initialDate: _compareMonthA,
-          isEnglish: isEn,
-          isDarkMode: isDark,
-          title: isEn ? 'Select Month A (Current)' : 'เลือกเดือน A (เดือนหลัก)',
-         );
-         if (picked != null) {
-          setState(() => _compareMonthA = picked);
-         }
-        },
-        child: Container(
-         padding: const EdgeInsets.all(12),
-         decoration: BoxDecoration(
-          color: cardBg,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: currentTheme.primaryColor, width: 2),
-         ),
-         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-           Row(
-            children: [
-             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-               color: currentTheme.primaryColor,
-               borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-               'เดือน A',
-               style: TextStyle(
-                color: Colors.white,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-               ),
-              ),
-             ),
-             const Spacer(),
-             Icon(Icons.edit_calendar_rounded, color: currentTheme.primaryColor, size: 16),
-            ],
-           ),
-           const SizedBox(height: 6),
-           Text(
-            _formatMonthYear(_compareMonthA),
-            style: TextStyle(
-             color: currentTheme.textColor,
-             fontSize: 15,
-             fontWeight: FontWeight.bold,
             ),
-           ),
-          ],
-         ),
+          ),
         ),
-       ),
-      ),
-      // Swap Button
-      Padding(
-       padding: const EdgeInsets.symmetric(horizontal: 6),
-       child: GestureDetector(
-        onTap: () {
-         HapticFeedback.mediumImpact();
-         setState(() {
-          final temp = _compareMonthA;
-          _compareMonthA = _compareMonthB;
-          _compareMonthB = temp;
-         });
-        },
-        child: Container(
-         width: 32,
-         height: 32,
-         decoration: BoxDecoration(
-          color: currentTheme.surfaceBackground,
-          shape: BoxShape.circle,
-          border: Border.all(color: currentTheme.borderColor),
-         ),
-         child: Icon(Icons.swap_horiz_rounded, size: 18, color: currentTheme.textColor),
-        ),
-       ),
-      ),
-      // Month B Selector
-      Expanded(
-       child: GestureDetector(
-        onTap: () async {
-         HapticFeedback.selectionClick();
-         final picked = await MeowWheelDatePicker.showWheelMonthYearPicker(
-          context: context,
-          initialDate: _compareMonthB,
-          isEnglish: isEn,
-          isDarkMode: isDark,
-          title: isEn ? 'Select Month B (Compare)' : 'เลือกเดือน B (เดือนเปรียบเทียบ)',
-         );
-         if (picked != null) {
-          setState(() => _compareMonthB = picked);
-         }
-        },
-        child: Container(
-         padding: const EdgeInsets.all(12),
-         decoration: BoxDecoration(
-          color: cardBg,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFF38BDF8), width: 1.5),
-         ),
-         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-           Row(
-            children: [
-             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-               color: const Color(0xFF38BDF8),
-               borderRadius: BorderRadius.circular(6),
-              ),
-              child: const Text('เดือน B', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-             ),
-             const Spacer(),
-             const Icon(Icons.edit_calendar_rounded, color: Color(0xFF38BDF8), size: 16),
-            ],
-           ),
-           const SizedBox(height: 6),
-           Text(
-            _formatMonthYear(_compareMonthB),
-            style: TextStyle(
-             color: currentTheme.textColor,
-             fontSize: 15,
-             fontWeight: FontWeight.bold,
-            ),
-           ),
-          ],
-         ),
-        ),
-       ),
-      ),
-     ],
-    ),
-    const SizedBox(height: 14),
+      );
+    }
 
-    // AI Verdict Banner
-    Container(
-     padding: const EdgeInsets.all(14),
-     decoration: BoxDecoration(
-      gradient: LinearGradient(
-       colors: verdictIsPositive
-         ? [const Color(0xFF10B981).withValues(alpha: 0.15), const Color(0xFF34D399).withValues(alpha: 0.08)]
-         : [const Color(0xFFEF4444).withValues(alpha: 0.15), const Color(0xFFF87171).withValues(alpha: 0.08)],
-      ),
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(
-       color: verdictIsPositive ? const Color(0xFF10B981).withValues(alpha: 0.4) : const Color(0xFFEF4444).withValues(alpha: 0.4),
-      ),
-     ),
-     child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
       children: [
-       Text(
-        verdictTitle,
-        style: TextStyle(
-         fontSize: 13.5,
-         fontWeight: FontWeight.bold,
-         color: verdictIsPositive ? const Color(0xFF059669) : const Color(0xFFDC2626),
-        ),
-       ),
-       const SizedBox(height: 3),
-       Text(
-        verdictDesc,
-        style: TextStyle(fontSize: 12, color: currentTheme.textColor, height: 1.3),
-       ),
-      ],
-     ),
-    ),
-    const SizedBox(height: 12),
-
-    // 1. Expense Comparison Card
-    Container(
-     padding: const EdgeInsets.all(16),
-     decoration: BoxDecoration(
-      color: cardBg,
-      borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: borderColor),
-     ),
-     child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-       Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-         Row(
-          children: [
-           const Icon(Icons.arrow_upward_rounded, color: Color(0xFFEF4444), size: 18),
-           const SizedBox(width: 6),
-           Text(
-            isEn ? 'Expense Comparison' : 'เปรียบเทียบยอดรายจ่าย',
-            style: TextStyle(color: currentTheme.textColor, fontWeight: FontWeight.bold, fontSize: 14),
-           ),
-          ],
-         ),
-         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-           color: expenseDelta <= 0 ? const Color(0xFF10B981).withValues(alpha: 0.15) : const Color(0xFFEF4444).withValues(alpha: 0.15),
-           borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(
-           '${expenseDelta <= 0 ? "ประหยัดลง " : "เพิ่มขึ้น "}${FormatUtils.formatCurrency(expenseDelta.abs(), trimZero: true)}฿ (${expenseDeltaPct.abs().toStringAsFixed(1)}%)',
-           style: TextStyle(
-            color: expenseDelta <= 0 ? const Color(0xFF10B981) : const Color(0xFFEF4444),
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
-           ),
-          ),
-         ),
-        ],
-       ),
-       const SizedBox(height: 12),
-       Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-         Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-           Text('เดือน A (${_formatMonthYear(_compareMonthA)})', style: TextStyle(color: currentTheme.textSecondaryColor, fontSize: 11)),
-           Text('฿${FormatUtils.formatCurrency(expenseA)}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: currentTheme.textColor)),
-          ],
-         ),
-         Icon(Icons.compare_arrows_rounded, color: currentTheme.textSecondaryColor, size: 22),
-         Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-           Text('เดือน B (${_formatMonthYear(_compareMonthB)})', style: TextStyle(color: currentTheme.textSecondaryColor, fontSize: 11)),
-           Text('฿${FormatUtils.formatCurrency(expenseB)}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: currentTheme.textSecondaryColor)),
-          ],
-         ),
-        ],
-       ),
-      ],
-     ),
-    ),
-    const SizedBox(height: 10),
-
-    // 2. Income Comparison Card
-    Container(
-     padding: const EdgeInsets.all(16),
-     decoration: BoxDecoration(
-      color: cardBg,
-      borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: borderColor),
-     ),
-     child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-       Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-         Row(
-          children: [
-           const Icon(Icons.arrow_downward_rounded, color: Color(0xFF10B981), size: 18),
-           const SizedBox(width: 6),
-           Text(
-            isEn ? 'Income Comparison' : 'เปรียบเทียบยอดรายรับ',
-            style: TextStyle(color: currentTheme.textColor, fontWeight: FontWeight.bold, fontSize: 14),
-           ),
-          ],
-         ),
-         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-           color: incomeDelta >= 0 ? const Color(0xFF10B981).withValues(alpha: 0.15) : const Color(0xFFF59E0B).withValues(alpha: 0.15),
-           borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(
-           '${incomeDelta >= 0 ? "+ " : "- "}${FormatUtils.formatCurrency(incomeDelta.abs(), trimZero: true)}฿ (${incomeDeltaPct.abs().toStringAsFixed(1)}%)',
-           style: TextStyle(
-            color: incomeDelta >= 0 ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
-           ),
-          ),
-         ),
-        ],
-       ),
-       const SizedBox(height: 12),
-       Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-         Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-           Text('เดือน A', style: TextStyle(color: currentTheme.textSecondaryColor, fontSize: 11)),
-           Text('฿${FormatUtils.formatCurrency(incomeA)}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: currentTheme.textColor)),
-          ],
-         ),
-         Icon(Icons.compare_arrows_rounded, color: currentTheme.textSecondaryColor, size: 22),
-         Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-           Text('เดือน B', style: TextStyle(color: currentTheme.textSecondaryColor, fontSize: 11)),
-           Text('฿${FormatUtils.formatCurrency(incomeB)}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: currentTheme.textSecondaryColor)),
-          ],
-         ),
-        ],
-       ),
-      ],
-     ),
-    ),
-    const SizedBox(height: 10),
-
-    // 3-Tile Row: Net Savings, Daily Avg Rate, Transactions count
-    Row(
-     children: [
-      Expanded(
-       child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-         color: cardBg,
-         borderRadius: BorderRadius.circular(14),
-         border: Border.all(color: borderColor),
-        ),
-        child: Column(
-         crossAxisAlignment: CrossAxisAlignment.start,
-         children: [
-          Text('เงินออมสุทธิ', style: TextStyle(fontSize: 10.5, color: currentTheme.textSecondaryColor, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 3),
-          Text('฿${FormatUtils.formatCurrency(netA, trimZero: true)}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: netA >= 0 ? const Color(0xFF10B981) : const Color(0xFFEF4444))),
-          Text('B: ฿${FormatUtils.formatCurrency(netB, trimZero: true)}', style: TextStyle(fontSize: 9.5, color: currentTheme.textSecondaryColor)),
-         ],
-        ),
-       ),
-      ),
-      const SizedBox(width: 8),
-      Expanded(
-       child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-         color: cardBg,
-         borderRadius: BorderRadius.circular(14),
-         border: Border.all(color: borderColor),
-        ),
-        child: Column(
-         crossAxisAlignment: CrossAxisAlignment.start,
-         children: [
-          Text('เฉลี่ยจ่าย/วัน', style: TextStyle(fontSize: 10.5, color: currentTheme.textSecondaryColor, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 3),
-          Text('฿${FormatUtils.formatCurrency(dailyAvgA, trimZero: true)}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: currentTheme.textColor)),
-          Text('${dailyAvgDelta <= 0 ? "ลด " : "เพิ่ม "}${FormatUtils.formatCurrency(dailyAvgDelta.abs(), trimZero: true)}฿/วัน', style: TextStyle(fontSize: 9.5, color: dailyAvgDelta <= 0 ? const Color(0xFF10B981) : const Color(0xFFEF4444), fontWeight: FontWeight.bold)),
-         ],
-        ),
-       ),
-      ),
-      const SizedBox(width: 8),
-      Expanded(
-       child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-         color: cardBg,
-         borderRadius: BorderRadius.circular(14),
-         border: Border.all(color: borderColor),
-        ),
-        child: Column(
-         crossAxisAlignment: CrossAxisAlignment.start,
-         children: [
-          Text('จำนวนรายการ', style: TextStyle(fontSize: 10.5, color: currentTheme.textSecondaryColor, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 3),
-          Text('$txCountA รายการ', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: currentTheme.textColor)),
-          Text('B: $txCountB รายการ', style: TextStyle(fontSize: 9.5, color: currentTheme.textSecondaryColor)),
-         ],
-        ),
-       ),
-      ),
-     ],
-    ),
-    const SizedBox(height: 14),
-
-    // Highlights (Top Saved & Top Spiked)
-    if (topSaved != null || topSpike != null) ...[
-     Row(
-      children: [
-       if (topSaved != null)
-        Expanded(
-         child: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-           color: cardBg,
-           borderRadius: BorderRadius.circular(14),
-           border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
-          ),
-          child: Column(
-           crossAxisAlignment: CrossAxisAlignment.start,
-           children: [
-            const Row(
-             children: [
-              Icon(Icons.thumb_up_alt_rounded, color: Color(0xFF10B981), size: 14),
-              SizedBox(width: 4),
-              Text('ประหยัดมากสุด', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF10B981))),
-             ],
-            ),
-            const SizedBox(height: 4),
-            Text(topSaved['name'] as String, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: currentTheme.textColor), maxLines: 1, overflow: TextOverflow.ellipsis),
-            Text('-฿${FormatUtils.formatCurrency((topSaved['delta'] as double).abs(), trimZero: true)}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF10B981))),
-           ],
-          ),
-         ),
-        ),
-       if (topSaved != null && topSpike != null) const SizedBox(width: 8),
-       if (topSpike != null)
-        Expanded(
-         child: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-           color: cardBg,
-           borderRadius: BorderRadius.circular(14),
-           border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.4)),
-          ),
-          child: Column(
-           crossAxisAlignment: CrossAxisAlignment.start,
-           children: [
-            const Row(
-             children: [
-              Icon(Icons.trending_up_rounded, color: Color(0xFFEF4444), size: 14),
-              SizedBox(width: 4),
-              Text('รายจ่ายพุ่งขึ้น', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFFEF4444))),
-             ],
-            ),
-            const SizedBox(height: 4),
-            Text(topSpike['name'] as String, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: currentTheme.textColor), maxLines: 1, overflow: TextOverflow.ellipsis),
-            Text('+฿${FormatUtils.formatCurrency((topSpike['delta'] as double).abs(), trimZero: true)}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFEF4444))),
-           ],
-          ),
-         ),
-        ),
-      ],
-     ),
-     const SizedBox(height: 14),
-    ],
-
-    // Category-by-Category Deltas
-    Container(
-     padding: const EdgeInsets.all(16),
-     decoration: BoxDecoration(
-      color: cardBg,
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: borderColor),
-     ),
-     child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-       Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-         Text(
-          isEn ? 'Category-by-Category' : 'เจาะลึกรายหมวดหมู่',
-          style: TextStyle(
-           color: currentTheme.textColor,
-           fontSize: 15,
-           fontWeight: FontWeight.bold,
-          ),
-         ),
-         TextButton.icon(
-          style: TextButton.styleFrom(
-           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-           minimumSize: Size.zero,
-          ),
-          icon: Icon(Icons.fullscreen_rounded, size: 16, color: currentTheme.primaryDark),
-          label: Text(
-           'เปิดรายงานละเอียด',
-           style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: currentTheme.primaryDark),
-          ),
-          onPressed: () {
-           Navigator.push(
-            context,
-            MaterialPageRoute(
-             builder: (_) => CompareAnalyticsScreen(controller: widget.controller),
-            ),
-           );
-          },
-         ),
-        ],
-       ),
-       const SizedBox(height: 10),
-       if (categoryDeltas.isEmpty) ...[
+        box(true),
         Padding(
-         padding: const EdgeInsets.all(20),
-         child: Center(
-          child: Text(
-           isEn ? 'No category data to compare' : 'ไม่มีข้อมูลหมวดหมู่ให้เปรียบเทียบ',
-           style: TextStyle(color: currentTheme.textSecondaryColor, fontSize: 13),
-          ),
-         ),
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          child: _navButton(Icons.swap_horiz_rounded, () {
+            HapticFeedback.selectionClick();
+            setState(() {
+              final m = _compareMonthA;
+              _compareMonthA = _compareMonthB;
+              _compareMonthB = m;
+              final y = _compareYearA;
+              _compareYearA = _compareYearB;
+              _compareYearB = y;
+            });
+          }),
         ),
-       ] else ...[
-        ...categoryDeltas.map((catData) {
-         final name = catData['name'] as String;
-         final double amtA = catData['amountA'] as double;
-         final double amtB = catData['amountB'] as double;
-         final double delta = catData['delta'] as double;
-         final double deltaPct = catData['deltaPercent'] as double;
-
-         final bool isSaved = delta <= 0;
-         final double maxAmt = amtA > amtB ? (amtA > 0 ? amtA : 1.0) : (amtB > 0 ? amtB : 1.0);
-         final double barA = (amtA / maxAmt).clamp(0.05, 1.0);
-         final double barB = (amtB / maxAmt).clamp(0.05, 1.0);
-
-         return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: Container(
-           padding: const EdgeInsets.all(12),
-           decoration: BoxDecoration(
-            color: currentTheme.surfaceBackground,
-            borderRadius: BorderRadius.circular(14),
-           ),
-           child: Column(
-            children: [
-             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-               Expanded(
-                child: Text(
-                 name,
-                 style: TextStyle(
-                  color: currentTheme.textColor,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13.5,
-                 ),
-                 maxLines: 1,
-                 overflow: TextOverflow.ellipsis,
-                ),
-               ),
-               const SizedBox(width: 8),
-               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                 color: isSaved ? const Color(0xFF10B981).withValues(alpha: 0.15) : const Color(0xFFEF4444).withValues(alpha: 0.15),
-                 borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                 '${isSaved ? "ลดลง -" : "เพิ่มขึ้น +"}${FormatUtils.formatCurrency(delta.abs(), trimZero: true)}฿ (${deltaPct.abs().toStringAsFixed(0)}%)',
-                 style: TextStyle(
-                  color: isSaved ? const Color(0xFF10B981) : const Color(0xFFEF4444),
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.bold,
-                 ),
-                ),
-               ),
-              ],
-             ),
-             const SizedBox(height: 8),
-             // Mini Dual Progress Bars
-             Row(
-              children: [
-               SizedBox(width: 45, child: Text('A: ', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: currentTheme.primaryDark))),
-               Expanded(
-                child: Stack(
-                 children: [
-                  Container(height: 6, decoration: BoxDecoration(color: currentTheme.cardBackground, borderRadius: BorderRadius.circular(3))),
-                  FractionallySizedBox(
-                   widthFactor: barA,
-                   child: Container(height: 6, decoration: BoxDecoration(color: currentTheme.primaryColor, borderRadius: BorderRadius.circular(3))),
-                  ),
-                 ],
-                ),
-               ),
-               const SizedBox(width: 8),
-               SizedBox(
-                width: 65,
-                child: Text('฿${FormatUtils.formatCurrency(amtA)}', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: currentTheme.textColor), textAlign: TextAlign.right),
-               ),
-              ],
-             ),
-             const SizedBox(height: 4),
-             Row(
-              children: [
-               const SizedBox(width: 45, child: Text('B: ', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF38BDF8)))),
-               Expanded(
-                child: Stack(
-                 children: [
-                  Container(height: 6, decoration: BoxDecoration(color: currentTheme.cardBackground, borderRadius: BorderRadius.circular(3))),
-                  FractionallySizedBox(
-                   widthFactor: barB,
-                   child: Container(height: 6, decoration: BoxDecoration(color: const Color(0xFF38BDF8), borderRadius: BorderRadius.circular(3))),
-                  ),
-                 ],
-                ),
-               ),
-               const SizedBox(width: 8),
-               SizedBox(
-                width: 65,
-                child: Text('฿${FormatUtils.formatCurrency(amtB)}', style: TextStyle(fontSize: 11, color: currentTheme.textSecondaryColor), textAlign: TextAlign.right),
-               ),
-              ],
-             ),
-            ],
-           ),
-          ),
-         );
-        }),
-       ],
+        box(false),
       ],
-     ),
-    ),
-    const SizedBox(height: 20),
-   ],
-  );
- }
+    );
+  }
+
+  Widget _verdictCard(_PeriodStats a, _PeriodStats b) {
+    final better = a.net >= b.net;
+    final expDelta = a.expense - b.expense;
+    final netDelta = a.net - b.net;
+    final title = better
+        ? (_isEn ? '$_shortA managed money better' : '$_shortA บริหารเงินได้ดีกว่า $_shortB')
+        : (_isEn ? '$_shortA kept less than $_shortB' : '$_shortA เหลือเงินน้อยกว่า $_shortB');
+    final parts = <String>[];
+    if (b.expense > 0) {
+      final p = (expDelta.abs() / b.expense * 100).toStringAsFixed(1);
+      parts.add(expDelta <= 0
+          ? (_isEn ? 'Spent ${_baht(expDelta.abs())} less ($p%)' : 'ใช้จ่ายน้อยลง ${_baht(expDelta.abs())} ($p%)')
+          : (_isEn ? 'Spent ${_baht(expDelta)} more ($p%)' : 'ใช้จ่ายมากขึ้น ${_baht(expDelta)} ($p%)'));
+    }
+    parts.add(netDelta >= 0
+        ? (_isEn ? 'savings up ${_baht(netDelta)}' : 'เงินออมสุทธิเพิ่มขึ้น ${_baht(netDelta)}')
+        : (_isEn ? 'savings down ${_baht(netDelta.abs())}' : 'เงินออมสุทธิลดลง ${_baht(netDelta.abs())}'));
+    final color = better ? _income : _expense;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: _isDark ? 0.14 : 0.08),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(better ? Icons.trending_up_rounded : Icons.trending_down_rounded, color: color, size: 24),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: TextStyle(color: color, fontSize: 14.5, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 3),
+                Text(parts.join(' • '), style: TextStyle(color: _text, fontSize: 12.5, height: 1.4)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _metricsTable(_PeriodStats a, _PeriodStats b) {
+    final daysA = _daysForAverage(_rangeA);
+    final daysB = _daysForAverage(_rangeB);
+    final avgA = (a.expense / daysA).roundToDouble();
+    final avgB = (b.expense / daysB).roundToDouble();
+    final items = _isEn ? 'items' : 'รายการ';
+
+    String money(double d) => '${d <= 0 ? '▼' : '▲'} ${_baht(d.abs())}';
+    String moneyPct(double d, double base) => base > 0 ? '${money(d)} (${(d.abs() / base * 100).toStringAsFixed(1)}%)' : money(d);
+
+    Widget row(String label, String va, String vb, String chip, bool? good, {bool first = false}) => Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(border: first ? null : Border(top: BorderSide(color: _line.withValues(alpha: 0.6)))),
+          child: Row(
+            children: [
+              Expanded(
+                flex: 5,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label, style: TextStyle(color: _text, fontSize: 13.5, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 4),
+                    _deltaChip(chip, good: good),
+                  ],
+                ),
+              ),
+              Expanded(
+                flex: 3,
+                child: Text(va, textAlign: TextAlign.right, maxLines: 1, style: TextStyle(color: _text, fontSize: 14, fontWeight: FontWeight.w800)),
+              ),
+              Expanded(
+                flex: 3,
+                child: Text(vb, textAlign: TextAlign.right, maxLines: 1, style: TextStyle(color: _sub, fontSize: 13.5)),
+              ),
+            ],
+          ),
+        );
+
+    final expD = a.expense - b.expense;
+    final incD = a.income - b.income;
+    final netD = a.net - b.net;
+    final rateD = a.savingsRate - b.savingsRate;
+    final avgD = avgA - avgB;
+    final cntD = a.count - b.count;
+    return _cardBox(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(flex: 5, child: Text(_isEn ? 'Metric' : 'ตัวชี้วัด', style: TextStyle(color: _sub, fontSize: 12))),
+              Expanded(flex: 3, child: Text('A', textAlign: TextAlign.right, style: TextStyle(color: _accent, fontSize: 12, fontWeight: FontWeight.w700))),
+              Expanded(flex: 3, child: Text('B', textAlign: TextAlign.right, style: TextStyle(color: _compareB, fontSize: 12, fontWeight: FontWeight.w700))),
+            ],
+          ),
+          const SizedBox(height: 4),
+          row(_isEn ? 'Total expense' : 'รายจ่ายรวม', _baht(a.expense), _baht(b.expense), moneyPct(expD, b.expense), expD == 0 ? null : expD < 0, first: true),
+          row(_isEn ? 'Total income' : 'รายรับรวม', _baht(a.income), _baht(b.income), moneyPct(incD, b.income), incD == 0 ? null : incD > 0),
+          row(_isEn ? 'Net savings' : 'เงินออมสุทธิ', _baht(a.net), _baht(b.net), money(netD), netD == 0 ? null : netD > 0),
+          row(
+            _isEn ? 'Savings rate' : 'อัตราการออม',
+            _pct(a.savingsRate),
+            _pct(b.savingsRate),
+            '${rateD <= 0 ? '▼' : '▲'} ${rateD.abs().toStringAsFixed(1)} ${_isEn ? 'pts' : 'จุด'}',
+            rateD == 0 ? null : rateD > 0,
+          ),
+          row(_isEn ? 'Avg spend/day' : 'เฉลี่ยจ่าย/วัน', _baht(avgA), _baht(avgB), '${money(avgD)}${_isEn ? '/day' : '/วัน'}', avgD == 0 ? null : avgD < 0),
+          row(_isEn ? 'Transactions' : 'จำนวนรายการ', '${a.count} $items', '${b.count} $items', '${cntD <= 0 ? '▼' : '▲'} ${cntD.abs()} $items', null),
+        ],
+      ),
+    );
+  }
+
+  Widget _cumulativeCard(List<double> sa, List<double> sb, _PeriodStats a, _PeriodStats b) {
+    final unit = _compareYears ? (_isEn ? 'month' : 'เดือน') : (_isEn ? 'day' : 'วันที่');
+    final buckets = _compareYears ? 12 : 31;
+    return _cardBox(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(_compareYears ? (_isEn ? 'Cumulative spending by month' : 'ใช้จ่ายสะสมรายเดือน') : (_isEn ? 'Cumulative daily spending' : 'ใช้จ่ายสะสมรายวัน'),
+              style: TextStyle(color: _text, fontSize: 15, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 2),
+          Text(
+            _isEn ? 'Lower line = slower spending' : 'เส้นต่ำกว่า = ใช้จ่ายช้ากว่า • ดูได้ว่าช่วงไหนเงินไหลออกเร็ว',
+            style: TextStyle(color: _sub, fontSize: 12),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            height: 150,
+            child: FxProgress(
+              key: ValueKey('$_labelA|$_labelB|${sa.length}|${sb.length}'),
+              value: 1,
+              duration: const Duration(milliseconds: 900),
+              builder: (_, t) => CustomPaint(
+                size: Size.infinite,
+                painter: _CumulativePainter(a: sa, b: sb, buckets: buckets, colorA: _accent, colorB: _compareB, grid: _line, progress: t),
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Flexible(child: Text(_compareYears ? (_isEn ? 'Jan' : 'ม.ค.') : '$unit 1', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: _sub, fontSize: 11))),
+              Flexible(child: Text(_compareYears ? (_isEn ? 'Jun' : 'มิ.ย.') : '$unit 15', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: _sub, fontSize: 11))),
+              Flexible(child: Text(_compareYears ? (_isEn ? 'Dec' : 'ธ.ค.') : (_isEn ? 'month end' : 'สิ้นเดือน'), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: _sub, fontSize: 11))),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 16,
+            runSpacing: 4,
+            children: [
+              _legend(_accent, 'A $_shortA • ${_baht(a.expense)}', dashed: false),
+              _legend(_compareB, 'B $_shortB • ${_baht(b.expense)}', dashed: true),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _legend(Color color, String text, {required bool dashed}) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 18,
+            height: 3,
+            child: dashed
+                ? Row(children: [
+                    Expanded(child: Container(color: color)),
+                    const SizedBox(width: 3),
+                    Expanded(child: Container(color: color)),
+                  ])
+                : Container(color: color),
+          ),
+          const SizedBox(width: 6),
+          Text(text, style: TextStyle(color: _text, fontSize: 12)),
+        ],
+      );
+
+  List<Widget> _highlightsAndCategories(_PeriodStats a, _PeriodStats b, int startIndex) {
+    var i = startIndex;
+    final ids = {...a.expenseByCat.keys, ...b.expenseByCat.keys};
+    final rows = [
+      for (final id in ids) (id, a.expenseByCat[id] ?? 0.0, b.expenseByCat[id] ?? 0.0),
+    ]..sort((x, y) => (y.$2 - y.$3).abs().compareTo((x.$2 - x.$3).abs()));
+
+    final names = <String, String>{};
+    for (final t in [..._inRange(_rangeA), ..._inRange(_rangeB)]) {
+      names[t.categoryId] = t.categoryName;
+    }
+    CategoryItem cat(String id) => _categoryOf(id, fallbackName: names[id]);
+
+    (String, double)? saved;
+    (String, double)? spike;
+    for (final r in rows) {
+      final d = r.$2 - r.$3;
+      if (d < 0 && (saved == null || d < saved.$2)) saved = (r.$1, d);
+      if (d > 0 && (spike == null || d > spike.$2)) spike = (r.$1, d);
+    }
+
+    Widget highlight(String label, IconData icon, (String, double) item, bool good) {
+      final c = good ? _income : _expense;
+      final ci = cat(item.$1);
+      return Expanded(
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(color: c.withValues(alpha: _isDark ? 0.12 : 0.06), borderRadius: BorderRadius.circular(16), border: Border.all(color: c.withValues(alpha: 0.25))),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Icon(icon, size: 15, color: c),
+                const SizedBox(width: 4),
+                Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: c, fontSize: 12, fontWeight: FontWeight.w700))),
+              ]),
+              const SizedBox(height: 6),
+              Row(children: [
+                Icon(ci.icon, size: 18, color: ci.color),
+                const SizedBox(width: 6),
+                Expanded(child: Text(ci.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: _text, fontSize: 14, fontWeight: FontWeight.w700))),
+              ]),
+              const SizedBox(height: 2),
+              Text('${item.$2 < 0 ? '-' : '+'}${_baht(item.$2.abs())}', style: TextStyle(color: c, fontSize: 13.5, fontWeight: FontWeight.w700)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return [
+      if (saved != null || spike != null) ...[
+        FxFadeUp(
+          index: i++,
+          child: Row(
+            children: [
+              if (saved != null) highlight(_isEn ? 'Saved the most' : 'ประหยัดมากสุด', Icons.thumb_up_alt_outlined, saved, true),
+              if (saved != null && spike != null) const SizedBox(width: 10),
+              if (spike != null) highlight(_isEn ? 'Spending went up' : 'รายจ่ายพุ่งขึ้น', Icons.trending_up_rounded, spike, false),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+      ],
+      FxFadeUp(
+        index: i++,
+        child: _cardBox(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(child: Text(_isEn ? 'By category' : 'เจาะลึกรายหมวดหมู่', style: TextStyle(color: _text, fontSize: 15, fontWeight: FontWeight.w700))),
+                  Text(_isEn ? 'Sorted by difference' : 'เรียงตามส่วนต่าง', style: TextStyle(color: _sub, fontSize: 11.5)),
+                ],
+              ),
+              const SizedBox(height: 4),
+              if (rows.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  child: Center(child: Text(_isEn ? 'No spending to compare' : 'ไม่มีรายจ่ายให้เปรียบเทียบ', style: TextStyle(color: _sub, fontSize: 13))),
+                )
+              else
+                for (var k = 0; k < rows.length; k++) _compareCategoryRow(cat(rows[k].$1), rows[k].$2, rows[k].$3, first: k == 0),
+              if (!_compareYears)
+                Center(
+                  child: TextButton(
+                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CompareAnalyticsScreen(controller: _c))),
+                    child: Text(_isEn ? 'Open detailed report' : 'เปิดรายงานละเอียด', style: TextStyle(color: _accent, fontWeight: FontWeight.w700, fontSize: 13)),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    ];
+  }
+
+  Widget _compareCategoryRow(CategoryItem cat, double amtA, double amtB, {bool first = false}) {
+    final delta = amtA - amtB;
+    final maxAmt = [amtA, amtB, 1.0].reduce((x, y) => x > y ? x : y);
+    final pct = amtB > 0 ? ' (${(delta.abs() / amtB * 100).toStringAsFixed(1)}%)' : '';
+    Widget bar(String label, Color color, double v) => Row(
+          children: [
+            SizedBox(width: 18, child: Text(label, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w700))),
+            Expanded(child: FxBar(value: v / maxAmt, color: color, track: _track, height: 7)),
+            SizedBox(
+              width: 82,
+              child: Text(_baht(v), textAlign: TextAlign.right, maxLines: 1, style: TextStyle(color: label == 'A' ? _text : _sub, fontSize: 12.5, fontWeight: label == 'A' ? FontWeight.w700 : FontWeight.w500)),
+            ),
+          ],
+        );
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      decoration: BoxDecoration(border: first ? null : Border(top: BorderSide(color: _line.withValues(alpha: 0.6)))),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Icon(cat.icon, size: 20, color: cat.color),
+              const SizedBox(width: 8),
+              Expanded(child: Text(cat.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: _text, fontSize: 14, fontWeight: FontWeight.w600))),
+              const SizedBox(width: 6),
+              Flexible(
+               child: _deltaChip(
+                delta == 0
+                    ? (_isEn ? 'Same' : 'เท่าเดิม')
+                    : delta < 0
+                        ? '${_isEn ? 'Down' : 'ลดลง'} -${_baht(delta.abs())}$pct'
+                        : '${_isEn ? 'Up' : 'เพิ่มขึ้น'} +${_baht(delta)}$pct',
+                good: delta == 0 ? null : delta < 0,
+               ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          bar('A', _accent, amtA),
+          const SizedBox(height: 5),
+          bar('B', _compareB, amtB),
+        ],
+      ),
+    );
+  }
+}
+
+/// Two running-total lines (A solid, B dashed) drawn left to right as [progress] goes 0 → 1.
+class _CumulativePainter extends CustomPainter {
+  final List<double> a;
+  final List<double> b;
+  final int buckets;
+  final Color colorA;
+  final Color colorB;
+  final Color grid;
+  final double progress;
+
+  _CumulativePainter({
+    required this.a,
+    required this.b,
+    required this.buckets,
+    required this.colorA,
+    required this.colorB,
+    required this.grid,
+    required this.progress,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final gridPaint = Paint()
+      ..color = grid
+      ..strokeWidth = 1;
+    for (var k = 0; k < 3; k++) {
+      final y = size.height * k / 2;
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
+    }
+    final maxV = [...a, ...b, 1.0].reduce((x, y) => x > y ? x : y);
+    final steps = (buckets - 1).clamp(1, 1000);
+
+    Path pathOf(List<double> s) {
+      final p = Path();
+      for (var k = 0; k < s.length; k++) {
+        final pt = Offset(size.width * k / steps, size.height - size.height * (s[k] / maxV) * 0.95);
+        k == 0 ? p.moveTo(pt.dx, pt.dy) : p.lineTo(pt.dx, pt.dy);
+      }
+      return p;
+    }
+
+    canvas.save();
+    canvas.clipRect(Rect.fromLTWH(0, -4, size.width * progress, size.height + 8));
+    if (b.length > 1) {
+      final paintB = Paint()
+        ..color = colorB
+        ..strokeWidth = 2.2
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round;
+      for (final metric in pathOf(b).computeMetrics()) {
+        var d = 0.0;
+        while (d < metric.length) {
+          canvas.drawPath(metric.extractPath(d, d + 6), paintB);
+          d += 10;
+        }
+      }
+    }
+    if (a.length > 1) {
+      canvas.drawPath(
+        pathOf(a),
+        Paint()
+          ..color = colorA
+          ..strokeWidth = 2.6
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round,
+      );
+    }
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_CumulativePainter old) =>
+      old.progress != progress || old.a != a || old.b != b || old.colorA != colorA || old.colorB != colorB;
 }
