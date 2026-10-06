@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../state/expense_controller.dart';
@@ -28,6 +29,7 @@ class _DataBackupRestoreScreenState extends State<DataBackupRestoreScreen>
   String? _localIp;
   String _pinCode = '8829';
   bool _isServerRunning = false;
+  bool _noNetwork = false; // no Wi-Fi/LAN address, so the phone cannot be reached
 
   // P2P Receiver Manual Input Controllers
   final TextEditingController _ipInputController = TextEditingController();
@@ -39,6 +41,7 @@ class _DataBackupRestoreScreenState extends State<DataBackupRestoreScreen>
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(() {
+      if (_tabController.indexIsChanging) return;
       if (_tabController.index == 1 && _p2pModeIndex == 0) {
         _startP2pServer();
       } else {
@@ -49,7 +52,7 @@ class _DataBackupRestoreScreenState extends State<DataBackupRestoreScreen>
   }
 
   void _generateRandomPin() {
-    final rand = (1000 + (DateTime.now().millisecondsSinceEpoch % 9000)).toString();
+    final rand = (1000 + Random.secure().nextInt(9000)).toString();
     setState(() => _pinCode = rand);
   }
 
@@ -63,12 +66,23 @@ class _DataBackupRestoreScreenState extends State<DataBackupRestoreScreen>
   }
 
   Future<void> _startP2pServer() async {
+    if (_p2pServer != null) return; // already running
     setState(() => _isProcessing = true);
     _localIp = await DataBackupService.getLocalIpAddress();
 
     if (_localIp == null || _localIp!.isEmpty) {
-      _localIp = '192.168.1.50'; // Fallback indicator
+      // Without a Wi-Fi address the other phone cannot connect; say so instead of showing a fake IP.
+      if (mounted) {
+        setState(() {
+          _localIp = null;
+          _noNetwork = true;
+          _isServerRunning = false;
+          _isProcessing = false;
+        });
+      }
+      return;
     }
+    _noNetwork = false;
 
     _p2pServer = DataTransferServer(
       storage: widget.controller.storage,
@@ -142,7 +156,7 @@ class _DataBackupRestoreScreenState extends State<DataBackupRestoreScreen>
         setState(() => _isProcessing = false);
         if (!ok) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('พร้อมส่งต่อไฟล์สำรองข้อมูลแล้ว')),
+            const SnackBar(content: Text('แชร์ไฟล์ไม่สำเร็จ ลองใหม่อีกครั้ง หรือใช้ "บันทึกไฟล์สำรองลงเครื่อง" แทน')),
           );
         }
       }
@@ -277,40 +291,14 @@ class _DataBackupRestoreScreenState extends State<DataBackupRestoreScreen>
             ),
             const SizedBox(height: 10),
 
-            // Option 1: Replace All (Recommended for new phone)
+            // Option 1 (safe, default): merge into what is already on this phone
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: MeowTheme.incomeGreen,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
+                minimumSize: const Size.fromHeight(52),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 elevation: 0,
-              ),
-              onPressed: () {
-                Navigator.pop(ctx);
-                _executeRestore(data, replaceAll: true);
-              },
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Icon(Icons.refresh_rounded, size: 20),
-                  SizedBox(width: 8),
-                  Text(
-                    'เขียนทับทั้งหมด (สำหรับย้ายเครื่องใหม่ 100%)',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 10),
-
-            // Option 2: Merge
-            OutlinedButton(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: textPrimary,
-                padding: const EdgeInsets.symmetric(vertical: 13),
-                side: BorderSide(color: isDark ? Colors.white30 : const Color(0xFFCBD5E1)),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               ),
               onPressed: () {
                 Navigator.pop(ctx);
@@ -321,17 +309,101 @@ class _DataBackupRestoreScreenState extends State<DataBackupRestoreScreen>
                 children: const [
                   Icon(Icons.merge_type_rounded, size: 20),
                   SizedBox(width: 8),
-                  Text(
-                    'ผสานรวมข้อมูล (ไม่ลบข้อมูลเดิมที่มีอยู่)',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  Flexible(
+                    child: Text(
+                      'ผสานรวมข้อมูล (ไม่ลบข้อมูลเดิม)',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ],
               ),
+            ),
+            const SizedBox(height: 10),
+
+            // Option 2 (destructive): replace everything, asks again first
+            OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFFDC2626),
+                minimumSize: const Size.fromHeight(52),
+                side: const BorderSide(color: Color(0xFFFCA5A5)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              onPressed: () {
+                Navigator.pop(ctx);
+                _confirmReplaceAll(data);
+              },
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  Icon(Icons.warning_amber_rounded, size: 20),
+                  SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      'เขียนทับทั้งหมด (ลบข้อมูลในเครื่องนี้)',
+                      style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'แนะนำ "ผสานรวม" ถ้าเครื่องนี้มีข้อมูลอยู่แล้ว • ใช้ "เขียนทับ" เฉพาะเครื่องใหม่ที่ยังไม่มีข้อมูล',
+              style: TextStyle(fontSize: 11.5, height: 1.4, color: isDark ? Colors.white54 : const Color(0xFF64748B)),
             ),
           ],
         ),
       ),
     );
+  }
+
+  /// Second confirmation before wiping this phone's data; a safety backup is saved first.
+  Future<void> _confirmReplaceAll(Map<String, dynamic> data) async {
+    final c = widget.controller;
+    final txNow = c.allTransactions.length;
+    final accNow = c.accounts.length;
+    final catNow = c.categories.length;
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (dCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('เขียนทับข้อมูลทั้งหมด?'),
+        content: Text(
+          'ข้อมูลในเครื่องนี้ตอนนี้ ($txNow รายการ • $accNow บัญชี • $catNow หมวดหมู่) จะถูกลบ '
+          'และแทนที่ด้วยข้อมูลจากไฟล์สำรอง\n\n'
+          'ก่อนเขียนทับ ระบบจะบันทึกไฟล์สำรองของข้อมูลปัจจุบันไว้ในโฟลเดอร์ Download ให้อัตโนมัติ',
+          style: const TextStyle(height: 1.45),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dCtx, false), child: const Text('ยกเลิก')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFDC2626)),
+            onPressed: () => Navigator.pop(dCtx, true),
+            child: const Text('เขียนทับ'),
+          ),
+        ],
+      ),
+    );
+    if (yes != true || !mounted) return;
+
+    if (txNow + accNow > 0) {
+      setState(() => _isProcessing = true);
+      String? safety;
+      try {
+        safety = await DataBackupService.saveBackupToDeviceDownloads(c.storage);
+      } catch (_) {
+        safety = null;
+      }
+      if (!mounted) return;
+      if (safety == null) {
+        setState(() => _isProcessing = false);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('สำรองข้อมูลเดิมไม่สำเร็จ จึงยกเลิกการเขียนทับเพื่อไม่ให้ข้อมูลหาย (ลอง "ผสานรวม" แทนได้)'),
+        ));
+        return;
+      }
+    }
+    await _executeRestore(data, replaceAll: true);
   }
 
   Widget _buildMiniStat(String label, String value, IconData icon, Color color) {
@@ -937,20 +1009,41 @@ class _DataBackupRestoreScreenState extends State<DataBackupRestoreScreen>
                     Container(
                       width: 8,
                       height: 8,
-                      decoration: const BoxDecoration(
-                        color: MeowTheme.incomeGreen,
+                      decoration: BoxDecoration(
+                        color: _isServerRunning ? MeowTheme.incomeGreen : const Color(0xFFF59E0B),
                         shape: BoxShape.circle,
                       ),
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      _isServerRunning ? 'พร้อมส่งข้อมูลไร้สาย' : 'กำลังเตรียมการเชื่อมต่อ...',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: MeowTheme.incomeGreen),
+                      _isServerRunning
+                          ? 'พร้อมส่งข้อมูลไร้สาย'
+                          : (_noNetwork ? 'ยังไม่ได้เชื่อมต่อ Wi-Fi' : 'กำลังเตรียมการเชื่อมต่อ...'),
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: _isServerRunning ? MeowTheme.incomeGreen : const Color(0xFFB45309)),
                     ),
                   ],
                 ),
                 const SizedBox(height: 14),
 
+                if (_noNetwork) ...[
+                  Icon(Icons.wifi_off_rounded, size: 48, color: textSecondary),
+                  const SizedBox(height: 8),
+                  Text(
+                    'เชื่อมต่อ Wi-Fi เดียวกันทั้ง 2 เครื่องก่อน แล้วกด "ลองใหม่"',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 13, height: 1.4, color: textSecondary),
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: _startP2pServer,
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('ลองใหม่'),
+                    style: OutlinedButton.styleFrom(minimumSize: const Size(140, 44)),
+                  ),
+                ] else ...[
                 // QR Code
                 Center(
                   child: QrCodeDisplayWidget(
@@ -993,6 +1086,7 @@ class _DataBackupRestoreScreenState extends State<DataBackupRestoreScreen>
                     ],
                   ),
                 ),
+                ],
               ],
             ),
           ),

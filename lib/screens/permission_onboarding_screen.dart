@@ -10,10 +10,14 @@ class PermissionOnboardingScreen extends StatefulWidget {
   final ExpenseController controller;
   final VoidCallback onFinish;
 
+  /// Opened from เมนู: shows the real grant status and never resets saved choices.
+  final bool fromMenu;
+
   const PermissionOnboardingScreen({
     super.key,
     required this.controller,
     required this.onFinish,
+    this.fromMenu = false,
   });
 
   @override
@@ -25,25 +29,89 @@ class _PermissionOnboardingScreenState extends State<PermissionOnboardingScreen>
   bool _audioAllowed = true;
   bool _notificationAllowed = true;
   bool _cameraAllowed = true;
+  bool _busy = false;
+
+  /// What the OS has actually granted ('storage', 'audio', 'notification', 'camera'); null until loaded.
+  Map<String, bool>? _granted;
+
+  static const _keys = ['storage', 'audio', 'notification', 'camera'];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStatus();
+  }
+
+  Future<void> _loadStatus() async {
+    final res = await NativeBridgeService.checkAppPermissions();
+    if (!mounted) return;
+    setState(() {
+      _granted = {
+        for (final k in _keys)
+          if (res[k] is bool) k: res[k] as bool,
+      };
+      // Already-granted permissions start switched on.
+      if (_isGranted('storage')) _storageAllowed = true;
+      if (_isGranted('audio')) _audioAllowed = true;
+      if (_isGranted('notification')) _notificationAllowed = true;
+      if (_isGranted('camera')) _cameraAllowed = true;
+    });
+  }
+
+  bool _isGranted(String key) => _granted?[key] == true;
+
+  bool _wanted(String key) => switch (key) {
+        'storage' => _storageAllowed,
+        'audio' => _audioAllowed,
+        'notification' => _notificationAllowed,
+        _ => _cameraAllowed,
+      };
 
   Future<void> _onConfirmAll() async {
+    if (_busy) return;
     HapticFeedback.mediumImpact();
-    await NativeBridgeService.requestAppPermissions();
+    setState(() => _busy = true);
+    // Ask only for what is switched on and not granted yet.
+    final ask = [for (final k in _keys) if (_wanted(k) && !_isGranted(k)) k];
+    var status = <String, dynamic>{};
+    if (ask.isNotEmpty) {
+      status = await NativeBridgeService.requestAppPermissions(only: ask);
+    }
+    final storageOk = status['storage'] is bool ? status['storage'] as bool : (_isGranted('storage') || _storageAllowed);
     await widget.controller.savePermissions(
-      bankAlbum: _storageAllowed,
+      bankAlbum: storageOk,
       installedApps: true,
-      mainAlbum: _storageAllowed,
+      mainAlbum: storageOk,
     );
+    final denied = [for (final k in ask) if (status[k] == false) k];
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (denied.isNotEmpty) {
+      final isEn = widget.controller.isEnglish;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        behavior: SnackBarBehavior.floating,
+        content: Text(isEn
+            ? 'Some permissions were not allowed. You can turn them on in Settings.'
+            : 'ยังไม่ได้อนุญาตบางสิทธิ์ เปิดเองได้ที่การตั้งค่าของเครื่อง'),
+        action: SnackBarAction(
+          label: isEn ? 'Settings' : 'เปิดการตั้งค่า',
+          onPressed: NativeBridgeService.openAppSettings,
+        ),
+      ));
+    }
     widget.onFinish();
   }
 
   Future<void> _onSkip() async {
     HapticFeedback.selectionClick();
-    await widget.controller.savePermissions(
-      bankAlbum: false,
-      installedApps: false,
-      mainAlbum: false,
-    );
+    // From the menu, leaving must not wipe choices made earlier.
+    if (!widget.fromMenu) {
+      await widget.controller.savePermissions(
+        bankAlbum: false,
+        installedApps: false,
+        mainAlbum: false,
+      );
+    }
     widget.onFinish();
   }
 
@@ -72,20 +140,19 @@ class _PermissionOnboardingScreenState extends State<PermissionOnboardingScreen>
                     IconButton(
                       icon: const Icon(Icons.arrow_back_ios_new_rounded),
                       color: textPrimary,
-                      iconSize: 18,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
+                      iconSize: 20,
+                      constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
                       tooltip: isEn ? 'Back' : 'ย้อนกลับ',
                       onPressed: () => Navigator.pop(context),
                     )
                   else
-                    const SizedBox(width: 18),
+                    const SizedBox(width: 44),
+                  if (!widget.fromMenu)
                   TextButton(
                     onPressed: _onSkip,
                     style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      minimumSize: const Size(44, 44),
                     ),
                     child: Text(
                       isEn ? 'Skip' : 'ข้ามไปก่อน',
@@ -116,7 +183,9 @@ class _PermissionOnboardingScreenState extends State<PermissionOnboardingScreen>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          isEn ? 'Convenience Permissions 🐾' : 'อนุญาตสิทธิ์เพื่อความสะดวก 🐾',
+                          widget.fromMenu
+                              ? (isEn ? 'Device Permissions' : 'สิทธิ์การเข้าถึงอุปกรณ์')
+                              : (isEn ? 'Convenience Permissions 🐾' : 'อนุญาตสิทธิ์เพื่อความสะดวก 🐾'),
                           style: TextStyle(
                             color: textPrimary,
                             fontSize: 16.5,
@@ -126,9 +195,13 @@ class _PermissionOnboardingScreenState extends State<PermissionOnboardingScreen>
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          isEn
-                              ? 'Allow permissions for automatic slip scanning & smart alerts'
-                              : 'เปิดสิทธิ์เพื่อให้เหมียวสแกนสลิปและแจ้งเตือนให้อัตโนมัติ',
+                          widget.fromMenu
+                              ? (isEn
+                                  ? 'See what is allowed and turn on what you need'
+                                  : 'ดูสถานะ แล้วเปิดสิทธิ์ที่ต้องการใช้')
+                              : (isEn
+                                  ? 'Allow permissions for automatic slip scanning & smart alerts'
+                                  : 'เปิดสิทธิ์เพื่อให้เหมียวสแกนสลิปและแจ้งเตือนให้อัตโนมัติ'),
                           style: TextStyle(
                             color: textSecondary,
                             fontSize: 11.5,
@@ -155,6 +228,8 @@ class _PermissionOnboardingScreenState extends State<PermissionOnboardingScreen>
                       desc: isEn ? 'Auto-scan slips from K PLUS, SCB, KTB, etc.' : 'สแกนสลิปโอนเงินเข้าแอพและจดบัญชีอัตโนมัติ',
                       badge: isEn ? 'RECOMMENDED' : 'แนะนำ',
                       value: _storageAllowed,
+                      granted: _isGranted('storage'),
+                      grantedLabel: isEn ? 'Allowed' : 'อนุญาตแล้ว',
                       onChanged: (v) => setState(() => _storageAllowed = v),
                       cardColor: cardColor,
                       borderColor: borderColor,
@@ -169,6 +244,8 @@ class _PermissionOnboardingScreenState extends State<PermissionOnboardingScreen>
                       title: isEn ? 'Microphone (Voice AI)' : 'ไมโครโฟน (พูดบันทึกด้วยเสียง AI)',
                       desc: isEn ? 'Speak e.g. "Coffee 60 baht" to log instantly' : 'พูดจดรายการ เช่น "กาแฟ 60 บาท" ไม่ต้องพิมพ์',
                       value: _audioAllowed,
+                      granted: _isGranted('audio'),
+                      grantedLabel: isEn ? 'Allowed' : 'อนุญาตแล้ว',
                       onChanged: (v) => setState(() => _audioAllowed = v),
                       cardColor: cardColor,
                       borderColor: borderColor,
@@ -183,6 +260,8 @@ class _PermissionOnboardingScreenState extends State<PermissionOnboardingScreen>
                       title: isEn ? 'Notifications & Alerts' : 'การแจ้งเตือนสลิป & ตัดรอบบิล',
                       desc: isEn ? 'Instant alerts on new slips & bill due dates' : 'แจ้งเตือนเมื่อพบสลิปใหม่และเตือนครบกำหนดบิล',
                       value: _notificationAllowed,
+                      granted: _isGranted('notification'),
+                      grantedLabel: isEn ? 'Allowed' : 'อนุญาตแล้ว',
                       onChanged: (v) => setState(() => _notificationAllowed = v),
                       cardColor: cardColor,
                       borderColor: borderColor,
@@ -197,6 +276,8 @@ class _PermissionOnboardingScreenState extends State<PermissionOnboardingScreen>
                       title: isEn ? 'Camera (Paper Receipts)' : 'กล้องถ่ายรูป (สแกนสลิปสด/ใบเสร็จ)',
                       desc: isEn ? 'Snap paper receipts or physical bills instantly' : 'ถ่ายรูปสลิปหรือใบเสร็จกระดาษหน้าร้านได้ทันที',
                       value: _cameraAllowed,
+                      granted: _isGranted('camera'),
+                      grantedLabel: isEn ? 'Allowed' : 'อนุญาตแล้ว',
                       onChanged: (v) => setState(() => _cameraAllowed = v),
                       cardColor: cardColor,
                       borderColor: borderColor,
@@ -261,7 +342,11 @@ class _PermissionOnboardingScreenState extends State<PermissionOnboardingScreen>
                         const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
                         const SizedBox(width: 8),
                         Text(
-                          isEn ? 'Allow & Get Started 🐾' : 'อนุญาตและเริ่มต้นใช้งาน 🐾',
+                          widget.fromMenu
+                              ? (_keys.every(_isGranted)
+                                  ? (isEn ? 'Done' : 'เรียบร้อย')
+                                  : (isEn ? 'Allow selected' : 'ขอสิทธิ์ที่เลือก'))
+                              : (isEn ? 'Allow & Get Started 🐾' : 'อนุญาตและเริ่มต้นใช้งาน 🐾'),
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 15,
@@ -287,6 +372,8 @@ class _PermissionOnboardingScreenState extends State<PermissionOnboardingScreen>
     required String desc,
     String? badge,
     required bool value,
+    bool granted = false,
+    String grantedLabel = '',
     required ValueChanged<bool> onChanged,
     required Color cardColor,
     required Color borderColor,
@@ -346,7 +433,7 @@ class _PermissionOnboardingScreenState extends State<PermissionOnboardingScreen>
                           badge,
                           style: TextStyle(
                             color: iconColor,
-                            fontSize: 8.5,
+                            fontSize: 10,
                             fontWeight: FontWeight.w900,
                           ),
                         ),
@@ -357,23 +444,41 @@ class _PermissionOnboardingScreenState extends State<PermissionOnboardingScreen>
                 const SizedBox(height: 1),
                 Text(
                   desc,
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: textSecondary,
-                    fontSize: 10.5,
+                    fontSize: 11.5,
+                    height: 1.3,
                   ),
                 ),
               ],
             ),
           ),
           const SizedBox(width: 8),
-          Switch.adaptive(
-            value: value,
-            activeColor: iconColor,
-            onChanged: onChanged,
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
+          if (granted)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.check_circle_rounded, size: 14, color: Color(0xFF059669)),
+                  const SizedBox(width: 4),
+                  Text(grantedLabel,
+                      style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF059669))),
+                ],
+              ),
+            )
+          else
+            Switch.adaptive(
+              value: value,
+              activeThumbColor: iconColor,
+              onChanged: onChanged,
+            ),
         ],
       ),
     );

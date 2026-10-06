@@ -904,6 +904,7 @@ class FaraidEngine {
     required double estate,
     required FaraidInput root,
     List<LaterDeath> laterDeaths = const [],
+    List<SimultaneousDeath> simultaneous = const [],
   }) {
     final stages = <StageOutcome>[
       StageOutcome(
@@ -948,8 +949,155 @@ class FaraidEngine {
         result: calculate(FaraidInput(deceasedMale: d.heirType.isMale, heirs: d.heirs)),
       ));
     }
+
+    // Al-Gharaqa wal-Hadma: people who died together without a known order do not
+    // inherit from one another, so each one's estate is only their own property.
+    for (final g in simultaneous) {
+      stages.add(StageOutcome(
+        index: stages.length,
+        title: '${g.label} (เสียชีวิตพร้อมกัน)',
+        deceased: null,
+        estate: g.ownAssets,
+        inherited: 0,
+        ownAssets: g.ownAssets,
+        fractionOfOriginal: Frac.zero,
+        result: calculate(FaraidInput(deceasedMale: g.isMale, heirs: g.heirs)),
+        simultaneous: true,
+      ));
+    }
     return MunasakhatResult(stages, errors);
   }
+
+  // ---------------------------------------------------------------------------
+  // Heirs whose existence is not yet known: al-Haml (fetus) and al-Mafqud (missing)
+  // ---------------------------------------------------------------------------
+  /// Shafi'i method: work out every possible outcome, give each known heir the
+  /// smallest share they get in any of them, and hold back (الموقوف) the rest
+  /// until the birth / the judge's ruling settles which outcome is real.
+  static UncertainResult calculateUncertain(FaraidInput base, List<List<FaraidScenario>> dimensions) {
+    var combos = <FaraidScenario>[const FaraidScenario('', {})];
+    for (final dim in dimensions) {
+      if (dim.isEmpty) continue;
+      combos = [
+        for (final a in combos)
+          for (final b in dim) a.and(b),
+      ];
+    }
+    final known = base.normalized();
+    final outcomes = <ScenarioOutcome>[];
+    for (final sc in combos) {
+      final heirs = Map<HeirType, int>.from(known);
+      sc.extra.forEach((t, n) => heirs[t] = (heirs[t] ?? 0) + n);
+      outcomes.add(ScenarioOutcome(sc, calculate(FaraidInput(deceasedMale: base.deceasedMale, heirs: heirs))));
+    }
+    final minPer = <HeirType, Frac>{};
+    for (final t in known.keys) {
+      Frac? m;
+      for (final o in outcomes) {
+        final p = o.result.shareOf(t)?.perPerson ?? Frac.zero;
+        if (m == null || p < m) m = p;
+      }
+      minPer[t] = m ?? Frac.zero;
+    }
+    var given = Frac.zero;
+    minPer.forEach((t, p) => given = given + p.times(known[t]!));
+    return UncertainResult(
+      known: known,
+      outcomes: outcomes,
+      minPerPerson: minPer,
+      reserved: Frac.one - given,
+      certain: calculate(base),
+    );
+  }
+
+  /// Outcomes for [maxBabies] unborn children who would be [male] / [female] heirs.
+  static List<FaraidScenario> fetusScenarios(HeirType male, HeirType female, int maxBabies) {
+    final out = <FaraidScenario>[const FaraidScenario('ทารกเสียชีวิตก่อนคลอด', {})];
+    for (var n = 1; n <= maxBabies; n++) {
+      for (var boys = n; boys >= 0; boys--) {
+        final girls = n - boys;
+        final parts = [
+          if (boys > 0) '${n == 1 ? '' : '$boys '}ชาย',
+          if (girls > 0) '${n == 1 ? '' : '$girls '}หญิง',
+        ];
+        final label = n == 1 ? 'คลอด 1 คน (${parts.join()})' : 'คลอด $n คน (${parts.join(' + ')})';
+        out.add(FaraidScenario(label, {if (boys > 0) male: boys, if (girls > 0) female: girls}));
+      }
+    }
+    return out;
+  }
+
+  /// Outcomes for [count] missing heirs of [type]: none, some or all still alive.
+  static List<FaraidScenario> missingScenarios(HeirType type, int count) => [
+        for (var alive = 0; alive <= count; alive++)
+          FaraidScenario(
+            alive == 0
+                ? '${type.th}ที่สูญหาย เสียชีวิตแล้ว'
+                : count == 1
+                    ? '${type.th}ที่สูญหาย ยังมีชีวิต'
+                    : '${type.th}ที่สูญหาย ยังมีชีวิต $alive คน',
+            alive == 0 ? const {} : {type: alive},
+          ),
+      ];
+}
+
+class FaraidScenario {
+  final String label;
+  final Map<HeirType, int> extra;
+
+  const FaraidScenario(this.label, this.extra);
+
+  FaraidScenario and(FaraidScenario o) {
+    final m = Map<HeirType, int>.from(extra);
+    o.extra.forEach((t, n) => m[t] = (m[t] ?? 0) + n);
+    return FaraidScenario([label, o.label].where((x) => x.isNotEmpty).join(' • '), m);
+  }
+}
+
+class ScenarioOutcome {
+  final FaraidScenario scenario;
+  final FaraidResult result;
+
+  const ScenarioOutcome(this.scenario, this.result);
+}
+
+class UncertainResult {
+  /// Heirs known to be alive (they can be paid now).
+  final Map<HeirType, int> known;
+  final List<ScenarioOutcome> outcomes;
+
+  /// Smallest per-person share each known heir gets in any outcome.
+  final Map<HeirType, Frac> minPerPerson;
+
+  /// Held back until the outcome is known (الموقوف).
+  final Frac reserved;
+
+  /// Calculation with the known heirs only, for its steps and blocked list.
+  final FaraidResult certain;
+
+  const UncertainResult({
+    required this.known,
+    required this.outcomes,
+    required this.minPerPerson,
+    required this.reserved,
+    required this.certain,
+  });
+
+  Frac paidNow(HeirType t) => (minPerPerson[t] ?? Frac.zero).times(known[t] ?? 0);
+}
+
+class SimultaneousDeath {
+  final String label;
+  final bool isMale;
+  final Map<HeirType, int> heirs;
+  final double ownAssets;
+
+  const SimultaneousDeath({
+    required this.label,
+    required this.isMale,
+    required this.heirs,
+    required this.ownAssets,
+  });
 }
 
 class DeceasedRef {
@@ -993,6 +1141,9 @@ class StageOutcome {
   final Frac fractionOfOriginal;
   final FaraidResult result;
 
+  /// Died together with the first deceased (no inheritance between them).
+  final bool simultaneous;
+
   const StageOutcome({
     required this.index,
     required this.title,
@@ -1002,6 +1153,7 @@ class StageOutcome {
     required this.ownAssets,
     required this.fractionOfOriginal,
     required this.result,
+    this.simultaneous = false,
   });
 }
 

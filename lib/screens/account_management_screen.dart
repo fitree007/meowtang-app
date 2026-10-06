@@ -7,6 +7,14 @@ import '../widgets/bank_badge.dart';
 import '../widgets/tactile_button.dart';
 import '../utils/format_utils.dart';
 
+/// Parses an amount the user typed, accepting thousands separators ("1,000.50").
+/// Empty input means 0; anything else that is not a number returns null.
+double? parseMoneyInput(String text) {
+  final t = text.replaceAll(',', '').replaceAll('฿', '').replaceAll(' ', '').trim();
+  if (t.isEmpty) return 0;
+  return double.tryParse(t);
+}
+
 class AccountManagementScreen extends StatefulWidget {
   final ExpenseController controller;
 
@@ -17,6 +25,14 @@ class AccountManagementScreen extends StatefulWidget {
 }
 
 class _AccountManagementScreenState extends State<AccountManagementScreen> {
+  void _toast(BuildContext context, String msg, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: isError ? const Color(0xFFEF4444) : MeowTheme.incomeGreen,
+    ));
+  }
+
   void _showEditBalanceDialog(BuildContext context, AccountItem account) {
     final balanceCtrl = TextEditingController(text: account.balance.toStringAsFixed(2));
     final isDark = widget.controller.isDarkMode;
@@ -72,9 +88,14 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
             ),
             ElevatedButton(
               onPressed: () {
-                final newBal = double.tryParse(balanceCtrl.text.trim()) ?? 0.0;
+                final newBal = parseMoneyInput(balanceCtrl.text);
+                if (newBal == null) {
+                  _toast(context, 'กรุณาใส่ยอดเงินเป็นตัวเลข เช่น 1,500 หรือ 1500.50', isError: true);
+                  return;
+                }
                 widget.controller.updateAccountBalance(account.id, newBal);
                 Navigator.pop(ctx);
+                _toast(context, 'บันทึกยอด "${account.name}" แล้ว');
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: MeowTheme.mustardYellow,
@@ -170,6 +191,7 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
       b.code == 'BLUECONNECT' ||
       b.code == 'CASH'
     ).toList();
+    final bankCount = bankList.length;
 
     int selectedTab = 0; // 0 = Banks, 1 = e-Wallets
 
@@ -236,7 +258,7 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
                                 ),
                                 child: Center(
                                   child: Text(
-                                    '🏦 บัญชีธนาคาร (16)',
+                                    '🏦 บัญชีธนาคาร ($bankCount)',
                                     style: TextStyle(
                                       color: selectedTab == 0 ? MeowTheme.textDarkPrimary : textSecondary,
                                       fontWeight: FontWeight.bold,
@@ -411,25 +433,36 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
                     TactileButton(
                       onTap: () {
                         final name = nameCtrl.text.trim();
-                        if (name.isEmpty) return;
+                        if (name.isEmpty) {
+                          _toast(context, 'กรุณาตั้งชื่อเรียกบัญชี', isError: true);
+                          return;
+                        }
+                        final balance = parseMoneyInput(balanceCtrl.text);
+                        if (balance == null) {
+                          _toast(context, 'กรุณาใส่ยอดเงินเป็นตัวเลข เช่น 1,500 หรือ 1500.50', isError: true);
+                          return;
+                        }
 
                         final meta = ThaiBankDetector.getBankByCode(selectedBank);
-                        final isWallet = selectedTab == 1;
-                        final balance = double.tryParse(balanceCtrl.text.trim()) ?? 0.0;
+                        final isCash = selectedBank == 'CASH';
+                        final isWallet = selectedTab == 1 && !isCash;
 
                         final newAcc = AccountItem(
                           id: 'acc_${selectedBank.toLowerCase()}_${DateTime.now().millisecondsSinceEpoch}',
                           name: name,
                           bankCode: selectedBank,
-                          accountNumber: numberCtrl.text.trim().isNotEmpty ? numberCtrl.text.trim() : 'xxx-x-xxxxx-x',
+                          accountNumber: numberCtrl.text.trim().isNotEmpty
+                              ? numberCtrl.text.trim()
+                              : (isCash ? 'CASH-WALLET' : 'xxx-x-xxxxx-x'),
                           balance: balance,
                           colorValue: meta.brandColor.value,
-                          type: isWallet ? AccountType.eWallet : AccountType.bank,
+                          type: isCash ? AccountType.cash : (isWallet ? AccountType.eWallet : AccountType.bank),
                           allowAutoDeduction: true,
                         );
 
                         widget.controller.addAccount(newAcc);
                         Navigator.pop(ctx);
+                        _toast(context, 'เพิ่มบัญชี "$name" แล้ว');
                       },
                       child: Container(
                         width: double.infinity,

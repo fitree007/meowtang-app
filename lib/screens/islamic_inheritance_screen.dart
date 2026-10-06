@@ -19,6 +19,30 @@ class _LaterDeathDraft {
   void dispose() => ownAssetsCtrl.dispose();
 }
 
+/// Someone who died together with the first deceased (Al-Gharqa), edited on screen.
+class _SimultaneousDraft {
+  final TextEditingController nameCtrl = TextEditingController();
+  bool male = true;
+  final Map<HeirType, int> heirs = {};
+  final TextEditingController ownAssetsCtrl = TextEditingController();
+
+  void dispose() {
+    nameCtrl.dispose();
+    ownAssetsCtrl.dispose();
+  }
+}
+
+/// A free-form asset line (e.g. a fishing boat) in the itemised estate.
+class _CustomAsset {
+  final TextEditingController nameCtrl = TextEditingController();
+  final TextEditingController valueCtrl = TextEditingController();
+
+  void dispose() {
+    nameCtrl.dispose();
+    valueCtrl.dispose();
+  }
+}
+
 class _HeirOption {
   final int fromDraft;
   final int stageIndex;
@@ -45,12 +69,20 @@ class _IslamicInheritanceScreenState extends State<IslamicInheritanceScreen> wit
 
   final TextEditingController _grossCtrl = TextEditingController();
   bool _detailedAssets = false;
-  final TextEditingController _landCtrl = TextEditingController();
-  final TextEditingController _depositCtrl = TextEditingController();
-  final TextEditingController _houseCtrl = TextEditingController();
-  final TextEditingController _carCtrl = TextEditingController();
-  final TextEditingController _goldCtrl = TextEditingController();
-  final TextEditingController _otherCtrl = TextEditingController();
+  static const _assetTypes = [
+    ('land', '🏞️ ที่ดิน / สวน / ไร่นา'),
+    ('house', '🏠 บ้าน / อาคาร / ห้องชุด'),
+    ('deposit', '🏦 เงินฝาก / เงินสด'),
+    ('car', '🚗 รถยนต์ / รถกระบะ'),
+    ('motorcycle', '🛵 รถจักรยานยนต์'),
+    ('gold', '💎 ทอง / เครื่องประดับ'),
+    ('investment', '📈 หุ้น / กองทุน / สลาก'),
+    ('business', '🏪 กิจการ / สินค้าในร้าน'),
+    ('livestock', '🐄 วัว แพะ / ปศุสัตว์'),
+    ('receivable', '🤝 เงินที่คนอื่นค้างผู้ตาย'),
+  ];
+  final Map<String, TextEditingController> _assetCtrls = {for (final a in _assetTypes) a.$1: TextEditingController()};
+  final List<_CustomAsset> _customAssets = [];
   final TextEditingController _funeralCtrl = TextEditingController();
   final TextEditingController _debtsCtrl = TextEditingController();
   final TextEditingController _wasiyyahCtrl = TextEditingController();
@@ -58,6 +90,24 @@ class _IslamicInheritanceScreenState extends State<IslamicInheritanceScreen> wit
   bool _deceasedMale = true;
   final Map<HeirType, int> _heirs = {};
   final List<_LaterDeathDraft> _later = [];
+  final List<_SimultaneousDraft> _together = [];
+
+  // Al-Haml: an unborn child who would be an heir.
+  static const _fetusRelations = [
+    ('ลูกของผู้ตาย (ภรรยาตั้งครรภ์)', HeirType.son, HeirType.daughter),
+    ('หลาน (ลูกของลูกชายผู้ตาย)', HeirType.sonsSon, HeirType.sonsDaughter),
+    ('พี่น้องร่วมพ่อแม่ (แม่ของผู้ตายตั้งครรภ์กับพ่อ)', HeirType.fullBrother, HeirType.fullSister),
+    ('พี่น้องร่วมพ่อ (ภรรยาอื่นของพ่อตั้งครรภ์)', HeirType.paternalBrother, HeirType.paternalSister),
+    ('พี่น้องร่วมแม่ (แม่ตั้งครรภ์กับสามีอื่น)', HeirType.maternalBrother, HeirType.maternalSister),
+  ];
+  bool _fetusOn = false;
+  int _fetusRelation = 0;
+  int _fetusMax = 2;
+
+  // Al-Mafqud: heirs who are missing and may still be alive.
+  bool _missingOn = false;
+  HeirType _missingType = HeirType.son;
+  int _missingCount = 1;
 
   @override
   void initState() {
@@ -68,21 +118,16 @@ class _IslamicInheritanceScreenState extends State<IslamicInheritanceScreen> wit
   @override
   void dispose() {
     _tabs.dispose();
-    for (final c in [
-      _grossCtrl,
-      _landCtrl,
-      _depositCtrl,
-      _houseCtrl,
-      _carCtrl,
-      _goldCtrl,
-      _otherCtrl,
-      _funeralCtrl,
-      _debtsCtrl,
-      _wasiyyahCtrl,
-    ]) {
+    for (final c in [_grossCtrl, ..._assetCtrls.values, _funeralCtrl, _debtsCtrl, _wasiyyahCtrl]) {
       c.dispose();
     }
+    for (final a in _customAssets) {
+      a.dispose();
+    }
     for (final d in _later) {
+      d.dispose();
+    }
+    for (final d in _together) {
       d.dispose();
     }
     super.dispose();
@@ -93,9 +138,11 @@ class _IslamicInheritanceScreenState extends State<IslamicInheritanceScreen> wit
   // ---------------------------------------------------------------------------
   double _parse(TextEditingController c) => double.tryParse(c.text.replaceAll(',', '').trim()) ?? 0.0;
 
-  double get _gross => _detailedAssets
-      ? _parse(_landCtrl) + _parse(_depositCtrl) + _parse(_houseCtrl) + _parse(_carCtrl) + _parse(_goldCtrl) + _parse(_otherCtrl)
-      : _parse(_grossCtrl);
+  double get _itemisedTotal =>
+      _assetCtrls.values.fold(0.0, (a, c) => a + _parse(c)) +
+      _customAssets.fold(0.0, (a, x) => a + _parse(x.valueCtrl));
+
+  double get _gross => _detailedAssets ? _itemisedTotal : _parse(_grossCtrl);
   double get _funeral => _parse(_funeralCtrl);
   double get _debts => _parse(_debtsCtrl);
   double get _afterDebts => (_gross - _funeral - _debts).clamp(0.0, double.infinity);
@@ -130,13 +177,41 @@ class _IslamicInheritanceScreenState extends State<IslamicInheritanceScreen> wit
     return (out, stageOf);
   }
 
+  bool get _hasUncertain => _fetusOn || _missingOn;
+
+  /// Heir types that can be missing for the current deceased.
+  List<HeirType> get _missingTypes => HeirType.values
+      .where((t) => !(t == HeirType.husband && _deceasedMale) && !(t == HeirType.wife && !_deceasedMale))
+      .toList();
+
+  List<SimultaneousDeath> _simultaneousInputs() => [
+    for (final d in _together)
+      SimultaneousDeath(
+        label: d.nameCtrl.text.trim().isEmpty ? 'ผู้เสียชีวิตพร้อมกัน' : d.nameCtrl.text.trim(),
+        isMale: d.male,
+        heirs: Map.of(d.heirs),
+        ownAssets: _parse(d.ownAssetsCtrl),
+      ),
+  ];
+
   MunasakhatResult _calculate() {
     final (later, _) = _laterDeathInputs();
     return FaraidEngine.calculateChain(
       estate: _net,
       root: FaraidInput(deceasedMale: _deceasedMale, heirs: Map.of(_heirs)),
-      laterDeaths: later,
+      // A later death can only be divided once the uncertain heirs are settled.
+      laterDeaths: _hasUncertain ? const [] : later,
+      simultaneous: _simultaneousInputs(),
     );
+  }
+
+  UncertainResult? _calculateUncertain() {
+    if (!_hasUncertain) return null;
+    final rel = _fetusRelations[_fetusRelation];
+    return FaraidEngine.calculateUncertain(FaraidInput(deceasedMale: _deceasedMale, heirs: Map.of(_heirs)), [
+      if (_fetusOn) FaraidEngine.fetusScenarios(rel.$2, rel.$3, _fetusMax),
+      if (_missingOn) FaraidEngine.missingScenarios(_missingType, _missingCount),
+    ]);
   }
 
   /// Heirs (individuals) that a later death at [draftIndex] may refer to.
@@ -185,7 +260,7 @@ class _IslamicInheritanceScreenState extends State<IslamicInheritanceScreen> wit
       _snack('กรุณาใส่มูลค่าทรัพย์สินก่อน', isError: true);
       return;
     }
-    if (_heirTotal == 0) {
+    if (_heirTotal == 0 && !_hasUncertain) {
       _snack('กรุณาเลือกทายาทอย่างน้อย 1 คน', isError: true);
       return;
     }
@@ -196,13 +271,8 @@ class _IslamicInheritanceScreenState extends State<IslamicInheritanceScreen> wit
         builder: (_) => FaraidResultScreen(
           controller: widget.controller,
           chain: _calculate(),
-          summary: FaraidEstateSummary(
-            gross: _gross,
-            funeral: _funeral,
-            debts: _debts,
-            wasiyyah: _wasiyyah,
-            net: _net,
-          ),
+          uncertain: _calculateUncertain(),
+          summary: FaraidEstateSummary(gross: _gross, funeral: _funeral, debts: _debts, wasiyyah: _wasiyyah, net: _net),
         ),
       ),
     );
@@ -231,20 +301,13 @@ class _IslamicInheritanceScreenState extends State<IslamicInheritanceScreen> wit
   void _resetAll() {
     HapticFeedback.lightImpact();
     setState(() {
-      for (final c in [
-        _grossCtrl,
-        _landCtrl,
-        _depositCtrl,
-        _houseCtrl,
-        _carCtrl,
-        _goldCtrl,
-        _otherCtrl,
-        _funeralCtrl,
-        _debtsCtrl,
-        _wasiyyahCtrl,
-      ]) {
+      for (final c in [_grossCtrl, ..._assetCtrls.values, _funeralCtrl, _debtsCtrl, _wasiyyahCtrl]) {
         c.clear();
       }
+      for (final a in _customAssets) {
+        a.dispose();
+      }
+      _customAssets.clear();
       _detailedAssets = false;
       _deceasedMale = true;
       _heirs.clear();
@@ -252,6 +315,16 @@ class _IslamicInheritanceScreenState extends State<IslamicInheritanceScreen> wit
         d.dispose();
       }
       _later.clear();
+      for (final d in _together) {
+        d.dispose();
+      }
+      _together.clear();
+      _fetusOn = false;
+      _fetusRelation = 0;
+      _fetusMax = 2;
+      _missingOn = false;
+      _missingType = HeirType.son;
+      _missingCount = 1;
     });
   }
 
@@ -268,6 +341,24 @@ class _IslamicInheritanceScreenState extends State<IslamicInheritanceScreen> wit
           ..heirIndex = l.heirIndex;
         d.heirs.addAll(l.heirs);
         _later.add(d);
+      }
+      if (c.fetusMax > 0) {
+        _fetusOn = true;
+        _fetusRelation = 0;
+        _fetusMax = c.fetusMax;
+      }
+      if (c.missing != null) {
+        _missingOn = true;
+        _missingType = c.missing!;
+        _missingCount = 1;
+      }
+      for (final t in c.together) {
+        final d = _SimultaneousDraft()
+          ..male = t.male
+          ..nameCtrl.text = t.name
+          ..ownAssetsCtrl.text = t.ownAssets.toStringAsFixed(0);
+        d.heirs.addAll(t.heirs);
+        _together.add(d);
       }
     });
     _tabs.animateTo(0);
@@ -375,12 +466,33 @@ class _IslamicInheritanceScreenState extends State<IslamicInheritanceScreen> wit
               ),
               _StepCard(
                 number: 4,
+                title: 'มีทายาทที่ยังไม่แน่นอนไหม?',
+                ar: 'الحمل والمفقود',
+                subtitle: 'ทารกในครรภ์ที่จะเป็นทายาท หรือทายาทที่หายสาบสูญ — ระบบจะกันส่วนไว้ให้ถูกต้อง (ถ้าไม่มี ข้ามขั้นนี้ได้)',
+                theme: theme,
+                child: _buildUncertain(theme, isDark),
+              ),
+              _StepCard(
+                number: 5,
                 title: 'มีทายาทเสียชีวิตก่อนแบ่งมรดกไหม?',
                 ar: 'المناسخات',
                 subtitle:
                     'เช่น พ่อเสียชีวิต ยังไม่ได้แบ่ง แล้วลูกชายเสียชีวิตตามไป — ส่วนของลูกชายจะถูกแบ่งต่อให้ทายาทของลูกชาย (ถ้าไม่มี ข้ามขั้นนี้ได้)',
                 theme: theme,
-                child: _buildLaterDeaths(theme, isDark),
+                child: _hasUncertain
+                    ? Text(
+                        '⏳ ระหว่างรอทารกคลอดหรือรอศาลตัดสินเรื่องผู้สูญหาย ยังแบ่งต่อเป็นทอด ๆ ไม่ได้ เพราะส่วนของแต่ละคนยังไม่แน่นอน — เมื่อทราบผลแล้วให้ปิดขั้นที่ 4 ใส่ทายาทตามจริง แล้วค่อยใส่ขั้นนี้',
+                        style: TextStyle(fontSize: 12, height: 1.45, color: theme.textSecondaryColor),
+                      )
+                    : _buildLaterDeaths(theme, isDark),
+              ),
+              _StepCard(
+                number: 6,
+                title: 'มีคนเสียชีวิตพร้อมกันไหม?',
+                ar: 'الغرقى والهدمى',
+                subtitle: 'เช่น อุบัติเหตุ ไฟไหม้ จมน้ำ โดยไม่รู้ว่าใครเสียชีวิตก่อน — ไม่รับมรดกจากกัน ระบบจะแบ่งทรัพย์สินของแต่ละคนให้ทายาทของคนนั้นแยกกัน (ถ้าไม่มี ข้ามขั้นนี้ได้)',
+                theme: theme,
+                child: _buildTogether(theme, isDark),
               ),
             ],
           ),
@@ -439,9 +551,47 @@ class _IslamicInheritanceScreenState extends State<IslamicInheritanceScreen> wit
             onChanged: () => setState(() {}),
           )
         else ...[
-          _pairFields(_landCtrl, '🏞️ ที่ดิน', _houseCtrl, '🏠 บ้าน/อาคาร', theme),
-          _pairFields(_depositCtrl, '🏦 เงินฝาก/เงินสด', _carCtrl, '🚗 รถยนต์', theme),
-          _pairFields(_goldCtrl, '💎 ทอง/ของมีค่า', _otherCtrl, '📦 อื่น ๆ', theme),
+          for (var i = 0; i < _assetTypes.length; i += 2)
+            _pairFields(
+              _assetCtrls[_assetTypes[i].$1]!,
+              _assetTypes[i].$2,
+              _assetCtrls[_assetTypes[i + 1].$1]!,
+              _assetTypes[i + 1].$2,
+              theme,
+            ),
+          for (var i = 0; i < _customAssets.length; i++) _buildCustomAsset(i, theme),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () {
+                HapticFeedback.selectionClick();
+                setState(() => _customAssets.add(_CustomAsset()));
+              },
+              icon: const Icon(Icons.add_circle_outline_rounded, size: 18),
+              label: const Text(
+                'เพิ่มทรัพย์สินอื่น (เช่น เรือ เครื่องจักร)',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(color: theme.surfaceBackground, borderRadius: BorderRadius.circular(12)),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'รวมทรัพย์สินทั้งหมด',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: theme.textColor),
+                  ),
+                ),
+                Text(
+                  _money(_itemisedTotal),
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: theme.textColor),
+                ),
+              ],
+            ),
+          ),
         ],
         const SizedBox(height: 6),
         Wrap(
@@ -524,6 +674,323 @@ class _IslamicInheritanceScreenState extends State<IslamicInheritanceScreen> wit
     );
   }
 
+  Widget _buildCustomAsset(int i, AppThemeModel theme) {
+    final a = _customAssets[i];
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '📦 ชื่อทรัพย์สิน',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: theme.textSecondaryColor),
+                ),
+                const SizedBox(height: 4),
+                TextField(
+                  controller: a.nameCtrl,
+                  style: TextStyle(fontSize: 14, color: theme.textColor),
+                  decoration: _inputDecoration(theme).copyWith(hintText: 'เช่น เรือประมง'),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: _MoneyField(
+              controller: a.valueCtrl,
+              label: 'มูลค่า',
+              hint: '0',
+              theme: theme,
+              onChanged: () => setState(() {}),
+            ),
+          ),
+          IconButton(
+            tooltip: 'ลบรายการ',
+            icon: const Icon(Icons.close_rounded, color: Color(0xFFEF4444)),
+            onPressed: () => setState(() => _customAssets.removeAt(i).dispose()),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUncertain(AppThemeModel theme, bool isDark) {
+    final rel = _fetusRelations[_fetusRelation];
+    Widget toggle(String title, String ar, IconData icon, Color color, bool value, ValueChanged<bool> onChanged) {
+      return Row(
+        children: [
+          Icon(icon, color: color, size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: theme.textColor),
+                ),
+                Text(
+                  ar,
+                  style: TextStyle(fontSize: 11.5, color: color, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: value,
+            activeThumbColor: theme.primaryColor,
+            onChanged: (v) {
+              HapticFeedback.selectionClick();
+              setState(() => onChanged(v));
+            },
+          ),
+        ],
+      );
+    }
+
+    Widget stepper(String label, int value, int min, int max, ValueChanged<int> onChanged) {
+      return Row(
+        children: [
+          Expanded(
+            child: Text(label, style: TextStyle(fontSize: 12.5, color: theme.textColor)),
+          ),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.remove_circle_outline_rounded),
+            color: theme.primaryColor,
+            onPressed: value > min ? () => setState(() => onChanged(value - 1)) : null,
+          ),
+          Text(
+            '$value',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: theme.textColor),
+          ),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.add_circle_outline_rounded),
+            color: theme.primaryColor,
+            onPressed: value < max ? () => setState(() => onChanged(value + 1)) : null,
+          ),
+        ],
+      );
+    }
+
+    Widget panel(Color color, List<Widget> children) => Container(
+      margin: const EdgeInsets.only(top: 6, bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: isDark ? 0.12 : 0.06),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
+    );
+
+    const pink = Color(0xFFEC4899);
+    const slate = Color(0xFF64748B);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        toggle(
+          'มีทารกในครรภ์ที่จะเป็นทายาท',
+          'ميراث الحمل',
+          Icons.pregnant_woman_rounded,
+          pink,
+          _fetusOn,
+          (v) => _fetusOn = v,
+        ),
+        if (_fetusOn)
+          panel(pink, [
+            Text(
+              'ทารกจะเป็นอะไรกับผู้ตาย?',
+              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: theme.textSecondaryColor),
+            ),
+            const SizedBox(height: 4),
+            DropdownButtonFormField<int>(
+              initialValue: _fetusRelation,
+              isExpanded: true,
+              decoration: _inputDecoration(theme),
+              items: [
+                for (var i = 0; i < _fetusRelations.length; i++)
+                  DropdownMenuItem(
+                    value: i,
+                    child: Text(
+                      _fetusRelations[i].$1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ),
+              ],
+              onChanged: (v) => setState(() => _fetusRelation = v ?? 0),
+            ),
+            const SizedBox(height: 4),
+            stepper('กันไว้สำหรับทารกได้สูงสุด (คน)', _fetusMax, 1, 4, (v) => _fetusMax = v),
+            Text(
+              'ระบบคิดทุกกรณี: เสียชีวิตก่อนคลอด, เป็น${rel.$2.th}, เป็น${rel.$3.th}, แฝด ฯลฯ แล้วให้ทายาทคนอื่นรับส่วนที่น้อยที่สุดไปก่อน '
+              'ส่วนที่เหลือกันไว้จนคลอด (มัซฮับชาฟิอีย์ไม่กำหนดจำนวนทารกตายตัว ถ้าอาจเป็นแฝดมากกว่านี้ให้เพิ่มจำนวน) — ไม่ต้องนับทารกในขั้นที่ 3',
+              style: TextStyle(fontSize: 11.5, height: 1.4, color: theme.textSecondaryColor),
+            ),
+          ]),
+        toggle(
+          'มีทายาทที่หายสาบสูญ',
+          'ميراث المفقود',
+          Icons.person_search_rounded,
+          slate,
+          _missingOn,
+          (v) => _missingOn = v,
+        ),
+        if (_missingOn)
+          panel(slate, [
+            Text(
+              'ผู้ที่สูญหายเป็นอะไรกับผู้ตาย?',
+              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: theme.textSecondaryColor),
+            ),
+            const SizedBox(height: 4),
+            DropdownButtonFormField<HeirType>(
+              key: ValueKey('missing_$_deceasedMale'),
+              initialValue: _missingTypes.contains(_missingType) ? _missingType : HeirType.son,
+              isExpanded: true,
+              decoration: _inputDecoration(theme),
+              items: [
+                for (final t in _missingTypes)
+                  DropdownMenuItem(
+                    value: t,
+                    child: Text(t.th, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13)),
+                  ),
+              ],
+              onChanged: (v) => setState(() {
+                _missingType = v ?? HeirType.son;
+                _missingCount = _missingCount.clamp(1, _missingType.maxCount);
+              }),
+            ),
+            if (_missingType.maxCount > 1)
+              stepper('จำนวนที่สูญหาย (คน)', _missingCount, 1, 3, (v) => _missingCount = v),
+            const SizedBox(height: 4),
+            Text(
+              'คิดทั้งกรณียังมีชีวิตและเสียชีวิตแล้ว ทายาทคนอื่นรับส่วนที่น้อยกว่าไปก่อน ส่วนที่เหลือกันไว้จนกว่าผู้สูญหายกลับมา หรือศาล/ดาโต๊ะยุติธรรมตัดสินว่าเสียชีวิต '
+              '— ใส่เฉพาะทายาทที่อยู่จริงในขั้นที่ 3 ไม่ต้องนับคนที่สูญหาย',
+              style: TextStyle(fontSize: 11.5, height: 1.4, color: theme.textSecondaryColor),
+            ),
+          ]),
+      ],
+    );
+  }
+
+  Widget _buildTogether(AppThemeModel theme, bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < _together.length; i++) _buildTogetherCard(i, theme, isDark),
+        OutlinedButton.icon(
+          onPressed: () {
+            HapticFeedback.selectionClick();
+            setState(() => _together.add(_SimultaneousDraft()));
+          },
+          icon: const Icon(Icons.group_add_rounded, size: 18),
+          label: Text(
+            _together.isEmpty ? 'เพิ่มผู้ที่เสียชีวิตพร้อมกัน' : 'เพิ่มอีกคน',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 13),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '💡 ห้ามใส่ผู้ที่เสียชีวิตพร้อมกันเป็นทายาทในขั้นที่ 3 และห้ามใส่ผู้ตายคนแรกเป็นทายาทของเขา เพราะทั้งสองไม่รับมรดกจากกัน '
+          '(ถ้ารู้แน่ว่าใครเสียชีวิตก่อน ให้ใช้ขั้นที่ 5 แทน)',
+          style: TextStyle(fontSize: 11.5, height: 1.4, color: theme.textSecondaryColor),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTogetherCard(int i, AppThemeModel theme, bool isDark) {
+    final d = _together[i];
+    const red = Color(0xFFEF4444);
+    final name = d.nameCtrl.text.trim().isEmpty ? 'ผู้ตายคนนี้' : d.nameCtrl.text.trim();
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: red.withValues(alpha: isDark ? 0.12 : 0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: red.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.car_crash_rounded, color: red, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'ผู้เสียชีวิตพร้อมกัน คนที่ ${i + 1}',
+                  style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: theme.textColor),
+                ),
+              ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                tooltip: 'ลบ',
+                icon: const Icon(Icons.delete_outline_rounded, color: red),
+                onPressed: () => setState(() => _together.removeAt(i).dispose()),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          TextField(
+            controller: d.nameCtrl,
+            onChanged: (_) => setState(() {}),
+            style: TextStyle(fontSize: 14, color: theme.textColor),
+            decoration: _inputDecoration(theme).copyWith(labelText: 'เป็นใคร (เช่น ลูกชาย, ภรรยา)'),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              for (final male in [true, false]) ...[
+                ChoiceChip(
+                  label: Text(male ? '👨 ผู้ชาย' : '👩 ผู้หญิง'),
+                  selected: d.male == male,
+                  onSelected: (_) => setState(() {
+                    d.male = male;
+                    d.heirs.remove(male ? HeirType.husband : HeirType.wife);
+                  }),
+                ),
+                const SizedBox(width: 8),
+              ],
+            ],
+          ),
+          const SizedBox(height: 10),
+          _MoneyField(
+            controller: d.ownAssetsCtrl,
+            label: 'ทรัพย์สินสุทธิของ$name (หลังหักค่าศพ หนี้ พินัยกรรม)',
+            hint: '0',
+            theme: theme,
+            onChanged: () => setState(() {}),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'ทายาทของ$name ที่ยังมีชีวิตอยู่',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: theme.textColor),
+          ),
+          const SizedBox(height: 6),
+          _HeirEditor(
+            deceasedMale: d.male,
+            heirs: d.heirs,
+            theme: theme,
+            compact: true,
+            onChanged: (t, v) => setState(() => v == 0 ? d.heirs.remove(t) : d.heirs[t] = v),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildLaterDeaths(AppThemeModel theme, bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -544,7 +1011,7 @@ class _IslamicInheritanceScreenState extends State<IslamicInheritanceScreen> wit
         ),
         const SizedBox(height: 8),
         Text(
-          '💡 ถ้าเสียชีวิตพร้อมกันและไม่รู้ว่าใครเสียก่อน (เช่น อุบัติเหตุ) จะไม่รับมรดกจากกัน — ไม่ต้องใส่คนนั้นในขั้นที่ 3 และไม่ต้องใช้ขั้นนี้',
+          '💡 ถ้าเสียชีวิตพร้อมกันและไม่รู้ว่าใครเสียก่อน (เช่น อุบัติเหตุ) จะไม่รับมรดกจากกัน — ใช้ขั้นที่ 6 แทน',
           style: TextStyle(fontSize: 11.5, height: 1.4, color: theme.textSecondaryColor),
         ),
       ],
@@ -683,8 +1150,15 @@ class _IslamicInheritanceScreenState extends State<IslamicInheritanceScreen> wit
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
-                  child: Text(_money(_net),
-                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: theme.textColor)),
+                  child: Text(
+                    _money(_net),
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: theme.textColor),
+                  ),
+                ),
+                Text(
+                  'ทายาท $_heirTotal คน${_later.isNotEmpty && !_hasUncertain ? ' • ${_later.length} ขั้นต่อ' : ''}'
+                  '${_hasUncertain ? ' • มีส่วนที่กันไว้' : ''}${_together.isNotEmpty ? ' • พร้อมกัน ${_together.length}' : ''}',
+                  style: TextStyle(fontSize: 11, color: theme.textSecondaryColor),
                 ),
                 Text('ทายาท $_heirTotal คน${_later.isNotEmpty ? ' • ${_later.length} ขั้นต่อ' : ''}',
                     style: TextStyle(fontSize: 11, color: theme.textSecondaryColor)),
@@ -720,8 +1194,10 @@ class _IslamicInheritanceScreenState extends State<IslamicInheritanceScreen> wit
         const SizedBox(height: 12),
         for (final c in _caseStudies) _buildCaseCard(c, theme),
         const SizedBox(height: 6),
-        Text('กรณีที่ต้องอาศัยการตัดสินของผู้รู้',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: theme.textColor)),
+        Text(
+          'กรณีพิเศษ: ทายาทไม่แน่นอน / เสียชีวิตพร้อมกัน',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: theme.textColor),
+        ),
         const SizedBox(height: 10),
         for (final c in _infoCases) _buildCaseCard(c, theme),
       ],
@@ -770,7 +1246,7 @@ class _IslamicInheritanceScreenState extends State<IslamicInheritanceScreen> wit
             decoration: BoxDecoration(color: c.color.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12)),
             child: Text(c.ruling, style: TextStyle(fontSize: 12.5, height: 1.45, color: theme.textColor)),
           ),
-          if (c.loadable) ...[
+          ...[
             const SizedBox(height: 10),
             Align(
               alignment: Alignment.centerRight,
@@ -1063,14 +1539,16 @@ class _HeirEditor extends StatelessWidget {
     }).toList();
     final selected = types.fold<int>(0, (a, t) => a + (heirs[t] ?? 0));
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
         color: theme.surfaceBackground,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: selected > 0 ? theme.primaryColor.withValues(alpha: 0.4) : theme.borderColor),
-      ),
-      child: Theme(
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(color: selected > 0 ? theme.primaryColor.withValues(alpha: 0.4) : theme.borderColor),
+        ),
+        child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
           initiallyExpanded: openByDefault || selected > 0,
@@ -1081,6 +1559,7 @@ class _HeirEditor extends StatelessWidget {
           subtitle: Text(selected > 0 ? 'เลือกแล้ว $selected คน • $ar' : ar,
               style: TextStyle(fontSize: 11.5, color: selected > 0 ? theme.primaryColor : theme.textSecondaryColor)),
           children: [for (final t in types) _HeirCounter(type: t, value: heirs[t] ?? 0, theme: theme, onChanged: onChanged)],
+        ),
         ),
       ),
     );
@@ -1181,6 +1660,15 @@ class _CaseLater {
   const _CaseLater(this.heirType, this.heirIndex, this.heirs);
 }
 
+class _CaseTogether {
+  final String name;
+  final bool male;
+  final double ownAssets;
+  final Map<HeirType, int> heirs;
+
+  const _CaseTogether(this.name, this.male, this.ownAssets, this.heirs);
+}
+
 class _CaseStudy {
   final String title;
   final String ar;
@@ -1191,7 +1679,9 @@ class _CaseStudy {
   final bool deceasedMale;
   final Map<HeirType, int> heirs;
   final List<_CaseLater> later;
-  final bool loadable;
+  final int fetusMax; // > 0: an unborn child of the deceased
+  final HeirType? missing; // one missing heir of this type
+  final List<_CaseTogether> together;
 
   const _CaseStudy({
     required this.title,
@@ -1203,7 +1693,9 @@ class _CaseStudy {
     this.deceasedMale = true,
     this.heirs = const {},
     this.later = const [],
-    this.loadable = true,
+    this.fetusMax = 0,
+    this.missing,
+    this.together = const [],
   });
 }
 
@@ -1295,28 +1787,32 @@ const _infoCases = [
     title: 'ทายาทยังเป็นทารกในครรภ์',
     ar: 'ميراث الحمل',
     situation: 'เจ้าของมรดกเสียชีวิตขณะภรรยากำลังตั้งครรภ์ ยังไม่ทราบเพศหรือจำนวนเด็ก',
-    ruling:
-        'กันส่วนที่มากที่สุดที่เด็กอาจได้ไว้ก่อน (เช่น คิดแบบเป็นลูกชายและแบบเป็นลูกสาว แล้วกันตัวเลขที่มากกว่า) แบ่งให้ทายาทอื่นเฉพาะส่วนที่แน่นอน เมื่อคลอดแล้วจึงคิดใหม่และคืนส่วนเกิน',
+    ruling: 'คิดทุกกรณีที่เป็นไปได้ (เสียชีวิตก่อนคลอด, ชาย, หญิง, แฝด) ทายาทอื่นรับส่วนที่น้อยที่สุดในทุกกรณีไปก่อน ส่วนที่เหลือกันไว้ (الموقوف) เมื่อคลอดแล้วจึงแบ่งตามกรณีที่เกิดขึ้นจริง — ตัวอย่าง: ภรรยา พ่อ แม่ ภรรยาตั้งครรภ์',
     icon: Icons.pregnant_woman_rounded,
     color: Color(0xFFEC4899),
-    loadable: false,
+    heirs: {HeirType.wife: 1, HeirType.father: 1, HeirType.mother: 1},
+    fetusMax: 2,
   ),
   _CaseStudy(
     title: 'เสียชีวิตพร้อมกัน',
     ar: 'الغرقى والهدمى',
     situation: 'คนในครอบครัวเสียชีวิตในอุบัติเหตุเดียวกัน โดยไม่รู้ว่าใครเสียชีวิตก่อน',
-    ruling: 'ไม่รับมรดกจากกัน มรดกของแต่ละคนแบ่งให้เฉพาะทายาทที่ยังมีชีวิตของคนนั้น — ในแอพให้คำนวณแยกทีละคน และไม่ต้องใส่ผู้ที่เสียชีวิตพร้อมกันเป็นทายาท',
+    ruling: 'ไม่รับมรดกจากกัน มรดกของแต่ละคนแบ่งให้เฉพาะทายาทที่ยังมีชีวิตของคนนั้น — ตัวอย่าง: พ่อกับลูกชายเสียชีวิตในอุบัติเหตุเดียวกัน พ่อเหลือภรรยา ลูกสาว และพี่ชาย ลูกชายเหลือภรรยา แม่ และพี่สาว',
     icon: Icons.car_crash_rounded,
     color: Color(0xFFEF4444),
-    loadable: false,
+    heirs: {HeirType.wife: 1, HeirType.daughter: 1, HeirType.fullBrother: 1},
+    together: [
+      _CaseTogether('ลูกชาย', true, 300000, {HeirType.wife: 1, HeirType.mother: 1, HeirType.fullSister: 1}),
+    ],
   ),
   _CaseStudy(
     title: 'ทายาทสูญหาย',
     ar: 'ميراث المفقود',
     situation: 'ทายาทคนหนึ่งหายสาบสูญ ไม่ทราบว่ายังมีชีวิตหรือไม่',
-    ruling: 'กันส่วนของผู้สูญหายไว้จนกว่าศาล/ผู้พิพากษาจะตัดสิน ถ้าตัดสินว่าเสียชีวิตแล้ว ให้นำส่วนนั้นกลับมาแบ่งให้ทายาทคนอื่น',
+    ruling: 'คิดทั้งกรณียังมีชีวิตและเสียชีวิต ทายาทอื่นรับส่วนที่น้อยกว่าไปก่อน กันส่วนที่เหลือไว้จนกว่าศาล/ดาโต๊ะยุติธรรมจะตัดสิน ถ้าตัดสินว่าเสียชีวิตแล้ว ให้นำส่วนนั้นกลับมาแบ่งให้ทายาทคนอื่น — ตัวอย่าง: ภรรยา ลูกชาย ลูกสาว และลูกชายอีกคนสูญหาย',
     icon: Icons.person_search_rounded,
     color: Color(0xFF64748B),
-    loadable: false,
+    heirs: {HeirType.wife: 1, HeirType.son: 1, HeirType.daughter: 1},
+    missing: HeirType.son,
   ),
 ];

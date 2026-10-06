@@ -170,7 +170,8 @@ class MainActivity : FlutterActivity() {
                 }
                 "requestAppPermissions" -> {
                     pendingPermissionResults.add(result)
-                    requestPermissionsFromSystem()
+                    // Optional "only": ["storage", "audio", "notification", "camera"] asks just for those
+                    requestPermissionsFromSystem(call.argument<List<String>>("only"))
                 }
                 "checkAppPermissions" -> {
                     result.success(checkPermissionsStatus())
@@ -834,15 +835,24 @@ class MainActivity : FlutterActivity() {
         return permissions.toTypedArray()
     }
 
-    private fun requestPermissionsFromSystem() {
-        val permissions = getRequiredPermissions()
+    private fun permissionGroup(permission: String): String = when (permission) {
+        Manifest.permission.RECORD_AUDIO -> "audio"
+        Manifest.permission.CAMERA -> "camera"
+        Manifest.permission.POST_NOTIFICATIONS -> "notification"
+        else -> "storage"
+    }
+
+    private fun requestPermissionsFromSystem(only: List<String>? = null) {
+        val permissions = getRequiredPermissions().filter { only == null || permissionGroup(it) in only }
         val notGranted = permissions.filter {
             ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
         }
 
         if (notGranted.isEmpty()) {
-            registerMediaContentObserver()
-            startBackgroundSlipService()
+            if (hasStoragePermission()) {
+                registerMediaContentObserver()
+                startBackgroundSlipService()
+            }
             deliverPermissionStatus(checkPermissionsStatus())
         } else {
             // A dialog is already showing: its result will answer this caller too
@@ -864,9 +874,13 @@ class MainActivity : FlutterActivity() {
         val hasAudio = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
         val hasCamera = ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
 
+        val hasNotification = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+
         status["storage"] = hasStorage
         status["audio"] = hasAudio
         status["camera"] = hasCamera
+        status["notification"] = hasNotification
         status["allGranted"] = hasStorage && hasAudio
         return status
     }

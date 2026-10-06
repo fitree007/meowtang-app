@@ -107,9 +107,11 @@ class NativeBridgeService {
   }
 
   /// Requests actual Android runtime permissions from OS (Storage/Media, Audio, Camera)
-  static Future<Map<String, dynamic>> requestAppPermissions() async {
+  /// Requests runtime permissions. [only] limits the request to some of
+  /// 'storage', 'audio', 'notification', 'camera'; null asks for all of them.
+  static Future<Map<String, dynamic>> requestAppPermissions({List<String>? only}) async {
     try {
-      final res = await _channel.invokeMethod('requestAppPermissions');
+      final res = await _channel.invokeMethod('requestAppPermissions', only == null ? null : {'only': only});
       if (res is Map) {
         return Map<String, dynamic>.from(res);
       }
