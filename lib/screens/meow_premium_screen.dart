@@ -803,6 +803,7 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                         // 1. Saving Goals
                         _buildCompactToolCard(
                           title: isEn ? 'Saving Goals' : 'เป้าหมายการออม',
+                          subtitle: isEn ? 'Track & plan each goal' : 'ออม ถอน ดูวันที่จะครบ',
                           badgeText: 'ออมเงิน',
                           icon: Icons.track_changes_rounded,
                           iconColor: const Color(0xFF10B981),
@@ -818,6 +819,7 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                         // 2. Budget Management
                         _buildCompactToolCard(
                           title: isEn ? 'Budget Plan' : 'วางแผนงบประมาณ',
+                          subtitle: isEn ? 'Monthly limits by category' : 'กำหนดงบรายหมวดต่อเดือน',
                           badgeText: widget.controller.isBudgetPlanEnabled ? 'เปิดอยู่' : 'ปิดอยู่',
                           icon: Icons.pie_chart_rounded,
                           iconColor: const Color(0xFF3B82F6),
@@ -833,6 +835,7 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                         // 3. Goal Calculator
                         _buildCompactToolCard(
                           title: isEn ? 'Goal Calculator' : 'คำนวณเวลาเก็บออม',
+                          subtitle: isEn ? 'How long / how much' : 'นานแค่ไหน / ต้องออมเท่าไหร่',
                           badgeText: 'วางแผน',
                           icon: Icons.calculate_rounded,
                           iconColor: const Color(0xFF6366F1),
@@ -848,6 +851,7 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                         // 4. Project Budgets
                         _buildCompactToolCard(
                           title: isEn ? 'Project Budgets' : 'งบโปรเจกต์ & ทุนวิจัย',
+                          subtitle: isEn ? 'Separate budget per project' : 'แยกงบตามงาน/โครงการ',
                           badgeText: 'เฉพาะกิจ',
                           icon: Icons.folder_special_rounded,
                           iconColor: const Color(0xFFEC4899),
@@ -875,46 +879,37 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                     ),
                     const SizedBox(height: 4),
 
-                    // 3 Islamic Tools (Compact Grid / Cards)
-                    GridView.count(
-                      crossAxisCount: 2,
-                      shrinkWrap: true,
-                      padding: EdgeInsets.zero,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisSpacing: 8,
-                      mainAxisSpacing: 8,
-                      childAspectRatio: 1.35,
-                      children: [
-                        // Zakat Calculator
-                        _buildCompactToolCard(
-                          title: isEn ? 'Zakat Calculator' : 'คำนวณซากาต',
-                          badgeText: 'ซากาต',
-                          icon: Icons.volunteer_activism_rounded,
-                          iconColor: const Color(0xFFF59E0B),
-                          gradientColors: [const Color(0xFFF59E0B).withValues(alpha: 0.12), const Color(0xFFD97706).withValues(alpha: 0.03)],
-                          cardBg: cardBg,
-                          borderColor: borderColor,
-                          textColor: textColor,
-                          subTextColor: subTextColor,
-                          isLocked: !isVip,
-                          onTap: () => _openFeature(ZakatCalculatorScreen(controller: widget.controller)),
-                        ),
-
-                        // Islamic Inheritance
-                        _buildCompactToolCard(
-                          title: isEn ? 'Islamic Faraid' : 'แบ่งมรดกอิสลาม',
-                          badgeText: 'มรดก',
-                          icon: Icons.account_balance_rounded,
-                          iconColor: const Color(0xFF8B5CF6),
-                          gradientColors: [const Color(0xFF8B5CF6).withValues(alpha: 0.12), const Color(0xFF7C3AED).withValues(alpha: 0.03)],
-                          cardBg: cardBg,
-                          borderColor: borderColor,
-                          textColor: textColor,
-                          subTextColor: subTextColor,
-                          isLocked: !isVip,
-                          onTap: () => _openFeature(IslamicInheritanceScreen(controller: widget.controller)),
-                        ),
-                      ],
+                    // Islamic tools as full-width tiles (title + Arabic + what it does)
+                    _buildIslamicTile(
+                      title: isEn ? 'Zakat Calculator' : 'คำนวณซากาต',
+                      arabic: 'الزكاة',
+                      description: isEn
+                          ? 'Savings, gold, crops & livestock with step-by-step explanation'
+                          : 'เงินออม ทองคำ ผลผลิต ปศุสัตว์ พร้อมอธิบายวิธีคิด',
+                      icon: Icons.volunteer_activism_rounded,
+                      color: const Color(0xFFF59E0B),
+                      isLocked: !isVip,
+                      cardBg: cardBg,
+                      borderColor: borderColor,
+                      textColor: textColor,
+                      subTextColor: subTextColor,
+                      onTap: () => _openFeature(ZakatCalculatorScreen(controller: widget.controller)),
+                    ),
+                    const SizedBox(height: 8),
+                    _buildIslamicTile(
+                      title: isEn ? 'Islamic Inheritance' : 'แบ่งมรดกอิสลาม',
+                      arabic: 'الفرائض',
+                      description: isEn
+                          ? 'Shafi\'i rules incl. heirs who die before distribution'
+                          : 'ตามมัซฮับชาฟิอีย์ รองรับทายาทเสียชีวิตก่อนแบ่ง (มรดกซ้อน)',
+                      icon: Icons.account_balance_rounded,
+                      color: const Color(0xFF8B5CF6),
+                      isLocked: !isVip,
+                      cardBg: cardBg,
+                      borderColor: borderColor,
+                      textColor: textColor,
+                      subTextColor: subTextColor,
+                      onTap: () => _openFeature(IslamicInheritanceScreen(controller: widget.controller)),
                     ),
                     const SizedBox(height: 8),
 
@@ -1036,6 +1031,82 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
           fontWeight: FontWeight.bold,
           color: textColor,
           letterSpacing: -0.2,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIslamicTile({
+    required String title,
+    required String arabic,
+    required String description,
+    required IconData icon,
+    required Color color,
+    required bool isLocked,
+    required Color cardBg,
+    required Color borderColor,
+    required Color textColor,
+    required Color subTextColor,
+    required VoidCallback onTap,
+  }) {
+    return TactileButton(
+      pressScale: 0.97,
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: cardBg,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: color.withValues(alpha: 0.35), width: 1.2),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.13),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(isLocked ? Icons.lock_outline_rounded : icon, color: color, size: 24),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: textColor),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(arabic, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color)),
+                      if (isLocked) ...[
+                        const SizedBox(width: 6),
+                        const Text('🔒 VIP',
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFFF59E0B))),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    description,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 11.5, height: 1.35, color: subTextColor),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 6),
+            Icon(Icons.arrow_forward_ios_rounded, size: 14, color: color),
+          ],
         ),
       ),
     );

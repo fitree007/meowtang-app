@@ -33,7 +33,7 @@ enum MascotMood {
 }
 
 class ExpenseController extends ChangeNotifier {
-  static const String appVersion = '1.41.94';
+  static const String appVersion = '1.41.95';
 
   final StorageService _storage;
   final OcrEngineService _ocrEngine = OcrEngineService();
@@ -1764,7 +1764,17 @@ class ExpenseController extends ChangeNotifier {
   final idx = _savingGoals.indexWhere((g) => g.id == goalId);
   if (idx != -1) {
    final goal = _savingGoals[idx];
+   final taken = amount > goal.currentAmount ? goal.currentAmount : amount;
    goal.currentAmount = (goal.currentAmount - amount).clamp(0.0, double.infinity);
+   goal.depositHistory.insert(
+    0,
+    GoalDepositLog(
+     id: 'wd_${DateTime.now().millisecondsSinceEpoch}',
+     date: DateTime.now(),
+     amount: -taken,
+     note: note,
+    ),
+   );
    if (goal.currentAmount < goal.targetAmount) {
     goal.isCompleted = false;
    }
@@ -1773,7 +1783,7 @@ class ExpenseController extends ChangeNotifier {
    if (accountId != null && accountId.isNotEmpty) {
     final accIdx = _accounts.indexWhere((a) => a.id == accountId);
     if (accIdx != -1) {
-     _accounts[accIdx] = _accounts[accIdx].copyWith(balance: _accounts[accIdx].balance + amount);
+     _accounts[accIdx] = _accounts[accIdx].copyWith(balance: _accounts[accIdx].balance + taken);
      await _storage.saveAccounts(_accounts);
     }
    }

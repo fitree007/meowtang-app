@@ -40,6 +40,10 @@ class SavingGoalItem {
  final String? notes;
  final DateTime createdAt;
  final List<GoalDepositLog> depositHistory;
+ /// How much the user plans to save per [planFrequency] period (null = no plan).
+ final double? plannedAmount;
+ /// 'day', 'week' or 'month'.
+ final String planFrequency;
 
  SavingGoalItem({
   required this.id,
@@ -53,8 +57,75 @@ class SavingGoalItem {
   this.notes,
   DateTime? createdAt,
   List<GoalDepositLog>? depositHistory,
+  this.plannedAmount,
+  this.planFrequency = 'month',
  }) : createdAt = createdAt ?? DateTime.now(),
     depositHistory = depositHistory ?? [];
+
+ /// Days in one plan period.
+ static double daysPerPeriod(String frequency) {
+  switch (frequency) {
+   case 'day':
+    return 1;
+   case 'week':
+    return 7;
+   default:
+    return 30.4375;
+  }
+ }
+
+ /// Saving periods left between [from] and [to], counting a started period as a whole one
+ /// (calendar months for 'month').
+ static int periodsBetween(DateTime from, DateTime to, String frequency) {
+  final days = (to.difference(from).inHours / 24).ceil();
+  switch (frequency) {
+   case 'day':
+    return days;
+   case 'week':
+    return (days / 7).ceil();
+   default:
+    var months = (to.year - from.year) * 12 + to.month - from.month;
+    if (to.day < from.day) months -= 1;
+    if (dateAfterPeriods(from, months, frequency).isBefore(to)) months += 1;
+    return months;
+  }
+ }
+
+ /// Amount needed per period to save [remaining] by [deadline].
+ static double? requiredFor(double remaining, DateTime deadline, String frequency) {
+  if (remaining <= 0) return null;
+  final now = DateTime.now();
+  if (!deadline.isAfter(now)) return null;
+  final periods = periodsBetween(now, deadline, frequency);
+  return remaining / (periods < 1 ? 1 : periods);
+ }
+
+ /// Amount needed per plan period to reach the target by [targetDate].
+ double? get requiredPerPeriod {
+  final date = targetDate;
+  if (date == null) return null;
+  return requiredFor(remainingAmount, date, planFrequency);
+ }
+
+ /// Estimated finish date when following [plannedAmount].
+ DateTime? get projectedFinishDate {
+  final plan = plannedAmount;
+  if (plan == null || plan <= 0) return null;
+  if (remainingAmount <= 0) return DateTime.now();
+  return dateAfterPeriods(DateTime.now(), (remainingAmount / plan).ceil(), planFrequency);
+ }
+
+ static DateTime dateAfterPeriods(DateTime from, int periods, String frequency) {
+  switch (frequency) {
+   case 'day':
+    return from.add(Duration(days: periods));
+   case 'week':
+    return from.add(Duration(days: periods * 7));
+   default:
+    final last = DateTime(from.year, from.month + periods + 1, 0).day;
+    return DateTime(from.year, from.month + periods, from.day > last ? last : from.day);
+  }
+ }
 
  double get savedAmount => currentAmount;
  double get progress => progressRatio;
@@ -97,6 +168,8 @@ class SavingGoalItem {
   'notes': notes,
   'createdAt': createdAt.toIso8601String(),
   'depositHistory': depositHistory.map((d) => d.toJson()).toList(),
+  'plannedAmount': plannedAmount,
+  'planFrequency': planFrequency,
  };
 
  factory SavingGoalItem.fromJson(Map<String, dynamic> json) => SavingGoalItem(
@@ -116,6 +189,8 @@ class SavingGoalItem {
       ?.map((e) => GoalDepositLog.fromJson(e as Map<String, dynamic>))
       .toList() ??
     [],
+  plannedAmount: (json['plannedAmount'] as num?)?.toDouble(),
+  planFrequency: json['planFrequency'] as String? ?? 'month',
  );
 
  static String encodeList(List<SavingGoalItem> list) =>
@@ -143,13 +218,19 @@ class SavingGoalItem {
     String? notes,
     DateTime? createdAt,
     List<GoalDepositLog>? depositHistory,
+    double? plannedAmount,
+    String? planFrequency,
+    bool clearTargetDate = false,
+    bool clearPlan = false,
   }) {
     return SavingGoalItem(
       id: id ?? this.id,
       title: title ?? this.title,
       targetAmount: targetAmount ?? this.targetAmount,
       currentAmount: currentAmount ?? this.currentAmount,
-      targetDate: targetDate ?? this.targetDate,
+      targetDate: clearTargetDate ? null : (targetDate ?? this.targetDate),
+      plannedAmount: clearPlan ? null : (plannedAmount ?? this.plannedAmount),
+      planFrequency: planFrequency ?? this.planFrequency,
       categoryEmoji: categoryEmoji ?? this.categoryEmoji,
       colorHex: colorHex ?? this.colorHex,
       isCompleted: isCompleted ?? this.isCompleted,
