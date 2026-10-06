@@ -19,7 +19,7 @@ class ExportReportScreen extends StatefulWidget {
 }
 
 class _ExportReportScreenState extends State<ExportReportScreen> {
-  // Format tab: 0 = Excel (.csv), 1 = CSV, 2 = PDF (A4)
+  // Format tab: 0 = Excel (.csv, opens in Excel/Sheets), 2 = PDF (A4)
   int _selectedFormatIndex = 0;
 
   DateTime _startDate = DateTime(DateTime.now().year, DateTime.now().month, 1);
@@ -31,10 +31,11 @@ class _ExportReportScreenState extends State<ExportReportScreen> {
   bool _isExporting = false;
 
   List<TransactionItem> get _filteredTransactions {
+    // Whole calendar days: from 00:00 of the start day up to (not including) 00:00 after the end day.
+    final from = DateTime(_startDate.year, _startDate.month, _startDate.day);
+    final until = DateTime(_endDate.year, _endDate.month, _endDate.day + 1);
     final list = widget.controller.allTransactions.where((t) {
-      final isAfterStart = t.date.isAfter(_startDate.subtract(const Duration(days: 1)));
-      final isBeforeEnd = t.date.isBefore(_endDate.add(const Duration(days: 1)));
-      if (!isAfterStart || !isBeforeEnd) return false;
+      if (t.date.isBefore(from) || !t.date.isBefore(until)) return false;
       if (_selectedAccountId != null && t.accountId != _selectedAccountId) return false;
       return true;
     }).toList();
@@ -132,7 +133,7 @@ class _ExportReportScreenState extends State<ExportReportScreen> {
         );
       } else {
         // Excel / CSV Export
-        formatTypeName = _selectedFormatIndex == 0 ? 'Excel' : 'CSV';
+        formatTypeName = 'Excel';
         fileName = 'meowtang_export_$nowStr.csv';
         final csvContent = ExcelExportService.generateExcelCsv(
           transactions: items,
@@ -210,8 +211,7 @@ class _ExportReportScreenState extends State<ExportReportScreen> {
             ),
             child: Row(
               children: [
-                _buildFormatTabItem(0, 'Excel (.csv)', Icons.table_chart_rounded, currentTheme),
-                _buildFormatTabItem(1, 'CSV ทั่วไป', Icons.description_rounded, currentTheme),
+                _buildFormatTabItem(0, 'Excel / CSV', Icons.table_chart_rounded, currentTheme),
                 _buildFormatTabItem(2, 'PDF (A4)', Icons.picture_as_pdf_rounded, currentTheme),
               ],
             ),
@@ -368,6 +368,23 @@ class _ExportReportScreenState extends State<ExportReportScreen> {
           ),
           const SizedBox(height: 20),
 
+          if (!widget.controller.isPremium)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                children: [
+                  const Text('👑', style: TextStyle(fontSize: 16)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'ส่งออกรายงานเป็นฟีเจอร์สำหรับสมาชิก VIP — ดูตัวอย่างข้อมูลด้านบนได้ฟรี',
+                      style: TextStyle(fontSize: 12.5, color: currentTheme.textSecondaryColor),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
           // 4. Export Action Button
           SizedBox(
             width: double.infinity,
@@ -386,7 +403,7 @@ class _ExportReportScreenState extends State<ExportReportScreen> {
               label: Text(
                 _isExporting
                     ? 'กำลังสร้างและส่งออกไฟล์...'
-                    : 'ส่งออกไฟล์ ${_selectedFormatIndex == 0 ? "Excel (.csv)" : _selectedFormatIndex == 1 ? "CSV" : "PDF (A4)"}',
+                    : 'ส่งออกไฟล์ ${_selectedFormatIndex == 2 ? "PDF (A4)" : "Excel (.csv)"}',
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
               ),
             ),

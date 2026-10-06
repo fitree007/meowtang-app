@@ -18,6 +18,9 @@ class CharacterCustomizationScreen extends StatefulWidget {
 class _CharacterCustomizationScreenState extends State<CharacterCustomizationScreen> {
   late String _selectedMascotId;
   late String _selectedAccessory;
+  // Kept local until "บันทึก", so backing out changes nothing.
+  late bool _usePhoto;
+  bool _accessoryPicked = false; // user chose an accessory in this visit
   int _activeTabIndex = 0; // 0 = มาสคอต, 1 = อุปกรณ์
   String _mascotCategoryFilter = 'all'; // 'all', 'cat', 'friend', 'ai'
 
@@ -26,10 +29,14 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
     super.initState();
     _selectedMascotId = widget.controller.selectedMascotId;
     _selectedAccessory = widget.controller.selectedMascotAccessory;
+    _usePhoto = widget.controller.isCustomAvatarEnabled;
   }
 
   void _saveMascot() async {
     HapticFeedback.mediumImpact();
+    if (_usePhoto != widget.controller.isCustomAvatarEnabled) {
+      await widget.controller.setCustomAvatarEnabled(_usePhoto);
+    }
     await widget.controller.updateMascot(
       _selectedMascotId,
       _selectedAccessory,
@@ -64,7 +71,7 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
       context,
       widget.controller,
       onSaved: (path) {
-        setState(() {});
+        setState(() => _usePhoto = widget.controller.isCustomAvatarEnabled);
       },
     );
   }
@@ -113,7 +120,7 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
     const textPrimary = Color(0xFF0F172A);
     const textSecondary = Color(0xFF64748B);
 
-    final isCustomPhoto = widget.controller.isCustomAvatarEnabled;
+    final isCustomPhoto = _usePhoto;
     final customPhoto = widget.controller.customAvatarPath;
 
     final currentMascot = MascotCatalog.characters.firstWhere(
@@ -522,7 +529,7 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
       itemCount: filtered.length,
       itemBuilder: (context, index) {
         final character = filtered[index];
-        final isSelected = !widget.controller.isCustomAvatarEnabled && _selectedMascotId == character.id;
+        final isSelected = !_usePhoto && _selectedMascotId == character.id;
 
         String shortName = character.name;
         final paren = character.name.indexOf('(');
@@ -533,14 +540,17 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
         return GestureDetector(
           onTap: () {
             HapticFeedback.selectionClick();
-            widget.controller.setCustomAvatarEnabled(false);
             setState(() {
+              _usePhoto = false;
               _selectedMascotId = character.id;
-              final cur = MascotCatalog.characters.firstWhere(
-                (m) => m.id == character.id,
-                orElse: () => character,
-              );
-              _selectedAccessory = cur.signatureAccessory;
+              // Keep an accessory the user already picked; otherwise show the mascot's own.
+              if (!_accessoryPicked) {
+                final cur = MascotCatalog.characters.firstWhere(
+                  (m) => m.id == character.id,
+                  orElse: () => character,
+                );
+                _selectedAccessory = cur.signatureAccessory;
+              }
             });
           },
           child: AnimatedContainer(
@@ -648,6 +658,7 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
             HapticFeedback.selectionClick();
             setState(() {
               _selectedAccessory = itemId;
+              _accessoryPicked = true;
             });
           },
           child: AnimatedContainer(

@@ -15,6 +15,59 @@ class KeywordRulesScreen extends StatefulWidget {
 
 class _KeywordRulesScreenState extends State<KeywordRulesScreen> {
  final List<KeywordRule> _userRules = [];
+ final TextEditingController _searchCtrl = TextEditingController();
+ bool _showDefaults = false;
+
+ @override
+ void dispose() {
+  _searchCtrl.dispose();
+  super.dispose();
+ }
+
+ /// Current category name (rules store a copy of the name, which goes stale after a rename).
+ String _catName(KeywordRule rule) {
+  for (final c in widget.controller.categories) {
+   if (c.id == rule.categoryId) return c.name;
+  }
+  return rule.categoryName;
+ }
+
+ bool _matches(String keyword, String cat) {
+  final q = _searchCtrl.text.trim().toLowerCase();
+  return q.isEmpty || keyword.toLowerCase().contains(q) || cat.toLowerCase().contains(q);
+ }
+
+ void _snack(String msg, {SnackBarAction? action, bool isError = false}) {
+  ScaffoldMessenger.of(context)
+   ..hideCurrentSnackBar()
+   ..showSnackBar(SnackBar(
+    content: Text(msg),
+    behavior: SnackBarBehavior.floating,
+    backgroundColor: isError ? MeowTheme.expenseRed : null,
+    action: action,
+   ));
+ }
+
+ void _deleteRule(KeywordRule rule) {
+  final index = _userRules.indexOf(rule);
+  setState(() {
+   _userRules.removeAt(index);
+   _saveCustomRules();
+  });
+  _snack(
+   'ลบคีย์เวิร์ด "${rule.keyword}" แล้ว',
+   action: SnackBarAction(
+    label: 'เลิกทำ',
+    onPressed: () {
+     if (!mounted) return;
+     setState(() {
+      _userRules.insert(index.clamp(0, _userRules.length), rule);
+      _saveCustomRules();
+     });
+    },
+   ),
+  );
+ }
 
  @override
  void initState() {
@@ -37,12 +90,16 @@ class _KeywordRulesScreenState extends State<KeywordRulesScreen> {
   widget.controller.storage.saveKeywordRules(list);
  }
 
- void _showAddKeywordDialog() {
-  final keywordCtrl = TextEditingController();
-  final tagCtrl = TextEditingController();
-  CategoryItem? selectedCat = widget.controller.categories.isNotEmpty
-    ? widget.controller.categories.first
-    : null;
+ void _showAddKeywordDialog({KeywordRule? editing}) {
+  final keywordCtrl = TextEditingController(text: editing?.keyword ?? '');
+  final tagCtrl = TextEditingController(text: editing?.tag == null ? '' : '#${editing!.tag}');
+  final cats = widget.controller.categories;
+  CategoryItem? selectedCat = cats.isNotEmpty ? cats.first : null;
+  if (editing != null) {
+   for (final c in cats) {
+    if (c.id == editing.categoryId) selectedCat = c;
+   }
+  }
 
   showDialog(
    context: context,
@@ -50,11 +107,14 @@ class _KeywordRulesScreenState extends State<KeywordRulesScreen> {
     builder: (context, setDialogState) => AlertDialog(
      backgroundColor: widget.controller.isDarkMode ? MeowTheme.navySurface : Colors.white,
      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-     title: const Row(
+     title: Row(
       children: [
-       Icon(Icons.auto_awesome, color: MeowTheme.mustardYellow),
-       SizedBox(width: 8),
-       Text('เพิ่มคีย์เวิร์ดจัดหมวดหมู่อัตโนมัติ', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+       const Icon(Icons.auto_awesome, color: MeowTheme.mustardYellow),
+       const SizedBox(width: 8),
+       Expanded(
+        child: Text(editing == null ? 'เพิ่มคีย์เวิร์ดจัดหมวดหมู่อัตโนมัติ' : 'แก้ไขคีย์เวิร์ด',
+         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+       ),
       ],
      ),
      content: SingleChildScrollView(
@@ -86,7 +146,10 @@ class _KeywordRulesScreenState extends State<KeywordRulesScreen> {
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
          ),
-         items: widget.controller.categories.map((c) {
+         items: [
+          ...cats.where((c) => c.type != CategoryType.income),
+          ...cats.where((c) => c.type == CategoryType.income),
+         ].map((c) {
           return DropdownMenuItem(
            value: c,
            child: Row(
@@ -139,24 +202,37 @@ class _KeywordRulesScreenState extends State<KeywordRulesScreen> {
        style: ElevatedButton.styleFrom(backgroundColor: MeowTheme.mustardYellow),
        onPressed: () {
         final kw = keywordCtrl.text.trim();
-        if (kw.isNotEmpty && selectedCat != null) {
-         final tagRaw = tagCtrl.text.trim().replaceAll('#', '');
-         setState(() {
-          _userRules.add(
-           KeywordRule(
-            id: 'usr_${DateTime.now().millisecondsSinceEpoch}',
-            keyword: kw,
-            categoryName: selectedCat!.name,
-            categoryId: selectedCat!.id,
-            tag: tagRaw.isNotEmpty ? tagRaw : null,
-           ),
-          );
-          _saveCustomRules();
-         });
-         Navigator.pop(ctx);
+        if (kw.isEmpty || selectedCat == null) {
+         _snack('กรุณาใส่คำสำคัญ เช่น ชื่อร้าน', isError: true);
+         return;
         }
+        final duplicate = _userRules.any((r) => r != editing && r.keyword.toLowerCase() == kw.toLowerCase());
+        if (duplicate) {
+         _snack('มีคีย์เวิร์ด "$kw" อยู่แล้ว แตะที่รายการเพื่อแก้ไขแทน', isError: true);
+         return;
+        }
+        final tagRaw = tagCtrl.text.trim().replaceAll('#', '');
+        final rule = KeywordRule(
+         id: editing?.id ?? 'usr_${DateTime.now().millisecondsSinceEpoch}',
+         keyword: kw,
+         categoryName: selectedCat!.name,
+         categoryId: selectedCat!.id,
+         tag: tagRaw.isNotEmpty ? tagRaw : null,
+        );
+        setState(() {
+         final i = editing == null ? -1 : _userRules.indexOf(editing);
+         if (i >= 0) {
+          _userRules[i] = rule;
+         } else {
+          _userRules.add(rule);
+         }
+         _saveCustomRules();
+        });
+        Navigator.pop(ctx);
+        _snack(editing == null ? 'เพิ่มคีย์เวิร์ด "$kw" แล้ว' : 'บันทึกการแก้ไขแล้ว');
        },
-       child: const Text('เพิ่มคีย์เวิร์ด', style: TextStyle(color: MeowTheme.textDarkPrimary, fontWeight: FontWeight.bold)),
+       child: Text(editing == null ? 'เพิ่มคีย์เวิร์ด' : 'บันทึก',
+        style: const TextStyle(color: MeowTheme.textDarkPrimary, fontWeight: FontWeight.bold)),
       ),
      ],
     ),
@@ -184,12 +260,6 @@ class _KeywordRulesScreenState extends State<KeywordRulesScreen> {
      'คีย์เวิร์ดจัดหมวดหมู่อัตโนมัติ',
      style: TextStyle(color: MeowTheme.textDarkPrimary, fontSize: 18, fontWeight: FontWeight.bold),
     ),
-    actions: [
-     IconButton(
-      icon: const Icon(Icons.add, color: MeowTheme.textDarkPrimary, size: 28),
-      onPressed: _showAddKeywordDialog,
-     ),
-    ],
    ),
    body: ListView(
     padding: const EdgeInsets.all(18),
@@ -215,14 +285,64 @@ class _KeywordRulesScreenState extends State<KeywordRulesScreen> {
        ],
       ),
      ),
-     const SizedBox(height: 20),
+     const SizedBox(height: 14),
+     TextField(
+      controller: _searchCtrl,
+      onChanged: (_) => setState(() {}),
+      decoration: InputDecoration(
+       hintText: 'ค้นหาคีย์เวิร์ดหรือหมวดหมู่',
+       prefixIcon: const Icon(Icons.search_rounded),
+       suffixIcon: _searchCtrl.text.isEmpty
+         ? null
+         : IconButton(
+          tooltip: 'ล้างคำค้นหา',
+          icon: const Icon(Icons.close_rounded),
+          onPressed: () => setState(_searchCtrl.clear),
+         ),
+       filled: true,
+       fillColor: cardBg,
+       border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: borderColor)),
+       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: borderColor)),
+      ),
+     ),
+     const SizedBox(height: 16),
+
+     if (_userRules.isEmpty && _searchCtrl.text.isEmpty) ...[
+      Container(
+       padding: const EdgeInsets.all(16),
+       decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: borderColor),
+       ),
+       child: Column(
+        children: [
+         Text('ยังไม่มีคีย์เวิร์ดของคุณ', style: TextStyle(color: textPrimary, fontWeight: FontWeight.bold, fontSize: 15)),
+         const SizedBox(height: 4),
+         const Text('ตัวอย่าง: "ชาตรามือ" → หมวดอาหาร • "PTT" → หมวดเดินทาง',
+          textAlign: TextAlign.center, style: TextStyle(color: MeowTheme.textLightMuted, fontSize: 12.5)),
+         const SizedBox(height: 10),
+         FilledButton.icon(
+          onPressed: _showAddKeywordDialog,
+          icon: const Icon(Icons.add),
+          label: const Text('เพิ่มคีย์เวิร์ดแรก'),
+          style: FilledButton.styleFrom(backgroundColor: MeowTheme.mustardYellow, foregroundColor: MeowTheme.textDarkPrimary),
+         ),
+        ],
+       ),
+      ),
+      const SizedBox(height: 20),
+     ],
 
      // User Custom Keywords Section
      if (_userRules.isNotEmpty) ...[
-      Text('คีย์เวิร์ดที่คุณกำหนดเอง (${_userRules.length})', style: TextStyle(color: textPrimary, fontWeight: FontWeight.bold, fontSize: 15)),
+      Text('คีย์เวิร์ดที่คุณกำหนดเอง (${_userRules.length}) • แตะเพื่อแก้ไข', style: TextStyle(color: textPrimary, fontWeight: FontWeight.bold, fontSize: 15)),
       const SizedBox(height: 10),
-      ..._userRules.map((rule) {
-       return Container(
+      ..._userRules.where((r) => _matches(r.keyword, _catName(r))).map((rule) {
+       return InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => _showAddKeywordDialog(editing: rule),
+        child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
@@ -259,7 +379,7 @@ class _KeywordRulesScreenState extends State<KeywordRulesScreen> {
                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                 '📁 ${rule.categoryName}',
+                 '📁 ${_catName(rule)}',
                  style: const TextStyle(color: MeowTheme.actionBlue, fontSize: 11.5, fontWeight: FontWeight.w600),
                 ),
                ),
@@ -281,25 +401,39 @@ class _KeywordRulesScreenState extends State<KeywordRulesScreen> {
            ),
           ),
           IconButton(
-           icon: const Icon(Icons.delete_outline, color: MeowTheme.expenseRed, size: 20),
-           onPressed: () {
-            setState(() {
-             _userRules.remove(rule);
-             _saveCustomRules();
-            });
-           },
+           tooltip: 'ลบคีย์เวิร์ดนี้',
+           icon: const Icon(Icons.delete_outline, color: MeowTheme.expenseRed, size: 22),
+           onPressed: () => _deleteRule(rule),
           ),
          ],
+        ),
         ),
        );
       }),
       const SizedBox(height: 20),
      ],
 
-     // Built-in Default Rules
-     Text('คีย์เวิร์ดมาตรฐานในระบบ (${CategoryMatcherService.defaultRules.length})', style: TextStyle(color: textPrimary, fontWeight: FontWeight.bold, fontSize: 15)),
-     const SizedBox(height: 10),
-     ...CategoryMatcherService.defaultRules.map((rule) {
+     // Built-in Default Rules (collapsed unless searching)
+     InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () => setState(() => _showDefaults = !_showDefaults),
+      child: Padding(
+       padding: const EdgeInsets.symmetric(vertical: 10),
+       child: Row(
+        children: [
+         Expanded(
+          child: Text('คีย์เวิร์ดมาตรฐานในระบบ (${CategoryMatcherService.defaultRules.length})',
+           style: TextStyle(color: textPrimary, fontWeight: FontWeight.bold, fontSize: 15)),
+         ),
+         Icon(_showDefaults || _searchCtrl.text.isNotEmpty ? Icons.expand_less_rounded : Icons.expand_more_rounded,
+          color: MeowTheme.textLightMuted),
+        ],
+       ),
+      ),
+     ),
+     const SizedBox(height: 4),
+     if (_showDefaults || _searchCtrl.text.isNotEmpty)
+     ...CategoryMatcherService.defaultRules.where((r) => _matches(r.keyword, r.categoryName)).map((rule) {
       return Container(
        margin: const EdgeInsets.only(bottom: 8),
        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -334,6 +468,7 @@ class _KeywordRulesScreenState extends State<KeywordRulesScreen> {
        ),
       );
      }),
+     const SizedBox(height: 80),
     ],
    ),
    floatingActionButton: FloatingActionButton.extended(
