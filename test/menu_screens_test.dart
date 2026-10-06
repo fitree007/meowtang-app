@@ -53,28 +53,35 @@ void main() {
     final c = await _controller();
     await _pump(tester, MeowHumanScreen(controller: c));
 
-    for (final section in ['บันทึกอัตโนมัติ', 'บัญชี & หมวดหมู่', 'ข้อมูล & รายงาน', 'ปรับแต่งแอป', 'ช่วยเหลือ & ความเป็นส่วนตัว']) {
+    for (final section in ['บันทึกอัตโนมัติ', 'ปรับแต่งแอป', 'ช่วยเหลือ']) {
       expect(find.text(section), findsOneWidget, reason: section);
     }
     expect(find.text('ดึงรายรับจากแจ้งเตือนธนาคาร'), findsOneWidget);
     expect(find.textContaining('กฎของคุณ 0 ข้อ'), findsOneWidget);
-    expect(find.text('🇹🇭 ไทย'), findsOneWidget);
-    // Free plan: one combined quota card and a VIP badge on export.
-    expect(find.text('📊 สลิปฟรีเดือนนี้'), findsOneWidget);
-    expect(find.text('👑 VIP'), findsOneWidget);
+    expect(find.text('ไทย'), findsOneWidget);
+    // Free plan: quota inside the profile card, upgrade button, VIP badge on export.
+    expect(find.text('สลิปฟรีเดือนนี้'), findsOneWidget);
+    expect(find.text('อัปเกรด'), findsOneWidget);
+    expect(find.text('VIP'), findsOneWidget);
+    // Calm style: no emoji labels left on the menu.
+    expect(find.textContaining('👑'), findsNothing);
+    expect(find.textContaining('📊'), findsNothing);
     // Guide and features share one entry that offers both.
     await _tap(tester, find.text('คู่มือ & ฟีเจอร์เด่น'));
     expect(find.text('วิธีใช้งานทีละขั้น'), findsOneWidget);
     expect(find.text('ฟีเจอร์ทั้งหมดของแอป'), findsOneWidget);
   });
 
-  testWidgets('VIP menu: slim status row, no quota card or VIP badge', (tester) async {
+  testWidgets('VIP menu: plan line, no quota or upgrade button', (tester) async {
     AppConfig.overrideEdition = 'creator';
     final c = await _controller();
     await _pump(tester, MeowHumanScreen(controller: c));
-    expect(find.text('สมาชิก VIP • สลิปไม่จำกัด • ไม่มีโฆษณา'), findsOneWidget);
-    expect(find.text('📊 สลิปฟรีเดือนนี้'), findsNothing);
-    expect(find.text('👑 VIP'), findsNothing);
+    expect(find.text('สมาชิก VIP'), findsOneWidget);
+    expect(find.text('สลิปไม่จำกัด • ไม่มีโฆษณา'), findsOneWidget);
+    expect(find.text('สลิปฟรีเดือนนี้'), findsNothing);
+    expect(find.text('อัปเกรด'), findsNothing);
+    // Only the profile badge; export is not locked.
+    expect(find.text('VIP'), findsOneWidget);
   });
 
   testWidgets('keyword rule: add, edit by tapping, delete with undo', (tester) async {

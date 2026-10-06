@@ -7,7 +7,6 @@ import '../widgets/meow_mascot_widget.dart';
 import '../widgets/tactile_button.dart';
 import '../services/native_bridge_service.dart';
 import '../services/category_matcher_service.dart';
-import '../models/account_item.dart';
 import 'category_management_screen.dart';
 import 'account_management_screen.dart';
 import 'permission_onboarding_screen.dart';
@@ -34,7 +33,6 @@ class MeowHumanScreen extends StatefulWidget {
 }
 
 class _MeowHumanScreenState extends State<MeowHumanScreen> {
-  bool _isHeaderCollapsed = false;
 
   void _showLanguagePicker() {
   HapticFeedback.selectionClick();
@@ -172,366 +170,144 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
 
  @override
  Widget build(BuildContext context) {
-  final currentTheme = widget.controller.currentTheme;
-  final isDark = widget.controller.isDarkMode;
+  final c = _MenuColors.of(widget.controller);
   final isEn = widget.controller.isEnglish;
-  final bgColor = currentTheme.scaffoldBackground;
-  final cardColor = currentTheme.cardBackground;
-  final borderColor = currentTheme.borderColor;
+  final ctl = widget.controller;
 
   return Scaffold(
-   backgroundColor: bgColor,
-   body: NotificationListener<ScrollNotification>(
-    onNotification: (notification) {
-     if (notification.metrics.axis == Axis.vertical) {
-      final isScrolled = notification.metrics.pixels > 20.0;
-      if (isScrolled != _isHeaderCollapsed) {
-       setState(() {
-        _isHeaderCollapsed = isScrolled;
-       });
-      }
-     }
-     return false;
-    },
-    child: Column(
+   backgroundColor: ctl.currentTheme.scaffoldBackground,
+   body: SafeArea(
+    bottom: false,
+    child: ListView(
+     padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
      children: [
-      // Dynamic Theme Collapsible Pinned Header (Status bar area)
-      AnimatedContainer(
-       duration: const Duration(milliseconds: 220),
-       curve: Curves.easeInOut,
-       width: double.infinity,
-       decoration: BoxDecoration(
-        gradient: currentTheme.heroGradient,
-        boxShadow: [
-         BoxShadow(
-          color: currentTheme.primaryColor.withValues(alpha: isDark ? 0.3 : 0.15),
-          blurRadius: 16,
-          offset: const Offset(0, 4),
-         ),
-        ],
-       ),
-       padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top + (_isHeaderCollapsed ? 11 : 14),
-        left: 18,
-        right: 18,
-        bottom: _isHeaderCollapsed ? 8 : 12,
-       ),
-       child: Row(
-        children: [
-         Expanded(
-          child: Column(
-           crossAxisAlignment: CrossAxisAlignment.start,
-           mainAxisSize: MainAxisSize.min,
-           children: [
-            Text(
-             _isHeaderCollapsed
-                 ? (isEn ? 'Menu' : 'เมนู')
-                 : (isEn ? 'Menu' : 'เมนู'),
-             style: TextStyle(
-              color: currentTheme.heroTextColor(isDark),
-               fontSize: _isHeaderCollapsed ? 16.5 : 18,
-              fontWeight: FontWeight.bold,
-             ),
-            ),
-            AnimatedCrossFade(
-             duration: const Duration(milliseconds: 200),
-             crossFadeState: _isHeaderCollapsed
-                 ? CrossFadeState.showSecond
-                 : CrossFadeState.showFirst,
-             firstChild: Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Text(
-               widget.controller.isPremium
-                 ? (isEn ? '👑 VIP member' : '👑 สมาชิก VIP')
-                 : (isEn ? 'Free plan • settings & management' : 'ผู้ใช้ฟรี • ตั้งค่าและจัดการแอป'),
-               style: TextStyle(
-                 color: currentTheme.heroTextMutedColor(isDark),
-                 fontSize: 11,
-               ),
-              ),
-             ),
-             secondChild: const SizedBox.shrink(),
-            ),
-           ],
-          ),
-         ),
-         GestureDetector(
-           onTap: () {
-             HapticFeedback.selectionClick();
-             CustomPhotoAvatarDialog.show(
-               context,
-               widget.controller,
-               onSaved: (_) => setState(() {}),
-             );
-           },
-           child: Stack(
-             alignment: Alignment.bottomRight,
-             children: [
-               MeowMascotWidget(
-                 size: _isHeaderCollapsed ? 38 : 52,
-                 mascotId: widget.controller.selectedMascotId,
-                 accessory: widget.controller.selectedMascotAccessory,
-                 customPhotoPath: widget.controller.customAvatarPath,
-                 isCustomPhoto: widget.controller.isCustomAvatarEnabled,
-                 withPen: true,
-               ),
-               if (!_isHeaderCollapsed)
-                 Container(
-                   padding: const EdgeInsets.all(4),
-                   decoration: BoxDecoration(
-                     color: const Color(0xFF2563EB),
-                     shape: BoxShape.circle,
-                     border: Border.all(color: Colors.white, width: 1.5),
-                     boxShadow: [
-                       BoxShadow(
-                         color: Colors.black.withValues(alpha: 0.3),
-                         blurRadius: 4,
-                         offset: const Offset(0, 1),
-                       ),
-                     ],
-                   ),
-                   child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 10),
-                 ),
-             ],
-           ),
-         ),
-        ],
+      Padding(
+       padding: const EdgeInsets.fromLTRB(4, 8, 4, 14),
+       child: Text(
+        isEn ? 'Menu' : 'เมนู',
+        style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: -0.3, color: c.text),
        ),
       ),
+      _buildProfileCard(c, isEn),
+      const SizedBox(height: 16),
+      _buildMoneyCard(c, isEn),
+      const SizedBox(height: 22),
 
-      // Scrollable Body
-      Expanded(
-       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-        children: [
-         _buildNetWorthCard(isDark: isDark, isEn: isEn, cardColor: cardColor, borderColor: borderColor),
-         const SizedBox(height: 14),
-         if (!widget.controller.isPremium)
-          _buildFreeQuotaCard(isDark: isDark, isEn: isEn, cardColor: cardColor, borderColor: borderColor)
-         else
-          _buildVipStatusRow(isDark: isDark, isEn: isEn),
-         const SizedBox(height: 20),
+      // Automations sit together.
+      _buildSectionHeader(c, isEn ? 'Auto-record' : 'บันทึกอัตโนมัติ'),
+      _buildCard(c, [
+       _buildRow(
+        c,
+        icon: Icons.notifications_none_rounded,
+        title: isEn ? 'Income from bank notifications' : 'ดึงรายรับจากแจ้งเตือนธนาคาร',
+        subtitle: _notifGranted == true
+            ? (isEn ? 'On • K PLUS, SCB EASY, Krungthai' : 'เปิดอยู่ • K PLUS, SCB EASY, กรุงไทย')
+            : (isEn ? 'Off • tap to turn on' : 'ปิดอยู่ • แตะเพื่อเปิด'),
+        first: true,
+        chevron: false,
+        trailing: Switch(
+         value: _notifGranted ?? false,
+         activeThumbColor: Colors.white,
+         activeTrackColor: c.accent,
+         onChanged: (_) => _openBankNotificationAccess(isDark: ctl.isDarkMode, isEn: isEn),
+        ),
+        onTap: () => _openBankNotificationAccess(isDark: ctl.isDarkMode, isEn: isEn),
+       ),
+       _buildRow(
+        c,
+        icon: Icons.work_outline_rounded,
+        title: isEn ? 'Auto-record salary' : 'บันทึกเงินเดือนอัตโนมัติ',
+        subtitle: _salarySubtitle(isEn),
+        trailing: Text(
+         ctl.salaryConfig.isEnabled ? (isEn ? 'On' : 'เปิดอยู่') : (isEn ? 'Off' : 'ปิดอยู่'),
+         style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: ctl.salaryConfig.isEnabled ? c.ok : c.sub),
+        ),
+        onTap: () => _push(SalaryAutoRecordScreen(controller: ctl)),
+       ),
+       _buildRow(
+        c,
+        icon: Icons.sell_outlined,
+        title: isEn ? 'Keyword category rules' : 'กฎคีย์เวิร์ดจัดหมวด',
+        subtitle: isEn
+            ? 'Yours: ${ctl.storage.getKeywordRules().length} • Built-in: ${CategoryMatcherService.defaultRules.length}'
+            : 'กฎของคุณ ${ctl.storage.getKeywordRules().length} ข้อ • มาตรฐาน ${CategoryMatcherService.defaultRules.length} ข้อ',
+        onTap: () => _push(KeywordRulesScreen(controller: ctl)),
+       ),
+      ]),
+      const SizedBox(height: 22),
 
-         // 1. Automations sit together: bank notifications, salary, keyword rules
-         _buildSectionHeader(title: isEn ? 'Auto-record' : 'บันทึกอัตโนมัติ', isDark: isDark),
-         _buildGroupContainer(
-          isDark: isDark,
-          cardColor: cardColor,
-          borderColor: borderColor,
-          children: [
-           _buildMenuItem(
-            icon: Icons.notifications_active_rounded,
-            iconBgColor: const Color(0xFF10B981),
-            title: isEn ? 'Income from bank notifications' : 'ดึงรายรับจากแจ้งเตือนธนาคาร',
-            subtitle: _notifGranted == true
-                ? (isEn ? 'On • K PLUS, SCB EASY, Krungthai NEXT' : 'เปิดอยู่ • K PLUS, SCB EASY, Krungthai NEXT')
-                : (isEn ? 'Off • tap to allow reading bank notifications' : 'ปิดอยู่ • แตะเพื่ออนุญาตให้อ่านแจ้งเตือนธนาคาร'),
-            trailingBadge: _notifGranted == null ? null : (_notifGranted! ? (isEn ? 'On' : 'เปิดอยู่') : (isEn ? 'Off' : 'ปิดอยู่')),
-            badgeColor: _notifGranted == true ? const Color(0xFF059669) : const Color(0xFF64748B),
-            isDark: isDark,
-            onTap: () => _openBankNotificationAccess(isDark: isDark, isEn: isEn),
-           ),
-           _divider(borderColor),
-           _buildMenuItem(
-            icon: Icons.alarm_on_rounded,
-            iconBgColor: const Color(0xFF3B82F6),
-            title: isEn ? 'Auto-record salary' : 'บันทึกเงินเดือนอัตโนมัติ',
-            subtitle: _salarySubtitle(isEn),
-            trailingBadge: widget.controller.salaryConfig.isEnabled ? (isEn ? 'On' : 'เปิดอยู่') : null,
-            badgeColor: const Color(0xFF059669),
-            isDark: isDark,
-            onTap: () => _push(SalaryAutoRecordScreen(controller: widget.controller)),
-           ),
-           _divider(borderColor),
-           _buildMenuItem(
-            icon: Icons.auto_awesome_rounded,
-            iconBgColor: const Color(0xFFF59E0B),
-            title: isEn ? 'Keyword category rules' : 'กฎคีย์เวิร์ดจัดหมวดอัตโนมัติ',
-            subtitle: isEn
-                ? 'Yours: ${widget.controller.storage.getKeywordRules().length} • Built-in: ${CategoryMatcherService.defaultRules.length}'
-                : 'กฎของคุณ ${widget.controller.storage.getKeywordRules().length} ข้อ • มาตรฐาน ${CategoryMatcherService.defaultRules.length} ข้อ',
-            isDark: isDark,
-            onTap: () => _push(KeywordRulesScreen(controller: widget.controller)),
-           ),
-          ],
-         ),
-         const SizedBox(height: 20),
+      _buildSectionHeader(c, isEn ? 'Customise' : 'ปรับแต่งแอป'),
+      _buildCard(c, [
+       _buildAppearance(c, isEn),
+       _buildRow(
+        c,
+        icon: Icons.sentiment_satisfied_outlined,
+        title: isEn ? 'Mascot & accessories' : 'ตัวละคร & มาสคอต',
+        subtitle: ctl.isCustomAvatarEnabled
+            ? (isEn ? 'Using your own photo' : 'ใช้รูปของคุณอยู่')
+            : (isEn ? 'Change your companion and accessory' : 'เปลี่ยนตัวละครและอุปกรณ์คู่กาย'),
+        onTap: () => _push(CharacterCustomizationScreen(controller: ctl)),
+       ),
+       _buildRow(
+        c,
+        icon: Icons.palette_outlined,
+        title: isEn ? 'Theme shop' : 'ร้านค้าธีม',
+        subtitle: isEn ? 'In use: ${ctl.currentTheme.nameEn}' : 'ใช้อยู่: ${ctl.currentTheme.name}',
+        onTap: () => _push(ThemeShopScreen(controller: ctl)),
+       ),
+       _buildRow(
+        c,
+        icon: Icons.language_rounded,
+        title: isEn ? 'Language' : 'ภาษา',
+        subtitle: isEn ? 'App language' : 'ภาษาที่ใช้ในแอป',
+        trailing: Text(ctl.appLanguage == 'en' ? 'English' : 'ไทย', style: TextStyle(fontSize: 13, color: c.sub)),
+        onTap: _showLanguagePicker,
+       ),
+      ]),
+      const SizedBox(height: 22),
 
-         // 2. Accounts & categories
-         _buildSectionHeader(title: isEn ? 'Accounts & categories' : 'บัญชี & หมวดหมู่', isDark: isDark),
-         _buildGroupContainer(
-          isDark: isDark,
-          cardColor: cardColor,
-          borderColor: borderColor,
-          children: [
-           _buildMenuItem(
-            icon: Icons.account_balance_wallet_rounded,
-            iconBgColor: const Color(0xFF3B82F6),
-            title: isEn ? 'Accounts & wallets' : 'บัญชี & กระเป๋าเงิน',
-            subtitle: _accountsSubtitle(isEn),
-            isDark: isDark,
-            onTap: () => _push(AccountManagementScreen(controller: widget.controller)),
-           ),
-           _divider(borderColor),
-           _buildMenuItem(
-            icon: Icons.grid_view_rounded,
-            iconBgColor: const Color(0xFFF59E0B),
-            title: isEn ? 'Income & expense categories' : 'หมวดหมู่รายรับ-รายจ่าย',
-            subtitle: isEn
-                ? 'Expense ${widget.controller.expenseCategories.length} • Income ${widget.controller.incomeCategories.length}'
-                : 'รายจ่าย ${widget.controller.expenseCategories.length} หมวด • รายรับ ${widget.controller.incomeCategories.length} หมวด',
-            isDark: isDark,
-            onTap: () => _push(CategoryManagementScreen(controller: widget.controller)),
-           ),
-          ],
-         ),
-         const SizedBox(height: 20),
-
-         // 3. Data & reports
-         _buildSectionHeader(title: isEn ? 'Data & reports' : 'ข้อมูล & รายงาน', isDark: isDark),
-         _buildGroupContainer(
-          isDark: isDark,
-          cardColor: cardColor,
-          borderColor: borderColor,
-          children: [
-           _buildMenuItem(
-            icon: Icons.file_upload_outlined,
-            iconBgColor: const Color(0xFF06B6D4),
-            title: isEn ? 'Export report (Excel / PDF)' : 'ส่งออกรายงาน Excel / PDF',
-            subtitle: isEn ? 'Pick a date range • saved to your phone' : 'เลือกช่วงเวลา • บันทึกลงเครื่อง',
-            trailingBadge: widget.controller.isPremium ? null : '👑 VIP',
-            badgeColor: const Color(0xFFB45309),
-            isDark: isDark,
-            onTap: () => _push(ExportReportScreen(controller: widget.controller)),
-           ),
-           _divider(borderColor),
-           _buildMenuItem(
-            icon: Icons.settings_backup_restore_rounded,
-            iconBgColor: const Color(0xFF6366F1),
-            title: isEn ? 'Backup & move to a new phone' : 'สำรอง & ย้ายข้อมูลข้ามเครื่อง',
-            subtitle: isEn ? 'Backup file or QR code over Wi-Fi • free' : 'ไฟล์สำรอง หรือ QR Code ผ่าน Wi-Fi • ฟรี',
-            isDark: isDark,
-            onTap: () => _push(DataBackupRestoreScreen(controller: widget.controller)),
-           ),
-          ],
-         ),
-         const SizedBox(height: 20),
-
-         // 4. Customise
-         _buildSectionHeader(title: isEn ? 'Customise' : 'ปรับแต่งแอป', isDark: isDark),
-         _buildGroupContainer(
-          isDark: isDark,
-          cardColor: cardColor,
-          borderColor: borderColor,
-          children: [
-           _buildAppearanceRow(isDark: isDark, isEn: isEn),
-           _divider(borderColor),
-           _buildMenuItem(
-            icon: Icons.face_retouching_natural_rounded,
-            iconBgColor: const Color(0xFF6366F1),
-            title: isEn ? 'Mascot & accessories' : 'ตัวละคร & มาสคอต',
-            subtitle: widget.controller.isCustomAvatarEnabled
-                ? (isEn ? 'Using your own photo' : 'ใช้รูปของคุณอยู่')
-                : (isEn ? 'Change your companion and accessory' : 'เปลี่ยนตัวละครและอุปกรณ์คู่กาย'),
-            isDark: isDark,
-            onTap: () => _push(CharacterCustomizationScreen(controller: widget.controller)),
-           ),
-           _divider(borderColor),
-           _buildMenuItem(
-            icon: Icons.palette_rounded,
-            iconBgColor: const Color(0xFFEC4899),
-            title: isEn ? 'Theme shop' : 'ร้านค้าธีม',
-            subtitle: isEn
-                ? 'In use: ${widget.controller.currentTheme.nameEn}'
-                : 'ใช้อยู่: ${widget.controller.currentTheme.name}',
-            isDark: isDark,
-            onTap: () => _push(ThemeShopScreen(controller: widget.controller)),
-           ),
-           _divider(borderColor),
-           _buildMenuItem(
-            icon: Icons.language_rounded,
-            iconBgColor: const Color(0xFF14B8A6),
-            title: isEn ? 'Language' : 'ภาษา',
-            subtitle: isEn ? 'App language' : 'ภาษาที่ใช้ในแอป',
-            trailingText: widget.controller.appLanguage == 'en' ? '🇬🇧 English' : '🇹🇭 ไทย',
-            isDark: isDark,
-            onTap: _showLanguagePicker,
-           ),
-          ],
-         ),
-         const SizedBox(height: 20),
-
-         // 5. Help & privacy
-         _buildSectionHeader(title: isEn ? 'Help & privacy' : 'ช่วยเหลือ & ความเป็นส่วนตัว', isDark: isDark),
-         _buildGroupContainer(
-          isDark: isDark,
-          cardColor: cardColor,
-          borderColor: borderColor,
-          children: [
-           _buildMenuItem(
-            icon: Icons.menu_book_rounded,
-            iconBgColor: const Color(0xFF10B981),
-            title: isEn ? 'Guide & features' : 'คู่มือ & ฟีเจอร์เด่น',
-            subtitle: isEn ? 'Step-by-step how-tos and everything the app can do' : 'วิธีใช้ทีละขั้น และดูว่าแอปทำอะไรได้บ้าง',
-            isDark: isDark,
-            onTap: () => _showGuideChooser(isDark: isDark, isEn: isEn),
-           ),
-           _divider(borderColor),
-           _buildMenuItem(
-            icon: Icons.security_rounded,
-            iconBgColor: const Color(0xFFEF4444),
-            title: isEn ? 'Device permissions' : 'สิทธิ์การเข้าถึงอุปกรณ์',
-            subtitle: isEn ? 'Photos • Camera • Microphone • Notifications' : 'รูปภาพ • กล้อง • ไมโครโฟน • แจ้งเตือน',
-            trailingBadge: _permGranted == null ? null : (isEn ? 'Allowed $_permGranted/4' : 'อนุญาต $_permGranted/4'),
-            badgeColor: _permGranted == 4 ? const Color(0xFF059669) : const Color(0xFFB45309),
-            isDark: isDark,
-            onTap: () => _push(PermissionOnboardingScreen(
-             controller: widget.controller,
-             fromMenu: true,
-             onFinish: () => Navigator.pop(context),
-            )),
-           ),
-           _divider(borderColor),
-           _buildMenuItem(
-            icon: Icons.mail_outline_rounded,
-            iconBgColor: const Color(0xFF64748B),
-            title: isEn ? 'Contact us' : 'ติดต่อทีมงาน',
-            subtitle: _contactEmail,
-            trailingText: isEn ? 'Copy' : 'คัดลอก',
-            isDark: isDark,
-            onTap: () {
-             Clipboard.setData(const ClipboardData(text: _contactEmail));
-             _snack(isEn ? 'Email copied' : 'คัดลอกอีเมลแล้ว');
-            },
-           ),
-          ],
-         ),
-         const SizedBox(height: 28),
-
-         // Footer
-         Center(
-          child: Column(
-           children: [
-            Text(
-             isEn ? 'MeowTang (เหมียวตังค์)' : 'เหมียวตังค์ (MeowTang)',
-             style: TextStyle(
-              color: isDark ? Colors.white70 : const Color(0xFF334155),
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-             ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-             isEn ? 'Version ${ExpenseController.appVersion}' : 'เวอร์ชัน ${ExpenseController.appVersion}',
-             style: TextStyle(
-              color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
-              fontSize: 12,
-             ),
-            ),
-           ],
-          ),
-         ),
-        ],
+      _buildSectionHeader(c, isEn ? 'Help' : 'ช่วยเหลือ'),
+      _buildCard(c, [
+       _buildRow(
+        c,
+        icon: Icons.menu_book_outlined,
+        title: isEn ? 'Guide & features' : 'คู่มือ & ฟีเจอร์เด่น',
+        subtitle: isEn ? '12 topics with step-by-step how-tos' : '12 หัวข้อ พร้อมวิธีใช้ทีละขั้น',
+        first: true,
+        onTap: () => _showGuideChooser(isDark: ctl.isDarkMode, isEn: isEn),
+       ),
+       _buildRow(
+        c,
+        icon: Icons.shield_outlined,
+        title: isEn ? 'Device permissions' : 'สิทธิ์การเข้าถึงอุปกรณ์',
+        subtitle: isEn ? 'Photos • Camera • Mic • Notifications' : 'รูปภาพ • กล้อง • ไมค์ • แจ้งเตือน',
+        trailing: _permGranted == null
+            ? null
+            : Text(isEn ? 'Allowed $_permGranted/4' : 'อนุญาต $_permGranted/4', style: TextStyle(fontSize: 13, color: c.sub)),
+        onTap: () => _push(PermissionOnboardingScreen(
+         controller: ctl,
+         fromMenu: true,
+         onFinish: () => Navigator.pop(context),
+        )),
+       ),
+       _buildRow(
+        c,
+        icon: Icons.mail_outline_rounded,
+        title: isEn ? 'Contact us' : 'ติดต่อทีมงาน',
+        subtitle: _contactEmail,
+        chevron: false,
+        trailing: Text(isEn ? 'Copy' : 'คัดลอก', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.link)),
+        onTap: () {
+         Clipboard.setData(const ClipboardData(text: _contactEmail));
+         _snack(isEn ? 'Email copied' : 'คัดลอกอีเมลแล้ว');
+        },
+       ),
+      ]),
+      const SizedBox(height: 22),
+      Center(
+       child: Text(
+        isEn ? 'MeowTang • version ${ExpenseController.appVersion}' : 'เหมียวตังค์ • เวอร์ชัน ${ExpenseController.appVersion}',
+        style: TextStyle(fontSize: 12.5, color: c.sub),
        ),
       ),
      ],
@@ -587,19 +363,6 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
   return isEn ? 'Every $day • $amount' : 'ทุก$day • $amount';
  }
 
- String _accountsSubtitle(bool isEn) {
-  final a = widget.controller.accounts;
-  final bank = a.where((x) => x.type == AccountType.bank).length;
-  final wallet = a.where((x) => x.type == AccountType.eWallet).length;
-  final cash = a.where((x) => x.type == AccountType.cash).length;
-  final parts = <String>[
-   if (bank > 0) isEn ? 'Bank $bank' : 'ธนาคาร $bank',
-   if (wallet > 0) 'e-Wallet $wallet',
-   if (cash > 0) isEn ? 'Cash $cash' : 'เงินสด $cash',
-  ];
-  return parts.isEmpty ? (isEn ? 'No accounts yet' : 'ยังไม่มีบัญชี') : parts.join(' • ');
- }
-
  Future<void> _openBankNotificationAccess({required bool isDark, required bool isEn}) async {
   final granted = await NativeBridgeService.isNotificationListenerGranted();
   if (!mounted) return;
@@ -632,7 +395,8 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
      ),
      ElevatedButton(
       style: ElevatedButton.styleFrom(
-       backgroundColor: granted ? const Color(0xFF64748B) : MeowTheme.incomeGreen,
+       backgroundColor: granted ? const Color(0xFF64748B) : widget.controller.currentTheme.primaryColor,
+       elevation: 0,
        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       onPressed: () async {
@@ -654,17 +418,13 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
   final card = isDark ? MeowTheme.navySurface : Colors.white;
   final text = isDark ? Colors.white : const Color(0xFF0F172A);
   final sub = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
-  Widget option(IconData icon, Color color, String title, String desc, Widget screen) => ListTile(
+  final iconColor = isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155);
+  Widget option(IconData icon, String title, String desc, Widget screen) => ListTile(
        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-       leading: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(color: color.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(12)),
-        child: Icon(icon, color: color),
-       ),
-       title: Text(title, style: TextStyle(color: text, fontWeight: FontWeight.bold, fontSize: 14.5)),
-       subtitle: Text(desc, style: TextStyle(color: sub, fontSize: 12)),
+       leading: Icon(icon, size: 22, color: iconColor),
+       title: Text(title, style: TextStyle(color: text, fontWeight: FontWeight.w600, fontSize: 15)),
+       subtitle: Text(desc, style: TextStyle(color: sub, fontSize: 12.5)),
        trailing: Icon(Icons.chevron_right_rounded, color: sub),
        onTap: () {
         Navigator.pop(context);
@@ -683,175 +443,14 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
       children: [
        Container(width: 40, height: 4, decoration: BoxDecoration(color: sub.withValues(alpha: 0.4), borderRadius: BorderRadius.circular(2))),
        const SizedBox(height: 12),
-       option(Icons.menu_book_rounded, const Color(0xFF10B981), isEn ? 'How to use, step by step' : 'วิธีใช้งานทีละขั้น',
+       option(Icons.menu_book_outlined, isEn ? 'How to use, step by step' : 'วิธีใช้งานทีละขั้น',
         isEn ? '12 short topics with tips' : '12 หัวข้อ พร้อมเคล็ดลับ', AppGuideScreen(controller: widget.controller)),
-       option(Icons.auto_awesome_rounded, const Color(0xFF3B82F6), isEn ? 'All features' : 'ฟีเจอร์ทั้งหมดของแอป',
+       option(Icons.auto_awesome_outlined, isEn ? 'All features' : 'ฟีเจอร์ทั้งหมดของแอป',
         isEn ? 'See everything MeowTang can do' : 'ดูภาพรวมว่าเหมียวตังค์ทำอะไรได้บ้าง',
         AppFeaturesShowcaseScreen(controller: widget.controller, isFromMenu: true)),
       ],
      ),
     ),
-   ),
-  );
- }
-
- // ---------------------------------------------------------------------------
- // Cards
- // ---------------------------------------------------------------------------
- Widget _buildNetWorthCard({required bool isDark, required bool isEn, required Color cardColor, required Color borderColor}) {
-  final count = widget.controller.accounts.length;
-  return Material(
-   color: cardColor,
-   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18), side: BorderSide(color: borderColor)),
-   clipBehavior: Clip.antiAlias,
-   child: InkWell(
-    onTap: () {
-     HapticFeedback.selectionClick();
-     _push(AccountManagementScreen(controller: widget.controller));
-    },
-    child: Padding(
-     padding: const EdgeInsets.all(16),
-     child: Row(
-      children: [
-       MeowMascotWidget(
-        size: 44,
-        mascotId: widget.controller.selectedMascotId,
-        accessory: widget.controller.selectedMascotAccessory,
-        isHeadOnly: true,
-       ),
-       const SizedBox(width: 12),
-       Expanded(
-        child: Column(
-         crossAxisAlignment: CrossAxisAlignment.start,
-         children: [
-          Text(
-           isEn ? 'Total across all accounts' : 'ยอดเงินคงเหลือรวมทุกบัญชี',
-           style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B), fontSize: 12),
-          ),
-          const SizedBox(height: 2),
-          FittedBox(
-           fit: BoxFit.scaleDown,
-           alignment: Alignment.centerLeft,
-           child: Text(
-            '฿${FormatUtils.formatCurrency(widget.controller.totalNetWorth)}',
-            style: const TextStyle(color: MeowTheme.incomeGreen, fontSize: 21, fontWeight: FontWeight.bold),
-           ),
-          ),
-         ],
-        ),
-       ),
-       Text(
-        isEn ? '$count accounts' : '$count บัญชี',
-        style: TextStyle(color: widget.controller.currentTheme.primaryColor, fontSize: 13, fontWeight: FontWeight.w600),
-       ),
-       Icon(Icons.chevron_right_rounded, color: widget.controller.currentTheme.primaryColor),
-      ],
-     ),
-    ),
-   ),
-  );
- }
-
- /// Free users: slip quota, watch-an-ad and upgrade in one card.
- Widget _buildFreeQuotaCard({required bool isDark, required bool isEn, required Color cardColor, required Color borderColor}) {
-  final c = widget.controller;
-  final used = c.currentMonthSlipCount;
-  final max = c.maxFreeSlipsPerMonth;
-  final adsLeft = (c.maxMonthlyRewardedAds - c.currentMonthAdWatchesCount).clamp(0, c.maxMonthlyRewardedAds);
-  final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
-  return Container(
-   padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-   decoration: BoxDecoration(
-    color: cardColor,
-    borderRadius: BorderRadius.circular(18),
-    border: Border.all(color: borderColor),
-   ),
-   child: Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-     Row(
-      children: [
-       Expanded(
-        child: Text(
-         isEn ? '📊 Free slips this month' : '📊 สลิปฟรีเดือนนี้',
-         style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: textColor),
-        ),
-       ),
-       Text(
-        '$used / $max ${isEn ? "slips" : "สลิป"}',
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFFB45309)),
-       ),
-      ],
-     ),
-     const SizedBox(height: 10),
-     ClipRRect(
-      borderRadius: BorderRadius.circular(5),
-      child: LinearProgressIndicator(
-       value: max > 0 ? (used / max).clamp(0.0, 1.0) : 0.0,
-       backgroundColor: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-       valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFF59E0B)),
-       minHeight: 8,
-      ),
-     ),
-     const SizedBox(height: 12),
-     Row(
-      children: [
-       Expanded(
-        child: SizedBox(
-         height: 44,
-         child: ElevatedButton(
-          onPressed: c.canWatchRewardedAd ? () => _watchAd(isEn) : null,
-          style: ElevatedButton.styleFrom(
-           backgroundColor: const Color(0xFF10B981),
-           foregroundColor: Colors.white,
-           elevation: 0,
-           padding: const EdgeInsets.symmetric(horizontal: 8),
-           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-          child: FittedBox(
-           child: Text(
-            c.canWatchRewardedAd
-                ? (isEn ? '🎬 Watch ad +2 slips' : '🎬 ดูโฆษณา +2 สลิป')
-                : (isEn ? 'Ads used up this month' : 'ดูครบแล้วเดือนนี้'),
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-           ),
-          ),
-         ),
-        ),
-       ),
-       const SizedBox(width: 8),
-       Expanded(
-        child: SizedBox(
-         height: 44,
-         child: ElevatedButton(
-          onPressed: () => MeowPaywallModal.show(
-           context,
-           controller: c,
-           reason: 'สั่งซื้อแพ็กเกจ VIP พรีเมี่ยม เพื่อปลดล็อคทุกฟีเจอร์แบบไร้ขีดจำกัด 👑',
-          ),
-          style: ElevatedButton.styleFrom(
-           backgroundColor: const Color(0xFF1E293B),
-           foregroundColor: const Color(0xFFFCD34D),
-           elevation: 0,
-           padding: const EdgeInsets.symmetric(horizontal: 8),
-           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-          child: FittedBox(
-           child: Text(isEn ? '👑 Upgrade to VIP' : '👑 อัปเกรด VIP', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-          ),
-         ),
-        ),
-       ),
-      ],
-     ),
-     const SizedBox(height: 8),
-     Text(
-      isEn
-          ? 'Ad watches left this month: $adsLeft/${c.maxMonthlyRewardedAds} • VIP: unlimited slips, no ads'
-          : 'ดูโฆษณาได้อีก $adsLeft/${c.maxMonthlyRewardedAds} ครั้งเดือนนี้ • VIP สลิปไม่จำกัด ไม่มีโฆษณา',
-      style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white54 : const Color(0xFF64748B)),
-     ),
-    ],
    ),
   );
  }
@@ -863,74 +462,302 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
     await widget.controller.watchRewardedAdForBonusSlips();
     if (mounted) {
      setState(() {});
-     _snack(isEn ? 'Reward earned! +2 slips added! 🎬✨' : 'ยินดีด้วย! คุณได้รับสิทธิ์เพิ่ม +2 สลิปแล้ว 🎬✨');
+     _snack(isEn ? 'Reward earned! +2 slips added!' : 'ยินดีด้วย! คุณได้รับสิทธิ์เพิ่ม +2 สลิปแล้ว');
     }
    },
   );
  }
 
- Widget _buildVipStatusRow({required bool isDark, required bool isEn}) {
-  return Container(
-   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-   decoration: BoxDecoration(
-    color: isDark ? const Color(0xFF1E293B) : const Color(0xFFFEF3C7),
-    borderRadius: BorderRadius.circular(14),
-    border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.35)),
-   ),
-   child: Row(
+ // ---------------------------------------------------------------------------
+ // Cards and rows (calm style: line icons, 1px borders, no tinted tiles)
+ // ---------------------------------------------------------------------------
+ Widget _buildProfileCard(_MenuColors c, bool isEn) {
+  final ctl = widget.controller;
+  final vip = ctl.isPremium;
+  final used = ctl.currentMonthSlipCount;
+  final max = ctl.maxFreeSlipsPerMonth;
+  final adsLeft = (ctl.maxMonthlyRewardedAds - ctl.currentMonthAdWatchesCount).clamp(0, ctl.maxMonthlyRewardedAds);
+
+  final avatar = GestureDetector(
+   onTap: () {
+    HapticFeedback.selectionClick();
+    CustomPhotoAvatarDialog.show(context, ctl, onSaved: (_) => setState(() {}));
+   },
+   child: Stack(
+    clipBehavior: Clip.none,
     children: [
-     const Text('👑', style: TextStyle(fontSize: 18)),
-     const SizedBox(width: 10),
-     Expanded(
-      child: Text(
-       isEn ? 'VIP member • unlimited slips • no ads' : 'สมาชิก VIP • สลิปไม่จำกัด • ไม่มีโฆษณา',
-       style: TextStyle(
-        color: isDark ? const Color(0xFFFDE68A) : const Color(0xFF92400E),
-        fontSize: 13,
-        fontWeight: FontWeight.bold,
-       ),
+     MeowMascotWidget(
+      size: 56,
+      mascotId: ctl.selectedMascotId,
+      accessory: ctl.selectedMascotAccessory,
+      customPhotoPath: ctl.customAvatarPath,
+      isCustomPhoto: ctl.isCustomAvatarEnabled,
+      isHeadOnly: true,
+     ),
+     Positioned(
+      right: -2,
+      bottom: -2,
+      child: Container(
+       width: 24,
+       height: 24,
+       decoration: BoxDecoration(color: c.card, shape: BoxShape.circle, border: Border.all(color: c.line)),
+       child: Icon(Icons.photo_camera_outlined, size: 14, color: c.icon),
       ),
      ),
-     // Developer-only shortcut to test the free tier; never shown in release builds.
-     if (kDebugMode)
-      TextButton(
-       onPressed: () async {
-        await widget.controller.resetToFreeMode();
-        if (mounted) _snack('🔄 สลับเข้าสู่โหมดผู้ใช้ฟรี (ทดสอบ)');
-       },
-       child: const Text('ทดสอบโหมดฟรี', style: TextStyle(fontSize: 12)),
+    ],
+   ),
+  );
+
+  return Container(
+   decoration: BoxDecoration(color: c.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: c.line)),
+   child: Column(
+    children: [
+     Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
+      child: Row(
+       children: [
+        avatar,
+        const SizedBox(width: 14),
+        Expanded(
+         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+           Row(
+            children: [
+             Flexible(
+              child: Text(
+               vip ? (isEn ? 'VIP member' : 'สมาชิก VIP') : (isEn ? 'Free plan' : 'ผู้ใช้ฟรี'),
+               maxLines: 1,
+               overflow: TextOverflow.ellipsis,
+               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: c.text),
+              ),
+             ),
+             if (vip) ...[const SizedBox(width: 8), _vipBadge(c)],
+            ],
+           ),
+           const SizedBox(height: 3),
+           Text(
+            vip
+                ? (isEn ? 'Unlimited slips • no ads' : 'สลิปไม่จำกัด • ไม่มีโฆษณา')
+                : (isEn ? 'Upgrade for unlimited slips and no ads' : 'อัปเกรดเพื่อดึงสลิปไม่จำกัดและไม่มีโฆษณา'),
+            style: TextStyle(fontSize: 12.5, height: 1.35, color: c.sub),
+           ),
+          ],
+         ),
+        ),
+        if (!vip)
+         OutlinedButton(
+          onPressed: () => MeowPaywallModal.show(
+           context,
+           controller: ctl,
+           reason: isEn ? 'Upgrade to VIP to unlock every feature' : 'อัปเกรดเป็น VIP เพื่อปลดล็อคทุกฟีเจอร์',
+          ),
+          style: OutlinedButton.styleFrom(
+           foregroundColor: c.link,
+           side: BorderSide(color: c.link.withValues(alpha: 0.35)),
+           minimumSize: const Size(64, 40),
+           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+          child: Text(isEn ? 'Upgrade' : 'อัปเกรด', style: const TextStyle(fontWeight: FontWeight.w600)),
+         ),
+        // Developer-only shortcut to test the free tier; never shown in release builds.
+        if (vip && kDebugMode)
+         TextButton(
+          onPressed: () async {
+           await ctl.resetToFreeMode();
+           if (mounted) _snack('สลับเข้าสู่โหมดผู้ใช้ฟรี (ทดสอบ)');
+          },
+          child: const Text('ทดสอบโหมดฟรี', style: TextStyle(fontSize: 12)),
+         ),
+       ],
       ),
+     ),
+     if (!vip) ...[
+      Divider(height: 1, thickness: 1, color: c.border),
+      Padding(
+       padding: const EdgeInsets.fromLTRB(16, 12, 8, 6),
+       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+         Row(
+          children: [
+           Expanded(child: Text(isEn ? 'Free slips this month' : 'สลิปฟรีเดือนนี้', style: TextStyle(fontSize: 13, color: c.sub))),
+           Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Text.rich(TextSpan(children: [
+             TextSpan(text: '$used', style: TextStyle(fontWeight: FontWeight.w700, color: c.text)),
+             TextSpan(text: ' / $max', style: TextStyle(color: c.sub)),
+            ]), style: const TextStyle(fontSize: 13)),
+           ),
+          ],
+         ),
+         const SizedBox(height: 8),
+         Padding(
+          padding: const EdgeInsets.only(right: 8),
+          child: ClipRRect(
+           borderRadius: BorderRadius.circular(3),
+           child: LinearProgressIndicator(
+            value: max > 0 ? (used / max).clamp(0.0, 1.0) : 0.0,
+            minHeight: 6,
+            backgroundColor: c.seg,
+            valueColor: AlwaysStoppedAnimation<Color>(c.text),
+           ),
+          ),
+         ),
+         Row(
+          children: [
+           Expanded(
+            child: Text(
+             isEn ? 'Ad rewards left: $adsLeft' : 'ดูโฆษณารับเพิ่มได้อีก $adsLeft ครั้ง',
+             style: TextStyle(fontSize: 12, color: c.sub),
+            ),
+           ),
+           TextButton(
+            onPressed: ctl.canWatchRewardedAd ? () => _watchAd(isEn) : null,
+            style: TextButton.styleFrom(foregroundColor: c.link, minimumSize: const Size(44, 40)),
+            child: Text(
+             ctl.canWatchRewardedAd ? (isEn ? 'Watch ad +2 slips' : 'ดูโฆษณา +2 สลิป') : (isEn ? 'Used up this month' : 'ครบแล้วเดือนนี้'),
+             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+           ),
+          ],
+         ),
+        ],
+       ),
+      ),
+     ],
     ],
    ),
   );
  }
 
- Widget _buildAppearanceRow({required bool isDark, required bool isEn}) {
-  final textColor = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF1E293B);
-  Widget option(bool dark, String label) {
+ Widget _buildMoneyCard(_MenuColors c, bool isEn) {
+  final ctl = widget.controller;
+  return Container(
+   decoration: BoxDecoration(color: c.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: c.line)),
+   clipBehavior: Clip.antiAlias,
+   child: Material(
+    color: Colors.transparent,
+    child: Column(
+     children: [
+      InkWell(
+       onTap: () {
+        HapticFeedback.selectionClick();
+        _push(AccountManagementScreen(controller: ctl));
+       },
+       child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+        child: Row(
+         children: [
+          Expanded(
+           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+             Text(isEn ? 'Total balance' : 'ยอดเงินคงเหลือรวม', style: TextStyle(fontSize: 12.5, color: c.sub)),
+             const SizedBox(height: 2),
+             FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+               '฿${FormatUtils.formatCurrency(ctl.totalNetWorth)}',
+               style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: c.text, fontFeatures: const [FontFeature.tabularFigures()]),
+              ),
+             ),
+            ],
+           ),
+          ),
+          Text(isEn ? '${ctl.accounts.length} accounts' : '${ctl.accounts.length} บัญชี', style: TextStyle(fontSize: 13, color: c.sub)),
+          Icon(Icons.chevron_right_rounded, color: c.faint),
+         ],
+        ),
+       ),
+      ),
+      Divider(height: 1, thickness: 1, color: c.border),
+      Padding(
+       padding: const EdgeInsets.fromLTRB(6, 8, 6, 8),
+       child: Row(
+        children: [
+         _shortcut(c, Icons.account_balance_wallet_outlined, isEn ? 'Accounts' : 'บัญชี',
+          () => _push(AccountManagementScreen(controller: ctl))),
+         _shortcut(c, Icons.grid_view_outlined, isEn ? 'Categories' : 'หมวดหมู่',
+          () => _push(CategoryManagementScreen(controller: ctl))),
+         _shortcut(c, Icons.cloud_upload_outlined, isEn ? 'Backup' : 'สำรองข้อมูล',
+          () => _push(DataBackupRestoreScreen(controller: ctl))),
+         _shortcut(c, Icons.file_download_outlined, isEn ? 'Export' : 'ส่งออก',
+          () => _push(ExportReportScreen(controller: ctl)), vip: !ctl.isPremium),
+        ],
+       ),
+      ),
+     ],
+    ),
+   ),
+  );
+ }
+
+ Widget _shortcut(_MenuColors c, IconData icon, String label, VoidCallback onTap, {bool vip = false}) {
+  return Expanded(
+   child: InkWell(
+    borderRadius: BorderRadius.circular(12),
+    onTap: () {
+     HapticFeedback.selectionClick();
+     onTap();
+    },
+    child: Padding(
+     padding: const EdgeInsets.symmetric(vertical: 8),
+     child: Column(
+      children: [
+       Stack(
+        clipBehavior: Clip.none,
+        children: [
+         Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: c.line)),
+          child: Icon(icon, size: 22, color: c.icon),
+         ),
+         if (vip) Positioned(top: -6, right: -16, child: _vipBadge(c)),
+        ],
+       ),
+       const SizedBox(height: 8),
+       Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: c.text)),
+      ],
+     ),
+    ),
+   ),
+  );
+ }
+
+ Widget _vipBadge(_MenuColors c) => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(5), border: Border.all(color: c.vipLine)),
+      child: Text('VIP', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.3, color: c.vip)),
+     );
+
+ Widget _buildAppearance(_MenuColors c, bool isEn) {
+  final isDark = widget.controller.isDarkMode;
+  Widget option(bool dark, IconData icon, String label) {
    final selected = isDark == dark;
    return Expanded(
     child: Material(
-     color: selected ? (isDark ? const Color(0xFF334155) : Colors.white) : Colors.transparent,
-     borderRadius: BorderRadius.circular(10),
-     elevation: selected ? 1 : 0,
+     color: selected ? c.card : Colors.transparent,
+     borderRadius: BorderRadius.circular(9),
+     elevation: selected ? 0.5 : 0,
      child: InkWell(
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(9),
       onTap: () {
-       HapticFeedback.mediumImpact();
+       HapticFeedback.selectionClick();
        widget.controller.toggleThemeMode(dark);
       },
       child: SizedBox(
        height: 40,
-       child: Center(
-        child: Text(
-         label,
-         style: TextStyle(
-          color: selected ? textColor : (isDark ? Colors.white54 : const Color(0xFF64748B)),
-          fontSize: 13,
-          fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-         ),
-        ),
+       child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+         Icon(icon, size: 18, color: selected ? c.text : c.sub),
+         const SizedBox(width: 8),
+         Text(label,
+          style: TextStyle(fontSize: 13.5, fontWeight: selected ? FontWeight.w600 : FontWeight.w400, color: selected ? c.text : c.sub)),
+        ],
        ),
       ),
      ),
@@ -939,39 +766,26 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
   }
 
   return Padding(
-   padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+   padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
    child: Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
      Row(
       children: [
-       Container(
-        width: 38,
-        height: 38,
-        decoration: BoxDecoration(
-         color: (isDark ? const Color(0xFF818CF8) : const Color(0xFFF59E0B)).withValues(alpha: 0.14),
-         borderRadius: BorderRadius.circular(12),
-        ),
-        child: Icon(isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
-         size: 20, color: isDark ? const Color(0xFF818CF8) : const Color(0xFFF59E0B)),
-       ),
-       const SizedBox(width: 12),
-       Text(isEn ? 'Appearance' : 'โหมดการแสดงผล',
-        style: TextStyle(color: textColor, fontSize: 14.5, fontWeight: FontWeight.w600)),
+       Icon(isDark ? Icons.dark_mode_outlined : Icons.light_mode_outlined, size: 22, color: c.icon),
+       const SizedBox(width: 14),
+       Text(isEn ? 'Appearance' : 'โหมดการแสดงผล', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: c.text)),
       ],
      ),
      const SizedBox(height: 10),
      Container(
       padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-       color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F3F8),
-       borderRadius: BorderRadius.circular(12),
-      ),
+      decoration: BoxDecoration(color: c.seg, borderRadius: BorderRadius.circular(12)),
       child: Row(
        children: [
-        option(false, isEn ? '☀️ Light' : '☀️ สว่าง'),
+        option(false, Icons.light_mode_outlined, isEn ? 'Light' : 'สว่าง'),
         const SizedBox(width: 4),
-        option(true, isEn ? '🌙 Dark' : '🌙 มืด'),
+        option(true, Icons.dark_mode_outlined, isEn ? 'Dark' : 'มืด'),
        ],
       ),
      ),
@@ -980,141 +794,107 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
   );
  }
 
- Widget _divider(Color color) => Divider(height: 1, thickness: 1, indent: 64, color: color);
+ Widget _buildSectionHeader(_MenuColors c, String title) => Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 8),
+      child: Text(title, style: TextStyle(color: c.sub, fontSize: 13, fontWeight: FontWeight.w600)),
+     );
 
- Widget _buildSectionHeader({required String title, required bool isDark}) {
-  return Padding(
-   padding: const EdgeInsets.only(left: 4, bottom: 8),
-   child: Text(
-    title,
-    style: TextStyle(
-     color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-     fontSize: 13,
-     fontWeight: FontWeight.bold,
-     letterSpacing: 0.2,
-    ),
-   ),
-  );
- }
+ Widget _buildCard(_MenuColors c, List<Widget> children) => Container(
+      decoration: BoxDecoration(color: c.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: c.line)),
+      clipBehavior: Clip.antiAlias,
+      child: Material(color: Colors.transparent, child: Column(children: children)),
+     );
 
- Widget _buildGroupContainer({
-  required bool isDark,
-  required Color cardColor,
-  required Color borderColor,
-  required List<Widget> children,
+ /// One menu row: line icon, title + status line, optional trailing value; inset divider above unless [first].
+ Widget _buildRow(
+  _MenuColors c, {
+  required IconData icon,
+  required String title,
+  required String subtitle,
+  required VoidCallback onTap,
+  Widget? trailing,
+  bool first = false,
+  bool chevron = true,
  }) {
-  return Container(
-   decoration: BoxDecoration(
-    color: cardColor,
-    borderRadius: BorderRadius.circular(18),
-    border: Border.all(color: borderColor),
-    boxShadow: [
-     BoxShadow(
-      color: Colors.black.withOpacity(isDark ? 0.15 : 0.03),
-      blurRadius: 8,
-      offset: const Offset(0, 2),
-     ),
-    ],
-   ),
-   child: ClipRRect(
-    borderRadius: BorderRadius.circular(18),
-    child: Column(
-     children: children,
-    ),
-   ),
-  );
- }
-
-   Widget _buildMenuItem({
-    required IconData icon,
-    required Color iconBgColor,
-    required String title,
-    String? subtitle,
-    String? trailingBadge,
-    Color? badgeColor,
-    String? trailingText,
-    required bool isDark,
-    required VoidCallback onTap,
-   }) {
-    final textColor = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF1E293B);
-    final subColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
-
-    return Material(
-     color: Colors.transparent,
-     child: InkWell(
-      onTap: () {
-       HapticFeedback.selectionClick();
-       onTap();
-      },
-      child: ConstrainedBox(
-       constraints: const BoxConstraints(minHeight: 64),
-       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+  return InkWell(
+   onTap: () {
+    HapticFeedback.selectionClick();
+    onTap();
+   },
+   child: Padding(
+    padding: const EdgeInsets.only(left: 16, right: 12),
+    child: Row(
+     children: [
+      Icon(icon, size: 22, color: c.icon),
+      const SizedBox(width: 14),
+      Expanded(
+       child: Container(
+        constraints: const BoxConstraints(minHeight: 62),
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(border: first ? null : Border(top: BorderSide(color: c.border))),
         child: Row(
          children: [
-          Container(
-           width: 38,
-           height: 38,
-           decoration: BoxDecoration(
-            color: iconBgColor.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(12),
-           ),
-           child: Icon(icon, color: iconBgColor, size: 20),
-          ),
-          const SizedBox(width: 12),
           Expanded(
            child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-             Text(
-              title,
-              style: TextStyle(color: textColor, fontSize: 14.5, fontWeight: FontWeight.w600),
-             ),
-             if (subtitle != null) ...[
-              const SizedBox(height: 2),
-              Text(
-               subtitle,
-               maxLines: 2,
-               overflow: TextOverflow.ellipsis,
-               style: TextStyle(color: subColor, fontSize: 12, height: 1.35),
-              ),
-             ],
+             Text(title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: c.text)),
+             const SizedBox(height: 2),
+             Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, height: 1.35, color: c.sub)),
             ],
            ),
           ),
-          if (trailingBadge != null) ...[
-           const SizedBox(width: 8),
-           Container(
-            constraints: const BoxConstraints(maxWidth: 120),
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-            decoration: BoxDecoration(
-             color: (badgeColor ?? MeowTheme.actionBlue).withValues(alpha: 0.12),
-             borderRadius: BorderRadius.circular(9),
-            ),
-            child: Text(
-             trailingBadge,
-             maxLines: 1,
-             overflow: TextOverflow.ellipsis,
-             style: TextStyle(color: badgeColor ?? MeowTheme.actionBlue, fontSize: 11.5, fontWeight: FontWeight.bold),
-            ),
-           ),
-          ],
-          if (trailingText != null) ...[
-           const SizedBox(width: 8),
-           Text(trailingText, style: TextStyle(color: subColor, fontSize: 13, fontWeight: FontWeight.w600)),
-          ],
-          const SizedBox(width: 4),
-          Icon(
-           Icons.chevron_right_rounded,
-           color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
-           size: 20,
-          ),
+          if (trailing != null) ...[const SizedBox(width: 8), trailing],
+          if (chevron) Icon(Icons.chevron_right_rounded, size: 20, color: c.faint),
          ],
         ),
        ),
       ),
-     ),
-    );
-   }
+     ],
+    ),
+   ),
+  );
+ }
+}
+
+/// Neutral palette for the menu, derived from the active theme.
+class _MenuColors {
+ final Color text, sub, icon, faint, card, line, border, seg, accent, link, ok, vip, vipLine;
+
+ const _MenuColors({
+  required this.text,
+  required this.sub,
+  required this.icon,
+  required this.faint,
+  required this.card,
+  required this.line,
+  required this.border,
+  required this.seg,
+  required this.accent,
+  required this.link,
+  required this.ok,
+  required this.vip,
+  required this.vipLine,
+ });
+
+ factory _MenuColors.of(ExpenseController ctl) {
+  final t = ctl.currentTheme;
+  final dark = ctl.isDarkMode;
+  return _MenuColors(
+   text: t.textColor,
+   sub: t.textSecondaryColor,
+   icon: dark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+   faint: dark ? Colors.white24 : const Color(0xFFB6BECB),
+   card: t.cardBackground,
+   line: t.borderColor,
+   border: dark ? Colors.white10 : const Color(0xFFEEF0F4),
+   seg: dark ? const Color(0xFF0F172A) : const Color(0xFFF1F3F8),
+   accent: t.primaryColor,
+   link: dark ? const Color(0xFF93C5FD) : t.primaryColor,
+   ok: dark ? const Color(0xFF34D399) : const Color(0xFF047857),
+   vip: dark ? const Color(0xFFFCD34D) : const Color(0xFF92400E),
+   vipLine: dark ? const Color(0xFF6B5A1E) : const Color(0xFFE9C98B),
+  );
+ }
 }
