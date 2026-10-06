@@ -8,6 +8,8 @@ on:
 jobs:
   build-apk:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repository
@@ -35,6 +37,7 @@ jobs:
       - name: Name APK with version
         run: |
           VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //; s/+.*//')
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
           mkdir -p dist_apk
           cp build/app/outputs/flutter-apk/app-release.apk "dist_apk/MeowTang-v${VERSION}.apk"
 
@@ -43,3 +46,16 @@ jobs:
         with:
           name: MeowTang-Android-APK
           path: dist_apk/*.apk
+
+      # A release gives a plain download link that works from a phone browser.
+      - name: Publish APK as a GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.VERSION }}-build${{ github.run_number }}
+          name: MeowTang v${{ env.VERSION }} (build ${{ github.run_number }})
+          target_commitish: ${{ github.sha }}
+          body: |
+            Test build from `${{ github.ref_name }}` (${{ github.sha }}).
+            Signed with the debug key: for installing on a phone, not for Google Play.
+          files: dist_apk/*.apk
+          make_latest: true
