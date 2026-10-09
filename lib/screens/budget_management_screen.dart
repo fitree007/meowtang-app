@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/category_item.dart';
 import '../state/expense_controller.dart';
-import '../widgets/tactile_button.dart';
+import '../models/transaction_item.dart';
+import '../theme/app_theme_model.dart';
+import '../widgets/meow_fx.dart';
 import '../utils/format_utils.dart';
 
 enum BudgetPlanScope { monthly, multiMonth, yearly }
@@ -358,6 +360,22 @@ class _BudgetManagementScreenState extends State<BudgetManagementScreen> {
                   child: Text(existingName != null ? 'บันทึกการแก้ไข' : 'เพิ่มหมวดงบประมาณนี้', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                 ),
               ),
+              if (existingName != null) ...[
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  height: 44,
+                  child: TextButton.icon(
+                    onPressed: () async {
+                      final ok = await _confirmRemove(existingName);
+                      if (ok && ctx.mounted) Navigator.pop(ctx);
+                    },
+                    style: TextButton.styleFrom(foregroundColor: const Color(0xFFDC2626)),
+                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                    label: const Text('ลบงบหมวดนี้', style: TextStyle(fontWeight: FontWeight.w600)),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -373,469 +391,519 @@ class _BudgetManagementScreenState extends State<BudgetManagementScreen> {
     _saveCurrentBudgets();
   }
 
+  Future<bool> _confirmRemove(String category) async {
+    final theme = widget.controller.currentTheme;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: theme.cardBackground,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('ลบงบหมวด "$category"?', style: TextStyle(color: theme.textColor, fontSize: 17)),
+        content: Text('ยอดใช้จ่ายของหมวดนี้ยังอยู่ครบ แค่เลิกตั้งงบใน$_scopeTitleLabel',
+            style: TextStyle(color: theme.textSecondaryColor, fontSize: 13.5)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('ยกเลิก')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFDC2626)),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('ลบ'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      _removeCategoryBudget(category);
+      return true;
+    }
+    return false;
+  }
+
+  /// First and last day (exclusive) of the selected planning scope.
+  (DateTime, DateTime) get _scopeRange {
+    if (_selectedScope == BudgetPlanScope.monthly) {
+      return (_selectedMonth, DateTime(_selectedMonth.year, _selectedMonth.month + 1, 1));
+    } else if (_selectedScope == BudgetPlanScope.multiMonth) {
+      return (_selectedMonth, DateTime(_multiMonthEnd.year, _multiMonthEnd.month + 1, 1));
+    }
+    return (DateTime(_selectedYear, 1, 1), DateTime(_selectedYear + 1, 1, 1));
+  }
+
+  double get _spentInScope {
+    final (from, to) = _scopeRange;
+    return widget.controller.transactions
+        .where((t) => t.type == TransactionType.expense && !t.date.isBefore(from) && t.date.isBefore(to))
+        .fold(0.0, (s, t) => s + t.amount);
+  }
+
+  String get _scopeName => switch (_selectedScope) {
+        BudgetPlanScope.monthly => 'รายเดือน',
+        BudgetPlanScope.multiMonth => 'หลายเดือน',
+        BudgetPlanScope.yearly => 'รายปี',
+      };
+
+  void _shiftScope(int dir) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      if (_selectedScope == BudgetPlanScope.monthly) {
+        _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + dir, 1);
+      } else if (_selectedScope == BudgetPlanScope.multiMonth) {
+        _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 3 * dir, 1);
+        _multiMonthEnd = DateTime(_selectedMonth.year, _selectedMonth.month + 2, 1);
+      } else {
+        _selectedYear += dir;
+      }
+    });
+    _loadBudgetsForCurrentScope();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final currentTheme = widget.controller.currentTheme;
+    final theme = widget.controller.currentTheme;
     final isDark = widget.controller.isDarkMode;
-    final heroTextColor = currentTheme.heroTextColor(isDark);
-    final heroTextMuted = currentTheme.heroTextMutedColor(isDark);
-    final totalAllocated = _budgets.values.fold(0.0, (sum, val) => sum + val);
-    final remainingBudget = (_totalBudget - totalAllocated).clamp(0.0, double.infinity);
+    var i = 0;
 
     return Scaffold(
-      backgroundColor: currentTheme.scaffoldBackground,
-      appBar: AppBar(
-        backgroundColor: currentTheme.scaffoldBackground,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: currentTheme.textColor),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'วางแผนงบประมาณ',
-          style: TextStyle(color: currentTheme.textColor, fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-        centerTitle: false,
+      backgroundColor: theme.scaffoldBackground,
+      body: Column(
+        children: [
+          _header(theme),
+          Expanded(
+            child: ListView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+              children: [
+                _scopeTabs(theme),
+                const SizedBox(height: 16),
+                _scopeNavigator(theme, isDark),
+                const SizedBox(height: 16),
+                FxFadeUp(key: ValueKey('hero$_currentScopeKey'), index: i++, child: _hero(theme, isDark)),
+                const SizedBox(height: 16),
+                FxFadeUp(key: ValueKey('list$_currentScopeKey'), index: i++, child: _categorySection(theme, isDark)),
+                const SizedBox(height: 16),
+                _overviewToggle(theme, isDark),
+              ],
+            ),
+          ),
+          _bottomBar(theme),
+        ],
       ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 0. Switch On/Off Card for Budget Planning
-            Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                color: currentTheme.cardBackground,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: _isEnabled ? currentTheme.primaryColor.withValues(alpha: 0.4) : currentTheme.borderColor,
-                  width: _isEnabled ? 1.2 : 1,
-                ),
-                boxShadow: [
-                  if (_isEnabled)
-                    BoxShadow(
-                      color: currentTheme.primaryColor.withValues(alpha: 0.08),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                ],
+    );
+  }
+
+  Widget _header(AppThemeModel theme) {
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.cardBackground,
+        border: Border(bottom: BorderSide(color: theme.borderColor)),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          child: Row(
+            children: [
+              IconButton(
+                tooltip: 'ย้อนกลับ',
+                constraints: const BoxConstraints.tightFor(width: 44, height: 44),
+                padding: EdgeInsets.zero,
+                icon: Icon(Icons.chevron_left_rounded, color: theme.textColor, size: 28),
+                onPressed: () => Navigator.maybePop(context),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: _isEnabled
-                              ? currentTheme.primaryColor.withValues(alpha: 0.15)
-                              : Colors.grey.withValues(alpha: 0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.tune_rounded,
-                          color: _isEnabled ? currentTheme.primaryColor : Colors.grey,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text('วางแผนงบประมาณ',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: theme.textColor)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _scopeTabs(AppThemeModel theme) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(color: theme.borderColor, borderRadius: BorderRadius.circular(14)),
+      child: Row(
+        children: [
+          _buildScopeTabItem('รายเดือน', BudgetPlanScope.monthly, theme),
+          const SizedBox(width: 4),
+          _buildScopeTabItem('หลายเดือน', BudgetPlanScope.multiMonth, theme),
+          const SizedBox(width: 4),
+          _buildScopeTabItem('รายปี', BudgetPlanScope.yearly, theme),
+        ],
+      ),
+    );
+  }
+
+  Widget _navButton(AppThemeModel theme, IconData icon, String tip, VoidCallback onTap) {
+    return Material(
+      color: theme.cardBackground,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Tooltip(
+          message: tip,
+          child: SizedBox(width: 44, height: 44, child: Icon(icon, size: 24, color: theme.textColor)),
+        ),
+      ),
+    );
+  }
+
+  Widget _scopeNavigator(AppThemeModel theme, bool isDark) {
+    final unit = switch (_selectedScope) {
+      BudgetPlanScope.monthly => 'เดือน',
+      BudgetPlanScope.multiMonth => 'ช่วง',
+      BudgetPlanScope.yearly => 'ปี',
+    };
+    return Row(
+      children: [
+        _navButton(theme, Icons.chevron_left_rounded, '$unitก่อนหน้า', () => _shiftScope(-1)),
+        Expanded(
+          child: Text(
+            _scopeTitleLabel,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: theme.textColor),
+          ),
+        ),
+        _navButton(theme, Icons.chevron_right_rounded, '$unitถัดไป', () => _shiftScope(1)),
+      ],
+    );
+  }
+
+  Widget _hero(AppThemeModel theme, bool isDark) {
+    final heroText = theme.heroTextColor(isDark);
+    final heroMuted = theme.heroTextMutedColor(isDark);
+    final totalAllocated = _budgets.values.fold(0.0, (sum, val) => sum + val);
+    final remainingAlloc = (_totalBudget - totalAllocated).clamp(0.0, double.infinity);
+    final spent = _spentInScope;
+    final left = _totalBudget - spent;
+    final ratio = _totalBudget > 0 ? (spent / _totalBudget) : 0.0;
+
+    Widget tile(String label, double value) => Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(color: heroText.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(14)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: TextStyle(fontSize: 12, color: heroMuted)),
+                const SizedBox(height: 2),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: _countUp(value, TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: heroText)),
+                ),
+              ],
+            ),
+          ),
+        );
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(gradient: theme.heroGradient, borderRadius: BorderRadius.circular(22)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              SizedBox(
+                width: 96,
+                height: 96,
+                child: FxProgress(
+                  value: ratio.clamp(0.0, 1.0),
+                  duration: const Duration(milliseconds: 1000),
+                  builder: (_, v) => CustomPaint(
+                    painter: _RingPainter(
+                      value: v,
+                      track: heroText.withValues(alpha: 0.2),
+                      color: ratio > 1 ? const Color(0xFFFCA5A5) : heroText,
+                    ),
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            'เปิดใช้งานวางแผนงบประมาณ',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                              color: currentTheme.textColor,
-                            ),
-                          ),
-                          const SizedBox(height: 1),
-                          Text(
-                            _isEnabled ? 'แสดงหลอดเกจในหน้าภาพรวม' : 'ปิดการแสดงผลในหน้าภาพรวม',
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              color: _isEnabled ? currentTheme.primaryColor : currentTheme.textSecondaryColor,
-                              fontWeight: _isEnabled ? FontWeight.bold : FontWeight.normal,
-                            ),
-                          ),
+                          Text('${(ratio > 1 ? ratio * 100 : v * 100).round()}%',
+                              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: heroText, height: 1.2)),
+                          Text('ใช้ไป', style: TextStyle(fontSize: 12, color: heroMuted, height: 1.2)),
                         ],
                       ),
-                    ],
+                    ),
                   ),
-                  Switch.adaptive(
-                    value: _isEnabled,
-                    activeColor: currentTheme.primaryColor,
-                    onChanged: (val) {
-                      HapticFeedback.lightImpact();
-                      setState(() {
-                        _isEnabled = val;
-                      });
-                      widget.controller.setBudgetPlanEnabled(val);
-                    },
-                  ),
-                ],
+                ),
               ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('งบประมาณรวม ($_scopeName)', style: TextStyle(fontSize: 12.5, color: heroMuted)),
+                    const SizedBox(height: 4),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: _totalBudget <= 0
+                          ? Text('ยังไม่ได้ตั้งงบ',
+                              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: heroText))
+                          : _countUp(left.abs(), TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: heroText),
+                              prefix: left >= 0 ? 'เหลือ ' : 'เกินงบ '),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _totalBudget > 0 ? 'ใช้ไป ${_baht(spent)} จาก ${_baht(_totalBudget)}' : 'ใช้ไป ${_baht(spent)}',
+                      style: TextStyle(fontSize: 13, color: heroMuted),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(children: [tile('จัดสรรแล้ว', totalAllocated), const SizedBox(width: 8), tile('คงเหลือจัดสรร', remainingAlloc)]),
+          const SizedBox(height: 16),
+          OutlinedButton(
+            onPressed: _showEditTotalBudgetDialog,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: heroText,
+              minimumSize: const Size.fromHeight(44),
+              side: BorderSide(color: heroText.withValues(alpha: 0.4), width: 1.5),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-
-            // 1. Flexible Planning Scope Selector (รายเดือน / หลายเดือน / รายปี)
-            Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: currentTheme.cardBackground,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: currentTheme.borderColor),
-              ),
-              child: Row(
-                children: [
-                  _buildScopeTabItem('รายเดือน', BudgetPlanScope.monthly, currentTheme),
-                  _buildScopeTabItem('หลายเดือน', BudgetPlanScope.multiMonth, currentTheme),
-                  _buildScopeTabItem('รายปี', BudgetPlanScope.yearly, currentTheme),
-                ],
-              ),
+            child: Text(
+              _totalBudget > 0 ? 'แก้ไขงบประมาณรวม ${_baht(_totalBudget)}' : 'ตั้งงบประมาณรวม',
+              style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600),
             ),
+          ),
+        ],
+      ),
+    );
+  }
 
-            // 2. Scope Date Range Controller Card
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: currentTheme.cardBackground,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: currentTheme.borderColor),
+  BoxDecoration _cardDecoration(AppThemeModel theme, bool isDark, {double radius = 20}) => BoxDecoration(
+        color: theme.cardBackground,
+        borderRadius: BorderRadius.circular(radius),
+        border: isDark ? Border.all(color: theme.borderColor) : null,
+        boxShadow: isDark ? null : const [BoxShadow(color: Color(0x0F0F172A), blurRadius: 14, offset: Offset(0, 4))],
+      );
+
+  Widget _categorySection(AppThemeModel theme, bool isDark) {
+    final entries = _budgets.entries.toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Text.rich(
+            TextSpan(children: [
+              const TextSpan(text: 'จัดสรรงบรายหมวด '),
+              TextSpan(
+                text: '· ${entries.length}',
+                style: TextStyle(fontWeight: FontWeight.w500, color: theme.textSecondaryColor),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    icon: Icon(Icons.chevron_left_rounded, color: currentTheme.textColor),
-                    onPressed: () {
-                      HapticFeedback.selectionClick();
-                      setState(() {
-                        if (_selectedScope == BudgetPlanScope.monthly) {
-                          _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month - 1, 1);
-                        } else if (_selectedScope == BudgetPlanScope.multiMonth) {
-                          _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month - 3, 1);
-                          _multiMonthEnd = DateTime(_selectedMonth.year, _selectedMonth.month + 2, 1);
-                        } else {
-                          _selectedYear -= 1;
-                        }
-                      });
-                      _loadBudgetsForCurrentScope();
-                    },
-                  ),
-                  Row(
-                    children: [
-                      Icon(Icons.calendar_month_rounded, size: 16, color: currentTheme.primaryColor),
-                      const SizedBox(width: 6),
-                      Text(
-                        _scopeTitleLabel,
-                        style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: currentTheme.textColor),
-                      ),
-                    ],
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.chevron_right_rounded, color: currentTheme.textColor),
-                    onPressed: () {
-                      HapticFeedback.selectionClick();
-                      setState(() {
-                        if (_selectedScope == BudgetPlanScope.monthly) {
-                          _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 1);
-                        } else if (_selectedScope == BudgetPlanScope.multiMonth) {
-                          _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 3, 1);
-                          _multiMonthEnd = DateTime(_selectedMonth.year, _selectedMonth.month + 2, 1);
-                        } else {
-                          _selectedYear += 1;
-                        }
-                      });
-                      _loadBudgetsForCurrentScope();
-                    },
-                  ),
-                ],
-              ),
+            ]),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: theme.textColor),
+          ),
+        ),
+        const SizedBox(height: 10),
+        if (entries.isEmpty)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+            decoration: _cardDecoration(theme, isDark),
+            child: Column(
+              children: [
+                Icon(Icons.pie_chart_outline_rounded, size: 36, color: theme.textSecondaryColor),
+                const SizedBox(height: 10),
+                Text(
+                  'ยังไม่มีการจัดสรรหมวดหมู่งบประมาณใน$_scopeTitleLabel',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: theme.textColor),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'แตะ "+ ตั้งงบหมวดใหม่" ด้านล่างเพื่อกำหนดงบตามใจคุณ',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 12.5, color: theme.textSecondaryColor),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
+          )
+        else
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            decoration: _cardDecoration(theme, isDark),
+            child: Column(
+              children: [
+                for (var k = 0; k < entries.length; k++)
+                  _categoryRow(entries[k].key, entries[k].value, theme, isDark, last: k == entries.length - 1),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
 
-            // 3. Main Total Budget Card
+  Widget _categoryRow(String catName, double budgetAmt, AppThemeModel theme, bool isDark, {required bool last}) {
+    final spentAmt = widget.controller.getSpentForCategoryThisMonth(catName);
+    final isOver = spentAmt > budgetAmt && budgetAmt > 0;
+    final isNear = !isOver && spentAmt >= budgetAmt * 0.8 && budgetAmt > 0;
+    final progress = budgetAmt > 0 ? (spentAmt / budgetAmt).clamp(0.0, 1.0) : 0.0;
+    final catItem = _findCategoryItem(catName);
+    final catColor = Color(catItem.colorValue);
+    final warnColor = isDark ? const Color(0xFFFBBF24) : const Color(0xFFB45309);
+    final overColor = isDark ? const Color(0xFFF87171) : const Color(0xFFDC2626);
+    final amountColor = isOver ? overColor : (isNear ? warnColor : theme.textSecondaryColor);
+    final barColor = isOver ? const Color(0xFFEF4444) : (isNear ? const Color(0xFFF59E0B) : theme.primaryColor);
+
+    return InkWell(
+      onTap: () => _showAddOrEditCategoryDialog(existingName: catName, existingAmount: budgetAmt),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          border: last ? null : Border(bottom: BorderSide(color: theme.borderColor)),
+        ),
+        child: Row(
+          children: [
             Container(
-              padding: const EdgeInsets.all(16),
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
-                gradient: currentTheme.heroGradient,
-                borderRadius: BorderRadius.circular(22),
-                boxShadow: [
-                  BoxShadow(
-                    color: currentTheme.primaryColor.withValues(alpha: 0.25),
-                    blurRadius: 14,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+                color: catColor.withValues(alpha: isDark ? 0.22 : 0.14),
+                borderRadius: BorderRadius.circular(12),
               ),
+              child: Icon(catItem.icon, size: 20, color: catColor),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'งบประมาณรวม ($_scopeTitleLabel)',
-                        style: TextStyle(
-                          color: heroTextMuted,
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      Expanded(
+                        child: Text(catName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: theme.textColor)),
                       ),
-                      GestureDetector(
-                        onTap: _showEditTotalBudgetDialog,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            children: const [
-                              Icon(Icons.edit, color: Colors.white, size: 12),
-                              SizedBox(width: 4),
-                              Text('ตั้งงบ', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
-                            ],
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            '${_baht(spentAmt)} / ${_baht(budgetAmt)}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: amountColor,
+                              fontWeight: isOver || isNear ? FontWeight.w600 : FontWeight.w400,
+                            ),
                           ),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 6),
-                  Text(
-                    _totalBudget > 0 ? '฿ ${FormatUtils.formatMoney(_totalBudget)}' : '฿ 0.00 (ยังไม่มียอด)',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: heroTextColor),
+                  FxBar(
+                    value: progress,
+                    color: barColor,
+                    track: isDark ? theme.borderColor : const Color(0xFFE9EDF3),
+                    height: 6,
                   ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'จัดสรรแล้ว',
-                              style: TextStyle(
-                                color: heroTextMuted,
-                                fontSize: 11,
-                              ),
-                            ),
-                            Text(
-                              '฿ ${FormatUtils.formatMoney(totalAllocated)}',
-                              style: TextStyle(color: heroTextColor, fontSize: 14, fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'คงเหลือจัดสรร',
-                              style: TextStyle(
-                                color: heroTextMuted,
-                                fontSize: 11,
-                              ),
-                            ),
-                            Text(
-                              '฿ ${FormatUtils.formatMoney(remainingBudget)}',
-                              style: TextStyle(color: heroTextColor, fontSize: 14, fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                  if (isOver || isNear) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      isOver
+                          ? 'เกินงบ ${_baht(spentAmt - budgetAmt)} แล้ว'
+                          : 'ใช้ไป ${(spentAmt / budgetAmt * 100).round()}% แล้ว • ระวังเกินงบ',
+                      style: TextStyle(fontSize: 12, color: isOver ? overColor : warnColor),
+                    ),
+                  ],
                 ],
               ),
             ),
-            const SizedBox(height: 16),
-
-            // 4. Category Allocation Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'จัดสรรงบประมาณรายหมวด (${_budgets.length})',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: currentTheme.textColor),
-                ),
-                ElevatedButton.icon(
-                  onPressed: () => _showAddOrEditCategoryDialog(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: currentTheme.primaryColor,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    elevation: 0,
-                  ),
-                  icon: const Icon(Icons.add_rounded, size: 15),
-                  label: const Text('เพิ่มหมวดงบ', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-
-            // 5. Category Budget Cards List
-            if (_budgets.isEmpty)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
-                decoration: BoxDecoration(
-                  color: currentTheme.cardBackground,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: currentTheme.borderColor),
-                ),
-                child: Column(
-                  children: [
-                    Icon(Icons.pie_chart_outline_rounded, size: 40, color: currentTheme.textSecondaryColor.withValues(alpha: 0.5)),
-                    const SizedBox(height: 10),
-                    Text(
-                      'ยังไม่มีการจัดสรรหมวดหมู่งบประมาณใน$_scopeTitleLabel',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: currentTheme.textColor),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'แตะปุ่ม "เพิ่มหมวดงบ" เพื่อกำหนดงบประมาณตามใจคุณ',
-                      style: TextStyle(fontSize: 11, color: currentTheme.textSecondaryColor),
-                    ),
-                  ],
-                ),
-              )
-            else
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: _budgets.length,
-                itemBuilder: (context, idx) {
-                  final catName = _budgets.keys.elementAt(idx);
-                  final budgetAmt = _budgets.values.elementAt(idx);
-                  final spentAmt = widget.controller.getSpentForCategoryThisMonth(catName);
-                  final isOver = spentAmt > budgetAmt && budgetAmt > 0;
-                  final isNear = !isOver && spentAmt >= budgetAmt * 0.8 && budgetAmt > 0;
-                  final progress = budgetAmt > 0 ? (spentAmt / budgetAmt).clamp(0.0, 1.0) : 0.0;
-                  final catItem = _findCategoryItem(catName);
-                  final catColor = Color(catItem.colorValue);
-
-                  Color statusColor;
-                  String statusLabel;
-                  if (isOver) {
-                    statusColor = const Color(0xFFEF4444);
-                    statusLabel = '🚨 เกินงบ';
-                  } else if (isNear) {
-                    statusColor = const Color(0xFFF59E0B);
-                    statusLabel = '⚠️ ใกล้เต็ม';
-                  } else {
-                    statusColor = const Color(0xFF10B981);
-                    statusLabel = '🟢 ปกติ';
-                  }
-
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 10),
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: currentTheme.cardBackground,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: isOver ? const Color(0xFFEF4444).withValues(alpha: 0.4) : currentTheme.borderColor,
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                    color: catColor.withValues(alpha: 0.15),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(catItem.icon, size: 16, color: catColor),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  catName,
-                                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: currentTheme.textColor),
-                                ),
-                              ],
-                            ),
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: statusColor.withValues(alpha: 0.12),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    statusLabel,
-                                    style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: statusColor),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                GestureDetector(
-                                  onTap: () => _showAddOrEditCategoryDialog(existingName: catName, existingAmount: budgetAmt),
-                                  child: Icon(Icons.edit_rounded, size: 16, color: currentTheme.textSecondaryColor),
-                                ),
-                                const SizedBox(width: 6),
-                                GestureDetector(
-                                  onTap: () => _removeCategoryBudget(catName),
-                                  child: const Icon(Icons.delete_outline_rounded, size: 16, color: Color(0xFFEF4444)),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'ใช้ไป ฿${FormatUtils.formatMoney(spentAmt)}',
-                              style: TextStyle(fontSize: 11.5, color: currentTheme.textSecondaryColor),
-                            ),
-                            Text(
-                              'งบ ฿${FormatUtils.formatMoney(budgetAmt)}',
-                              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: currentTheme.textColor),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: LinearProgressIndicator(
-                            value: progress,
-                            backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-                            valueColor: AlwaysStoppedAnimation<Color>(statusColor),
-                            minHeight: 6,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildScopeTabItem(String label, BudgetPlanScope scope, dynamic currentTheme) {
+  Widget _overviewToggle(AppThemeModel theme, bool isDark) {
+    return Material(
+      color: theme.cardBackground,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => _setEnabled(!_isEnabled),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 52),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: Row(
+              children: [
+                Checkbox(
+                  value: !_isEnabled,
+                  activeColor: theme.primaryColor,
+                  side: BorderSide(color: theme.textSecondaryColor, width: 1.5),
+                  onChanged: (v) => _setEnabled(!(v ?? false)),
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text('ปิดการแสดงผลในหน้าภาพรวม',
+                      style: TextStyle(fontSize: 13.5, color: theme.textColor)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _setEnabled(bool val) {
+    HapticFeedback.lightImpact();
+    setState(() {
+      _isEnabled = val;
+    });
+    widget.controller.setBudgetPlanEnabled(val);
+  }
+
+  Widget _bottomBar(AppThemeModel theme) {
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.cardBackground,
+        border: Border(top: BorderSide(color: theme.borderColor)),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+      child: SafeArea(
+        top: false,
+        child: FilledButton(
+          onPressed: () => _showAddOrEditCategoryDialog(),
+          style: FilledButton.styleFrom(
+            backgroundColor: theme.primaryColor,
+            foregroundColor: Colors.white,
+            minimumSize: const Size.fromHeight(56),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          ),
+          child: const Text('+ ตั้งงบหมวดใหม่', style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600)),
+        ),
+      ),
+    );
+  }
+
+  Widget _countUp(double value, TextStyle style, {String prefix = ''}) => FxProgress(
+        value: value,
+        builder: (_, v) => Text('$prefix${_baht(v == value ? v : v.roundToDouble())}', style: style, maxLines: 1),
+      );
+
+  Widget _buildScopeTabItem(String label, BudgetPlanScope scope, AppThemeModel theme) {
     final isSel = _selectedScope == scope;
     return Expanded(
       child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: () {
           HapticFeedback.selectionClick();
           setState(() {
@@ -845,23 +913,48 @@ class _BudgetManagementScreenState extends State<BudgetManagementScreen> {
         },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          constraints: const BoxConstraints(minHeight: 44),
+          alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: isSel ? currentTheme.primaryColor : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
+            color: isSel ? theme.cardBackground : Colors.transparent,
+            borderRadius: BorderRadius.circular(11),
+            boxShadow: isSel ? const [BoxShadow(color: Color(0x1A0F172A), blurRadius: 4, offset: Offset(0, 1))] : null,
           ),
-          child: Center(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: isSel ? FontWeight.bold : FontWeight.w600,
-                color: isSel ? Colors.white : currentTheme.textSecondaryColor,
-              ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13.5,
+              fontWeight: isSel ? FontWeight.w600 : FontWeight.w400,
+              color: isSel ? (theme.isDark ? theme.textColor : theme.primaryColor) : theme.textSecondaryColor,
             ),
           ),
         ),
       ),
     );
   }
+}
+
+String _baht(double v) => '฿${FormatUtils.formatMoney(v, trimZero: true)}';
+
+class _RingPainter extends CustomPainter {
+  final double value;
+  final Color track;
+  final Color color;
+
+  _RingPainter({required this.value, required this.track, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const stroke = 10.0;
+    final rect = Rect.fromCircle(center: size.center(Offset.zero), radius: size.shortestSide / 2 - stroke / 2 - 3);
+    final p = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(rect, 0, 6.2832, false, p..color = track);
+    if (value > 0) canvas.drawArc(rect, -1.5708, 6.2832 * value.clamp(0.0, 1.0), false, p..color = color);
+  }
+
+  @override
+  bool shouldRepaint(_RingPainter old) => old.value != value || old.color != color || old.track != track;
 }

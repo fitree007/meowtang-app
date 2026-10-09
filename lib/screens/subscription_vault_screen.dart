@@ -6,7 +6,9 @@ import '../models/transaction_item.dart';
 import '../models/category_item.dart';
 import '../state/expense_controller.dart';
 import '../services/currency_exchange_service.dart';
+import '../theme/app_theme_model.dart';
 import '../utils/format_utils.dart';
+import '../widgets/meow_fx.dart';
 import 'add_edit_subscription_screen.dart';
 
 class SubscriptionVaultScreen extends StatefulWidget {
@@ -138,7 +140,7 @@ class _SubscriptionVaultScreenState extends State<SubscriptionVaultScreen> {
                           child: Text(
                             isEn
                                 ? 'Expense recorded for ${item.name}!'
-                                : 'บันทึกรายจ่ายค่า ${item.name} เรียบร้อยแล้ว! ✨',
+                                : 'บันทึกรายจ่ายค่า ${item.name} เรียบร้อยแล้ว',
                           ),
                         ),
                       ],
@@ -154,96 +156,142 @@ class _SubscriptionVaultScreenState extends State<SubscriptionVaultScreen> {
     );
   }
 
-  Widget _buildBrandLogo(SubscriptionItem item) {
+  // ---------------------------------------------------------------------------
+  // Trial banner actions
+  // ---------------------------------------------------------------------------
+  Future<void> _trialCancelled(SubscriptionItem item) async {
+    HapticFeedback.mediumImpact();
+    final theme = widget.controller.currentTheme;
+    final isEn = widget.controller.isEnglish;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: theme.cardBackground,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(isEn ? 'Cancelled "${item.name}"?' : 'ยกเลิก "${item.name}" แล้ว?',
+            style: TextStyle(color: theme.textColor, fontSize: 17)),
+        content: Text(
+          isEn
+              ? 'The service will be switched off and no longer counted in your totals. You can turn it back on from its page.'
+              : 'จะปิดบริการนี้และไม่นับรวมในยอดที่ต้องจ่าย เปิดใช้ใหม่ได้จากหน้ารายละเอียด',
+          style: TextStyle(color: theme.textSecondaryColor, fontSize: 13.5, height: 1.4),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(isEn ? 'Back' : 'กลับ')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFB45309)),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(isEn ? 'Yes, cancelled' : 'ยกเลิกแล้ว'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await widget.controller.toggleSubscriptionActive(item.id);
+    _toast(isEn ? '${item.name} switched off' : 'ปิด ${item.name} แล้ว');
+  }
+
+  Future<void> _trialKeep(SubscriptionItem item) async {
+    HapticFeedback.lightImpact();
+    await widget.controller.updateSubscription(item.copyWith(hasTrial: false));
+    _toast(widget.controller.isEnglish ? 'Keeping ${item.name}' : 'ใช้ ${item.name} ต่อแล้ว');
+  }
+
+  void _toast(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Logos
+  // ---------------------------------------------------------------------------
+  Widget _logoContent(SubscriptionItem item, double iconSize) {
+    final fallbackColor = item.customColor ?? widget.controller.currentTheme.primaryColor;
     if (item.logoAssetPath != null && item.logoAssetPath!.isNotEmpty) {
-      return Container(
-        width: 48,
-        height: 48,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        padding: const EdgeInsets.all(6),
-        child: Image.asset(
-          item.logoAssetPath!,
-          fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => const Icon(Icons.subscriptions_rounded, size: 28, color: Color(0xFF64748B)),
-        ),
+      return Image.asset(
+        item.logoAssetPath!,
+        fit: BoxFit.contain,
+        errorBuilder: (_, _, _) => Icon(Icons.subscriptions_outlined, size: iconSize, color: fallbackColor),
       );
     } else if (item.logoUrl != null && item.logoUrl!.isNotEmpty) {
-      return Container(
-        width: 48,
-        height: 48,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        padding: const EdgeInsets.all(6),
-        child: Image.network(
-          item.logoUrl!,
-          fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => const Icon(Icons.language_rounded, size: 28, color: Color(0xFF64748B)),
-        ),
+      return Image.network(
+        item.logoUrl!,
+        fit: BoxFit.contain,
+        errorBuilder: (_, _, _) => Icon(Icons.language_rounded, size: iconSize, color: fallbackColor),
       );
     }
+    return Icon(Icons.subscriptions_outlined, size: iconSize, color: fallbackColor);
+  }
 
+  bool _hasLogo(SubscriptionItem item) =>
+      (item.logoAssetPath?.isNotEmpty ?? false) || (item.logoUrl?.isNotEmpty ?? false);
+
+  Widget _buildBrandLogo(SubscriptionItem item) {
+    final theme = widget.controller.currentTheme;
+    final hasLogo = _hasLogo(item);
     return Container(
       width: 48,
       height: 48,
+      clipBehavior: Clip.antiAlias,
+      padding: EdgeInsets.all(hasLogo ? 6 : 0),
       decoration: BoxDecoration(
-        color: (item.customColor ?? widget.controller.currentTheme.primaryColor).withOpacity(0.12),
+        color: hasLogo
+            ? Colors.white
+            : (item.customColor ?? theme.primaryColor).withValues(alpha: widget.controller.isDarkMode ? 0.22 : 0.12),
         borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: theme.borderColor),
       ),
-      child: Center(
-        child: Icon(
-          Icons.subscriptions_rounded,
-          size: 26,
-          color: item.customColor ?? widget.controller.currentTheme.primaryColor,
-        ),
-      ),
+      child: Center(child: _logoContent(item, 26)),
     );
   }
 
+  Widget _avatar(SubscriptionItem item, double size, Color ring) {
+    return Container(
+      width: size,
+      height: size,
+      clipBehavior: Clip.antiAlias,
+      padding: EdgeInsets.all(_hasLogo(item) ? size * 0.14 : 0),
+      decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, border: Border.all(color: ring, width: 2)),
+      child: Center(child: _logoContent(item, size * 0.55)),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Page
+  // ---------------------------------------------------------------------------
+  static const _filterCategories = [
+    'สตรีมมิ่ง',
+    'AI & ซอฟต์แวร์',
+    'มือถือ & เน็ตบ้าน',
+    'สาธารณูปโภค',
+    'เกม & บันเทิง',
+    'พื้นที่จัดเก็บ',
+  ];
+
   @override
   Widget build(BuildContext context) {
+    return ListenableBuilder(listenable: widget.controller, builder: (context, _) => _buildPage(context));
+  }
+
+  Widget _buildPage(BuildContext context) {
     final theme = widget.controller.currentTheme;
     final isEn = widget.controller.isEnglish;
     final isDark = widget.controller.isDarkMode;
-    final cardBg = theme.cardBackground;
-    final textColor = theme.textColor;
-    final subColor = theme.textSecondaryColor;
-    final borderColor = theme.borderColor;
 
     final allSubs = widget.controller.subscriptions;
     final activeSubs = allSubs.where((s) => s.isActive).toList();
 
     // Summary calculations converted to THB
-    double monthlyAverageThb = 0.0;
     double yearlyTotalThb = 0.0;
     double dueThisMonthThb = 0.0;
     final now = DateTime.now();
 
     for (final s in activeSubs) {
-      final thbMonthly = _convertToThb(s.monthlyCost, s.currency);
-      monthlyAverageThb += thbMonthly;
-
-      final thbYearly = _convertToThb(s.yearlyCost, s.currency);
-      yearlyTotalThb += thbYearly;
-
+      yearlyTotalThb += _convertToThb(s.yearlyCost, s.currency);
       if (s.nextBillingDate.year == now.year && s.nextBillingDate.month == now.month) {
         dueThisMonthThb += _convertToThb(s.price, s.currency);
       }
@@ -265,248 +313,53 @@ class _SubscriptionVaultScreenState extends State<SubscriptionVaultScreen> {
       filtered.sort((a, b) => a.name.compareTo(b.name));
     }
 
+    // The next charge gets the expanded card (as in the draft), as do charges due within 3 days.
+    final upcoming = activeSubs.where((s) => !s.hasEnded && s.daysUntilNextBilling >= 0).toList()
+      ..sort((a, b) => a.daysUntilNextBilling.compareTo(b.daysUntilNextBilling));
+    final nextId = upcoming.isEmpty ? null : upcoming.first.id;
+
     // Expiring trials
     final expiringTrials = activeSubs.where((s) => s.isTrialExpiringSoon).toList();
+    var fx = 0;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackground,
-      appBar: AppBar(
-        backgroundColor: cardBg,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: textColor, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          isEn ? 'Subscription Vault' : 'คุมค่า Subscription & รายจ่ายประจำ',
-          style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      body: Column(
         children: [
-
-
-          // EXPIRING FREE TRIAL COUNTDOWN WARNING (If any)
-          if (expiringTrials.isNotEmpty) ...[
-            Container(
-              padding: const EdgeInsets.all(14),
-              margin: const EdgeInsets.only(bottom: 14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFFBEB),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFF59E0B), width: 1.5),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 28),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          isEn ? 'Free Trial Expiring Soon! ⏰' : 'เตือนความจำ: กำลังจะหมดช่วงทดลองใช้! ⏰',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFFB45309),
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          expiringTrials.map((e) => '${e.name} (อีก ${e.daysUntilTrialEnds ?? 0} วัน)').join(', '),
-                          style: const TextStyle(fontSize: 11, color: Color(0xFF92400E)),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          isEn ? 'Cancel now if you don\'t want to be charged!' : 'อย่าลืมกดยกเลิกหากไม่ต้องการต่ออายุเพื่อไม่ให้โดนตัดเงินน้า',
-                          style: const TextStyle(fontSize: 10, color: Color(0xFFB45309)),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-
-          // HERO METRICS DASHBOARD (Billbau-style 3 Core Cards with Theme Color & Subtle Circular Watermark)
-          Container(
-            clipBehavior: Clip.antiAlias,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: isDark
-                    ? [
-                        theme.primaryColor.withValues(alpha: 0.22),
-                        cardBg,
-                        cardBg,
-                      ]
-                    : [
-                        theme.primaryColor.withValues(alpha: 0.12),
-                        theme.primaryColor.withValues(alpha: 0.03),
-                        cardBg,
-                      ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: theme.primaryColor.withValues(alpha: isDark ? 0.35 : 0.25),
-                width: 1.2,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: theme.primaryColor.withValues(alpha: isDark ? 0.12 : 0.05),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Stack(
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
               children: [
-                // Subtle elegant circular rings & watermark icon in background
-                Positioned(
-                  right: -30,
-                  top: -30,
-                  child: IgnorePointer(
-                    child: Container(
-                      width: 140,
-                      height: 140,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: theme.primaryColor.withValues(alpha: isDark ? 0.08 : 0.06),
-                          width: 18,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  right: -8,
-                  bottom: -12,
-                  child: IgnorePointer(
-                    child: Icon(
-                      Icons.subscriptions_rounded,
-                      size: 90,
-                      color: theme.primaryColor.withValues(alpha: isDark ? 0.07 : 0.06),
-                    ),
-                  ),
-                ),
+                _header(theme, isDark, isEn, activeSubs, dueThisMonthThb, yearlyTotalThb, now),
                 Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            isEn ? 'OVERVIEW METRICS' : 'ภาพรวมค่าบริการทั้งหมด',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.8,
-                              color: theme.primaryColor,
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: theme.primaryColor.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(Icons.check_circle_rounded, size: 12, color: theme.primaryColor),
-                                const SizedBox(width: 4),
-                                Text(
-                                  isEn ? '${activeSubs.length} Active' : '${activeSubs.length} บริการที่เปิดอยู่',
-                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: theme.primaryColor),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-                      // Due This Month Hero Number
-                      Text(
-                        '฿${FormatUtils.formatCurrency(dueThisMonthThb)}',
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: textColor,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        isEn ? 'Due this month (${DateFormat('MMMM yyyy').format(now)})' : 'ยอดที่ต้องจ่ายในเดือนนี้ (${FormatUtils.formatMonthYearThai(now)})',
-                        style: TextStyle(fontSize: 12, color: subColor),
-                      ),
+                      for (final t in expiringTrials) ...[
+                        FxFadeUp(index: fx++, child: _trialCard(t, isDark, isEn)),
+                        const SizedBox(height: 16),
+                      ],
+                      _filterChips(theme, allSubs, isEn),
                       const SizedBox(height: 16),
-                      const Divider(height: 1),
-                      const SizedBox(height: 14),
-                      // Monthly Average vs Annual Total
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Icon(Icons.calendar_view_month_rounded, size: 14, color: Color(0xFF3B82F6)),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      isEn ? 'Monthly Average' : 'เฉลี่ยต่อเดือน',
-                                      style: TextStyle(fontSize: 11, color: subColor),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '฿${FormatUtils.formatCurrency(monthlyAverageThb)}',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: textColor,
-                                  ),
-                                ),
+                      FxFadeUp(
+                        index: fx++,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _listHeader(theme, isEn),
+                            const SizedBox(height: 10),
+                            if (filtered.isEmpty)
+                              _emptyState(theme, isDark, isEn, allSubs.isEmpty)
+                            else
+                              for (final item in filtered) ...[
+                                _subCard(item, theme, isDark, isEn,
+                                    expanded: item.id == nextId ||
+                                        (item.isActive && !item.hasEnded && item.daysUntilNextBilling <= 3)),
+                                if (item != filtered.last) const SizedBox(height: 10),
                               ],
-                            ),
-                          ),
-                          Container(width: 1, height: 32, color: borderColor.withOpacity(0.5)),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Icon(Icons.calendar_today_rounded, size: 14, color: Color(0xFF10B981)),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      isEn ? 'Annual Estimate' : 'ประมาณการทั้งปี',
-                                      style: TextStyle(fontSize: 11, color: subColor),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '฿${FormatUtils.formatCurrency(yearlyTotalThb)}',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: textColor,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -514,464 +367,628 @@ class _SubscriptionVaultScreenState extends State<SubscriptionVaultScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          _bottomBar(theme, isEn),
+        ],
+      ),
+    );
+  }
 
-          // CATEGORY FILTER CHIPS
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            child: Row(
-              children: [
-                'ทั้งหมด',
-                'สตรีมมิ่ง',
-                'AI & ซอฟต์แวร์',
-                'มือถือ & เน็ตบ้าน',
-                'สาธารณูปโภค',
-                'เกม & บันเทิง',
-                'พื้นที่จัดเก็บ',
-              ].map((cat) {
-                final isSelected = _selectedCategoryFilter == cat;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: FilterChip(
-                    label: Text(cat),
-                    selected: isSelected,
-                    selectedColor: theme.primaryColor.withOpacity(0.18),
-                    backgroundColor: cardBg,
-                    labelStyle: TextStyle(
-                      fontSize: 12,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      color: isSelected ? theme.primaryColor : subColor,
-                    ),
-                    side: BorderSide(
-                      color: isSelected ? theme.primaryColor : borderColor.withOpacity(0.5),
-                    ),
-                    onSelected: (val) {
-                      setState(() => _selectedCategoryFilter = cat);
-                    },
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-          const SizedBox(height: 12),
+  Widget _header(AppThemeModel theme, bool isDark, bool isEn, List<SubscriptionItem> activeSubs, double dueThisMonth,
+      double yearly, DateTime now) {
+    final heroText = theme.heroTextColor(isDark);
+    final heroMuted = theme.heroTextMutedColor(isDark);
+    final ringColor = theme.primaryDark;
+    final monthLabel = isEn ? DateFormat('MMM yyyy').format(now) : _thaiMonthShortYear(now);
+    final stack = activeSubs.take(4).toList();
 
-          // SERVICE LIST HEADER BAR (Title & Sort Dropdown)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      isEn ? 'Services' : 'รายการบริการ',
-                      style: TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.bold,
-                        color: textColor,
-                        letterSpacing: -0.2,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                      decoration: BoxDecoration(
-                        color: theme.primaryColor.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        '${filtered.length}',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: theme.primaryColor,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                // Minimal Sort Dropdown Button
-                PopupMenuButton<String>(
-                  tooltip: isEn ? 'Sort by' : 'จัดเรียง',
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  onSelected: (val) {
-                    HapticFeedback.selectionClick();
-                    setState(() => _sortBy = val);
-                  },
-                  itemBuilder: (ctx) => [
-                    PopupMenuItem(
-                      value: 'dueDate',
-                      child: Row(
-                        children: [
-                          Icon(Icons.calendar_today_rounded, size: 16, color: _sortBy == 'dueDate' ? theme.primaryColor : subColor),
-                          const SizedBox(width: 8),
-                          Text(
-                            isEn ? 'Next Due Date' : 'วันครบกำหนด',
-                            style: TextStyle(fontSize: 13, fontWeight: _sortBy == 'dueDate' ? FontWeight.bold : FontWeight.normal),
-                          ),
-                        ],
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'price',
-                      child: Row(
-                        children: [
-                          Icon(Icons.payments_rounded, size: 16, color: _sortBy == 'price' ? theme.primaryColor : subColor),
-                          const SizedBox(width: 8),
-                          Text(
-                            isEn ? 'Price (High to Low)' : 'ราคา (มากไปน้อย)',
-                            style: TextStyle(fontSize: 13, fontWeight: _sortBy == 'price' ? FontWeight.bold : FontWeight.normal),
-                          ),
-                        ],
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'name',
-                      child: Row(
-                        children: [
-                          Icon(Icons.sort_by_alpha_rounded, size: 16, color: _sortBy == 'name' ? theme.primaryColor : subColor),
-                          const SizedBox(width: 8),
-                          Text(
-                            isEn ? 'Name (A-Z)' : 'ชื่อบริการ (ก-ฮ)',
-                            style: TextStyle(fontSize: 13, fontWeight: _sortBy == 'name' ? FontWeight.bold : FontWeight.normal),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.04),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: borderColor.withOpacity(0.5)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.swap_vert_rounded, size: 15, color: theme.primaryColor),
-                        const SizedBox(width: 4),
-                        Text(
-                          _sortBy == 'price' ? 'เรียง: ราคา' : (_sortBy == 'name' ? 'เรียง: ชื่อ' : 'เรียง: วันครบ'),
-                          style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: textColor),
-                        ),
-                        const SizedBox(width: 2),
-                        Icon(Icons.keyboard_arrow_down_rounded, size: 15, color: subColor),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 6),
-
-          // EMPTY STATE OR LIST
-          if (filtered.isEmpty) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
-              decoration: BoxDecoration(
-                color: cardBg,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: borderColor.withOpacity(0.5)),
-              ),
-              child: Column(
+    return Container(
+      decoration: BoxDecoration(
+        gradient: theme.heroGradient,
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(26)),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 10, 8, 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
                 children: [
-                  const Icon(Icons.subscriptions_outlined, size: 54, color: Color(0xFF94A3B8)),
-                  const SizedBox(height: 12),
-                  Text(
-                    isEn ? 'No Subscriptions Added Yet' : 'ยังไม่มีรายการ Subscription',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor),
+                  IconButton(
+                    tooltip: isEn ? 'Back' : 'ย้อนกลับ',
+                    constraints: const BoxConstraints.tightFor(width: 44, height: 44),
+                    padding: EdgeInsets.zero,
+                    icon: Icon(Icons.chevron_left_rounded, color: heroText, size: 28),
+                    onPressed: () => Navigator.maybePop(context),
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    isEn
-                        ? 'Tap the + button below to add Netflix, YouTube, ChatGPT, AIS, or any recurring bills!'
-                        : 'แตะปุ่ม + ด้านล่างเพื่อเพิ่ม Netflix, YouTube, ChatGPT, ค่าเน็ต, ค่าน้ำไฟ พร้อมโลโก้ของจริงได้เลย!',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12, color: subColor, height: 1.4),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: _openAddSubscription,
-                    icon: const Icon(Icons.add_rounded, size: 18),
-                    label: Text(isEn ? 'Add Your First Service' : 'เพิ่มบริการแรกของคุณ'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: theme.primaryColor,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text('Subscription',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: heroText)),
                   ),
                 ],
               ),
-            ),
-          ] else ...[
-            // SUBSCRIPTION TILES
-            ...filtered.map((item) {
-              final daysLeft = item.daysUntilNextBilling;
-              final priceInThb = _convertToThb(item.price, item.currency);
-
-              Color dueBadgeColor = const Color(0xFF10B981);
-              String dueText = 'อีก $daysLeft วัน';
-              if (item.hasEnded) {
-                dueBadgeColor = subColor;
-                dueText = isEn ? 'Ended' : 'ครบกำหนดแล้ว';
-              } else if (daysLeft < 0) {
-                dueBadgeColor = Colors.redAccent;
-                dueText = isEn ? '${-daysLeft}d overdue' : 'เลยกำหนด ${-daysLeft} วัน';
-              } else if (daysLeft == 0) {
-                dueBadgeColor = const Color(0xFFF59E0B);
-                dueText = isEn ? 'Due today' : 'ตัดเงินวันนี้';
-              } else if (daysLeft <= 3) {
-                dueBadgeColor = const Color(0xFFF59E0B);
-                dueText = isEn ? 'in ${daysLeft}d (soon)' : 'อีก $daysLeft วัน';
-              }
-
-              return Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: cardBg,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: (item.isDueSoon && !item.hasEnded)
-                        ? const Color(0xFFF59E0B).withValues(alpha: 0.5)
-                        : borderColor.withValues(alpha: 0.6),
-                    width: (item.isDueSoon && !item.hasEnded) ? 1.5 : 1,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(20),
-                    onTap: () => _openEditSubscription(item),
-                    child: Padding(
-                      padding: const EdgeInsets.all(14),
+              const SizedBox(height: 14),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            children: [
-                              _buildBrandLogo(item),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            item.name,
-                                            style: TextStyle(
-                                              fontSize: 15,
-                                              fontWeight: FontWeight.bold,
-                                              color: textColor,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                        if (item.hasTrial)
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                            margin: const EdgeInsets.only(right: 6),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFFFEF3C7),
-                                              borderRadius: BorderRadius.circular(6),
-                                            ),
-                                            child: const Text(
-                                              'TRIAL',
-                                              style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFFB45309)),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 3),
-                                    Row(
-                                      children: [
-                                        Text(
-                                          item.category,
-                                          style: TextStyle(fontSize: 11, color: subColor),
-                                        ),
-                                        Text(' • ', style: TextStyle(fontSize: 11, color: subColor)),
-                                        Icon(Icons.account_balance_wallet_outlined, size: 11, color: subColor),
-                                        const SizedBox(width: 3),
-                                        Flexible(
-                                          child: Text(
-                                            item.accountName ?? item.paymentMethod,
-                                            style: TextStyle(fontSize: 11, color: subColor, fontWeight: FontWeight.w500),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
+                          Text(isEn ? 'Due this month ($monthLabel)' : 'ยอดที่ต้องจ่ายเดือนนี้ ($monthLabel)',
+                              style: TextStyle(fontSize: 12.5, color: heroMuted)),
+                          const SizedBox(height: 2),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: FxProgress(
+                              value: dueThisMonth,
+                              builder: (_, v) => Text(
+                                '฿${FormatUtils.formatMoney(v == dueThisMonth ? v : v.roundToDouble(), trimZero: true)}',
+                                maxLines: 1,
+                                style: TextStyle(fontSize: 34, fontWeight: FontWeight.w700, height: 1.15, color: heroText),
                               ),
-                              const SizedBox(width: 8),
-                              // Price Column
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    item.currency == 'THB'
-                                        ? '฿${FormatUtils.formatCurrency(item.price)}'
-                                        : (item.currency == 'BTC'
-                                            ? '₿ ${item.price.toStringAsFixed(item.price < 0.01 ? 6 : 4)}'
-                                            : '${item.currency} ${item.price.toStringAsFixed(2)}'),
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: theme.primaryColor,
-                                    ),
-                                  ),
-                                  if (item.currency != 'THB')
-                                    Text(
-                                      '≈ ฿${FormatUtils.formatCurrency(priceInThb)}',
-                                      style: TextStyle(fontSize: 10, color: subColor),
-                                    ),
-                                  Text(
-                                    item.billingCycle == 'yearly'
-                                        ? '/ปี'
-                                        : (item.billingCycle == 'weekly' ? '/สัปดาห์' : '/เดือน'),
-                                    style: TextStyle(fontSize: 10, color: subColor),
-                                  ),
-                                ],
-                              ),
-                            ],
+                            ),
                           ),
-                          const SizedBox(height: 10),
-                          const Divider(height: 1),
-                          const SizedBox(height: 8),
-                          // Bottom row: Next due badge + Log expense button
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: dueBadgeColor.withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Icon(Icons.event_rounded, size: 12, color: dueBadgeColor),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          dueText,
-                                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: dueBadgeColor),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    FormatUtils.formatDate(item.nextBillingDate, isEnglish: isEn, showYear: false),
-                                    style: TextStyle(fontSize: 11, color: subColor),
-                                  ),
-                                  if (item.endRuleType == 'fixedCycles' && item.totalCycles != null) ...[
-                                    const SizedBox(width: 6),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: item.hasEnded
-                                            ? subColor.withValues(alpha: 0.12)
-                                            : theme.primaryColor.withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Text(
-                                        item.hasEnded
-                                            ? (isEn ? 'Completed' : 'ครบกำหนด')
-                                            : (isEn ? 'Cycle ${item.completedCycles}/${item.totalCycles}' : 'รอบ ${item.completedCycles}/${item.totalCycles}'),
-                                        style: TextStyle(
-                                          fontSize: 9.5,
-                                          fontWeight: FontWeight.w600,
-                                          color: item.hasEnded ? subColor : theme.primaryColor,
-                                        ),
-                                      ),
-                                    ),
-                                  ] else if (item.endRuleType == 'untilDate' && item.endDate != null) ...[
-                                    const SizedBox(width: 6),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: item.hasEnded
-                                            ? subColor.withValues(alpha: 0.12)
-                                            : theme.primaryColor.withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Text(
-                                        item.hasEnded
-                                            ? (isEn ? 'Ended' : 'สิ้นสุดแล้ว')
-                                            : (isEn ? 'Until ${FormatUtils.formatDate(item.endDate!, isEnglish: isEn, shortYear: true)}' : 'ถึง ${FormatUtils.formatDate(item.endDate!, isEnglish: isEn, shortYear: true)}'),
-                                        style: TextStyle(
-                                          fontSize: 9.5,
-                                          fontWeight: FontWeight.w600,
-                                          color: item.hasEnded ? subColor : theme.primaryColor,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                  if (!item.enableReminder) ...[
-                                    const SizedBox(width: 6),
-                                    Icon(Icons.notifications_off_outlined, size: 12, color: subColor.withValues(alpha: 0.6)),
-                                  ],
-                                ],
-                              ),
-                              // Quick action: record as expense into MeowTang
-                              InkWell(
-                                onTap: () => _recordToExpenses(item),
-                                borderRadius: BorderRadius.circular(8),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  child: Row(
-                                    children: [
-                                      const Icon(Icons.add_task_rounded, size: 14, color: Color(0xFF10B981)),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        isEn ? 'Record Expense' : 'ลงรายจ่าย',
-                                        style: const TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                          color: Color(0xFF10B981),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
+                          const SizedBox(height: 2),
+                          Text(
+                            isEn
+                                ? 'About ฿${FormatUtils.formatMoney(yearly, trimZero: true)} a year • ${activeSubs.length} services'
+                                : 'ทั้งปีประมาณ ฿${FormatUtils.formatMoney(yearly, trimZero: true)} • ${activeSubs.length} บริการ',
+                            style: TextStyle(fontSize: 12.5, color: heroMuted),
                           ),
                         ],
                       ),
                     ),
-                  ),
+                    if (stack.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4, left: 12),
+                        child: SizedBox(
+                          width: 34.0 + 24 * (stack.length - 1),
+                          height: 34,
+                          child: Stack(
+                            children: [
+                              for (var k = 0; k < stack.length; k++)
+                                Positioned(left: 24.0 * k, child: _avatar(stack[k], 34, ringColor)),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
+              ),
+              if (activeSubs.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: _calendar(theme, isDark, isEn, activeSubs, now),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// "ปฏิทินตัดเงินเดือนนี้": a line for the month with today's dot and each charge's logo on its day.
+  Widget _calendar(AppThemeModel theme, bool isDark, bool isEn, List<SubscriptionItem> activeSubs, DateTime now) {
+    final heroText = theme.heroTextColor(isDark);
+    final heroMuted = theme.heroTextMutedColor(isDark);
+    const amber = Color(0xFFFCD34D);
+    final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
+    double pos(int day) => (day - 1) / (daysInMonth - 1);
+    final charges = activeSubs
+        .where((s) =>
+            !s.hasEnded &&
+            s.nextBillingDate.year == now.year &&
+            s.nextBillingDate.month == now.month &&
+            s.nextBillingDate.day >= now.day)
+        .toList()
+      ..sort((a, b) => a.nextBillingDate.compareTo(b.nextBillingDate));
+    final monthShort = isEn ? DateFormat('MMM').format(now) : _thaiMonths[now.month - 1];
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: heroText.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(16)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(isEn ? 'Charges this month' : 'ปฏิทินตัดเงินเดือนนี้',
+              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: heroText)),
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 40,
+            child: LayoutBuilder(builder: (context, box) {
+              final w = box.maxWidth;
+              final today = pos(now.day);
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: 19,
+                    child: Container(
+                      height: 3,
+                      decoration: BoxDecoration(
+                          color: heroText.withValues(alpha: 0.25), borderRadius: BorderRadius.circular(2)),
+                    ),
+                  ),
+                  Positioned(
+                    left: 0,
+                    width: w,
+                    top: 19,
+                    child: FxBar(value: today, color: amber, track: Colors.transparent, height: 3),
+                  ),
+                  Positioned(
+                    left: (w * today - 7).clamp(0.0, w - 14),
+                    top: 13,
+                    child: Container(
+                      width: 14,
+                      height: 14,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [BoxShadow(color: Color(0x99FCD34D), spreadRadius: 3)],
+                      ),
+                    ),
+                  ),
+                  for (var k = 0; k < charges.length; k++)
+                    Positioned(
+                      left: (w * pos(charges[k].nextBillingDate.day) - 14).clamp(0.0, w - 28),
+                      top: 6,
+                      child: Tooltip(
+                        message: '${charges[k].name} ${charges[k].nextBillingDate.day} $monthShort',
+                        child: _avatar(charges[k], 28, k == 0 ? amber : Colors.white),
+                      ),
+                    ),
+                ],
               );
             }),
-          ],
-          const SizedBox(height: 80),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Text('1 $monthShort', style: TextStyle(fontSize: 12, color: heroMuted)),
+              const Spacer(),
+              Text(isEn ? 'Today ${now.day}' : 'วันนี้ ${now.day}',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: heroText)),
+              const Spacer(),
+              Text('$daysInMonth $monthShort', style: TextStyle(fontSize: 12, color: heroMuted)),
+            ],
+          ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _openAddSubscription,
-        backgroundColor: theme.primaryColor,
-        foregroundColor: Colors.white,
-        elevation: 4,
-        icon: const Icon(Icons.add_rounded, size: 22),
-        label: Text(
-          isEn ? 'Add Service' : 'เพิ่ม Subscription',
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+    );
+  }
+
+  Widget _trialCard(SubscriptionItem t, bool isDark, bool isEn) {
+    final bg = isDark ? const Color(0xFF3A2A0A) : const Color(0xFFFFFBEB);
+    final title = isDark ? const Color(0xFFFDE68A) : const Color(0xFF78350F);
+    final sub = isDark ? const Color(0xFFFCD34D) : const Color(0xFF92400E);
+    final days = t.daysUntilTrialEnds ?? 0;
+    final end = t.trialEndDate!;
+    final endLabel = isEn ? DateFormat('d MMM').format(end) : '${end.day} ${_thaiMonths[end.month - 1]}';
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFFCD34D), width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              SizedBox(width: 44, height: 44, child: FittedBox(child: _buildBrandLogo(t))),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(isEn ? 'Free trial ending soon' : 'ทดลองใช้ฟรีใกล้หมด',
+                        style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600, color: title)),
+                    const SizedBox(height: 2),
+                    Text(
+                      isEn
+                          ? '${t.name} • ends $endLabel (${days == 0 ? 'today' : 'in $days days'})'
+                          : '${t.name} • หมดอายุ $endLabel (${days == 0 ? 'วันนี้' : 'อีก $days วัน'})',
+                      style: TextStyle(fontSize: 12.5, color: sub),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => _trialCancelled(t),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: sub,
+                    backgroundColor: isDark ? Colors.transparent : Colors.white,
+                    minimumSize: const Size.fromHeight(44),
+                    side: const BorderSide(color: Color(0xFFF59E0B), width: 1.5),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: Text(isEn ? 'Cancelled' : 'ยกเลิกแล้ว',
+                      style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: FilledButton(
+                  onPressed: () => _trialKeep(t),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFFB45309),
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size.fromHeight(44),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: Text(isEn ? 'Keep it' : 'ใช้ต่อ', style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _filterChips(AppThemeModel theme, List<SubscriptionItem> allSubs, bool isEn) {
+    int count(String cat) => allSubs.where((s) => s.category.contains(cat)).length;
+    final cats = [
+      'ทั้งหมด',
+      for (final c in _filterCategories)
+        if (count(c) > 0 || _selectedCategoryFilter == c) c,
+    ];
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      clipBehavior: Clip.none,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        children: [
+          for (final cat in cats)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: _Chip(
+                theme: theme,
+                label: '${cat == 'ทั้งหมด' && isEn ? 'All' : cat} ${cat == 'ทั้งหมด' ? allSubs.length : count(cat)}',
+                selected: _selectedCategoryFilter == cat,
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  setState(() => _selectedCategoryFilter = cat);
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _listHeader(AppThemeModel theme, bool isEn) {
+    final title = switch (_sortBy) {
+      'price' => isEn ? 'Sorted by price' : 'เรียงตามราคา',
+      'name' => isEn ? 'Sorted by name' : 'เรียงตามชื่อ',
+      _ => isEn ? 'Sorted by charge date' : 'เรียงตามวันตัดเงิน',
+    };
+    PopupMenuItem<String> item(String value, IconData icon, String label) => PopupMenuItem(
+          value: value,
+          child: Row(
+            children: [
+              Icon(icon, size: 18, color: _sortBy == value ? theme.primaryColor : theme.textSecondaryColor),
+              const SizedBox(width: 8),
+              Text(label,
+                  style: TextStyle(fontSize: 13.5, fontWeight: _sortBy == value ? FontWeight.w600 : FontWeight.w400)),
+            ],
+          ),
+        );
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: theme.textColor)),
+          ),
+          PopupMenuButton<String>(
+            tooltip: isEn ? 'Change sorting' : 'เปลี่ยนการจัดเรียง',
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            color: theme.cardBackground,
+            onSelected: (val) {
+              HapticFeedback.selectionClick();
+              setState(() => _sortBy = val);
+            },
+            itemBuilder: (ctx) => [
+              item('dueDate', Icons.event_outlined, isEn ? 'Next Due Date' : 'วันตัดเงิน'),
+              item('price', Icons.payments_outlined, isEn ? 'Price (High to Low)' : 'ราคา (มากไปน้อย)'),
+              item('name', Icons.sort_by_alpha_rounded, isEn ? 'Name (A-Z)' : 'ชื่อบริการ (ก-ฮ)'),
+            ],
+            child: SizedBox(
+              width: 44,
+              height: 44,
+              child: Icon(Icons.swap_vert_rounded, size: 22, color: theme.textSecondaryColor),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _emptyState(AppThemeModel theme, bool isDark, bool isEn, bool noneAtAll) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
+      decoration: _cardDecoration(theme, isDark),
+      child: Column(
+        children: [
+          Icon(Icons.subscriptions_outlined, size: 40, color: theme.textSecondaryColor),
+          const SizedBox(height: 12),
+          Text(
+            noneAtAll
+                ? (isEn ? 'No Subscriptions Added Yet' : 'ยังไม่มีรายการ Subscription')
+                : (isEn ? 'Nothing in this category' : 'ไม่มีบริการในหมวดนี้'),
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: theme.textColor),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            noneAtAll
+                ? (isEn
+                    ? 'Tap "Add Subscription" below to add Netflix, YouTube, ChatGPT, AIS, or any recurring bills.'
+                    : 'แตะ "เพิ่ม Subscription" ด้านล่างเพื่อเพิ่ม Netflix, YouTube, ChatGPT, ค่าเน็ต, ค่าน้ำไฟ พร้อมโลโก้ของจริงได้เลย')
+                : (isEn ? 'Pick another category above.' : 'ลองเลือกหมวดอื่นด้านบน'),
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12.5, color: theme.textSecondaryColor, height: 1.4),
+          ),
+        ],
+      ),
+    );
+  }
+
+  BoxDecoration _cardDecoration(AppThemeModel theme, bool isDark) => BoxDecoration(
+        color: theme.cardBackground,
+        borderRadius: BorderRadius.circular(18),
+        border: isDark ? Border.all(color: theme.borderColor) : null,
+        boxShadow: isDark ? null : const [BoxShadow(color: Color(0x0F0F172A), blurRadius: 14, offset: Offset(0, 4))],
+      );
+
+  Widget _subCard(SubscriptionItem item, AppThemeModel theme, bool isDark, bool isEn, {required bool expanded}) {
+    final daysLeft = item.daysUntilNextBilling;
+    final priceInThb = _convertToThb(item.price, item.currency);
+    final sub = theme.textSecondaryColor;
+    final warn = isDark ? const Color(0xFFFBBF24) : const Color(0xFFB45309);
+    final d = item.nextBillingDate;
+    final dateLabel = isEn ? DateFormat('d MMM').format(d) : '${d.day} ${_thaiMonths[d.month - 1]}';
+
+    String dueText;
+    Color dueColor = sub;
+    if (!item.isActive) {
+      dueText = isEn ? 'Switched off' : 'ปิดใช้งานอยู่';
+    } else if (item.hasEnded) {
+      dueText = isEn ? 'Ended' : 'ครบกำหนดแล้ว';
+    } else if (daysLeft < 0) {
+      dueText = isEn ? 'Charge $dateLabel • ${-daysLeft}d overdue' : 'ตัดเงิน $dateLabel • เลยกำหนด ${-daysLeft} วัน';
+      dueColor = isDark ? const Color(0xFFF87171) : const Color(0xFFDC2626);
+    } else if (daysLeft == 0) {
+      dueText = isEn ? 'Charged today' : 'ตัดเงินวันนี้';
+      dueColor = warn;
+    } else {
+      dueText = isEn ? 'Charge $dateLabel • in $daysLeft days' : 'ตัดเงิน $dateLabel • อีก $daysLeft วัน';
+      if (expanded) dueColor = warn;
+    }
+
+    final extras = <String>[
+      if (item.endRuleType == 'fixedCycles' && item.totalCycles != null && !item.hasEnded)
+        isEn ? 'Cycle ${item.completedCycles}/${item.totalCycles}' : 'รอบ ${item.completedCycles}/${item.totalCycles}',
+      if (item.endRuleType == 'untilDate' && item.endDate != null && !item.hasEnded)
+        '${isEn ? 'Until' : 'ถึง'} ${FormatUtils.formatDate(item.endDate!, isEnglish: isEn, shortYear: true)}',
+    ];
+    final detail = [item.category, item.accountName ?? item.paymentMethod, ...extras].where((s) => s.isNotEmpty).join(' • ');
+
+    final priceText = item.currency == 'THB'
+        ? '฿${FormatUtils.formatMoney(item.price, trimZero: true)}'
+        : (item.currency == 'BTC'
+            ? '₿ ${item.price.toStringAsFixed(item.price < 0.01 ? 6 : 4)}'
+            : '${item.currency} ${item.price.toStringAsFixed(2)}');
+    final cycle = switch (item.billingCycle) {
+      'yearly' => isEn ? '/year' : '/ปี',
+      'weekly' => isEn ? '/week' : '/สัปดาห์',
+      'quarterly' => isEn ? '/quarter' : '/ไตรมาส',
+      _ => isEn ? '/month' : '/เดือน',
+    };
+
+    final top = Row(
+      children: [
+        _buildBrandLogo(item),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(item.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: theme.textColor)),
+                  ),
+                  if (item.hasTrial) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF59E0B).withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(isEn ? 'TRIAL' : 'ทดลอง',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: warn)),
+                    ),
+                  ],
+                  if (!item.enableReminder) ...[
+                    const SizedBox(width: 6),
+                    Icon(Icons.notifications_off_outlined, size: 14, color: sub),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 2),
+              Text(
+                expanded ? detail : dueText,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 12, color: expanded ? sub : dueColor),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(priceText, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: theme.textColor)),
+            if (item.currency != 'THB')
+              Text('≈ ฿${FormatUtils.formatMoney(priceInThb, trimZero: true)}', style: TextStyle(fontSize: 12, color: sub)),
+            Text(cycle, style: TextStyle(fontSize: 12, color: sub)),
+          ],
+        ),
+      ],
+    );
+
+    return Opacity(
+      opacity: item.isActive ? 1 : 0.55,
+      child: Material(
+        color: Colors.transparent,
+        child: Ink(
+          decoration: _cardDecoration(theme, isDark),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(18),
+            onTap: () => _openEditSubscription(item),
+            onLongPress: () => _recordToExpenses(item),
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: !expanded
+                  ? top
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        top,
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: dueColor == sub ? sub : const Color(0xFFF59E0B),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(dueText,
+                                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: dueColor)),
+                            ),
+                            const SizedBox(width: 10),
+                            FilledButton(
+                              onPressed: () => _recordToExpenses(item),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: theme.primaryColor.withValues(alpha: isDark ? 0.24 : 0.1),
+                                foregroundColor: isDark ? theme.textColor : theme.primaryColor,
+                                elevation: 0,
+                                minimumSize: const Size(0, 44),
+                                padding: const EdgeInsets.symmetric(horizontal: 14),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              child: Text(isEn ? 'Record Expense' : 'ลงรายจ่าย',
+                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _bottomBar(AppThemeModel theme, bool isEn) {
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.cardBackground,
+        border: Border(top: BorderSide(color: theme.borderColor)),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+      child: SafeArea(
+        top: false,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(color: theme.primaryColor.withValues(alpha: 0.3), blurRadius: 20, offset: const Offset(0, 8)),
+            ],
+          ),
+          child: FilledButton.icon(
+            onPressed: _openAddSubscription,
+            style: FilledButton.styleFrom(
+              backgroundColor: theme.primaryColor,
+              foregroundColor: Colors.white,
+              minimumSize: const Size.fromHeight(56),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            ),
+            icon: const Icon(Icons.add_rounded, size: 22),
+            label: Text(isEn ? 'Add Subscription' : 'เพิ่ม Subscription',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+const _thaiMonths = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+
+String _thaiMonthShortYear(DateTime d) => '${_thaiMonths[d.month - 1]} ${d.year + 543}';
+
+class _Chip extends StatelessWidget {
+  final AppThemeModel theme;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _Chip({required this.theme, required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? theme.textColor : theme.cardBackground,
+      shape: StadiumBorder(side: selected ? BorderSide.none : BorderSide(color: theme.borderColor)),
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Center(
+              widthFactor: 1,
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                  color: selected ? theme.cardBackground : theme.textColor,
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );
