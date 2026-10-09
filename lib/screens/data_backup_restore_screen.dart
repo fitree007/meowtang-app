@@ -2,10 +2,11 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import '../state/expense_controller.dart';
-import '../theme/meow_theme.dart';
 import '../services/data_backup_service.dart';
 import '../services/native_bridge_service.dart';
+import '../widgets/meow_fx.dart';
 import '../widgets/qr_code_display_widget.dart';
 
 class DataBackupRestoreScreen extends StatefulWidget {
@@ -17,12 +18,12 @@ class DataBackupRestoreScreen extends StatefulWidget {
   State<DataBackupRestoreScreen> createState() => _DataBackupRestoreScreenState();
 }
 
-class _DataBackupRestoreScreenState extends State<DataBackupRestoreScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _DataBackupRestoreScreenState extends State<DataBackupRestoreScreen> {
+  int _tab = 0; // 0 = file, 1 = QR
 
   bool _isProcessing = false;
   String? _lastSavedFilePath;
+  DateTime? _lastSavedAt;
 
   // P2P Transfer Server State (Sender)
   DataTransferServer? _p2pServer;
@@ -35,19 +36,17 @@ class _DataBackupRestoreScreenState extends State<DataBackupRestoreScreen>
   final TextEditingController _ipInputController = TextEditingController();
   final TextEditingController _pinInputController = TextEditingController();
   int _p2pModeIndex = 0; // 0 = Sender, 1 = Receiver
+  bool _advOpen = false;
+  String? _manualError;
+
+  static final _nf = NumberFormat('#,##0', 'en_US');
+  static const _thMonths = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+  static String _thDate(DateTime d) => '${d.day} ${_thMonths[d.month - 1]} ${d.year + 543}';
+  static String _hm(DateTime d) => '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    _tabController.addListener(() {
-      if (_tabController.indexIsChanging) return;
-      if (_tabController.index == 1 && _p2pModeIndex == 0) {
-        _startP2pServer();
-      } else {
-        _stopP2pServer();
-      }
-    });
     _generateRandomPin();
   }
 
@@ -56,10 +55,20 @@ class _DataBackupRestoreScreenState extends State<DataBackupRestoreScreen>
     setState(() => _pinCode = rand);
   }
 
+  void _selectTab(int i) {
+    if (i == _tab) return;
+    HapticFeedback.selectionClick();
+    setState(() => _tab = i);
+    if (i == 1 && _p2pModeIndex == 0) {
+      _startP2pServer();
+    } else {
+      _stopP2pServer();
+    }
+  }
+
   @override
   void dispose() {
     _stopP2pServer();
-    _tabController.dispose();
     _ipInputController.dispose();
     _pinInputController.dispose();
     super.dispose();
@@ -119,27 +128,19 @@ class _DataBackupRestoreScreenState extends State<DataBackupRestoreScreen>
         setState(() {
           _isProcessing = false;
           _lastSavedFilePath = savedPath;
+          if (savedPath != null) _lastSavedAt = DateTime.now();
         });
 
         if (savedPath != null) {
-          _showSuccessDialog(
-            title: 'บันทึกไฟล์สำรองสำเร็จ! 🎉',
-            message: 'ไฟล์สำรองข้อมูลถูกบันทึกไว้ที่:\n\n📁 $savedPath\n\nสามารถนำไฟล์นี้ไปใช้กู้คืนในเครื่องใหม่ หรือส่งต่อได้ทันทีครับ',
-            icon: Icons.check_circle_rounded,
-            iconColor: MeowTheme.incomeGreen,
-          );
+          _calmToast(context, 'บันทึกไฟล์สำรองแล้ว • $savedPath');
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('ไม่สามารถบันทึกไฟล์ลงเครื่องได้ กรุณาตรวจสอบสิทธิ์การเข้าถึง')),
-          );
+          _calmToast(context, 'ไม่สามารถบันทึกไฟล์ลงเครื่องได้ กรุณาตรวจสอบสิทธิ์การเข้าถึง', error: true);
         }
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isProcessing = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('เกิดข้อผิดพลาด: $e')),
-        );
+        _calmToast(context, 'เกิดข้อผิดพลาด: $e', error: true);
       }
     }
   }
@@ -155,17 +156,13 @@ class _DataBackupRestoreScreenState extends State<DataBackupRestoreScreen>
       if (mounted) {
         setState(() => _isProcessing = false);
         if (!ok) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('แชร์ไฟล์ไม่สำเร็จ ลองใหม่อีกครั้ง หรือใช้ "บันทึกไฟล์สำรองลงเครื่อง" แทน')),
-          );
+          _calmToast(context, 'แชร์ไฟล์ไม่สำเร็จ ลองใหม่อีกครั้ง หรือใช้ "บันทึกไฟล์สำรองลงเครื่อง" แทน', error: true);
         }
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isProcessing = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('เกิดข้อผิดพลาดในการแชร์: $e')),
-        );
+        _calmToast(context, 'เกิดข้อผิดพลาดในการแชร์: $e', error: true);
       }
     }
   }
@@ -182,17 +179,13 @@ class _DataBackupRestoreScreenState extends State<DataBackupRestoreScreen>
         if (backupData != null) {
           _showRestoreConfirmationModal(backupData);
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('ไม่พบข้อมูลสำรองที่ถูกต้อง หรือยกเลิกการเลือกไฟล์')),
-          );
+          _calmToast(context, 'ไม่พบข้อมูลสำรองที่ถูกต้อง หรือยกเลิกการเลือกไฟล์');
         }
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isProcessing = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('เกิดข้อผิดพลาดในการอ่านไฟล์: $e')),
-        );
+        _calmToast(context, 'เกิดข้อผิดพลาดในการอ่านไฟล์: $e', error: true);
       }
     }
   }
@@ -200,221 +193,253 @@ class _DataBackupRestoreScreenState extends State<DataBackupRestoreScreen>
   // ==========================================================
   // RESTORE CONFIRMATION & EXECUTION
   // ==========================================================
-  void _showRestoreConfirmationModal(Map<String, dynamic> data) {
-    final isDark = widget.controller.isDarkMode;
-    final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
-    final cardBg = isDark ? MeowTheme.navySurface : Colors.white;
+  Widget _statRow(_C c, List<(String, String)> items) => Row(
+        children: [
+          for (final s in items)
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(s.$1,
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: c.text, fontFeatures: const [FontFeature.tabularFigures()])),
+                  ),
+                  Text(s.$2, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, color: c.sub)),
+                ],
+              ),
+            ),
+        ],
+      );
 
+  List<(String, String)> _currentStats() {
+    final ctl = widget.controller;
+    return [
+      (_nf.format(ctl.allTransactions.length), 'รายการ'),
+      (_nf.format(ctl.accounts.length), 'บัญชี'),
+      (_nf.format(ctl.categories.length), 'หมวดหมู่'),
+      (_nf.format(ctl.savingGoals.length), 'เป้าหมาย'),
+    ];
+  }
+
+  void _showRestoreConfirmationModal(Map<String, dynamic> data, {bool fromPeer = false}) {
+    final c = _C.of(widget.controller);
     final txCount = (data['transactions'] as List?)?.length ?? 0;
     final accCount = (data['accounts'] as List?)?.length ?? 0;
     final catCount = (data['categories'] as List?)?.length ?? 0;
     final goalCount = (data['savingGoals'] as List?)?.length ?? 0;
-    final backupDate = data['exportedAt'] as String? ?? 'ไม่ระบุวันที่';
+    final exported = DateTime.tryParse(data['exportedAt'] as String? ?? '')?.toLocal();
+    final src = fromPeer
+        ? 'รับจากเครื่องเดิมผ่าน Wi-Fi${exported != null ? ' • ข้อมูล ณ ${_thDate(exported)}' : ''}'
+        : (exported != null ? 'ไฟล์สำรองเมื่อ ${_thDate(exported)} เวลา ${_hm(exported)}' : 'ไฟล์สำรอง (ไม่ระบุวันที่)');
 
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: cardBg,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
+    Widget option({required IconData icon, required String title, required String sub, required bool primary, required VoidCallback onTap}) {
+      final fg = primary ? Colors.white : c.danger;
+      return Material(
+        color: primary ? c.accent : c.card,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 60),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: primary ? null : Border.all(color: c.danger.withValues(alpha: 0.45)),
             ),
-            const SizedBox(height: 16),
-            Row(
+            child: Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: MeowTheme.mustardYellow.withValues(alpha: 0.15),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.settings_backup_restore_rounded, color: MeowTheme.mustardYellow, size: 28),
-                ),
-                const SizedBox(width: 12),
+                Icon(icon, size: 22, color: fg),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'พบข้อมูลสำรองที่ถูกต้อง! 📦',
-                        style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: textPrimary),
-                      ),
-                      Text(
-                        'วันที่สำรอง: ${backupDate.split('T').first}',
-                        style: TextStyle(fontSize: 12, color: isDark ? Colors.white54 : Colors.grey),
-                      ),
+                      Text(title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: fg)),
+                      Text(sub, style: TextStyle(fontSize: 12.5, color: primary ? Colors.white.withValues(alpha: 0.85) : c.sub)),
                     ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-
-            // Summary Stats Grid
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF0F1E36) : const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: isDark ? MeowTheme.borderColor : const Color(0xFFE2E8F0)),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildMiniStat('ธุรกรรม', '$txCount รายการ', Icons.receipt_long_rounded, MeowTheme.incomeGreen),
-                  _buildMiniStat('บัญชี', '$accCount บัญชี', Icons.account_balance_wallet_rounded, MeowTheme.actionBlue),
-                  _buildMiniStat('หมวดหมู่', '$catCount หมวด', Icons.grid_view_rounded, const Color(0xFFF59E0B)),
-                  _buildMiniStat('เป้าหมาย', '$goalCount รายการ', Icons.track_changes_rounded, const Color(0xFFEC4899)),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            Text(
-              'เลือกรูปแบบการกู้คืนข้อมูล:',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: textPrimary),
-            ),
-            const SizedBox(height: 10),
-
-            // Option 1 (safe, default): merge into what is already on this phone
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: MeowTheme.incomeGreen,
-                foregroundColor: Colors.white,
-                minimumSize: const Size.fromHeight(52),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                elevation: 0,
-              ),
-              onPressed: () {
-                Navigator.pop(ctx);
-                _executeRestore(data, replaceAll: false);
-              },
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Icon(Icons.merge_type_rounded, size: 20),
-                  SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      'ผสานรวมข้อมูล (ไม่ลบข้อมูลเดิม)',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 10),
-
-            // Option 2 (destructive): replace everything, asks again first
-            OutlinedButton(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFFDC2626),
-                minimumSize: const Size.fromHeight(52),
-                side: const BorderSide(color: Color(0xFFFCA5A5)),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              ),
-              onPressed: () {
-                Navigator.pop(ctx);
-                _confirmReplaceAll(data);
-              },
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Icon(Icons.warning_amber_rounded, size: 20),
-                  SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      'เขียนทับทั้งหมด (ลบข้อมูลในเครื่องนี้)',
-                      style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'แนะนำ "ผสานรวม" ถ้าเครื่องนี้มีข้อมูลอยู่แล้ว • ใช้ "เขียนทับ" เฉพาะเครื่องใหม่ที่ยังไม่มีข้อมูล',
-              style: TextStyle(fontSize: 11.5, height: 1.4, color: isDark ? Colors.white54 : const Color(0xFF64748B)),
-            ),
-          ],
+          ),
         ),
-      ),
-    );
+      );
+    }
+
+    _showCalmSheet<void>(context, c, title: 'พบข้อมูลสำรองที่ถูกต้อง', subtitle: src, builder: (ctx, _) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _calmCard(
+            c,
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            child: _statRow(c, [
+              (_nf.format(txCount), 'รายการ'),
+              (_nf.format(accCount), 'บัญชี'),
+              (_nf.format(catCount), 'หมวดหมู่'),
+              (_nf.format(goalCount), 'เป้าหมาย'),
+            ]),
+          ),
+          const SizedBox(height: 16),
+          Text('จะกู้คืนแบบไหน?', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.sub)),
+          const SizedBox(height: 8),
+          // Option 1 (safe, default): merge into what is already on this phone
+          option(
+            icon: Icons.merge_type_rounded,
+            title: 'ผสานรวมข้อมูล (แนะนำ)',
+            sub: 'เก็บข้อมูลในเครื่องนี้ไว้ + เพิ่มจากไฟล์ (ไม่ซ้ำ)',
+            primary: true,
+            onTap: () {
+              Navigator.pop(ctx);
+              _executeRestore(data, replaceAll: false);
+            },
+          ),
+          const SizedBox(height: 10),
+          // Option 2 (destructive): replace everything, asks again first
+          option(
+            icon: Icons.delete_outline_rounded,
+            title: 'เขียนทับทั้งหมด',
+            sub: 'ลบข้อมูลในเครื่องนี้ แล้วใช้ข้อมูลจากไฟล์แทน',
+            primary: false,
+            onTap: () {
+              Navigator.pop(ctx);
+              _confirmReplaceAll(data, fromPeer: fromPeer);
+            },
+          ),
+          const SizedBox(height: 6),
+          SizedBox(
+            height: 48,
+            child: TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text('ยกเลิก', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600, color: c.sub)),
+            ),
+          ),
+        ],
+      );
+    });
   }
 
   /// Second confirmation before wiping this phone's data; a safety backup is saved first.
-  Future<void> _confirmReplaceAll(Map<String, dynamic> data) async {
-    final c = widget.controller;
-    final txNow = c.allTransactions.length;
-    final accNow = c.accounts.length;
-    final catNow = c.categories.length;
-    final yes = await showDialog<bool>(
+  Future<void> _confirmReplaceAll(Map<String, dynamic> data, {bool fromPeer = false}) async {
+    final ctl = widget.controller;
+    final c = _C.of(ctl);
+    final txNow = ctl.allTransactions.length;
+    final accNow = ctl.accounts.length;
+    final stats = _currentStats();
+
+    final choice = await showModalBottomSheet<String>(
       context: context,
-      builder: (dCtx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('เขียนทับข้อมูลทั้งหมด?'),
-        content: Text(
-          'ข้อมูลในเครื่องนี้ตอนนี้ ($txNow รายการ • $accNow บัญชี • $catNow หมวดหมู่) จะถูกลบ '
-          'และแทนที่ด้วยข้อมูลจากไฟล์สำรอง\n\n'
-          'ก่อนเขียนทับ ระบบจะบันทึกไฟล์สำรองของข้อมูลปัจจุบันไว้ในโฟลเดอร์ Download ให้อัตโนมัติ',
-          style: const TextStyle(height: 1.45),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dCtx, false), child: const Text('ยกเลิก')),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFDC2626)),
-            onPressed: () => Navigator.pop(dCtx, true),
-            child: const Text('เขียนทับ'),
+      isScrollControlled: true,
+      backgroundColor: c.card,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Center(child: Container(width: 36, height: 4, decoration: BoxDecoration(color: c.line, borderRadius: BorderRadius.circular(2)))),
+              const SizedBox(height: 14),
+              Row(children: [
+                Icon(Icons.warning_amber_rounded, size: 26, color: c.danger),
+                const SizedBox(width: 10),
+                Expanded(child: Text('ยืนยันเขียนทับทั้งหมด?', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: c.text))),
+              ]),
+              const SizedBox(height: 6),
+              Padding(
+                padding: const EdgeInsets.only(left: 36),
+                child: Text('ข้อมูลต่อไปนี้ในเครื่องนี้จะถูกลบ และแทนที่ด้วยข้อมูลจากไฟล์สำรอง ย้อนกลับไม่ได้',
+                    style: TextStyle(fontSize: 13.5, height: 1.45, color: c.sub)),
+              ),
+              const SizedBox(height: 14),
+              _calmCard(
+                c,
+                child: Column(
+                  children: [
+                    for (var i = 0; i < stats.length; i++)
+                      Container(
+                        height: 46,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        decoration: BoxDecoration(border: i == 0 ? null : Border(top: BorderSide(color: c.border))),
+                        child: Row(children: [
+                          Expanded(child: Text(stats[i].$2, style: TextStyle(fontSize: 14, color: c.text))),
+                          Text(stats[i].$1, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: c.text)),
+                        ]),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              // The safety backup is always made (it is what makes overwriting recoverable).
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 22,
+                    height: 22,
+                    decoration: BoxDecoration(color: c.accent, borderRadius: BorderRadius.circular(6)),
+                    child: const Icon(Icons.check_rounded, size: 16, color: Colors.white),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('สำรองข้อมูลปัจจุบันให้อัตโนมัติก่อน', style: c.title.copyWith(fontSize: 14.5)),
+                        Text('บันทึกไว้ในโฟลเดอร์ Download • กู้กลับได้ถ้าเปลี่ยนใจ', style: c.subtitle),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _primaryButton(c, 'ลบและเขียนทับทั้งหมด', () => Navigator.pop(ctx, 'overwrite'), color: c.danger),
+              const SizedBox(height: 10),
+              SizedBox(
+                height: 50,
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(ctx, 'merge'),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: c.line),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: Text('กลับไปเลือก “ผสานรวม” แทน', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600, color: c.link)),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
-    if (yes != true || !mounted) return;
+    if (!mounted) return;
+    if (choice == 'merge') {
+      _showRestoreConfirmationModal(data, fromPeer: fromPeer);
+      return;
+    }
+    if (choice != 'overwrite') return;
 
     if (txNow + accNow > 0) {
       setState(() => _isProcessing = true);
       String? safety;
       try {
-        safety = await DataBackupService.saveBackupToDeviceDownloads(c.storage);
+        safety = await DataBackupService.saveBackupToDeviceDownloads(ctl.storage);
       } catch (_) {
         safety = null;
       }
       if (!mounted) return;
       if (safety == null) {
         setState(() => _isProcessing = false);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('สำรองข้อมูลเดิมไม่สำเร็จ จึงยกเลิกการเขียนทับเพื่อไม่ให้ข้อมูลหาย (ลอง "ผสานรวม" แทนได้)'),
-        ));
+        _calmToast(context, 'สำรองข้อมูลเดิมไม่สำเร็จ จึงยกเลิกการเขียนทับเพื่อไม่ให้ข้อมูลหาย (ลอง "ผสานรวม" แทนได้)', error: true);
         return;
       }
+      _lastSavedFilePath = safety;
+      _lastSavedAt = DateTime.now();
     }
     await _executeRestore(data, replaceAll: true);
-  }
-
-  Widget _buildMiniStat(String label, String value, IconData icon, Color color) {
-    return Column(
-      children: [
-        Icon(icon, size: 18, color: color),
-        const SizedBox(height: 4),
-        Text(value, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-        Text(label, style: const TextStyle(fontSize: 9.5, color: Colors.grey)),
-      ],
-    );
   }
 
   Future<void> _executeRestore(Map<String, dynamic> data, {required bool replaceAll}) async {
@@ -430,24 +455,18 @@ class _DataBackupRestoreScreenState extends State<DataBackupRestoreScreen>
       if (mounted) {
         setState(() => _isProcessing = false);
         if (ok) {
-          _showSuccessDialog(
-            title: 'กู้คืนข้อมูลสำเร็จเรียบร้อย! 🎉',
-            message: 'ข้อมูลธุรกรรม หมวดหมู่ บัญชีกระเป๋าเงิน และการตั้งค่าทั้งหมดถูกนำเข้าและพร้อมใช้งาน 100% แล้วครับ',
-            icon: Icons.verified_rounded,
-            iconColor: MeowTheme.incomeGreen,
+          _calmToast(
+            context,
+            replaceAll ? 'เขียนทับเรียบร้อย • ข้อมูลเดิมสำรองไว้ที่โฟลเดอร์ Download แล้ว' : 'ผสานรวมข้อมูลเรียบร้อย • ไม่มีข้อมูลซ้ำ',
           );
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('เกิดข้อผิดพลาด ไม่สามารถกู้คืนข้อมูลได้')),
-          );
+          _calmToast(context, 'เกิดข้อผิดพลาด ไม่สามารถกู้คืนข้อมูลได้', error: true);
         }
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isProcessing = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('เกิดข้อผิดพลาด: $e')),
-        );
+        _calmToast(context, 'เกิดข้อผิดพลาด: $e', error: true);
       }
     }
   }
@@ -468,19 +487,11 @@ class _DataBackupRestoreScreenState extends State<DataBackupRestoreScreen>
         if (qrPayload.isNotEmpty && (qrPayload.startsWith('http://') || qrPayload.startsWith('https://') || qrPayload.startsWith('rizqi://'))) {
           await _fetchDataFromPeerQr(qrPayload);
         } else {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('ไม่พบ QR Code การโอนย้ายข้อมูลในรูปภาพที่เลือก')),
-            );
-          }
+          if (mounted) _calmToast(context, 'ไม่พบ QR Code การโอนย้ายข้อมูลในรูปภาพที่เลือก');
         }
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('เกิดข้อผิดพลาดในการสแกน: $e')),
-        );
-      }
+      if (mounted) _calmToast(context, 'เกิดข้อผิดพลาดในการสแกน: $e', error: true);
     } finally {
       if (mounted) setState(() => _isProcessing = false);
     }
@@ -489,13 +500,18 @@ class _DataBackupRestoreScreenState extends State<DataBackupRestoreScreen>
   Future<void> _handleManualConnect() async {
     final ip = _ipInputController.text.trim();
     final pin = _pinInputController.text.trim();
+    final ipOk = RegExp(r'^\d{1,3}(\.\d{1,3}){3}$').hasMatch(ip);
+    final pinOk = pin.isEmpty || RegExp(r'^\d{4}$').hasMatch(pin);
 
-    if (ip.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('กรุณากรอก IP Address ของเครื่องส่ง')),
-      );
+    if (!ipOk || !pinOk) {
+      setState(() => _manualError = ip.isEmpty
+          ? 'กรุณากรอกที่อยู่ IP ของเครื่องเดิม'
+          : !ipOk
+              ? 'ที่อยู่ IP ไม่ถูกต้อง (ตัวอย่าง 192.168.1.42)'
+              : 'PIN ต้องเป็นตัวเลข 4 หลัก');
       return;
     }
+    setState(() => _manualError = null);
 
     final url = 'http://$ip:${DataBackupService.p2pPort}/rizqi_backup${pin.isNotEmpty ? "?pin=$pin" : ""}';
     await _fetchDataFromPeerQr(url);
@@ -517,714 +533,825 @@ class _DataBackupRestoreScreenState extends State<DataBackupRestoreScreen>
       if (mounted) {
         setState(() => _isProcessing = false);
         if (data != null) {
-          _showRestoreConfirmationModal(data);
+          _showRestoreConfirmationModal(data, fromPeer: true);
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('เชื่อมต่อเครื่องต้นทางไม่สำเร็จ กรุณาตรวจสอบว่าต่อ Wi-Fi วงเดียวกันหรือไม่')),
-          );
+          _calmToast(context, 'เชื่อมต่อเครื่องต้นทางไม่สำเร็จ กรุณาตรวจสอบว่าต่อ Wi-Fi วงเดียวกันหรือไม่', error: true);
         }
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isProcessing = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('เกิดข้อผิดพลาดในการดึงข้อมูล: $e')),
-        );
+        _calmToast(context, 'เกิดข้อผิดพลาดในการดึงข้อมูล: $e', error: true);
       }
     }
   }
 
-  void _showSuccessDialog({
-    required String title,
-    required String message,
-    required IconData icon,
-    required Color iconColor,
-  }) {
-    final isDark = widget.controller.isDarkMode;
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: isDark ? MeowTheme.navySurface : Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Icon(icon, color: iconColor, size: 28),
-            const SizedBox(width: 10),
-            Expanded(child: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
-          ],
-        ),
-        content: Text(message, style: const TextStyle(fontSize: 13, height: 1.4)),
-        actions: [
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: MeowTheme.mustardYellow,
-              foregroundColor: Colors.black87,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('ตกลง', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
-  }
-
+  // ==========================================================
+  // BUILD
+  // ==========================================================
   @override
   Widget build(BuildContext context) {
-    final currentTheme = widget.controller.currentTheme;
-    final isDark = widget.controller.isDarkMode;
-    final isEn = widget.controller.isEnglish;
-    final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
-    final textSecondary = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
-    final cardBg = isDark ? MeowTheme.navySurface : Colors.white;
-    final borderColor = isDark ? MeowTheme.borderColor : const Color(0xFFE2E8F0);
+    return ListenableBuilder(
+      listenable: widget.controller,
+      builder: (context, _) {
+        final c = _C.of(widget.controller);
+        final isEn = widget.controller.isEnglish;
 
-    return Scaffold(
-      backgroundColor: currentTheme.scaffoldBackground,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_rounded, color: textPrimary, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          isEn ? 'Backup & Migration' : 'สำรอง & ย้ายข้อมูลข้ามเครื่อง',
-          style: TextStyle(color: textPrimary, fontSize: 17, fontWeight: FontWeight.bold),
-        ),
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: MeowTheme.mustardYellow,
-          unselectedLabelColor: isDark ? Colors.white54 : Colors.grey,
-          indicatorColor: MeowTheme.mustardYellow,
-          indicatorWeight: 3,
-          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-          tabs: const [
-            Tab(icon: Icon(Icons.folder_zip_rounded, size: 18), text: '📁 สำรองด้วยไฟล์ (.rizqi)'),
-            Tab(icon: Icon(Icons.qr_code_scanner_rounded, size: 18), text: '📲 ย้ายด้วย QR Code'),
-          ],
-        ),
-      ),
-      body: Stack(
-        children: [
-          TabBarView(
-            controller: _tabController,
-            children: [
-              _buildFileBackupTab(cardBg, borderColor, textPrimary, textSecondary, isDark),
-              _buildQrMigrationTab(cardBg, borderColor, textPrimary, textSecondary, isDark),
-            ],
-          ),
-          if (_isProcessing)
-            Container(
-              color: Colors.black.withValues(alpha: 0.4),
-              child: const Center(
-                child: CircularProgressIndicator(color: MeowTheme.mustardYellow),
+        Widget seg(String label, int i) {
+          final sel = _tab == i;
+          return Expanded(
+            child: Material(
+              color: sel ? c.card : Colors.transparent,
+              borderRadius: BorderRadius.circular(10),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(10),
+                onTap: () => _selectTab(i),
+                child: SizedBox(
+                  height: 44,
+                  child: Center(
+                    child: Text(label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 14, fontWeight: sel ? FontWeight.w600 : FontWeight.w400, color: sel ? c.link : c.sub)),
+                  ),
+                ),
               ),
             ),
-        ],
-      ),
+          );
+        }
+
+        return Scaffold(
+          backgroundColor: c.page,
+          appBar: _calmAppBar(context, c, isEn ? 'Backup & transfer' : 'สำรอง & ย้ายข้อมูล',
+              subtitle: isEn ? 'Free • your data stays on your phone' : 'ฟรี • ข้อมูลอยู่ในเครื่องของคุณเท่านั้น',
+              bottomHeight: 64,
+              bottom: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(color: c.seg, borderRadius: BorderRadius.circular(14)),
+                  child: Row(children: [seg('สำรองด้วยไฟล์', 0), seg('ย้ายด้วย QR Code', 1)]),
+                ),
+              )),
+          body: Stack(
+            children: [
+              Column(
+                children: [
+                  Expanded(child: _tab == 0 ? _buildFileBackupTab(c) : _buildQrMigrationTab(c)),
+                ],
+              ),
+              if (_isProcessing)
+                Container(
+                  color: Colors.black.withValues(alpha: 0.35),
+                  child: Center(child: CircularProgressIndicator(color: c.dark ? Colors.white : c.accent)),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  // ==========================================================
-  // TAB 1: FILE BACKUP & RESTORE (Minimal & Human-Friendly)
-  // ==========================================================
-  Widget _buildFileBackupTab(Color cardBg, Color borderColor, Color textPrimary, Color textSecondary, bool isDark) {
-    final totalTxs = widget.controller.allTransactions.length;
-    final totalAccs = widget.controller.accounts.length;
-    final totalCats = widget.controller.categories.length;
-
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-      children: [
-        // 1. Current Device Summary Card
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: cardBg,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: borderColor),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: MeowTheme.incomeGreen.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(Icons.inventory_2_rounded, color: MeowTheme.incomeGreen, size: 20),
+  Widget _navRow(_C c, {required IconData icon, required String title, required String sub, required VoidCallback onTap}) => _calmCard(
+        c,
+        child: InkWell(
+          onTap: onTap,
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 64),
+            padding: const EdgeInsets.fromLTRB(16, 11, 12, 11),
+            child: Row(
+              children: [
+                Icon(icon, size: 22, color: c.icon),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [Text(title, style: c.title), const SizedBox(height: 2), Text(sub, style: c.subtitle)],
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'ข้อมูลในเครื่องปัจจุบัน',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: textPrimary),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '$totalTxs รายการธุรกรรม • $totalAccs บัญชี • $totalCats หมวดหมู่',
-                          style: TextStyle(fontSize: 11.5, color: textSecondary),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
+                ),
+                Icon(Icons.chevron_right_rounded, size: 22, color: c.faint),
+              ],
+            ),
           ),
         ),
-        const SizedBox(height: 18),
+      );
+
+  // ==========================================================
+  // TAB 1: FILE BACKUP & RESTORE
+  // ==========================================================
+  Widget _buildFileBackupTab(_C c) {
+    final saved = _lastSavedAt;
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+      children: [
+        // 1. Last backup + what is on this phone
+        FxFadeUp(
+          child: _calmCard(
+            c,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                  child: Row(
+                    children: [
+                      Icon(Icons.shield_outlined, size: 22, color: c.icon),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('สำรองล่าสุด', style: TextStyle(fontSize: 12.5, color: c.sub)),
+                            Text(
+                              saved != null ? '${_thDate(saved)} • วันนี้' : 'ยังไม่ได้สำรองในรอบนี้',
+                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: c.text),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (saved != null) Text('เพิ่งสำรอง', style: TextStyle(fontSize: 12.5, color: c.sub)),
+                    ],
+                  ),
+                ),
+                Divider(height: 1, thickness: 1, color: c.border),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('ข้อมูลในเครื่องปัจจุบัน', style: TextStyle(fontSize: 12.5, color: c.sub)),
+                      const SizedBox(height: 8),
+                      _statRow(c, _currentStats()),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
 
         // Section 1: Export
-        Text(
-          'สำรองข้อมูล (Export)',
-          style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: textPrimary),
-        ),
-        const SizedBox(height: 8),
-
-        // Save to Downloads Button
-        GestureDetector(
-          onTap: _handleSaveToDownloads,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              color: cardBg,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: borderColor),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(9),
-                  decoration: BoxDecoration(
-                    color: MeowTheme.actionBlue.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.download_rounded, color: MeowTheme.actionBlue, size: 20),
+        FxFadeUp(
+          index: 1,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _sectionLabel(c, 'สำรองข้อมูล (Export)'),
+              _primaryButton(c, 'บันทึกไฟล์สำรองลงเครื่อง', _handleSaveToDownloads, icon: Icons.file_download_outlined),
+              const SizedBox(height: 10),
+              _navRow(c,
+                  icon: Icons.cloud_upload_outlined,
+                  title: 'แชร์ไฟล์ไปเครื่องอื่น',
+                  sub: 'ส่งทาง LINE / Google Drive / Email',
+                  onTap: _handleShareBackupFile),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
+                child: Text(
+                  _lastSavedFilePath != null ? 'ไฟล์ล่าสุด: $_lastSavedFilePath' : 'ไฟล์จะถูกเก็บในโฟลเดอร์ Download ของเครื่อง',
+                  style: TextStyle(fontSize: 12.5, color: c.sub),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'บันทึกไฟล์สำรองลงเครื่อง (.rizqi)',
-                        style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: textPrimary),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'บันทึกเก็บไว้ในโฟลเดอร์ Download ของมือถือ',
-                        style: TextStyle(fontSize: 11, color: textSecondary),
-                      ),
-                    ],
-                  ),
-                ),
-                const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 10),
-
-        // Share Backup File Button
-        GestureDetector(
-          onTap: _handleShareBackupFile,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              color: cardBg,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: borderColor),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(9),
-                  decoration: BoxDecoration(
-                    color: MeowTheme.mustardYellow.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.share_rounded, color: MeowTheme.mustardYellow, size: 20),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'แชร์ไฟล์ไปเครื่องอื่น (LINE / Drive / Email)',
-                        style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: textPrimary),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'ส่งไฟล์ไปยัง LINE ส่วนตัว หรือบันทึกบน Google Drive',
-                        style: TextStyle(fontSize: 11, color: textSecondary),
-                      ),
-                    ],
-                  ),
-                ),
-                const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 20),
 
         // Section 2: Restore
-        Text(
-          'กู้คืนข้อมูล (Restore)',
-          style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: textPrimary),
-        ),
-        const SizedBox(height: 8),
-
-        GestureDetector(
-          onTap: _handlePickAndRestoreFile,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              color: cardBg,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: MeowTheme.incomeGreen.withValues(alpha: 0.5)),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(9),
-                  decoration: BoxDecoration(
-                    color: MeowTheme.incomeGreen.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.restore_page_rounded, color: MeowTheme.incomeGreen, size: 20),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'เลือกไฟล์เพื่อกู้คืนข้อมูล (.rizqi / .json)',
-                        style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: textPrimary),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'นำไฟล์สำรองที่เคยบันทึกไว้กลับมาใช้งาน',
-                        style: TextStyle(fontSize: 11, color: textSecondary),
-                      ),
-                    ],
-                  ),
-                ),
-                const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
-              ],
-            ),
+        FxFadeUp(
+          index: 2,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _sectionLabel(c, 'กู้คืนข้อมูล (Restore)'),
+              _navRow(c,
+                  icon: Icons.sync_rounded,
+                  title: 'เลือกไฟล์เพื่อกู้คืนข้อมูล',
+                  sub: 'ไฟล์สำรองจากแอปเหมียวตังค์ • ตรวจไฟล์ให้ก่อนเสมอ',
+                  onTap: _handlePickAndRestoreFile),
+            ],
           ),
         ),
         const SizedBox(height: 20),
 
-        // 4. Clean Step Guide
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF0F1E36) : const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: borderColor),
+        // Step guide
+        FxFadeUp(
+          index: 3,
+          child: _calmCard(
+            c,
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('วิธีย้ายข้อมูลไปเครื่องใหม่ง่ายๆ', style: c.title),
+                const SizedBox(height: 12),
+                _step(c, '1', 'เครื่องเดิม: กด “บันทึก” หรือ “แชร์ไฟล์”', 'ส่งไฟล์สำรองเข้า LINE ของตัวเอง, Google Drive หรืออีเมล'),
+                _step(c, '2', 'เครื่องใหม่: ติดตั้งเหมียวตังค์', 'เปิดไฟล์สำรองที่ส่งมาให้เครื่องใหม่บันทึกไว้'),
+                _step(c, '3', 'เครื่องใหม่: กด “เลือกไฟล์เพื่อกู้คืน”', 'เลือก “ผสานรวมข้อมูล” — เสร็จแล้ว'),
+                Divider(height: 1, color: c.border),
+                SizedBox(
+                  height: 48,
+                  child: TextButton(
+                    onPressed: () => _selectTab(1),
+                    child: Text('หรือย้ายแบบไร้สายด้วย QR Code', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: c.link)),
+                  ),
+                ),
+              ],
+            ),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+        ),
+      ],
+    );
+  }
+
+  Widget _step(_C c, String n, String title, String sub) => Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 26,
+              height: 26,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: c.line)),
+              child: Text(n, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: c.icon)),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.help_outline_rounded, color: MeowTheme.mustardYellow, size: 16),
-                  const SizedBox(width: 6),
-                  Text(
-                    'วิธีย้ายข้อมูลไปเครื่องใหม่ง่ายๆ',
-                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: textPrimary),
+                  Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: c.text)),
+                  Text(sub, style: c.subtitle),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+
+  // ==========================================================
+  // TAB 2: P2P QR CODE MIGRATION
+  // ==========================================================
+  Widget _buildQrMigrationTab(_C c) {
+    final transferUrl = 'http://${_localIp ?? "127.0.0.1"}:${DataBackupService.p2pPort}/rizqi_backup?pin=$_pinCode';
+    final ctl = widget.controller;
+
+    Widget role(int i, String title, String sub) {
+      final sel = _p2pModeIndex == i;
+      return Expanded(
+        child: Material(
+          color: c.card,
+          borderRadius: BorderRadius.circular(14),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: () {
+              if (sel) return;
+              HapticFeedback.selectionClick();
+              setState(() {
+                _p2pModeIndex = i;
+                _advOpen = false;
+                _manualError = null;
+              });
+              if (i == 0) {
+                _startP2pServer();
+              } else {
+                _stopP2pServer();
+              }
+            },
+            child: Container(
+              height: 64,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: sel ? c.accent : c.line, width: sel ? 2 : 1),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.phone_iphone_rounded, size: 22, color: sel ? c.link : c.icon),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: c.title.copyWith(color: sel ? c.link : c.text)),
+                        Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, color: c.sub)),
+                      ],
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
-              _buildStepItem('1', 'เครื่องเดิม: กด "แชร์ไฟล์ไปเครื่องอื่น" ส่งเข้า LINE ตัวเอง', textPrimary, textSecondary),
-              const SizedBox(height: 6),
-              _buildStepItem('2', 'เครื่องใหม่: โหลดแอพ แล้วกดดาวน์โหลดไฟล์จาก LINE', textPrimary, textSecondary),
-              const SizedBox(height: 6),
-              _buildStepItem('3', 'เครื่องใหม่: กด "เลือกไฟล์เพื่อกู้คืนข้อมูล" เพื่อเริ่มใช้งานได้ทันที', textPrimary, textSecondary),
-            ],
+            ),
           ),
         ),
-      ],
-    );
-  }
+      );
+    }
 
-  Widget _buildStepItem(String number, String text, Color textPrimary, Color textSecondary) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 18,
-          height: 18,
-          decoration: const BoxDecoration(
-            color: MeowTheme.mustardYellow,
-            shape: BoxShape.circle,
+    Widget advHeader(String sub) => InkWell(
+          onTap: () => setState(() {
+            _advOpen = !_advOpen;
+            _manualError = null;
+          }),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+            child: Row(
+              children: [
+                Icon(Icons.edit_outlined, size: 22, color: c.icon),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [Text('ตั้งค่าขั้นสูง', style: c.title), Text(sub, style: c.subtitle)],
+                  ),
+                ),
+                AnimatedRotation(
+                  turns: _advOpen ? 0.5 : 0,
+                  duration: const Duration(milliseconds: 200),
+                  child: Icon(Icons.keyboard_arrow_down_rounded, size: 24, color: c.sub),
+                ),
+              ],
+            ),
           ),
-          alignment: Alignment.center,
-          child: Text(number, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.black87)),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(text, style: TextStyle(fontSize: 11.5, color: textSecondary, height: 1.35)),
-        ),
-      ],
-    );
-  }
+        );
 
-  // ==========================================================
-  // TAB 2: P2P QR CODE MIGRATION (TO PHONE / IPAD)
-  // ==========================================================
-  Widget _buildQrMigrationTab(Color cardBg, Color borderColor, Color textPrimary, Color textSecondary, bool isDark) {
-    final transferUrl = 'http://${_localIp ?? "127.0.0.1"}:${DataBackupService.p2pPort}/rizqi_backup?pin=$_pinCode';
+    final txt = '${_nf.format(ctl.allTransactions.length)} รายการ • ${ctl.accounts.length} บัญชี • ${ctl.categories.length} หมวดหมู่ • ${ctl.savingGoals.length} เป้าหมาย';
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       children: [
-        // Mode Selector: Sender vs Receiver
-        Container(
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF0F1E36) : const Color(0xFFF1F5F9),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: borderColor),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    HapticFeedback.selectionClick();
-                    setState(() => _p2pModeIndex = 0);
-                    _startP2pServer();
-                  },
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    decoration: BoxDecoration(
-                      color: _p2pModeIndex == 0 ? (isDark ? MeowTheme.navySurface : Colors.white) : Colors.transparent,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: _p2pModeIndex == 0 ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4)] : [],
-                    ),
-                    alignment: Alignment.center,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.qr_code_rounded, size: 16, color: _p2pModeIndex == 0 ? MeowTheme.mustardYellow : Colors.grey),
-                        const SizedBox(width: 6),
-                        Flexible(
-                          child: Text(
-                            'เครื่องส่ง (เครื่องเดิม)',
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: _p2pModeIndex == 0 ? FontWeight.bold : FontWeight.normal,
-                              color: _p2pModeIndex == 0 ? textPrimary : Colors.grey,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    HapticFeedback.selectionClick();
-                    setState(() => _p2pModeIndex = 1);
-                    _stopP2pServer();
-                  },
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    decoration: BoxDecoration(
-                      color: _p2pModeIndex == 1 ? (isDark ? MeowTheme.navySurface : Colors.white) : Colors.transparent,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: _p2pModeIndex == 1 ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4)] : [],
-                    ),
-                    alignment: Alignment.center,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.camera_alt_rounded, size: 16, color: _p2pModeIndex == 1 ? MeowTheme.incomeGreen : Colors.grey),
-                        const SizedBox(width: 6),
-                        Flexible(
-                          child: Text(
-                            'เครื่องรับ (เครื่องใหม่)',
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: _p2pModeIndex == 1 ? FontWeight.bold : FontWeight.normal,
-                              color: _p2pModeIndex == 1 ? textPrimary : Colors.grey,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.info_outline_rounded, size: 18, color: c.sub),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text('ย้ายแบบไร้สาย ไม่ต้องใช้ไฟล์ — เปิดหน้านี้บนทั้ง 2 เครื่อง และเชื่อมต่อ Wi-Fi เดียวกัน',
+                  style: TextStyle(fontSize: 13, height: 1.45, color: c.sub)),
+            ),
+          ],
         ),
         const SizedBox(height: 16),
-
+        _sectionLabel(c, 'เครื่องนี้คือ'),
+        Row(children: [role(0, 'เครื่องส่ง', 'เครื่องเดิม'), const SizedBox(width: 10), role(1, 'เครื่องรับ', 'เครื่องใหม่')]),
+        const SizedBox(height: 16),
         if (_p2pModeIndex == 0) ...[
           // ================= SENDER VIEW =================
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: cardBg,
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: borderColor),
+          FxFadeUp(
+            key: ValueKey('send_$_noNetwork$_isServerRunning'),
+            child: _calmCard(
+              c,
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+              child: _noNetwork
+                  ? Column(
+                      children: [
+                        Icon(Icons.wifi_off_rounded, size: 30, color: c.sub),
+                        const SizedBox(height: 10),
+                        Text('ยังไม่ได้เชื่อมต่อ Wi-Fi', style: c.title.copyWith(fontSize: 16)),
+                        const SizedBox(height: 4),
+                        Text('เชื่อม Wi-Fi วงเดียวกับเครื่องใหม่ก่อน แล้วกด “ลองใหม่” QR Code จะแสดงขึ้นมา',
+                            textAlign: TextAlign.center, style: TextStyle(fontSize: 13, height: 1.45, color: c.sub)),
+                        const SizedBox(height: 14),
+                        _primaryButton(c, 'ลองใหม่', _startP2pServer, icon: Icons.refresh_rounded),
+                        const SizedBox(height: 4),
+                        SizedBox(
+                          height: 48,
+                          child: TextButton(
+                            onPressed: () => _selectTab(0),
+                            child: Text('ไม่มี Wi-Fi? ย้ายด้วยไฟล์สำรองแทน', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: c.link)),
+                          ),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(children: [
+                          Icon(_isServerRunning ? Icons.check_rounded : Icons.more_horiz_rounded, size: 18, color: c.sub),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(_isServerRunning ? 'พร้อมส่ง • เชื่อมต่อ Wi-Fi แล้ว' : 'กำลังเตรียมการเชื่อมต่อ...',
+                                style: TextStyle(fontSize: 13, color: c.icon)),
+                          ),
+                        ]),
+                        const SizedBox(height: 14),
+                        Center(
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: c.line),
+                            ),
+                            child: QrCodeDisplayWidget(
+                              data: transferUrl,
+                              size: 196,
+                              foregroundColor: const Color(0xFF0F172A),
+                              backgroundColor: Colors.white,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Text('ใช้เครื่องใหม่สแกน QR นี้', textAlign: TextAlign.center, style: c.title.copyWith(fontSize: 16)),
+                        const SizedBox(height: 6),
+                        Text(
+                          'บนเครื่องใหม่: เมนู › สำรอง & ย้ายข้อมูล › ย้ายด้วย QR Code › เลือก “เครื่องรับ” แล้วเลือกรูป QR นี้',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 12.5, height: 1.5, color: c.sub),
+                        ),
+                        Text('จะส่ง $txt', textAlign: TextAlign.center, style: TextStyle(fontSize: 12.5, height: 1.5, color: c.sub)),
+                      ],
+                    ),
             ),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+          ),
+          if (!_noNetwork) ...[
+            const SizedBox(height: 16),
+            FxFadeUp(
+              index: 1,
+              child: _calmCard(
+                c,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: _isServerRunning ? MeowTheme.incomeGreen : const Color(0xFFF59E0B),
-                        shape: BoxShape.circle,
+                    advHeader('รหัสสำหรับกรอกเอง ถ้าเครื่องใหม่สแกนไม่ได้'),
+                    if (_advOpen)
+                      Container(
+                        margin: const EdgeInsets.only(left: 54),
+                        padding: const EdgeInsets.fromLTRB(0, 12, 16, 14),
+                        decoration: BoxDecoration(border: Border(top: BorderSide(color: c.border))),
+                        child: Row(children: [
+                          Expanded(
+                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text('ที่อยู่ (IP)', style: TextStyle(fontSize: 12.5, color: c.sub)),
+                              SelectableText(_localIp ?? '-', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: c.text)),
+                            ]),
+                          ),
+                          Expanded(
+                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text('PIN', style: TextStyle(fontSize: 12.5, color: c.sub)),
+                              SelectableText(_pinCode,
+                                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: 2, color: c.text)),
+                            ]),
+                          ),
+                        ]),
                       ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      _isServerRunning
-                          ? 'พร้อมส่งข้อมูลไร้สาย'
-                          : (_noNetwork ? 'ยังไม่ได้เชื่อมต่อ Wi-Fi' : 'กำลังเตรียมการเชื่อมต่อ...'),
-                      style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: _isServerRunning ? MeowTheme.incomeGreen : const Color(0xFFB45309)),
-                    ),
                   ],
                 ),
-                const SizedBox(height: 14),
-
-                if (_noNetwork) ...[
-                  Icon(Icons.wifi_off_rounded, size: 48, color: textSecondary),
-                  const SizedBox(height: 8),
-                  Text(
-                    'เชื่อมต่อ Wi-Fi เดียวกันทั้ง 2 เครื่องก่อน แล้วกด "ลองใหม่"',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 13, height: 1.4, color: textSecondary),
-                  ),
-                  const SizedBox(height: 12),
-                  OutlinedButton.icon(
-                    onPressed: _startP2pServer,
-                    icon: const Icon(Icons.refresh_rounded),
-                    label: const Text('ลองใหม่'),
-                    style: OutlinedButton.styleFrom(minimumSize: const Size(140, 44)),
-                  ),
-                ] else ...[
-                // QR Code
-                Center(
-                  child: QrCodeDisplayWidget(
-                    data: transferUrl,
-                    size: 200,
-                    foregroundColor: const Color(0xFF0F172A),
-                    backgroundColor: Colors.white,
-                    embeddedLogo: const Icon(Icons.account_balance_wallet_rounded, color: MeowTheme.mustardYellow, size: 24),
-                  ),
-                ),
-                const SizedBox(height: 14),
-
-                // PIN & IP Box
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF0F1E36) : const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: borderColor),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          'IP: ${_localIp ?? "127.0.0.1"}',
-                          style: TextStyle(fontSize: 11, color: textSecondary),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text('PIN: ', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                          Text(_pinCode, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: MeowTheme.mustardYellow)),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                ],
-              ],
+              ),
             ),
-          ),
-          const SizedBox(height: 14),
-
-          // Instructions Card
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF0F1E36) : const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: borderColor),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('คำแนะนำ:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 4),
-                Text(
-                  '1. ต่อ Wi-Fi เดียวกันทั้งสองเครื่อง (หรือเปิด Hotspot ให้อีกเครื่องต่อ)\n2. เปิดเครื่องใหม่แล้วสแกน QR Code นี้เพื่อดึงข้อมูลได้ทันที',
-                  style: TextStyle(fontSize: 11.5, color: textSecondary, height: 1.4),
-                ),
-              ],
-            ),
-          ),
+          ],
         ] else ...[
           // ================= RECEIVER VIEW =================
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: cardBg,
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: borderColor),
+          FxFadeUp(
+            key: const ValueKey('recv'),
+            child: _calmCard(
+              c,
+              padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Icon(Icons.qr_code_scanner_rounded, size: 34, color: c.icon),
+                  const SizedBox(height: 10),
+                  Text('รับข้อมูลจากเครื่องเดิม', textAlign: TextAlign.center, style: c.title.copyWith(fontSize: 16)),
+                  const SizedBox(height: 4),
+                  Text('ถ่ายรูปหรือแคปหน้าจอ QR บนเครื่องเดิม แล้วเลือกรูปนั้น',
+                      textAlign: TextAlign.center, style: TextStyle(fontSize: 13, height: 1.45, color: c.sub)),
+                  const SizedBox(height: 16),
+                  _primaryButton(c, 'เลือกรูป QR จากคลังภาพ', _handleScanQrFromImage, icon: Icons.image_outlined),
+                ],
+              ),
             ),
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: MeowTheme.incomeGreen.withValues(alpha: 0.15),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.qr_code_scanner_rounded, color: MeowTheme.incomeGreen, size: 32),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'รับข้อมูลจากเครื่องเดิม',
-                  style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: textPrimary),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'สแกน QR Code จากรูปถ่าย หรือเชื่อมต่อด้วย IP Address',
-                  style: TextStyle(fontSize: 11.5, color: textSecondary),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-
-                // Button: Scan QR from Gallery
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: MeowTheme.incomeGreen,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    elevation: 0,
-                  ),
-                  onPressed: _handleScanQrFromImage,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      Icon(Icons.photo_library_rounded, size: 18),
-                      SizedBox(width: 8),
-                      Text('เลือกรูปภาพ QR Code', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 14),
-
-                const Divider(),
-                const SizedBox(height: 8),
-
-                // Manual IP & PIN Input
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text('หรือระบุ IP ด้วยตนเอง:', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: textPrimary)),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 6,
-                      child: TextField(
-                        controller: _ipInputController,
-                        style: TextStyle(color: textPrimary, fontSize: 12.5),
-                        decoration: InputDecoration(
-                          hintText: 'IP เครื่องเดิม เช่น 192.168.1.50',
-                          hintStyle: TextStyle(color: textSecondary, fontSize: 11),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
+          ),
+          const SizedBox(height: 16),
+          FxFadeUp(
+            index: 1,
+            child: _calmCard(
+              c,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  advHeader('สแกนไม่ได้? กรอกรหัสเชื่อมต่อเอง'),
+                  if (_advOpen)
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                      decoration: BoxDecoration(border: Border(top: BorderSide(color: c.border))),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            'ดูตัวเลขได้ที่เครื่องเดิม ในหัวข้อ “ตั้งค่าขั้นสูง” ใต้ QR Code • IP คือที่อยู่ของเครื่องเดิมใน Wi-Fi, PIN คือรหัสยืนยัน 4 หลัก',
+                            style: TextStyle(fontSize: 12.5, height: 1.45, color: c.sub),
+                          ),
+                          const SizedBox(height: 12),
+                          _fieldLabel(c, 'ที่อยู่เครื่องเดิม (IP)'),
+                          TextField(
+                            controller: _ipInputController,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            onChanged: (_) => setState(() => _manualError = null),
+                            style: TextStyle(color: c.text, fontSize: 15),
+                            decoration: _inputDeco(c, hint: 'เช่น 192.168.1.42', error: _manualError != null && _manualError!.contains('IP')),
+                          ),
+                          const SizedBox(height: 12),
+                          _fieldLabel(c, 'รหัส PIN 4 หลัก'),
+                          TextField(
+                            controller: _pinInputController,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(4)],
+                            onChanged: (_) => setState(() => _manualError = null),
+                            style: TextStyle(color: c.text, fontSize: 15),
+                            decoration: _inputDeco(c, hint: 'เช่น 4821', error: _manualError != null && _manualError!.contains('PIN')),
+                          ),
+                          if (_manualError != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Text(_manualError!, style: TextStyle(fontSize: 12.5, color: c.danger)),
+                            ),
+                          const SizedBox(height: 14),
+                          SizedBox(
+                            height: 50,
+                            child: OutlinedButton(
+                              onPressed: _handleManualConnect,
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(color: c.accent),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              ),
+                              child: Text('เชื่อมต่อด้วยรหัส', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600, color: c.link)),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      flex: 4,
-                      child: TextField(
-                        controller: _pinInputController,
-                        style: TextStyle(color: textPrimary, fontSize: 12.5),
-                        decoration: InputDecoration(
-                          hintText: 'PIN',
-                          hintStyle: TextStyle(color: textSecondary, fontSize: 11),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: MeowTheme.actionBlue,
-                      padding: const EdgeInsets.symmetric(vertical: 11),
-                      side: const BorderSide(color: MeowTheme.actionBlue),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: _handleManualConnect,
-                    child: const Text('ดึงข้อมูลผ่าน IP Address', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
       ],
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// Calm monochrome menu-page kit (same look as the menu home). Private copy so
+// this screen stays self-contained.
+// ---------------------------------------------------------------------------
+
+class _C {
+ final Color page, text, sub, icon, faint, card, line, border, seg, accent, link, ok, okText, danger, dangerText, vip, vipLine, disabled;
+ final bool dark;
+
+ const _C({
+  required this.page,
+  required this.text,
+  required this.sub,
+  required this.icon,
+  required this.faint,
+  required this.card,
+  required this.line,
+  required this.border,
+  required this.seg,
+  required this.accent,
+  required this.link,
+  required this.ok,
+  required this.okText,
+  required this.danger,
+  required this.dangerText,
+  required this.vip,
+  required this.vipLine,
+  required this.disabled,
+  required this.dark,
+ });
+
+ factory _C.of(ExpenseController ctl) {
+  final t = ctl.currentTheme;
+  final dark = ctl.isDarkMode;
+  return _C(
+   page: t.scaffoldBackground,
+   text: t.textColor,
+   sub: t.textSecondaryColor,
+   icon: dark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+   faint: dark ? Colors.white24 : const Color(0xFFB6BECB),
+   card: t.cardBackground,
+   line: t.borderColor,
+   border: dark ? Colors.white10 : const Color(0xFFEEF0F4),
+   seg: dark ? const Color(0xFF0F172A) : const Color(0xFFF1F3F8),
+   accent: t.primaryColor,
+   link: dark ? const Color(0xFF93C5FD) : t.primaryColor,
+   ok: dark ? const Color(0xFF34D399) : const Color(0xFF059669),
+   okText: dark ? const Color(0xFF34D399) : const Color(0xFF047857),
+   danger: dark ? const Color(0xFFF87171) : const Color(0xFFDC2626),
+   dangerText: dark ? const Color(0xFFFCA5A5) : const Color(0xFFB91C1C),
+   vip: dark ? const Color(0xFFFCD34D) : const Color(0xFF92400E),
+   vipLine: dark ? const Color(0xFF6B5A1E) : const Color(0xFFE9C98B),
+   disabled: dark ? Colors.white12 : const Color(0xFFA5B4CF),
+   dark: dark,
+  );
+ }
+
+ TextStyle get title => TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: text);
+ TextStyle get subtitle => TextStyle(fontSize: 12.5, height: 1.35, color: sub);
+}
+
+/// White app bar: 44px back chevron, 18/700 title, optional 12px subtitle, optional [bottom] (e.g. a segmented control), 1px bottom line.
+PreferredSizeWidget _calmAppBar(BuildContext context, _C c, String title,
+  {String? subtitle, List<Widget> actions = const [], Widget? bottom, double bottomHeight = 0}) {
+ return PreferredSize(
+  preferredSize: Size.fromHeight(61 + bottomHeight),
+  child: Material(
+   color: c.card,
+   child: SafeArea(
+    bottom: false,
+    child: Container(
+     decoration: BoxDecoration(border: Border(bottom: BorderSide(color: c.line))),
+     child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+       SizedBox(
+        height: 60,
+        child: Padding(
+         padding: const EdgeInsets.only(left: 6, right: 8),
+         child: Row(
+          children: [
+           SizedBox(
+            width: 44,
+            height: 44,
+            child: IconButton(
+             tooltip: 'ย้อนกลับ',
+             padding: EdgeInsets.zero,
+             icon: Icon(Icons.chevron_left_rounded, size: 28, color: c.text),
+             onPressed: () => Navigator.maybePop(context),
+            ),
+           ),
+           const SizedBox(width: 6),
+           Expanded(
+            child: Column(
+             mainAxisAlignment: MainAxisAlignment.center,
+             crossAxisAlignment: CrossAxisAlignment.start,
+             children: [
+              Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: c.text)),
+              if (subtitle != null)
+               Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: c.sub)),
+             ],
+            ),
+           ),
+           ...actions,
+          ],
+         ),
+        ),
+       ),
+       if (bottom != null) SizedBox(height: bottomHeight, child: bottom),
+      ],
+     ),
+    ),
+   ),
+  ),
+ );
+}
+
+/// Full-width 52px accent button; null [onTap] shows the disabled look.
+Widget _primaryButton(_C c, String label, VoidCallback? onTap, {IconData? icon, Color? color, bool busy = false}) {
+ final bg = onTap == null ? c.disabled : (color ?? c.accent);
+ return SizedBox(
+  width: double.infinity,
+  height: 52,
+  child: ElevatedButton(
+   onPressed: busy ? null : onTap,
+   style: ElevatedButton.styleFrom(
+    backgroundColor: bg,
+    disabledBackgroundColor: busy ? bg : c.disabled,
+    foregroundColor: Colors.white,
+    disabledForegroundColor: Colors.white.withValues(alpha: 0.9),
+    elevation: 0,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+   ),
+   child: busy
+       ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.white))
+       : Row(
+           mainAxisSize: MainAxisSize.min,
+           children: [
+            if (icon != null) ...[Icon(icon, size: 20), const SizedBox(width: 8)],
+            Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600))),
+           ],
+          ),
+  ),
+ );
+}
+
+/// 1px-bordered card, radius 16.
+Widget _calmCard(_C c, {required Widget child, EdgeInsetsGeometry? padding}) => Container(
+      decoration: BoxDecoration(color: c.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: c.line)),
+      clipBehavior: Clip.antiAlias,
+      child: Material(color: Colors.transparent, child: padding == null ? child : Padding(padding: padding, child: child)),
+     );
+
+/// 13px/600 grey label above a card group, with an optional right-hand value.
+Widget _sectionLabel(_C c, String title, {String? trailing, Widget? trailingWidget}) => Padding(
+      padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+      child: Row(
+       children: [
+        Expanded(child: Text(title, style: TextStyle(color: c.sub, fontSize: 13, fontWeight: FontWeight.w600))),
+        if (trailing != null) Text(trailing, style: TextStyle(color: c.sub, fontSize: 13, fontFeatures: const [FontFeature.tabularFigures()])),
+        ?trailingWidget,
+       ],
+      ),
+     );
+
+/// Label above an input: 13/600, optional grey suffix like "(ไม่บังคับ)".
+Widget _fieldLabel(_C c, String label, {String? hint}) => Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Text.rich(TextSpan(children: [
+       TextSpan(text: label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.text)),
+       if (hint != null) TextSpan(text: ' $hint', style: TextStyle(fontSize: 13, color: c.sub)),
+      ])),
+     );
+
+InputDecoration _inputDeco(_C c, {String? hint, String? prefix, bool error = false, Widget? prefixIcon, Widget? suffixIcon}) {
+ OutlineInputBorder b(Color col, [double w = 1]) => OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: col, width: w));
+ return InputDecoration(
+  isDense: true,
+  hintText: hint,
+  hintStyle: TextStyle(color: c.sub.withValues(alpha: 0.8), fontSize: 14.5, fontWeight: FontWeight.w400),
+  // Shown as an icon so the prefix (e.g. ฿) stays visible while the field is empty.
+  prefixIcon: prefixIcon ??
+    (prefix == null
+      ? null
+      : Padding(
+        padding: const EdgeInsets.only(left: 14, right: 8),
+        child: Text(prefix.trim(), style: TextStyle(color: c.sub, fontSize: 16, fontWeight: FontWeight.w600)),
+       )),
+  prefixIconConstraints: prefix != null && prefixIcon == null ? const BoxConstraints(minWidth: 0, minHeight: 0) : null,
+  suffixIcon: suffixIcon,
+  filled: true,
+  fillColor: c.card,
+  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+  enabledBorder: b(error ? c.danger : c.line),
+  focusedBorder: b(error ? c.danger : c.accent, 1.5),
+  border: b(c.line),
+ );
+}
+
+/// Bottom sheet frame: grab handle, 18/700 title, optional subtitle, close button.
+Future<T?> _showCalmSheet<T>(BuildContext context, _C c, {required String title, String? subtitle, required Widget Function(BuildContext ctx, StateSetter setSheet) builder}) {
+ return showModalBottomSheet<T>(
+  context: context,
+  isScrollControlled: true,
+  backgroundColor: c.card,
+  shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+  builder: (ctx) => StatefulBuilder(
+   builder: (ctx, setSheet) => Padding(
+    padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+    child: SafeArea(
+     top: false,
+     child: ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.9),
+      child: SingleChildScrollView(
+       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+       child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+         Center(child: Container(width: 36, height: 4, decoration: BoxDecoration(color: c.line, borderRadius: BorderRadius.circular(2)))),
+         const SizedBox(height: 10),
+         Row(
+          children: [
+           Expanded(
+            child: Column(
+             crossAxisAlignment: CrossAxisAlignment.start,
+             children: [
+              Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: c.text)),
+              if (subtitle != null) Text(subtitle, style: TextStyle(fontSize: 12.5, color: c.sub)),
+             ],
+            ),
+           ),
+           SizedBox(
+            width: 44,
+            height: 44,
+            child: IconButton(tooltip: 'ปิด', icon: Icon(Icons.close_rounded, size: 22, color: c.sub), onPressed: () => Navigator.pop(ctx)),
+           ),
+          ],
+         ),
+         const SizedBox(height: 12),
+         builder(ctx, setSheet),
+        ],
+       ),
+      ),
+     ),
+    ),
+   ),
+  ),
+ );
+}
+
+/// Dark floating toast with an optional action (e.g. เลิกทำ).
+void _calmToast(BuildContext context, String msg, {bool error = false, String? actionLabel, VoidCallback? onAction}) {
+ final m = ScaffoldMessenger.of(context);
+ m.hideCurrentSnackBar();
+ m.showSnackBar(SnackBar(
+  content: Text(msg, style: const TextStyle(fontSize: 13.5, color: Colors.white)),
+  behavior: SnackBarBehavior.floating,
+  backgroundColor: error ? const Color(0xFFB91C1C) : const Color(0xFF0F172A),
+  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+  duration: Duration(seconds: actionLabel != null ? 5 : 3),
+  action: actionLabel == null ? null : SnackBarAction(label: actionLabel, textColor: const Color(0xFF93C5FD), onPressed: onAction ?? () {}),
+ ));
 }

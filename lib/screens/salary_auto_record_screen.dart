@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../models/account_item.dart';
 import '../state/expense_controller.dart';
-import '../theme/meow_theme.dart';
-import '../widgets/bank_badge.dart';
-import '../widgets/meow_mascot_widget.dart';
-import '../widgets/tactile_button.dart';
+import '../widgets/meow_fx.dart';
 import '../utils/format_utils.dart';
 
 class SalaryAutoRecordScreen extends StatefulWidget {
@@ -25,10 +23,15 @@ class _SalaryAutoRecordScreenState extends State<SalaryAutoRecordScreen> {
   late String _selectedAccountId;
   late String _selectedCategoryId;
 
+  static const _amountChips = [15000, 20000, 25000, 30000, 40000, 50000];
+  static const _dayChips = [25, 26, 27, 28, 30, 1, 5, 10, 15];
+
+  ExpenseController get _ctl => widget.controller;
+
   @override
   void initState() {
     super.initState();
-    final cfg = widget.controller.salaryConfig;
+    final cfg = _ctl.salaryConfig;
     _isEnabled = cfg.isEnabled;
     _amountController = TextEditingController(
       text: cfg.amount > 0 ? CurrencyFormat.format(cfg.amount, trimZero: true) : '',
@@ -38,10 +41,10 @@ class _SalaryAutoRecordScreenState extends State<SalaryAutoRecordScreen> {
     _isLastDayOfMonth = cfg.isLastDayOfMonth;
 
     // Check if account exists
-    if (widget.controller.accounts.any((a) => a.id == cfg.accountId)) {
+    if (_ctl.accounts.any((a) => a.id == cfg.accountId)) {
       _selectedAccountId = cfg.accountId;
-    } else if (widget.controller.accounts.isNotEmpty) {
-      _selectedAccountId = widget.controller.accounts.first.id;
+    } else if (_ctl.accounts.isNotEmpty) {
+      _selectedAccountId = _ctl.accounts.first.id;
     } else {
       _selectedAccountId = 'acc_cash';
     }
@@ -61,10 +64,50 @@ class _SalaryAutoRecordScreenState extends State<SalaryAutoRecordScreen> {
     return double.tryParse(clean) ?? 0.0;
   }
 
+  String _baht(double v) => '฿${CurrencyFormat.format(v, trimZero: true)}';
+
+  String get _note => _noteController.text.trim().isNotEmpty ? _noteController.text.trim() : 'เงินเดือนประจำเดือน';
+
+  bool get _dirty {
+    final cfg = _ctl.salaryConfig;
+    return cfg.isEnabled != _isEnabled ||
+        cfg.amount != _parseAmount() ||
+        cfg.dayOfMonth != _dayOfMonth ||
+        cfg.isLastDayOfMonth != _isLastDayOfMonth ||
+        cfg.accountId != _selectedAccountId ||
+        cfg.categoryId != _selectedCategoryId ||
+        cfg.note != _note;
+  }
+
+  /// Next date the controller will record, following the same rules as checkAndProcessRecurringSalary.
+  DateTime _nextRun() {
+    final now = DateTime.now();
+    int dayIn(int y, int m) {
+      final dim = DateTime(y, m + 1, 0).day;
+      return _isLastDayOfMonth ? dim : _dayOfMonth.clamp(1, dim);
+    }
+
+    final thisMonth = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+    if (_ctl.salaryConfig.lastRecordedMonth == thisMonth) {
+      final n = DateTime(now.year, now.month + 1, 1);
+      return DateTime(n.year, n.month, dayIn(n.year, n.month));
+    }
+    final d = dayIn(now.year, now.month);
+    // Already past the day but not recorded yet: it is recorded the next time the app checks (today).
+    return DateTime(now.year, now.month, now.day > d ? now.day : d);
+  }
+
+  String _accName(String id) {
+    for (final a in _ctl.accounts) {
+      if (a.id == id) return a.name;
+    }
+    return '-';
+  }
+
   Future<void> _saveConfig() async {
     HapticFeedback.mediumImpact();
     final amount = _parseAmount();
-    final currentCfg = widget.controller.salaryConfig;
+    final currentCfg = _ctl.salaryConfig;
 
     final updated = currentCfg.copyWith(
       isEnabled: _isEnabled,
@@ -73,32 +116,15 @@ class _SalaryAutoRecordScreenState extends State<SalaryAutoRecordScreen> {
       isLastDayOfMonth: _isLastDayOfMonth,
       accountId: _selectedAccountId,
       categoryId: _selectedCategoryId,
-      note: _noteController.text.trim().isNotEmpty
-          ? _noteController.text.trim()
-          : 'เงินเดือนประจำเดือน',
+      note: _note,
     );
 
-    await widget.controller.updateSalaryAutoRecordConfig(updated);
+    await _ctl.updateSalaryAutoRecordConfig(updated);
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          backgroundColor: MeowTheme.incomeGreen,
-          content: Row(
-            children: const [
-              Icon(Icons.check_circle_rounded, color: Colors.white),
-              SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'บันทึกการตั้งค่าเงินเดือนอัตโนมัติสำเร็จแล้ว เหมียว~ 🐱',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
-          ),
-        ),
+      _calmToast(
+        context,
+        _isEnabled ? 'บันทึกการตั้งค่าแล้ว • ครั้งถัดไป ${FormatUtils.formatDateThai(_nextRun())}' : 'ปิดบันทึกเงินเดือนอัตโนมัติแล้ว',
       );
       Navigator.pop(context);
     }
@@ -106,60 +132,89 @@ class _SalaryAutoRecordScreenState extends State<SalaryAutoRecordScreen> {
 
   Future<void> _testRecordNow() async {
     final amount = _parseAmount();
+    final c = _C.of(_ctl);
     if (amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          backgroundColor: Colors.orange.shade700,
-          content: const Text('กรุณากรอกจำนวนเงินเดือนที่ถูกต้องก่อนทดสอบครับ'),
-        ),
-      );
+      _calmToast(context, 'กรุณากรอกจำนวนเงินเดือนที่ถูกต้องก่อนบันทึก', error: true);
       return;
     }
+    String catName = 'เงินเดือน';
+    for (final cat in _ctl.incomeCategories) {
+      if (cat.id == _selectedCategoryId) catName = cat.name;
+    }
+    final now = DateTime.now();
+    final dim = DateTime(now.year, now.month + 1, 0).day;
+    final autoDay = _isLastDayOfMonth ? dim : _dayOfMonth.clamp(1, dim);
+
+    Widget kv(String k, String v, {Color? color}) => Container(
+          height: 42,
+          decoration: BoxDecoration(border: Border(top: BorderSide(color: c.border))),
+          child: Row(children: [
+            Text(k, style: TextStyle(fontSize: 13.5, color: c.sub)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(v,
+                  textAlign: TextAlign.right,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: color ?? c.text)),
+            ),
+          ]),
+        );
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) {
-        final isDark = widget.controller.isDarkMode;
-        return AlertDialog(
-          backgroundColor: isDark ? MeowTheme.navySurface : Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Row(
-            children: const [
-              Icon(Icons.auto_fix_high_rounded, color: MeowTheme.actionBlue),
-              SizedBox(width: 8),
-              Text('ทดสอบบันทึกทันที', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+      builder: (ctx) => Dialog(
+        backgroundColor: c.card,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('บันทึกเงินเดือนเข้าตอนนี้?', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: c.text)),
+              const SizedBox(height: 6),
+              Text('จะสร้างรายการรายรับจริง 1 รายการ และเพิ่มยอดบัญชีทันที', style: TextStyle(fontSize: 13.5, height: 1.45, color: c.sub)),
+              const SizedBox(height: 12),
+              kv('จำนวนเงิน', '+${_baht(amount)}', color: c.ok),
+              kv('วันที่', '${FormatUtils.formatDateThai(now)} (วันนี้)'),
+              kv('เข้าบัญชี', _accName(_selectedAccountId)),
+              kv('หมวด', catName),
+              Container(
+                padding: const EdgeInsets.only(top: 10),
+                decoration: BoxDecoration(border: Border(top: BorderSide(color: c.border))),
+                child: Text('รอบอัตโนมัติวันที่ $autoDay จะข้ามเดือนนี้ให้ เพื่อไม่ให้บันทึกซ้ำ',
+                    style: TextStyle(fontSize: 12.5, height: 1.45, color: c.sub)),
+              ),
+              const SizedBox(height: 18),
+              Row(children: [
+                Expanded(child: _outlineButton(c, 'ยกเลิก', () => Navigator.pop(ctx, false))),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: SizedBox(
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: c.accent,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const FittedBox(fit: BoxFit.scaleDown, child: Text('บันทึกรายรับเลย', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600))),
+                    ),
+                  ),
+                ),
+              ]),
             ],
           ),
-          content: Text(
-            'ต้องการบันทึกยอดเงินเดือน ฿${CurrencyFormat.format(amount)} เข้าบัญชีที่เลือก ณ ตอนนี้เลยหรือไม่?',
-            style: TextStyle(
-              fontSize: 14,
-              color: isDark ? Colors.white70 : const Color(0xFF475569),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('ยกเลิก'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: MeowTheme.incomeGreen,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('บันทึกตอนนี้'),
-            ),
-          ],
-        );
-      },
+        ),
+      ),
     );
 
     if (confirmed == true && mounted) {
-      final currentCfg = widget.controller.salaryConfig;
+      final currentCfg = _ctl.salaryConfig;
       final updated = currentCfg.copyWith(
         isEnabled: _isEnabled,
         amount: amount,
@@ -167,717 +222,721 @@ class _SalaryAutoRecordScreenState extends State<SalaryAutoRecordScreen> {
         isLastDayOfMonth: _isLastDayOfMonth,
         accountId: _selectedAccountId,
         categoryId: _selectedCategoryId,
-        note: _noteController.text.trim().isNotEmpty
-            ? _noteController.text.trim()
-            : 'เงินเดือนประจำเดือน',
+        note: _note,
       );
-      await widget.controller.updateSalaryAutoRecordConfig(updated);
-      final success = await widget.controller.triggerManualSalaryRecord();
+      await _ctl.updateSalaryAutoRecordConfig(updated);
+      final success = await _ctl.triggerManualSalaryRecord();
       if (mounted) {
         if (success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              backgroundColor: MeowTheme.incomeGreen,
-              content: Text(
-                '🎉 บันทึกยอดเงินเดือน ฿${CurrencyFormat.format(amount)} เข้าบัญชีเรียบร้อยแล้ว!',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-          );
+          _calmToast(context, 'บันทึกรายรับ ${_baht(amount)} เข้า ${_accName(_selectedAccountId)} แล้ว');
           setState(() {});
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('ไม่สามารถบันทึกได้ กรุณาตรวจสอบข้อมูล')),
-          );
+          _calmToast(context, 'ไม่สามารถบันทึกได้ กรุณาตรวจสอบข้อมูล', error: true);
         }
       }
     }
   }
 
+  // --------------------------------------------------------------------- build
   @override
   Widget build(BuildContext context) {
-    final isDark = widget.controller.isDarkMode;
-    final currentTheme = widget.controller.currentTheme;
-    final cardBg = currentTheme.cardBackground;
-    final borderColor = currentTheme.borderColor;
-    final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
-    final textSecondary = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    return ListenableBuilder(
+      listenable: _ctl,
+      builder: (context, _) {
+        final c = _C.of(_ctl);
+        final cfg = _ctl.salaryConfig;
+        final amount = _parseAmount();
+        final amtErr = _isEnabled && amount <= 0;
+        final dirty = _dirty;
+        var fx = 0;
 
-    final cfg = widget.controller.salaryConfig;
+        final String nextText;
+        final Color nextColor;
+        if (!_isEnabled) {
+          nextText = 'ปิดอยู่ — จะไม่มีการบันทึกเงินเดือนอัตโนมัติ';
+          nextColor = c.sub;
+        } else if (amtErr) {
+          nextText = 'ใส่จำนวนเงินเดือนก่อน จึงจะบันทึกให้ได้';
+          nextColor = c.danger;
+        } else {
+          nextText = 'ครั้งถัดไป: ${FormatUtils.formatDateThai(_nextRun())} • ${_baht(amount)} เข้า ${_accName(_selectedAccountId)}';
+          nextColor = c.text;
+        }
 
-    return Scaffold(
-      backgroundColor: currentTheme.scaffoldBackground,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: textPrimary, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'บันทึกเงินเดือนอัตโนมัติ',
-          style: TextStyle(color: textPrimary, fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.check_rounded, color: MeowTheme.incomeGreen, size: 26),
-            tooltip: 'บันทึกการตั้งค่า',
-            onPressed: _saveConfig,
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 1. Mascot Banner / Guide Card
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: isDark
-                      ? [const Color(0xFF064E3B), const Color(0xFF065F46)]
-                      : [const Color(0xFFECFDF5), const Color(0xFFD1FAE5)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+        final form = <Widget>[
+          // Amount
+          _sectionLabel(c, 'จำนวนเงินเดือน (บาท)'),
+          _calmCard(
+            c,
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(
+                  controller: _amountController,
+                  onChanged: (_) => setState(() {}),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  style: TextStyle(color: c.text, fontSize: 24, fontWeight: FontWeight.w700),
+                  decoration: _inputDeco(c, prefix: '฿  ', hint: '0', error: amtErr),
                 ),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: MeowTheme.incomeGreen.withOpacity(0.3)),
-              ),
-              child: Row(
-                children: [
-                  MeowMascotWidget(
-                    size: 48,
-                    mascotId: widget.controller.selectedMascotId,
-                    accessory: widget.controller.selectedMascotAccessory,
-                    isHeadOnly: true,
+                if (amtErr)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Row(children: [
+                      Icon(Icons.error_outline_rounded, size: 16, color: c.danger),
+                      const SizedBox(width: 6),
+                      Expanded(child: Text('ใส่จำนวนเงินเดือนมากกว่า 0 บาท ก่อนบันทึก', style: TextStyle(fontSize: 12.5, color: c.danger))),
+                    ]),
                   ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'ออฟไลน์ 100% ไม่ต้องต่อเน็ต 🔒',
-                          style: TextStyle(
-                            color: isDark ? const Color(0xFF6EE7B7) : const Color(0xFF047857),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'เมื่อถึงวันที่คุณกำหนด น้องแมวจะบันทึกเงินเดือนเข้าบัญชีให้เองอัตโนมัติ 1 ครั้งต่อเดือน หมดกังวลเรื่องลืมจด!',
-                          style: TextStyle(
-                            color: isDark ? Colors.white70 : const Color(0xFF065F46),
-                            fontSize: 12.5,
-                            height: 1.35,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                const SizedBox(height: 10),
+                _grid(c, 3, [
+                  for (final v in _amountChips)
+                    _chip(c, _baht(v.toDouble()), amount == v, () {
+                      HapticFeedback.selectionClick();
+                      setState(() => _amountController.text = CurrencyFormat.format(v.toDouble(), trimZero: true));
+                    }),
+                ]),
+              ],
             ),
-            const SizedBox(height: 16),
-
-            // 2. Enable Switch Card
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: cardBg,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: borderColor),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: _isEnabled
-                          ? MeowTheme.incomeGreen.withOpacity(0.15)
-                          : Colors.grey.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      _isEnabled ? Icons.alarm_on_rounded : Icons.alarm_off_rounded,
-                      color: _isEnabled ? MeowTheme.incomeGreen : Colors.grey,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'เปิดบันทึกเงินเดือนอัตโนมัติ',
-                          style: TextStyle(
-                            color: textPrimary,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          _isEnabled ? 'ระบบเปิดทำงานพร้อมบันทึกทุกเดือน' : 'ปิดการบันทึกอัตโนมัติอยู่',
-                          style: TextStyle(color: textSecondary, fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Switch(
-                    value: _isEnabled,
-                    activeColor: MeowTheme.incomeGreen,
-                    onChanged: (val) {
+          ),
+          const SizedBox(height: 18),
+          // Day
+          _sectionLabel(c, 'วันที่เงินเข้าของทุกเดือน',
+              trailingWidget: Text(_isLastDayOfMonth ? 'ทุกวันสิ้นเดือน' : 'ทุกวันที่ $_dayOfMonth',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: c.text))),
+          _calmCard(
+            c,
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('วันที่คนนิยมใช้', style: TextStyle(fontSize: 12.5, color: c.sub)),
+                const SizedBox(height: 8),
+                _grid(c, 5, [
+                  for (final d in _dayChips)
+                    _chip(c, '$d', !_isLastDayOfMonth && _dayOfMonth == d, () {
                       HapticFeedback.selectionClick();
                       setState(() {
-                        _isEnabled = val;
+                        _isLastDayOfMonth = false;
+                        _dayOfMonth = d;
                       });
-                    },
+                    }, fontSize: 15),
+                  _chip(c, 'สิ้นเดือน', _isLastDayOfMonth, () {
+                    HapticFeedback.selectionClick();
+                    setState(() => _isLastDayOfMonth = !_isLastDayOfMonth);
+                  }, fontSize: 13),
+                ]),
+                if (_isLastDayOfMonth)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text('สิ้นเดือน = วันที่ 28–31 ตามจำนวนวันของเดือนนั้นๆ', style: TextStyle(fontSize: 12.5, color: c.sub)),
                   ),
-                ],
-              ),
+                const SizedBox(height: 12),
+                Divider(height: 1, color: c.border),
+                const SizedBox(height: 10),
+                Row(children: [
+                  Expanded(child: Text('หรือเลื่อนเลือกวันอื่น (1–31)', style: TextStyle(fontSize: 12.5, color: c.sub))),
+                  Text(_isLastDayOfMonth ? 'ใช้สิ้นเดือนอยู่' : 'วันที่ $_dayOfMonth', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: c.text)),
+                ]),
+                Opacity(
+                  opacity: _isLastDayOfMonth ? 0.45 : 1,
+                  child: SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      activeTrackColor: c.accent,
+                      inactiveTrackColor: c.line,
+                      thumbColor: c.accent,
+                      overlayColor: c.accent.withValues(alpha: 0.12),
+                      trackHeight: 4,
+                      showValueIndicator: ShowValueIndicator.never,
+                      tickMarkShape: SliderTickMarkShape.noTickMark,
+                    ),
+                    child: Slider(
+                      value: _dayOfMonth.toDouble().clamp(1, 31),
+                      min: 1,
+                      max: 31,
+                      divisions: 30,
+                      onChanged: (val) => setState(() {
+                        _isLastDayOfMonth = false;
+                        _dayOfMonth = val.round();
+                      }),
+                    ),
+                  ),
+                ),
+                if (!_isLastDayOfMonth && _dayOfMonth > 28)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Text('เดือนที่ไม่มีวันที่ $_dayOfMonth จะบันทึกในวันสุดท้ายของเดือนแทน', style: TextStyle(fontSize: 12.5, color: c.sub)),
+                  ),
+              ],
             ),
-            const SizedBox(height: 16),
+          ),
+          const SizedBox(height: 18),
+          // Account
+          _sectionLabel(c, 'รับเงินเดือนเข้าบัญชี'),
+          _calmCard(
+            c,
+            child: _ctl.accounts.isEmpty
+                ? Padding(padding: const EdgeInsets.all(16), child: Text('ยังไม่มีบัญชี — เพิ่มบัญชีในเมนู “บัญชี & กระเป๋าเงิน” ก่อน', style: c.subtitle))
+                : Column(children: [
+                    for (var i = 0; i < _ctl.accounts.length; i++) _accRow(c, _ctl.accounts[i], i == 0),
+                  ]),
+          ),
+          const SizedBox(height: 18),
+          // Category
+          _sectionLabel(c, 'หมวดรายรับ', trailing: 'ใช้แยกดูในสถิติ'),
+          _calmCard(
+            c,
+            padding: const EdgeInsets.all(12),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final cat in _ctl.incomeCategories)
+                  _chip(c, cat.name, _selectedCategoryId == cat.id, () {
+                    HapticFeedback.selectionClick();
+                    setState(() => _selectedCategoryId = cat.id);
+                  }, dot: cat.color, expand: false),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          // Note
+          _sectionLabel(c, 'บันทึกช่วยจำ (ไม่บังคับ)'),
+          TextField(
+            controller: _noteController,
+            onChanged: (_) => setState(() {}),
+            style: TextStyle(color: c.text, fontSize: 15),
+            decoration: _inputDeco(c, hint: 'เช่น เงินเดือนประจำเดือน'),
+          ),
+        ];
 
-            // 3. Amount Card
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: cardBg,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: borderColor),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+        return Scaffold(
+          backgroundColor: c.page,
+          appBar: _calmAppBar(context, c, 'บันทึกเงินเดือนอัตโนมัติ', subtitle: 'ถึงวันเงินเข้า แอปจะจดรายรับให้เองทุกเดือน'),
+          bottomNavigationBar: _calmBottomBar(
+            c,
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (amtErr || dirty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(amtErr ? 'ใส่จำนวนเงินเดือนก่อนบันทึก' : 'มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก',
+                        style: TextStyle(fontSize: 12.5, color: amtErr ? c.danger : c.sub)),
+                  ),
+                _primaryButton(c, 'บันทึกการตั้งค่า', amtErr ? null : _saveConfig),
+              ],
+            ),
+          ),
+          body: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+            children: [
+              // Offline note
+              FxFadeUp(
+                index: fx++,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.paid_rounded, color: MeowTheme.incomeGreen, size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        'จำนวนเงินเดือน (บาท)',
-                        style: TextStyle(
-                          color: textPrimary,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
+                      Icon(Icons.lock_outline_rounded, size: 20, color: c.icon),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('ออฟไลน์ 100% ไม่ต้องต่อเน็ต', style: c.title.copyWith(fontSize: 14)),
+                            Text('แอปจดเงินเดือนให้ในเครื่องคุณเองเมื่อถึงวันที่ตั้งไว้ ข้อมูลไม่ถูกส่งออกไปไหน', style: c.subtitle),
+                          ],
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _amountController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    style: TextStyle(
-                      color: textPrimary,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    decoration: InputDecoration(
-                      prefixText: '฿ ',
-                      prefixStyle: const TextStyle(
-                        color: MeowTheme.incomeGreen,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      hintText: '0.00',
-                      hintStyle: TextStyle(color: textSecondary.withOpacity(0.5)),
-                      filled: true,
-                      fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(color: borderColor),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(color: borderColor),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(color: MeowTheme.incomeGreen, width: 2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  // Quick Amount Chips
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [15000, 20000, 25000, 30000, 35000, 40000, 50000].map((val) {
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: InkWell(
-                            onTap: () {
-                              HapticFeedback.selectionClick();
-                              setState(() {
-                                _amountController.text = CurrencyFormat.format(val.toDouble(), trimZero: true);
-                              });
-                            },
-                            borderRadius: BorderRadius.circular(20),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: borderColor),
-                              ),
-                              child: Text(
-                                '฿${CurrencyFormat.format(val.toDouble(), trimZero: true)}',
-                                style: TextStyle(
-                                  color: textSecondary,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-
-            // 4. Date of Month Card
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: cardBg,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: borderColor),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              const SizedBox(height: 14),
+              // Switch + next run
+              FxFadeUp(
+                index: fx++,
+                child: _calmCard(
+                  c,
+                  child: Column(
                     children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.calendar_month_rounded, color: Color(0xFF3B82F6), size: 20),
-                          const SizedBox(width: 8),
-                          Text(
-                            'วันที่เงินเข้าของทุกเดือน',
-                            style: TextStyle(
-                              color: textPrimary,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF3B82F6).withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          _isLastDayOfMonth ? 'วันสิ้นเดือน' : 'ทุกวันที่ $_dayOfMonth',
-                          style: const TextStyle(
-                            color: Color(0xFF3B82F6),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-
-                  // End of month switch
-                  InkWell(
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      setState(() {
-                        _isLastDayOfMonth = !_isLastDayOfMonth;
-                      });
-                    },
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: _isLastDayOfMonth
-                            ? const Color(0xFF3B82F6).withOpacity(0.15)
-                            : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: _isLastDayOfMonth ? const Color(0xFF3B82F6) : borderColor,
-                          width: _isLastDayOfMonth ? 1.8 : 1.0,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            _isLastDayOfMonth ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-                            color: _isLastDayOfMonth ? const Color(0xFF3B82F6) : Colors.grey,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'วันสิ้นเดือน (อัตโนมัติ 28, 30 หรือ 31 ของเดือนนั้นๆ)',
-                              style: TextStyle(
-                                color: textPrimary,
-                                fontSize: 13,
-                                fontWeight: _isLastDayOfMonth ? FontWeight.bold : FontWeight.normal,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  if (!_isLastDayOfMonth) ...[
-                    const SizedBox(height: 14),
-                    Text(
-                      'หรือเลือกวันที่ยอดนิยม:',
-                      style: TextStyle(color: textSecondary, fontSize: 12),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [25, 26, 27, 28, 30, 1, 5, 10, 15].map((day) {
-                        final isSel = !_isLastDayOfMonth && _dayOfMonth == day;
-                        return ChoiceChip(
-                          label: Text('วันที่ $day'),
-                          selected: isSel,
-                          selectedColor: const Color(0xFF3B82F6),
-                          labelStyle: TextStyle(
-                            color: isSel ? Colors.white : textPrimary,
-                            fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
-                            fontSize: 12,
-                          ),
-                          backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-                          onSelected: (selected) {
-                            if (selected) {
-                              HapticFeedback.selectionClick();
-                              setState(() {
-                                _isLastDayOfMonth = false;
-                                _dayOfMonth = day;
-                              });
-                            }
-                          },
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 10),
-                    // Slider for custom day 1-31
-                    Row(
-                      children: [
-                        const Text('1', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                        Expanded(
-                          child: Slider(
-                            value: _dayOfMonth.toDouble(),
-                            min: 1,
-                            max: 31,
-                            divisions: 30,
-                            activeColor: const Color(0xFF3B82F6),
-                            onChanged: (val) {
-                              setState(() {
-                                _isLastDayOfMonth = false;
-                                _dayOfMonth = val.round();
-                              });
-                            },
-                          ),
-                        ),
-                        const Text('31', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                      ],
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // 5. Target Account Card
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: cardBg,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: borderColor),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.account_balance_wallet_rounded, color: Color(0xFF8B5CF6), size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        'เลือกบัญชีที่รับเงินเดือนเข้า',
-                        style: TextStyle(
-                          color: textPrimary,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  ...widget.controller.accounts.map((acc) {
-                    final isSel = _selectedAccountId == acc.id;
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: InkWell(
+                      InkWell(
                         onTap: () {
                           HapticFeedback.selectionClick();
-                          setState(() {
-                            _selectedAccountId = acc.id;
-                          });
+                          setState(() => _isEnabled = !_isEnabled);
                         },
-                        borderRadius: BorderRadius.circular(14),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: isSel
-                                ? const Color(0xFF8B5CF6).withOpacity(0.12)
-                                : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: isSel ? const Color(0xFF8B5CF6) : borderColor,
-                              width: isSel ? 1.8 : 1.0,
-                            ),
-                          ),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 10, 12),
                           child: Row(
                             children: [
-                              BankBadge(bankCode: acc.bankCode, size: 28),
-                              const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
+                                    Text('เปิดบันทึกเงินเดือนอัตโนมัติ', style: c.title),
+                                    const SizedBox(height: 2),
                                     Text(
-                                      acc.name,
-                                      style: TextStyle(
-                                        color: textPrimary,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13.5,
-                                      ),
-                                    ),
-                                    Text(
-                                      'คงเหลือ: ฿${CurrencyFormat.format(acc.balance)}',
-                                      style: TextStyle(color: textSecondary, fontSize: 12),
+                                      _isEnabled
+                                          ? 'เปิดอยู่ • ${_isLastDayOfMonth ? 'ทุกวันสิ้นเดือน' : 'ทุกวันที่ $_dayOfMonth'}'
+                                          : 'ปิดอยู่ แอปจะไม่จดเงินเดือนให้',
+                                      style: c.subtitle,
                                     ),
                                   ],
                                 ),
                               ),
-                              if (isSel)
-                                const Icon(Icons.check_circle_rounded, color: Color(0xFF8B5CF6), size: 20)
-                              else
-                                const Icon(Icons.radio_button_unchecked_rounded, color: Colors.grey, size: 20),
+                              _calmSwitch(c, _isEnabled, (v) {
+                                HapticFeedback.selectionClick();
+                                setState(() => _isEnabled = v);
+                              }),
                             ],
                           ),
                         ),
                       ),
-                    );
-                  }).toList(),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // 6. Note / Memo Card
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: cardBg,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: borderColor),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.edit_note_rounded, color: Color(0xFFEC4899), size: 22),
-                      const SizedBox(width: 8),
-                      Text(
-                        'บันทึกช่วยจำ (ข้อความบนรายการ)',
-                        style: TextStyle(
-                          color: textPrimary,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
+                      Container(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                        decoration: BoxDecoration(border: Border(top: BorderSide(color: c.border))),
+                        child: Row(
+                          children: [
+                            Icon(Icons.calendar_today_outlined, size: 19, color: nextColor == c.text ? c.icon : nextColor),
+                            const SizedBox(width: 10),
+                            Expanded(child: Text(nextText, style: TextStyle(fontSize: 13.5, color: nextColor))),
+                          ],
                         ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: _noteController,
-                    style: TextStyle(color: textPrimary, fontSize: 14),
-                    decoration: InputDecoration(
-                      hintText: 'เช่น เงินเดือนประจำเดือน',
-                      hintStyle: TextStyle(color: textSecondary.withOpacity(0.6)),
-                      filled: true,
-                      fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: borderColor),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: borderColor),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFFEC4899), width: 1.8),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // 7. Status & Record History Card
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: cardBg,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: borderColor),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.history_rounded, color: Color(0xFF10B981), size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        'สถานะการบันทึก',
-                        style: TextStyle(
-                          color: textPrimary,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('บันทึกล่าสุด:', style: TextStyle(color: textSecondary, fontSize: 13)),
-                      Text(
-                        cfg.lastRecordedMonth != null
-                            ? 'เดือน ${cfg.lastRecordedMonth}'
-                            : 'ยังไม่มีประวัติ',
-                        style: TextStyle(
-                          color: cfg.lastRecordedMonth != null ? MeowTheme.incomeGreen : textSecondary,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('วันที่บันทึกล่าสุด:', style: TextStyle(color: textSecondary, fontSize: 13)),
-                      Text(
-                        cfg.lastRecordedDate != null
-                            ? FormatUtils.formatDateThai(cfg.lastRecordedDate!)
-                            : '-',
-                        style: TextStyle(color: textPrimary, fontSize: 13),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // 8. Test Button & Save Button
-            Row(
-              children: [
-                Expanded(
-                  child: TactileButton(
-                    onTap: _testRecordNow,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF3B82F6).withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFF3B82F6).withOpacity(0.3)),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          Icon(Icons.play_arrow_rounded, color: Color(0xFF3B82F6), size: 22),
-                          SizedBox(width: 6),
-                          Text(
-                            'ทดสอบบันทึกตอนนี้',
-                            style: TextStyle(
-                              color: Color(0xFF3B82F6),
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TactileButton(
-                    onTap: _saveConfig,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF10B981), Color(0xFF059669)],
-                        ),
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF10B981).withOpacity(0.3),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          Icon(Icons.check_rounded, color: Colors.white, size: 22),
-                          SizedBox(width: 6),
-                          Text(
-                            'บันทึกการตั้งค่า',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
+              ),
+              if (!_isEnabled)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 10, 4, 0),
+                  child: Text('ปิดอยู่ — เปิดสวิตช์ด้านบนก่อน จึงจะแก้การตั้งค่าด้านล่างได้', style: TextStyle(fontSize: 12.5, color: c.sub)),
+                ),
+              const SizedBox(height: 18),
+              FxFadeUp(
+                index: fx++,
+                child: IgnorePointer(
+                  ignoring: !_isEnabled,
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 200),
+                    opacity: _isEnabled ? 1 : 0.45,
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: form),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              // Last record + manual record
+              FxFadeUp(
+                index: fx++,
+                child: _calmCard(
+                  c,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.history_rounded, size: 22, color: c.icon),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('บันทึกล่าสุด:', style: TextStyle(fontSize: 12.5, color: c.sub)),
+                                  Text(
+                                    cfg.lastRecordedDate != null ? FormatUtils.formatDateThai(cfg.lastRecordedDate!) : 'ยังไม่เคยบันทึก',
+                                    style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: c.text),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
+                      Divider(height: 1, color: c.border),
+                      InkWell(
+                        onTap: amount > 0 ? _testRecordNow : null,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(children: [
+                                Icon(Icons.add_rounded, size: 22, color: amount > 0 ? c.link : c.faint),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text('บันทึกรายการเงินเดือนตอนนี้',
+                                      style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600, color: amount > 0 ? c.link : c.faint)),
+                                ),
+                              ]),
+                              const SizedBox(height: 6),
+                              Text.rich(TextSpan(style: TextStyle(fontSize: 12.5, height: 1.45, color: c.sub), children: [
+                                const TextSpan(text: 'สร้างรายการรายรับ'),
+                                TextSpan(text: 'จริง', style: TextStyle(fontWeight: FontWeight.w700, color: c.text)),
+                                TextSpan(text: ' ${_baht(amount)} ลงวันนี้ ใช้เมื่อเงินเข้าก่อนกำหนด (ไม่ใช่การทดสอบ)'),
+                              ])),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// Equal-width chips laid out [cols] per row.
+  Widget _grid(_C c, int cols, List<Widget> children) => LayoutBuilder(
+        builder: (context, box) {
+          const gap = 8.0;
+          final w = (box.maxWidth - gap * (cols - 1)) / cols;
+          return Wrap(spacing: gap, runSpacing: gap, children: [for (final ch in children) SizedBox(width: w, child: ch)]);
+        },
+      );
+
+  Widget _chip(_C c, String label, bool sel, VoidCallback onTap, {double fontSize = 14, Color? dot, bool expand = true}) => Material(
+        color: c.card,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Container(
+            height: 44,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: sel ? c.accent : c.line, width: sel ? 1.5 : 1),
+            ),
+            child: Row(
+              mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (dot != null) ...[
+                  Container(width: 8, height: 8, decoration: BoxDecoration(color: dot, shape: BoxShape.circle)),
+                  const SizedBox(width: 8),
+                ],
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(label,
+                        style: TextStyle(fontSize: fontSize, fontWeight: sel ? FontWeight.w600 : FontWeight.w400, color: sel ? c.link : c.icon)),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 32),
+          ),
+        ),
+      );
+
+  Widget _accRow(_C c, AccountItem acc, bool first) {
+    final sel = _selectedAccountId == acc.id;
+    final icon = acc.type == AccountType.cash
+        ? Icons.payments_outlined
+        : acc.type == AccountType.eWallet
+            ? Icons.phone_iphone_rounded
+            : Icons.account_balance_outlined;
+    final kind = acc.type == AccountType.cash ? 'เงินสด' : (acc.type == AccountType.eWallet ? 'e-Wallet' : 'บัญชีธนาคาร');
+    return InkWell(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() => _selectedAccountId = acc.id);
+      },
+      child: Padding(
+        padding: const EdgeInsets.only(left: 16, right: 14),
+        child: Row(
+          children: [
+            Icon(icon, size: 22, color: c.icon),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Container(
+                constraints: const BoxConstraints(minHeight: 62),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(border: first ? null : Border(top: BorderSide(color: c.border))),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(acc.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: c.title),
+                          Text('$kind • คงเหลือ ${_baht(acc.balance)}', maxLines: 1, overflow: TextOverflow.ellipsis, style: c.subtitle),
+                        ],
+                      ),
+                    ),
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 160),
+                      width: 22,
+                      height: 22,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: sel ? c.accent : c.faint, width: sel ? 2 : 1.5),
+                      ),
+                      alignment: Alignment.center,
+                      child: sel ? Container(width: 10, height: 10, decoration: BoxDecoration(color: c.accent, shape: BoxShape.circle)) : null,
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// Calm monochrome menu-page kit (same look as the menu home). Private copy so
+// this screen stays self-contained.
+// ---------------------------------------------------------------------------
+
+class _C {
+ final Color page, text, sub, icon, faint, card, line, border, seg, accent, link, ok, okText, danger, dangerText, vip, vipLine, disabled;
+ final bool dark;
+
+ const _C({
+  required this.page,
+  required this.text,
+  required this.sub,
+  required this.icon,
+  required this.faint,
+  required this.card,
+  required this.line,
+  required this.border,
+  required this.seg,
+  required this.accent,
+  required this.link,
+  required this.ok,
+  required this.okText,
+  required this.danger,
+  required this.dangerText,
+  required this.vip,
+  required this.vipLine,
+  required this.disabled,
+  required this.dark,
+ });
+
+ factory _C.of(ExpenseController ctl) {
+  final t = ctl.currentTheme;
+  final dark = ctl.isDarkMode;
+  return _C(
+   page: t.scaffoldBackground,
+   text: t.textColor,
+   sub: t.textSecondaryColor,
+   icon: dark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+   faint: dark ? Colors.white24 : const Color(0xFFB6BECB),
+   card: t.cardBackground,
+   line: t.borderColor,
+   border: dark ? Colors.white10 : const Color(0xFFEEF0F4),
+   seg: dark ? const Color(0xFF0F172A) : const Color(0xFFF1F3F8),
+   accent: t.primaryColor,
+   link: dark ? const Color(0xFF93C5FD) : t.primaryColor,
+   ok: dark ? const Color(0xFF34D399) : const Color(0xFF059669),
+   okText: dark ? const Color(0xFF34D399) : const Color(0xFF047857),
+   danger: dark ? const Color(0xFFF87171) : const Color(0xFFDC2626),
+   dangerText: dark ? const Color(0xFFFCA5A5) : const Color(0xFFB91C1C),
+   vip: dark ? const Color(0xFFFCD34D) : const Color(0xFF92400E),
+   vipLine: dark ? const Color(0xFF6B5A1E) : const Color(0xFFE9C98B),
+   disabled: dark ? Colors.white12 : const Color(0xFFA5B4CF),
+   dark: dark,
+  );
+ }
+
+ TextStyle get title => TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: text);
+ TextStyle get subtitle => TextStyle(fontSize: 12.5, height: 1.35, color: sub);
+}
+
+/// White app bar: 44px back chevron, 18/700 title, optional 12px subtitle, optional [bottom] (e.g. a segmented control), 1px bottom line.
+PreferredSizeWidget _calmAppBar(BuildContext context, _C c, String title,
+  {String? subtitle, List<Widget> actions = const [], Widget? bottom, double bottomHeight = 0}) {
+ return PreferredSize(
+  preferredSize: Size.fromHeight(61 + bottomHeight),
+  child: Material(
+   color: c.card,
+   child: SafeArea(
+    bottom: false,
+    child: Container(
+     decoration: BoxDecoration(border: Border(bottom: BorderSide(color: c.line))),
+     child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+       SizedBox(
+        height: 60,
+        child: Padding(
+         padding: const EdgeInsets.only(left: 6, right: 8),
+         child: Row(
+          children: [
+           SizedBox(
+            width: 44,
+            height: 44,
+            child: IconButton(
+             tooltip: 'ย้อนกลับ',
+             padding: EdgeInsets.zero,
+             icon: Icon(Icons.chevron_left_rounded, size: 28, color: c.text),
+             onPressed: () => Navigator.maybePop(context),
+            ),
+           ),
+           const SizedBox(width: 6),
+           Expanded(
+            child: Column(
+             mainAxisAlignment: MainAxisAlignment.center,
+             crossAxisAlignment: CrossAxisAlignment.start,
+             children: [
+              Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: c.text)),
+              if (subtitle != null)
+               Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: c.sub)),
+             ],
+            ),
+           ),
+           ...actions,
+          ],
+         ),
+        ),
+       ),
+       if (bottom != null) SizedBox(height: bottomHeight, child: bottom),
+      ],
+     ),
+    ),
+   ),
+  ),
+ );
+}
+
+/// Sticky bottom action bar (white, top border).
+Widget _calmBottomBar(_C c, Widget child) => Container(
+      decoration: BoxDecoration(color: c.card, border: Border(top: BorderSide(color: c.line))),
+      child: SafeArea(top: false, child: Padding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 12), child: child)),
+     );
+
+/// Full-width 52px accent button; null [onTap] shows the disabled look.
+Widget _primaryButton(_C c, String label, VoidCallback? onTap, {IconData? icon, Color? color, bool busy = false}) {
+ final bg = onTap == null ? c.disabled : (color ?? c.accent);
+ return SizedBox(
+  width: double.infinity,
+  height: 52,
+  child: ElevatedButton(
+   onPressed: busy ? null : onTap,
+   style: ElevatedButton.styleFrom(
+    backgroundColor: bg,
+    disabledBackgroundColor: busy ? bg : c.disabled,
+    foregroundColor: Colors.white,
+    disabledForegroundColor: Colors.white.withValues(alpha: 0.9),
+    elevation: 0,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+   ),
+   child: busy
+       ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.white))
+       : Row(
+           mainAxisSize: MainAxisSize.min,
+           children: [
+            if (icon != null) ...[Icon(icon, size: 20), const SizedBox(width: 8)],
+            Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600))),
+           ],
+          ),
+  ),
+ );
+}
+
+/// Outlined secondary button (44px+).
+Widget _outlineButton(_C c, String label, VoidCallback? onTap, {IconData? icon, Color? color, double height = 48}) {
+ final fg = color ?? c.text;
+ return SizedBox(
+  height: height,
+  child: OutlinedButton(
+   onPressed: onTap,
+   style: OutlinedButton.styleFrom(
+    foregroundColor: fg,
+    side: BorderSide(color: c.line),
+    backgroundColor: c.card,
+    padding: const EdgeInsets.symmetric(horizontal: 14),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+   ),
+   child: Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+     if (icon != null) ...[Icon(icon, size: 19, color: fg), const SizedBox(width: 8)],
+     Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: fg))),
+    ],
+   ),
+  ),
+ );
+}
+
+/// 1px-bordered card, radius 16.
+Widget _calmCard(_C c, {required Widget child, EdgeInsetsGeometry? padding}) => Container(
+      decoration: BoxDecoration(color: c.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: c.line)),
+      clipBehavior: Clip.antiAlias,
+      child: Material(color: Colors.transparent, child: padding == null ? child : Padding(padding: padding, child: child)),
+     );
+
+/// 13px/600 grey label above a card group, with an optional right-hand value.
+Widget _sectionLabel(_C c, String title, {String? trailing, Widget? trailingWidget}) => Padding(
+      padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+      child: Row(
+       children: [
+        Expanded(child: Text(title, style: TextStyle(color: c.sub, fontSize: 13, fontWeight: FontWeight.w600))),
+        if (trailing != null) Text(trailing, style: TextStyle(color: c.sub, fontSize: 13, fontFeatures: const [FontFeature.tabularFigures()])),
+        ?trailingWidget,
+       ],
+      ),
+     );
+
+/// Toggle switch in the accent colour.
+Widget _calmSwitch(_C c, bool value, ValueChanged<bool>? onChanged) => Switch(
+      value: value,
+      onChanged: onChanged,
+      activeThumbColor: Colors.white,
+      activeTrackColor: c.accent,
+      inactiveThumbColor: Colors.white,
+      inactiveTrackColor: c.dark ? Colors.white24 : const Color(0xFFCBD5E1),
+      trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
+     );
+
+InputDecoration _inputDeco(_C c, {String? hint, String? prefix, bool error = false, Widget? prefixIcon, Widget? suffixIcon}) {
+ OutlineInputBorder b(Color col, [double w = 1]) => OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: col, width: w));
+ return InputDecoration(
+  isDense: true,
+  hintText: hint,
+  hintStyle: TextStyle(color: c.sub.withValues(alpha: 0.8), fontSize: 14.5, fontWeight: FontWeight.w400),
+  // Shown as an icon so the prefix (e.g. ฿) stays visible while the field is empty.
+  prefixIcon: prefixIcon ??
+    (prefix == null
+      ? null
+      : Padding(
+        padding: const EdgeInsets.only(left: 14, right: 8),
+        child: Text(prefix.trim(), style: TextStyle(color: c.sub, fontSize: 16, fontWeight: FontWeight.w600)),
+       )),
+  prefixIconConstraints: prefix != null && prefixIcon == null ? const BoxConstraints(minWidth: 0, minHeight: 0) : null,
+  suffixIcon: suffixIcon,
+  filled: true,
+  fillColor: c.card,
+  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+  enabledBorder: b(error ? c.danger : c.line),
+  focusedBorder: b(error ? c.danger : c.accent, 1.5),
+  border: b(c.line),
+ );
+}
+
+/// Dark floating toast with an optional action (e.g. เลิกทำ).
+void _calmToast(BuildContext context, String msg, {bool error = false, String? actionLabel, VoidCallback? onAction}) {
+ final m = ScaffoldMessenger.of(context);
+ m.hideCurrentSnackBar();
+ m.showSnackBar(SnackBar(
+  content: Text(msg, style: const TextStyle(fontSize: 13.5, color: Colors.white)),
+  behavior: SnackBarBehavior.floating,
+  backgroundColor: error ? const Color(0xFFB91C1C) : const Color(0xFF0F172A),
+  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+  duration: Duration(seconds: actionLabel != null ? 5 : 3),
+  action: actionLabel == null ? null : SnackBarAction(label: actionLabel, textColor: const Color(0xFF93C5FD), onPressed: onAction ?? () {}),
+ ));
 }
