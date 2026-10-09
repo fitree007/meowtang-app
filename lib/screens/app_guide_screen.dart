@@ -2,52 +2,73 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../state/expense_controller.dart';
 import '../theme/meow_theme.dart';
-import '../widgets/meow_mascot_widget.dart';
-import '../widgets/tactile_button.dart';
+import '../widgets/meow_fx.dart';
+import '../widgets/meow_paywall_modal.dart';
+import 'account_management_screen.dart';
+import 'add_transaction_screen.dart';
+import 'character_customization_screen.dart';
+import 'compare_analytics_screen.dart';
+import 'currency_converter_screen.dart';
+import 'data_backup_restore_screen.dart';
+import 'subscription_vault_screen.dart';
+import 'theme_shop_screen.dart';
+import 'voice_chat_entry_screen.dart';
+import 'zakat_calculator_screen.dart';
 
+/// คู่มือ & ฟีเจอร์เด่น: a grouped list of 12 how-to topics, each opening a step-by-step page.
 class AppGuideScreen extends StatefulWidget {
   final ExpenseController controller;
   final VoidCallback? onFinish;
+
+  /// Opens straight on this topic (0..11) instead of the list.
+  final int? initialTopic;
 
   const AppGuideScreen({
     super.key,
     required this.controller,
     this.onFinish,
+    this.initialTopic,
   });
 
   @override
   State<AppGuideScreen> createState() => _AppGuideScreenState();
 }
 
+/// Topics opened in this app session (shown as "อ่านแล้ว").
+final Set<int> _readTopics = {};
+
 class _AppGuideScreenState extends State<AppGuideScreen> {
-  final PageController _pageController = PageController();
-  int _currentPage = 0;
-  String _selectedLang = 'th';
+  int? _topic; // null = list
+  String _query = '';
+  final _search = TextEditingController();
+
+  ExpenseController get _c => widget.controller;
+  bool get _isEn => _c.guideLanguage == 'en';
 
   @override
   void initState() {
     super.initState();
-    _selectedLang = widget.controller.guideLanguage;
+    final t = widget.initialTopic;
+    if (t != null && t >= 0 && t < _topics.length) _open(t, haptic: false);
   }
 
-  void _onLangChanged(String lang) {
-    HapticFeedback.selectionClick();
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  void _open(int i, {bool haptic = true}) {
+    if (haptic) HapticFeedback.selectionClick();
     setState(() {
-      _selectedLang = lang;
+      _topic = i;
+      _readTopics.add(i);
     });
-    widget.controller.setGuideLanguage(lang);
   }
 
-  void _nextPage() {
-    HapticFeedback.lightImpact();
-    if (_currentPage < _getGuideSteps().length - 1) {
-      _pageController.nextPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOutCubic,
-      );
-    } else {
-      _finishGuide();
-    }
+  void _backToList() {
+    HapticFeedback.selectionClick();
+    setState(() => _topic = null);
   }
 
   void _finishGuide() {
@@ -60,1295 +81,1055 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
     }
   }
 
-  List<Map<String, dynamic>> _getGuideSteps() {
-    switch (_selectedLang) {
-      case 'en':
-        return [
-          {
-            'icon': Icons.sync_rounded,
-            'color': const Color(0xFF10B981),
-            'title': '1. Auto Slip Sync (22 Banks & PaoTang)',
-            'badge': 'Guide 1 of 12 • Auto Sync',
-            'desc': 'Real-time background detector that automatically captures new bank transfer slips from 22 Thai banks and digital wallets (KBank, SCB, KTB, iBank, BBL, TTB, GSB, BAY, CIMB, UOB, TMRW, LHB, KKP, GHB, Tisco, PaoTang, TrueMoney, etc.).',
-            'setup': '⚙️ Setup & How to use:\n1. Grant "Photos & Media Permission" in device settings.\n2. When you save or download a transfer slip, the app auto-imports it instantly.\n3. Pull-down to refresh on the Overview screen anytime to reload all data and scan new slips without restarting the app.',
-            'tip': '💡 100% smart duplicate prevention ensures no slip is recorded twice.',
-          },
-          {
-            'icon': Icons.verified_rounded,
-            'color': const Color(0xFF06B6D4),
-            'title': '2. Real-Time Online Slip Verifier',
-            'badge': 'Guide 2 of 12 • ITMX Bank Check',
-            'desc': 'Verify bank slip authenticity directly with the Thai Interbank ITMX Clearing System. Checks if the transfer actually occurred to prevent fake and photoshopped slips.',
-            'setup': '⚙️ How to use:\n1. Tap the floating Arrow Up button (Quick Menu) at bottom right of Dashboard.\n2. Select "Online Slip Verifier ⚡".\n3. Pick an image containing a PromptPay QR code. Real-time bank data is retrieved instantly with 1-tap save.',
-            'tip': '💡 Requires clear QR code and internet connection for live bank handshake.',
-          },
-          {
-            'icon': Icons.document_scanner_rounded,
-            'color': const Color(0xFF8B5CF6),
-            'title': '3. 100% Offline OCR & Auto Amount Fill',
-            'badge': 'Guide 3 of 12 • Offline Scanner',
-            'desc': 'Extract amount, date/time, sender, receiver, and transfer memo from bank slips completely offline. Also automatically fills the amount into the calculator when picking a slip on the "+" screen!',
-            'setup': '⚙️ How to use:\n1. On the "+" entry screen, tap "+ Slip" to pick a receipt. The amount fills into the keypad automatically.\n2. Or tap Arrow Up Menu > "Pick Slip Image (OCR)" to process any slip photo in under a second.',
-            'tip': '💡 100% private offline engine keeps all your financial images securely on your device.',
-          },
-          {
-            'icon': Icons.swipe_rounded,
-            'color': const Color(0xFF3B82F6),
-            'title': '4. Swipe Actions & Live Countdown Undo',
-            'badge': 'Guide 4 of 12 • Gestures & Undo',
-            'desc': 'Manage transactions at lightning speed using fluid swipe gestures, protected by a live 5-second countdown batch undo system.',
-            'setup': '⚙️ How to use:\n• 👉 Swipe Right: Opens the Edit Transaction screen.\n• 👈 Swipe Left: Quick Delete (Shows animated 5s countdown bar).\n• ⏱️ Tap "Undo" anytime during the 5s timer to instantly restore all deleted items.',
-            'tip': '💡 You can swipe-delete multiple items quickly; the batch undo bar collects them all together.',
-          },
-          {
-            'icon': Icons.subscriptions_rounded,
-            'color': const Color(0xFF6366F1),
-            'title': '5. Subscription & Recurring Bills Vault',
-            'badge': 'Guide 5 of 12 • Subscription Vault',
-            'desc': 'Centralized control center for Netflix, YouTube, Spotify, iCloud, insurance, home rent, and recurring utility bills with renewal alarms and active spending summary.',
-            'setup': '⚙️ How to use:\n1. Open Profile / Premium > "Manage Subscription & Recurring Bills".\n2. Add services, specify cycle (Monthly/Yearly), renewal date, and alert days.\n3. Keep track of total monthly expenditure and receive alerts before you get billed.',
-            'tip': '💡 Easily sort by next payment date, highest cost, or category, and mark bills as paid in 1 tap.',
-          },
-          {
-            'icon': Icons.currency_exchange_rounded,
-            'color': const Color(0xFFEAB308),
-            'title': '6. Real-Time Currency & Precious Metals',
-            'badge': 'Guide 6 of 12 • Live Rates & Metals',
-            'desc': 'Live global exchange rates for 30+ foreign currencies and precious metals (Gold, Silver, Platinum, Palladium) with daily interactive price trend charts and historical lookup.',
-            'setup': '⚙️ How to use:\n1. Open Profile / Premium > "Currency Converter & Calculator" or "Precious Metals Calculator".\n2. View daily live spot rates, compare price movements over time, and convert values instantly.',
-            'tip': '💡 Includes daily historical chart points and live update badges without leaving the app.',
-          },
-          {
-            'icon': Icons.mosque_rounded,
-            'color': const Color(0xFF14B8A6),
-            'title': '7. Islamic Halal Finance & Gold Zakat',
-            'badge': 'Guide 7 of 12 • Halal Finance',
-            'desc': 'Calculate Gold Zakat with real-time live gold prices from Gold Traders Association, track Halal Rizqi blessings, calculate inheritance, and isolate non-halal interests.',
-            'setup': '⚙️ How to use:\n1. Open Profile (Human) Menu > "Islamic Finance & Gold Zakat".\n2. Enter your gold weight (Baht/Grams). The system automatically evaluates the Nisab threshold and computes 2.5% Zakat dues.',
-            'tip': '💡 Includes a dedicated log to track Sadaqah charity and Zakat disbursements.',
-          },
-          {
-            'icon': Icons.mic_rounded,
-            'color': const Color(0xFFEC4899),
-            'title': '8. Thai Voice AI Assistant',
-            'badge': 'Guide 8 of 12 • Voice AI',
-            'desc': 'Speak naturally in Thai or English to log expenses in 2 seconds without typing. Natural Language Processing classifies category and amount automatically.',
-            'setup': '⚙️ How to use:\n1. Grant Microphone Permission.\n2. Tap Arrow Up Menu > "Voice Record with AI".\n3. Say e.g. "Lunch 65 baht from KBank" or "Coffee 50". AI automatically creates the transaction.',
-            'tip': '💡 Mentioning bank/wallet names automatically routes the expense to that specific account.',
-          },
-          {
-            'icon': Icons.account_balance_rounded,
-            'color': const Color(0xFFF59E0B),
-            'title': '9. Nationwide Bank Filter & Multi-Accounts',
-            'badge': 'Guide 9 of 12 • Bank Accounts',
-            'desc': 'Filter transactions and monthly totals by specific Thai banks (KBank, SCB, KTB, BBL, iBank, PaoTang, etc.) and manage separate bank accounts with real official bank logos.',
-            'setup': '⚙️ How to use:\n1. In Dashboard, tap the "Bank Filter" chip button to filter history by bank.\n2. Open "Accounts" to manage separate wallets matched directly to your actual bank cards.',
-            'tip': '💡 Slips are automatically linked to the sender bank account.',
-          },
-          {
-            'icon': Icons.calculate_rounded,
-            'color': const Color(0xFF8B5CF6),
-            'title': '10. Built-in Calculator & XL Input',
-            'badge': 'Guide 10 of 12 • Calculator Numpad',
-            'desc': 'Extra-large input display with live mathematical arithmetic (+, -, ×, ÷) right inside the recording pad without switching apps.',
-            'setup': '⚙️ How to use:\n1. Tap "+" or "Add Record" to open the entry screen.\n2. Enter expressions like 50+20*3 and tap "=" to evaluate live total before saving.',
-            'tip': '💡 Supports horizontal scrolling for lengthy multi-item expense chains.',
-          },
-          {
-            'icon': Icons.insights_rounded,
-            'color': const Color(0xFF0284C7),
-            'title': '11. 2-Month Deep Analytics & AI Verdict',
-            'badge': 'Guide 11 of 12 • Analytics',
-            'desc': 'Compare spending patterns between any two months with AI Smart Verdict, daily burn rates, and savings delta bars.',
-            'setup': '⚙️ How to use:\n1. Navigate to "Analytics" tab in bottom navigation.\n2. Select Month A and Month B to inspect comparative charts and category spikes.',
-            'tip': '💡 Filter for "Saved Categories" to see where you succeeded in budget trimming.',
-          },
-          {
-            'icon': Icons.picture_as_pdf_rounded,
-            'color': const Color(0xFFEF4444),
-            'title': '12. PDF Statement A4, Excel Export & Backup',
-            'badge': 'Guide 12 of 12 • Export & Backup',
-            'desc': 'Export formal financial statements as standard A4 PDF with Thai typography or Excel (.xlsx) directly into your Downloads folder. Plus, 100% offline encrypted backup and restore.',
-            'setup': '⚙️ How to use:\n1. Open Profile > "Export Financial Statement PDF" or "Export Excel".\n2. Select period or bank account and export. The file saves directly into Downloads/MeowTang for instant opening and sharing.',
-            'tip': '💡 Zero watermark and completely offline, safe from server leaks.',
-          },
-        ];
+  void _push(Widget screen) => Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
 
-      default: // 'th' (Thai)
-        return [
-          {
-            'icon': Icons.sync_rounded,
-            'color': const Color(0xFF10B981),
-            'title': '1. ดึงสลิปอัตโนมัติ 22 ธนาคาร & เป๋าตัง',
-            'badge': 'คู่มือ 1 จาก 12 • ระบบดึงสลิป',
-            'desc': 'ระบบตรวจจับสลิปใหม่จากอัลบั้มรูปภาพของ 22 ธนาคารชั้นนำ & กระเป๋าเงินดิจิทัล (กสิกร, ไทยพาณิชย์, กรุงไทย, อิสลาม iBank, กรุงเทพ, ทีทีบี, ออมสิน, กรุงศรี, CIMB, UOB, TMRW, LHB, KKP, GHB, Tisco, เป๋าตัง, TrueMoney ฯลฯ) ทันทีเมื่อเซฟรูป พร้อมระบบป้องกันบันทึกสลิปซ้ำ 100%',
-            'setup': '⚙️ วิธีการตั้งค่า & ใช้งาน:\n1. ตรวจสอบว่าได้อนุญาต "สิทธิ์การเข้าถึงรูปภาพ (Photos & Media)" ในการตั้งค่าเครื่อง\n2. เมื่อเซฟรูปสลิปจากแอพธนาคารหรือเป๋าตัง ระบบจะดึงและบันทึกรายการให้อัตโนมัติทันที\n3. ในหน้าภาพรวม สามารถรูดหน้าจอลงสุด (Pull-to-refresh) เพื่อรีเฟรชข้อมูลล่าสุดทั้งหมดและสแกนสลิปใหม่ได้ทันทีโดยไม่ต้องปิดแอพ',
-            'tip': '💡 ระบบฉลาดจะอ่านยอดที่ชำระจริง (Net Paid) และข้ามการโอนเงินให้ตัวเองให้อัตโนมัติ',
-          },
-          {
-            'icon': Icons.verified_rounded,
-            'color': const Color(0xFF06B6D4),
-            'title': '2. ตรวจสลิปแท้ออนไลน์ Real-Time (ITMX)',
-            'badge': 'คู่มือ 2 จาก 12 • เช็คสลิปแท้',
-            'desc': 'ตรวจสอบความถูกต้องของสลิปโอนเงินโดยตรงกับระบบกลางโครงข่ายธนาคารไทย (ITMX) ยืนยันว่ามีการโอนเงินจริง ป้องกันสลิปปลอมและภาพตัดต่อ 100% พร้อมปุ่มบันทึกเข้าระบบใน 1 แตะ',
-            'setup': '⚙️ วิธีการใช้งาน:\n1. แตะปุ่มสายฟ้า ⚡ (เมนูด่วน) ที่มุมขวาล่างของหน้าภาพรวม\n2. เลือกเมนู "ตรวจสลิปแท้ออนไลน์ ⚡"\n3. เลือกรูปภาพสลิปที่มี QR Code หรือสแกนสด ระบบจะดึงข้อมูลจริงจากธนาคารมาแสดงทันที',
-            'tip': '💡 จำเป็นต้องมีการเชื่อมต่ออินเทอร์เน็ตในการส่งคำขอตรวจสอบไปยังระบบกลางธนาคาร',
-          },
-          {
-            'icon': Icons.document_scanner_rounded,
-            'color': const Color(0xFF8B5CF6),
-            'title': '3. สแกนสลิปออฟไลน์ 100% & ใส่ยอดในหน้า + ทันที',
-            'badge': 'คู่มือ 3 จาก 12 • OCR ออฟไลน์',
-            'desc': 'ถอดรหัสยอดเงิน วันที่ บัญชี และบันทึกช่วยจำ (Memo) จากภาพสลิปได้แบบออฟไลน์ 100% ไม่ต้องต่อเน็ต ปลอดภัยสูงสุด พร้อมระบบดึงยอดเงินจากสลิปมาใส่ในช่องยอดเงินของหน้า "+" ให้ทันทีเมื่อเลือกรูปสลิป',
-            'setup': '⚙️ วิธีการใช้งาน:\n1. ในหน้าระบุรายการ "+" แตะปุ่ม "+ สลิป" แล้วเลือกรูป ยอดเงินจะถูกสแกนและกรอกให้อัตโนมัติทันที\n2. หรือแตะปุ่มสายฟ้า ⚡ ที่มุมขวาล่าง > เลือก "เลือกรูปสลิปจากคลังภาพ (OCR)" เพื่อสแกนจัดหมวดหมู่ใน 0.3 วินาที',
-            'tip': '💡 ข้อมูลทั้งหมดประมวลผลในเครื่องคุณ 100% ไม่มีทางรั่วไหลออกสู่อินเทอร์เน็ต',
-          },
-          {
-            'icon': Icons.swipe_rounded,
-            'color': const Color(0xFF3B82F6),
-            'title': '4. การปัดรายการ & ระบบนับถอยหลังยกเลิก (Undo)',
-            'badge': 'คู่มือ 4 จาก 12 • ท่าทาง & เลิกทำ',
-            'desc': 'จัดการรายการได้อย่างรวดเร็วด้วยการปัดนิ้ว พร้อมระบบนับเวลาถอยหลัง 5 วินาทีแบบสดๆ ป้องกันการเผลอลบพลาด และรองรับการกู้คืนเป็นชุด',
-            'setup': '⚙️ วิธีการใช้งาน:\n• 👉 ปัดขวา: เข้าสู่หน้าต่างแก้ไขรายการ (Edit Transaction)\n• 👈 ปัดซ้าย: ลบรายการด่วน (จะมีแถบสีเข้มนับถอยหลัง 5... 4... 3...)\n• ⏱️ กด "เลิกทำ (Undo)" ได้ตลอดเวลาก่อนหมดเวลา 5 วินาที เพื่อดึงรายการทั้งหมดกลับคืนมา',
-            'tip': '💡 สามารถปัดลบหลายรายการต่อเนื่องได้ ระบบจะรวมเป็นชุดและนับเวลาถอยหลังให้',
-          },
-          {
-            'icon': Icons.subscriptions_rounded,
-            'color': const Color(0xFF6366F1),
-            'title': '5. คุมค่า Subscription & บิลประจำรอบบิล',
-            'badge': 'คู่มือ 5 จาก 12 • Subscription Vault',
-            'desc': 'ศูนย์ควบคุมค่าบริการรายเดือนและรายปี เช่น Netflix, YouTube, Spotify, iCloud, ค่าบ้าน, ค่าน้ำไฟ และเบี้ยประกันภัย พร้อมระบบแจ้งเตือนวันตัดรอบบิลล่วงหน้า',
-            'setup': '⚙️ วิธีการใช้งาน:\n1. ไปที่เมนูโปรไฟล์ หรือหน้าพรีเมี่ยม > เลือก "คุมค่า Subscription & บิลประจำ"\n2. เพิ่มบริการที่ใช้งาน กำหนดรอบชำระ (รายเดือน/รายปี), วันที่เริ่มตัดรอบ และจำนวนวันแจ้งเตือนล่วงหน้า\n3. ดูภาพรวมค่าบริการทั้งหมดต่อเดือน พร้อมปุ่มกด "บันทึกจ่ายแล้ว" ได้ใน 1 แตะ',
-            'tip': '💡 จัดเรียงตามวันใกล้จ่าย หรือยอดเงินสูงสุดได้ และมีโทรโข่งเตือนเมื่อถึงกำหนดตัดบิล',
-          },
-          {
-            'icon': Icons.currency_exchange_rounded,
-            'color': const Color(0xFFEAB308),
-            'title': '6. เครื่องคิดเลขแปลงเงิน & คำนวณแร่ทอง/เงิน สด',
-            'badge': 'คู่มือ 6 จาก 12 • อัตราแลกเปลี่ยน & แร่มีค่า',
-            'desc': 'อัตราแลกเปลี่ยนเงินตราระหว่างประเทศกว่า 30 สกุลเงิน พร้อมคำนวณมูลค่าแร่ทองคำ, แร่เงิน, แพลทินัม และพาลาเดียม อัพเดทสดเรียลไทม์ พร้อมกราฟราคารายวันและย้อนหลัง',
-            'setup': '⚙️ วิธีการใช้งาน:\n1. ไปที่เมนูโปรไฟล์ หรือหน้าพรีเมี่ยม > เลือก "เครื่องคิดเลขแปลงเงิน" หรือ "คำนวณแร่ทอง & แร่เงิน"\n2. ดูราคาสปอตสดๆ ของตลาดโลก คำนวณตามน้ำหนัก (กรัม, บาท, ออนซ์) และดูกราฟแนวโน้มราคารายวัน',
-            'tip': '💡 รองรับการดูกราฟย้อนหลังและคำนวณแปลงค่าได้ทันทีโดยไม่ต้องเข้าเว็บค้นหา',
-          },
-          {
-            'icon': Icons.mosque_rounded,
-            'color': const Color(0xFF14B8A6),
-            'title': '7. การเงินอิสลาม & ซะกาตทองคำ Real-Time',
-            'badge': 'คู่มือ 7 จาก 12 • การเงินฮาลาล',
-            'desc': 'คำนวณซะกาตทองคำแท่งและรูปพรรณตามราคาทองคำสมาคมค้าทองคำสดๆ, จัดการเงินริซกี, คำนวณมรดก และตัดดอกเบี้ยตามหลักชะรีอะฮ์อย่างถูกต้อง',
-            'setup': '⚙️ วิธีการตั้งค่า & ใช้งาน:\n1. ไปที่เมนูโปรไฟล์ (คน) > เลือก "การเงินอิสลาม & ซะกาตทองคำ"\n2. ใส่น้ำหนักทองคำที่มี (บาท/กรัม) ระบบจะคำนวณเปรียบเทียบพิกัดนิศอบ (Nisab) และแสดงยอดซะกาต 2.5% ที่ต้องจ่ายทันที',
-            'tip': '💡 มีบันทึกประวัติการจ่ายซะกาตและการทำทาน (ศอดะเกาะฮ์) แยกไว้อย่างเป็นระเบียบ',
-          },
-          {
-            'icon': Icons.mic_rounded,
-            'color': const Color(0xFFEC4899),
-            'title': '8. สั่งจดด้วยเสียง AI ภาษาไทยธรรมชาติ',
-            'badge': 'คู่มือ 8 จาก 12 • AI สั่งด้วยเสียง',
-            'desc': 'บันทึกรายรับ-รายจ่ายได้เร็วที่สุดโดยไม่ต้องพิมพ์ เพียงพูดภาษาไทยสั้นๆ ระบบ AI NLP จะสกัดยอดเงิน หมวดหมู่ และบัญชีให้อัตโนมัติใน 2 วินาที',
-            'setup': '⚙️ วิธีการตั้งค่า & ใช้งาน:\n1. ตรวจสอบว่าได้อนุญาต "สิทธิ์ไมโครโฟน (Microphone)" ในเครื่อง\n2. แตะปุ่มสายฟ้า ⚡ > เลือก "พูดเพื่อจดบันทึกด้วย AI"\n3. พูดสั้นๆ เช่น "กินข้าว 65 บาท", "เติมน้ำมัน 500 โอนจากกสิกร" ระบบจะสร้างรายการให้ทันใจ',
-            'tip': '💡 การระบุชื่อธนาคารในประโยคจะช่วยให้ AI เลือกลงบัญชีเงินฝากนั้นให้อัตโนมัติ',
-          },
-          {
-            'icon': Icons.account_balance_rounded,
-            'color': const Color(0xFFF59E0B),
-            'title': '9. แยกสลิปตามธนาคาร & กระเป๋าเงินแยกบัญชีจริง',
-            'badge': 'คู่มือ 9 จาก 12 • ตัวกรองธนาคาร',
-            'desc': 'กรองดูรายการและยอดเงินรวมแยกเฉพาะธนาคารที่ต้องการ พร้อมระบบกระเป๋าเงินแยกตามบัญชีธนาคารจริง 22 แห่ง พร้อมโลโก้คมชัด',
-            'setup': '⚙️ วิธีการใช้งาน:\n1. ในหน้าภาพรวม แตะปุ่ม "แยกตามธนาคาร (Bank Filter)" เพื่อเลือกเปิด/ปิดธนาคารที่ต้องการแสดงผล\n2. ไปที่เมนู "บัญชี/กระเป๋าเงิน" เพื่อดูยอดเงินแยกตามธนาคารจริง สลิปที่สแกนจะวิ่งเข้าบัญชีธนาคารต้นทางให้อัตโนมัติ',
-            'tip': '💡 ใช้ปุ่ม "เลือกทั้งหมด / ยกเลิกทั้งหมด" ด้านล่างเพื่อสลับดูภาพรวมได้อย่างรวดเร็ว',
-          },
-          {
-            'icon': Icons.calculate_rounded,
-            'color': const Color(0xFF8B5CF6),
-            'title': '10. แป้นพิมพ์คิดเลข & ช่องระบุยอดขนาดใหญ่',
-            'badge': 'คู่มือ 10 จาก 12 • แป้นพิมพ์คำนวณ',
-            'desc': 'คำนวณตัวเลขบวก ลบ คูณ หาร ได้ในตัว พร้อมช่องแสดงผลขนาดใหญ่พิเศษที่เลื่อนดูแนวนอนได้เมื่อมีรายการบวกเลขยาวๆ',
-            'setup': '⚙️ วิธีการใช้งาน:\n1. แตะปุ่ม "+" หรือ "จดบันทึก" เพื่อเปิดแป้นพิมพ์\n2. พิมพ์สูตร เช่น 120+45+60 แล้วกด = เพื่อรวมยอดเงินทันทีโดยไม่ต้องสลับแอพ',
-            'tip': '💡 สลับแท็บ "รายจ่าย", "รายรับ", และ "บัตรเครดิต" ได้ที่แถบด้านบนของหน้าต่าง',
-          },
-          {
-            'icon': Icons.insights_rounded,
-            'color': const Color(0xFF0284C7),
-            'title': '11. วิเคราะห์การเงินเชิงลึก & เปรียบเทียบ 2 เดือน',
-            'badge': 'คู่มือ 11 จาก 12 • วิเคราะห์การเงิน',
-            'desc': 'เปรียบเทียบพฤติกรรมการใช้จ่ายระหว่าง 2 เดือน พร้อมบทวิเคราะห์ AI Smart Verdict, ค่าเฉลี่ยใช้จ่ายต่อวัน และหมวดหมู่ที่ประหยัดลง',
-            'setup': '⚙️ วิธีการใช้งาน:\n1. ไปที่แท็บ "วิเคราะห์ (Analytics)" ที่เมนูด้านล่าง\n2. เลือก เดือน A และ เดือน B ที่ต้องการเปรียบเทียบเพื่อดูความเปลี่ยนแปลงของเงินเก็บ',
-            'tip': '💡 กดกรองดูเฉพาะ "หมวดที่ประหยัดขึ้น" เพื่อดูความสำเร็จในการคุมงบประมาณของคุณ',
-          },
-          {
-            'icon': Icons.picture_as_pdf_rounded,
-            'color': const Color(0xFFEF4444),
-            'title': '12. รายงานสเตทเมนต์ PDF A4, Excel & สำรองข้อมูล',
-            'badge': 'คู่มือ 12 จาก 12 • สำรอง & ส่งออก',
-            'desc': 'ส่งออกรายงานสรุปบัญชี Statement A4 มาตรฐานเป็นไฟล์ PDF หรือ Excel (.xlsx) บันทึกตรงเข้าโฟลเดอร์ Downloads/MeowTang พร้อมระบบสำรองและกู้คืนข้อมูลแบบออฟไลน์ 100%',
-            'setup': '⚙️ วิธีการตั้งค่า & ใช้งาน:\n1. ไปที่เมนูโปรไฟล์ (คน) > "ส่งออกสเตทเมนต์ PDF" หรือ "ส่งออก Excel"\n2. เลือกช่วงเวลาหรือบัญชีที่ต้องการ ระบบจะสร้างเอกสารบันทึกลงโฟลเดอร์ Downloads ทันที พร้อมปุ่มเปิดดูและแชร์\n3. ใช้เมนู "สำรอง & กู้คืนข้อมูล" เพื่อบันทึกไฟล์สำรองเก็บไว้ในเครื่องอย่างปลอดภัย',
-            'tip': '💡 ข้อมูลทั้งหมดอยู่ในเครื่องคุณ 100% แนะนำให้กดส่งออกไฟล์สำรองเก็บไว้เป็นระยะ',
-          },
-        ];
+  /// "ลองเลย" target for a topic, or null when the feature lives on a main tab.
+  VoidCallback? _tryAction(int i) {
+    Widget? screen;
+    var vip = false;
+    switch (i) {
+      case 0:
+      case 8:
+        screen = AccountManagementScreen(controller: _c);
+      case 4:
+        screen = SubscriptionVaultScreen(controller: _c);
+        vip = true;
+      case 5:
+        screen = CurrencyConverterScreen(controller: _c);
+        vip = true;
+      case 6:
+        screen = ZakatCalculatorScreen(controller: _c);
+        vip = true;
+      case 7:
+        screen = VoiceChatEntryScreen(controller: _c);
+      case 9:
+        screen = AddTransactionScreen(controller: _c);
+      case 10:
+        screen = CompareAnalyticsScreen(controller: _c);
+      case 11:
+        screen = DataBackupRestoreScreen(controller: _c);
     }
-  }
-
-  String _getButtonNextText() {
-    final isLast = _currentPage == _getGuideSteps().length - 1;
-    switch (_selectedLang) {
-      case 'en':
-        return isLast ? 'Got it! Start using app 🚀' : 'Next Tip ➔';
-      default:
-        return isLast ? 'เข้าใจแล้ว เริ่มต้นใช้งาน 🚀' : 'คำแนะนำถัดไป ➔';
-    }
+    if (screen == null) return null;
+    final target = screen;
+    return () {
+      HapticFeedback.lightImpact();
+      if (vip && !_c.isPremium) {
+        MeowPaywallModal.show(context, controller: _c, reason: 'ฟีเจอร์พรีเมี่ยมสำหรับสมาชิก VIP เท่านั้น');
+        return;
+      }
+      _push(target);
+    };
   }
 
   @override
   Widget build(BuildContext context) {
-    final currentTheme = widget.controller.currentTheme;
-    final isDark = widget.controller.isDarkMode;
-    final steps = _getGuideSteps();
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (context, _) {
+        final p = _Pal.of(_c);
+        final isEn = _isEn;
+        final t = _topic;
+        return PopScope(
+          canPop: t == null || widget.initialTopic != null,
+          onPopInvokedWithResult: (didPop, _) {
+            if (!didPop && _topic != null) _backToList();
+          },
+          child: Scaffold(
+            backgroundColor: p.bg,
+            body: Column(
+              children: [
+                _AppBarPlain(
+                  pal: p,
+                  title: isEn ? 'Guide & features' : 'คู่มือ & ฟีเจอร์เด่น',
+                  subtitle: t == null
+                      ? (isEn ? '${_topics.length} topics • tap for step-by-step help' : '${_topics.length} หัวข้อ • แตะเพื่อดูวิธีใช้ทีละขั้น')
+                      : (isEn
+                          ? 'Topic ${t + 1} of ${_topics.length} • ${_topics[t].title(true)}'
+                          : 'หัวข้อ ${t + 1} จาก ${_topics.length} • ${_topics[t].title(false)}'),
+                  backLabel: t == null ? (isEn ? 'Back' : 'ย้อนกลับ') : (isEn ? 'Back to all topics' : 'กลับไปหน้ารวม'),
+                  onBack: t == null || widget.initialTopic != null ? null : _backToList,
+                ),
+                Expanded(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 220),
+                    child: t == null
+                        ? KeyedSubtree(key: const ValueKey('list'), child: _buildList(p, isEn))
+                        : KeyedSubtree(key: ValueKey('t$t'), child: _buildDetail(p, isEn, t)),
+                  ),
+                ),
+                Container(
+                  decoration: BoxDecoration(color: p.card, border: Border(top: BorderSide(color: p.line))),
+                  padding: EdgeInsets.fromLTRB(16, t == null ? 12 : 10, 16, 14 + MediaQuery.of(context).padding.bottom),
+                  child: t == null ? _buildListFooter(p, isEn) : _buildDetailFooter(p, isEn, t),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 
-    return Scaffold(
-      backgroundColor: currentTheme.scaffoldBackground,
-      appBar: AppBar(
-        backgroundColor: currentTheme.scaffoldBackground,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.close_rounded, color: currentTheme.textColor, size: 26),
-          onPressed: () => Navigator.pop(context),
+  // ---------------------------------------------------------------------------
+  // List view
+  // ---------------------------------------------------------------------------
+
+  Widget _buildList(_Pal p, bool isEn) {
+    final q = _query.trim().toLowerCase();
+    bool match(_Topic t) =>
+        q.isEmpty || '${t.title(isEn)} ${t.what(isEn)} ${t.desc(isEn)} ${t.title(!isEn)}'.toLowerCase().contains(q);
+    final read = _readTopics.length;
+    final total = _topics.length;
+
+    final groups = <Widget>[];
+    for (final g in _Group.values) {
+      final items = [for (var i = 0; i < total; i++) if (_topics[i].group == g && match(_topics[i])) i];
+      if (items.isEmpty) continue;
+      groups.add(Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _sectionLabel(p, '${g.label(isEn)} (${items.length})'),
+          _card(p, [
+            for (var k = 0; k < items.length; k++)
+              _row(
+                p,
+                icon: _topics[items[k]].icon,
+                title: _topics[items[k]].title(isEn),
+                subtitle: _topics[items[k]].what(isEn),
+                first: k == 0,
+                trailing: _readTopics.contains(items[k])
+                    ? Text(isEn ? 'Read' : 'อ่านแล้ว', style: TextStyle(fontSize: 12, color: p.sub))
+                    : null,
+                onTap: () => _open(items[k]),
+              ),
+          ]),
+        ],
+      ));
+    }
+
+    final children = <Widget>[
+      // Overview + reading progress
+      Container(
+        padding: const EdgeInsets.all(16),
+        decoration: _box(p),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Icon(Icons.menu_book_outlined, size: 22, color: p.icon),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(isEn ? 'All-in-one money app' : 'ครบจบ ในแอปเดียว',
+                          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: p.text)),
+                      const SizedBox(height: 2),
+                      Text(
+                        isEn
+                            ? 'Record by hand or automatically, analyse, and use money tools — tap a topic for step-by-step help'
+                            : 'จดเอง จดอัตโนมัติ วิเคราะห์ และเครื่องมือการเงิน — แตะหัวข้อเพื่อดูวิธีใช้ทีละขั้น',
+                        style: TextStyle(fontSize: 12.5, height: 1.45, color: p.sub),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Text(isEn ? 'Read $read/$total' : 'อ่านแล้ว $read/$total',
+                    style: TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w600, color: p.text, fontFeatures: const [FontFeature.tabularFigures()])),
+                const Spacer(),
+                Text(
+                  read == total
+                      ? (isEn ? 'All topics read' : 'ครบทุกหัวข้อแล้ว')
+                      : (isEn ? '${total - read} to go' : 'เหลืออีก ${total - read} หัวข้อ'),
+                  style: TextStyle(fontSize: 13, color: p.sub),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            FxBar(value: read / total, color: p.accent, track: p.divider, height: 6),
+          ],
         ),
-        title: Text(
-          _selectedLang == 'en' ? 'App User Guide & Manual' : 'คู่มือและวิธีใช้งานแอพ',
-          style: TextStyle(
-            color: currentTheme.textColor,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
+      ),
+      // Search
+      TextField(
+        controller: _search,
+        onChanged: (v) => setState(() => _query = v),
+        style: TextStyle(fontSize: 14.5, color: p.text),
+        cursorColor: p.accent,
+        decoration: InputDecoration(
+          hintText: isEn ? 'Search how-tos, e.g. slip, gold, zakat' : 'ค้นหาวิธีใช้ เช่น สลิป, ทอง, ซากาต',
+          hintStyle: TextStyle(fontSize: 14.5, color: p.sub),
+          filled: true,
+          fillColor: p.card,
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(vertical: 14),
+          prefixIcon: Icon(Icons.search_rounded, size: 20, color: p.sub),
+          suffixIcon: _query.isEmpty
+              ? null
+              : IconButton(
+                  tooltip: isEn ? 'Clear search' : 'ล้างคำค้น',
+                  icon: Icon(Icons.close_rounded, size: 20, color: p.sub),
+                  onPressed: () {
+                    _search.clear();
+                    setState(() => _query = '');
+                  },
+                ),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: p.line)),
+          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: p.link, width: 1.5)),
+        ),
+      ),
+      if (groups.isEmpty)
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          decoration: _box(p),
+          child: Column(
+            children: [
+              Icon(Icons.search_rounded, size: 22, color: p.sub),
+              const SizedBox(height: 6),
+              Text(isEn ? 'No topic matches “${_query.trim()}”' : 'ไม่พบหัวข้อ “${_query.trim()}”',
+                  textAlign: TextAlign.center, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: p.text)),
+              const SizedBox(height: 6),
+              Text(isEn ? 'Try slip, voice, gold or backup' : 'ลองคำว่า สลิป, เสียง, ทอง หรือ สำรอง',
+                  textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: p.sub)),
+            ],
           ),
         ),
-        actions: [
-          // Step Counter Badge
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: currentTheme.primaryColor.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              '${_currentPage + 1} / ${steps.length}',
-              style: TextStyle(
-                color: currentTheme.primaryColor,
-                fontSize: 12.5,
-                fontWeight: FontWeight.bold,
+      ...groups,
+      if (q.isEmpty)
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _sectionLabel(p, isEn ? 'Make it yours' : 'ปรับแต่งในแบบคุณ'),
+            _card(p, [
+              _row(
+                p,
+                icon: Icons.sentiment_satisfied_outlined,
+                title: isEn ? 'Mascot & accessories' : 'ตัวละคร & มาสคอต',
+                subtitle: isEn ? '22 characters and accessories' : '22 ตัวละคร และอุปกรณ์คู่กาย',
+                first: true,
+                onTap: () => _push(CharacterCustomizationScreen(controller: _c)),
               ),
+              _row(
+                p,
+                icon: Icons.palette_outlined,
+                title: isEn ? 'Theme shop' : 'ร้านค้าธีม',
+                subtitle: isEn ? '18 themes • 30-second free trial' : '18 ธีม ทดลองใช้ฟรี 30 วินาที',
+                onTap: () => _push(ThemeShopScreen(controller: _c)),
+              ),
+              _row(
+                p,
+                icon: _c.isDarkMode ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
+                title: isEn ? 'Appearance' : 'โหมดการแสดงผล',
+                subtitle: isEn ? 'Light • Dark' : 'สว่าง • มืด',
+                chevron: false,
+                trailing: Text(
+                  _c.isDarkMode ? (isEn ? 'Dark' : 'มืด') : (isEn ? 'Light' : 'สว่าง'),
+                  style: TextStyle(fontSize: 13, color: p.sub),
+                ),
+                onTap: () => _c.setDarkMode(!_c.isDarkMode),
+              ),
+            ]),
+          ],
+        ),
+      Text(
+        isEn
+            ? 'The guide follows the language set in the app • version ${ExpenseController.appVersion}'
+            : 'คู่มือแสดงตามภาษาที่ตั้งไว้ในแอป • เวอร์ชัน ${ExpenseController.appVersion}',
+        textAlign: TextAlign.center,
+        style: TextStyle(fontSize: 12, color: p.sub),
+      ),
+    ];
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
+      children: [
+        for (var i = 0; i < children.length; i++) ...[
+          if (i > 0) const SizedBox(height: 14),
+          FxFadeUp(index: i, child: children[i]),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildListFooter(_Pal p, bool isEn) {
+    final firstUnread = [for (var i = 0; i < _topics.length; i++) i].where((i) => !_readTopics.contains(i)).firstOrNull;
+    return _PrimaryButton(
+      pal: p,
+      label: firstUnread == null
+          ? (isEn ? 'All read — review from the first topic' : 'อ่านครบแล้ว — ทบทวนตั้งแต่หัวข้อแรก')
+          : (isEn ? 'Continue: ${_topics[firstUnread].title(true)}' : 'อ่านต่อ: ${_topics[firstUnread].title(false)}'),
+      onTap: () => _open(firstUnread ?? 0),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Detail view
+  // ---------------------------------------------------------------------------
+
+  Widget _buildDetail(_Pal p, bool isEn, int i) {
+    final t = _topics[i];
+    final steps = t.steps(isEn);
+    final mock = t.mock(isEn);
+    final mockColor = switch (t.mockTone) {
+      _Tone.expense => p.expense,
+      _Tone.income => p.income,
+      _Tone.accent => p.link,
+      _Tone.muted => p.sub,
+      _Tone.plain => p.text,
+    };
+
+    final children = <Widget>[
+      Container(
+        padding: const EdgeInsets.all(16),
+        decoration: _box(p),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(padding: const EdgeInsets.only(top: 4), child: Icon(t.icon, size: 24, color: p.icon)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+                        decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), border: Border.all(color: p.strongLine)),
+                        child: Text(
+                          isEn
+                              ? 'Topic ${i + 1} of ${_topics.length} • ${t.group.label(true)}'
+                              : 'หัวข้อ ${i + 1} จาก ${_topics.length} • ${t.group.label(false)}',
+                          style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500, color: p.body),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(t.title(isEn), style: TextStyle(fontSize: 19, height: 1.3, fontWeight: FontWeight.w700, color: p.text)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(t.desc(isEn), style: TextStyle(fontSize: 14, height: 1.6, color: p.body)),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: p.bg, borderRadius: BorderRadius.circular(12)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(isEn ? 'Example in the app' : 'ตัวอย่างในแอป',
+                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: p.sub)),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(10), border: Border.all(color: p.line)),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(mock.$1, style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: p.text)),
+                              Text(mock.$2, style: TextStyle(fontSize: 12, color: p.sub)),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(mock.$3, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: mockColor)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _sectionLabel(p, isEn ? 'How to use it in ${steps.length} steps' : 'วิธีใช้งาน ${steps.length} ขั้นตอน'),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            decoration: _box(p),
+            child: Column(
+              children: [
+                for (var k = 0; k < steps.length; k++)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 28,
+                        height: 28,
+                        margin: const EdgeInsets.only(top: 12),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: p.strongLine, width: 1.5)),
+                        child: Text('${k + 1}', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: p.icon)),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.fromLTRB(0, 14, 0, 12),
+                          decoration: BoxDecoration(border: k == 0 ? null : Border(top: BorderSide(color: p.divider))),
+                          child: Text(steps[k], style: TextStyle(fontSize: 14, height: 1.55, color: p.text)),
+                        ),
+                      ),
+                    ],
+                  ),
+              ],
             ),
           ),
         ],
       ),
-      body: SafeArea(
-        child: Column(
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: _box(p),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Language Selection Tabs
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(child: _buildLangTab('th', '🇹🇭 ภาษาไทย', currentTheme)),
-                    const SizedBox(width: 4),
-                    Expanded(child: _buildLangTab('en', '🇬🇧 English', currentTheme)),
-                  ],
-                ),
-              ),
-            ),
-
-            // Page Indicator Dots
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                  steps.length,
-                  (index) => AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    margin: const EdgeInsets.symmetric(horizontal: 2.5),
-                    width: _currentPage == index ? 22 : 6,
-                    height: 6,
-                    decoration: BoxDecoration(
-                      color: _currentPage == index
-                          ? currentTheme.primaryColor
-                          : currentTheme.textSecondaryColor.withValues(alpha: 0.25),
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-            // Main Content PageView
+            Icon(Icons.info_outline_rounded, size: 22, color: p.icon),
+            const SizedBox(width: 10),
             Expanded(
-              child: PageView.builder(
-                controller: _pageController,
-                itemCount: steps.length,
-                onPageChanged: (idx) => setState(() => _currentPage = idx),
-                itemBuilder: (context, index) {
-                  final step = steps[index];
-                  final Color stepColor = step['color'] as Color;
-
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
-                    child: Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: currentTheme.cardBackground,
-                        borderRadius: BorderRadius.circular(26),
-                        border: Border.all(
-                          color: stepColor.withValues(alpha: isDark ? 0.35 : 0.25),
-                          width: 1.2,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: stepColor.withValues(alpha: isDark ? 0.12 : 0.08),
-                            blurRadius: 16,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      child: SingleChildScrollView(
-                        physics: const BouncingScrollPhysics(),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Header Row: Icon + Badge
-                            Row(
-                              children: [
-                                Container(
-                                  width: 48,
-                                  height: 48,
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [stepColor, stepColor.withValues(alpha: 0.75)],
-                                    ),
-                                    borderRadius: BorderRadius.circular(14),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: stepColor.withValues(alpha: 0.35),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 3),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Icon(
-                                    step['icon'] as IconData,
-                                    size: 26,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                        decoration: BoxDecoration(
-                                          color: stepColor.withValues(alpha: 0.15),
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        child: Text(
-                                          step['badge'] as String,
-                                          style: TextStyle(
-                                            color: stepColor,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        step['title'] as String,
-                                        style: TextStyle(
-                                          color: currentTheme.textColor,
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w900,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-
-                            // Real App UI Component Preview Mockup
-                            _buildVisualGuidePreview(index, isDark, currentTheme, stepColor, _selectedLang == 'en'),
-
-                            const SizedBox(height: 12),
-
-                            // Description
-                            Text(
-                              step['desc'] as String,
-                              style: TextStyle(
-                                color: currentTheme.textColor,
-                                fontSize: 13,
-                                height: 1.5,
-                              ),
-                            ),
-
-                            const SizedBox(height: 12),
-
-                            // Setup / How-to Box
-                            if (step['setup'] != null)
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(
-                                    color: currentTheme.borderColor.withValues(alpha: 0.6),
-                                  ),
-                                ),
-                                child: Text(
-                                  (step['setup'] as String).replaceAll('\\n', '\n'),
-                                  style: TextStyle(
-                                    color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
-                                    fontSize: 12,
-                                    height: 1.5,
-                                  ),
-                                ),
-                              ),
-
-                            const SizedBox(height: 12),
-
-                            // Tip Box
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-                              decoration: BoxDecoration(
-                                color: stepColor.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: stepColor.withValues(alpha: 0.25),
-                                ),
-                              ),
-                              child: Text(
-                                step['tip'] as String,
-                                style: TextStyle(
-                                  color: isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A),
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w600,
-                                  height: 1.4,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-
-            const SizedBox(height: 8),
-
-            // Bottom Navigation Actions
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (_currentPage > 0) ...[
-                    TactileButton(
-                      onTap: () {
-                        HapticFeedback.lightImpact();
-                        _pageController.previousPage(
-                          duration: const Duration(milliseconds: 250),
-                          curve: Curves.easeInOut,
-                        );
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                        decoration: BoxDecoration(
-                          color: currentTheme.surfaceBackground,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: currentTheme.borderColor),
-                        ),
-                        child: Icon(Icons.arrow_back, size: 20, color: currentTheme.textColor),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                  ],
-                  Expanded(
-                    child: TactileButton(
-                      onTap: _nextPage,
-                      child: Container(
-                        height: 50,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF38BDF8), Color(0xFF2563EB), Color(0xFF1D4ED8)],
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF2563EB).withValues(alpha: 0.35),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Center(
-                          child: Text(
-                            _getButtonNextText(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+                  Text(isEn ? 'Tip' : 'เคล็ดลับ', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: p.text)),
+                  const SizedBox(height: 2),
+                  Text(t.tip(isEn), style: TextStyle(fontSize: 13.5, height: 1.55, color: p.body)),
                 ],
               ),
             ),
           ],
         ),
       ),
+      _OutlineButton(
+        pal: p,
+        label: isEn
+            ? 'Back to all topics (read ${_readTopics.length}/${_topics.length})'
+            : 'กลับไปหน้ารวม (อ่านแล้ว ${_readTopics.length}/${_topics.length})',
+        color: p.link,
+        onTap: widget.initialTopic != null ? () => Navigator.maybePop(context) : _backToList,
+      ),
+    ];
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
+      children: [
+        for (var k = 0; k < children.length; k++) ...[
+          if (k > 0) const SizedBox(height: 14),
+          FxFadeUp(index: k, child: children[k]),
+        ],
+      ],
     );
   }
 
-  Widget _buildVisualGuidePreview(int stepIndex, bool isDark, dynamic currentTheme, Color stepColor, bool isEn) {
-    final cardBg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
-    final borderColor = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
-
-    Widget content;
-    switch (stepIndex) {
-      case 0: // Auto Slip Sync
-        content = Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF10B981).withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF10B981),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(Icons.sync_rounded, color: Colors.white, size: 16),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          isEn ? 'Bank Slip Detected • KBank' : 'ตรวจพบสลิปโอนเงิน • กสิกรไทย',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: currentTheme.textColor,
-                          ),
-                        ),
-                        Text(
-                          isEn ? 'Saved to Expenses • ฿250.00' : 'บันทึกเป็นรายจ่ายแล้ว • ฿250.00',
-                          style: const TextStyle(fontSize: 11, color: Color(0xFF10B981), fontWeight: FontWeight.w600),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF10B981).withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: const Text('AUTO', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Color(0xFF047857))),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 6),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.arrow_downward_rounded, size: 13, color: currentTheme.textSecondaryColor),
-                const SizedBox(width: 4),
-                Text(
-                  isEn ? 'Pull down on Dashboard to rescan anytime' : 'รูดหน้าจอลงสุดในหน้าภาพรวม เพื่อดึงสลิปใหม่',
-                  style: TextStyle(fontSize: 10.5, color: currentTheme.textSecondaryColor),
-                ),
-              ],
-            ),
-          ],
-        );
-        break;
-
-      case 1: // Online Slip Verifier
-        content = Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF0284C7), Color(0xFF0369A1)],
-                ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.bolt_rounded, color: Color(0xFFFDE047), size: 18),
-                  const SizedBox(width: 6),
-                  Text(
-                    isEn ? '⚡ ITMX Real-Time Slip Verifier' : '⚡ ตรวจสลิปแท้ออนไลน์ ITMX ธนาคาร',
-                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFF06B6D4).withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFF06B6D4).withValues(alpha: 0.3)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.check_circle_rounded, color: Color(0xFF06B6D4), size: 16),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      isEn ? 'Verified Transfer: ฿500.00 to นายสมชาย' : 'สลิปแท้ 100% : โอน ฿500.00 ไปยัง นายสมชาย',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: currentTheme.textColor),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        );
-        break;
-
-      case 2: // Offline OCR & Auto Amount Fill
-        content = Row(
+  Widget _buildDetailFooter(_Pal p, bool isEn, int i) {
+    final tryIt = _tryAction(i);
+    final last = i == _topics.length - 1;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (tryIt != null) ...[
+          _PrimaryButton(pal: p, label: _topics[i].tryLabel(isEn), onTap: tryIt),
+          const SizedBox(height: 8),
+        ],
+        Row(
           children: [
             Expanded(
-              flex: 5,
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.4)),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.add_photo_alternate_rounded, color: Color(0xFF8B5CF6), size: 16),
-                    const SizedBox(width: 4),
-                    Text(
-                      isEn ? '+ Slip Photo' : '+ สลิป',
-                      style: const TextStyle(color: Color(0xFF8B5CF6), fontSize: 11, fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 6),
-              child: Icon(Icons.arrow_forward_rounded, color: Color(0xFF8B5CF6), size: 16),
-            ),
-            Expanded(
-              flex: 6,
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: currentTheme.borderColor),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      isEn ? 'Auto-filled Amount' : 'ยอดเงินจากสลิปอัตโนมัติ',
-                      style: TextStyle(fontSize: 8.5, color: currentTheme.textSecondaryColor),
-                    ),
-                    const Text(
-                      '฿320.00',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFF10B981)),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        );
-        break;
-
-      case 3: // Swipe Actions & Countdown Undo
-        content = Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: currentTheme.borderColor),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF3B82F6).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.edit_rounded, color: Color(0xFF3B82F6), size: 12),
-                        const SizedBox(width: 2),
-                        Text(isEn ? 'Edit' : 'แก้ไข', style: const TextStyle(color: Color(0xFF3B82F6), fontSize: 9.5, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      isEn ? '👉 Swipe Right / Left 👈' : '👉 ปัดขวาแก้ไข / ปัดซ้ายลบ 👈',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: currentTheme.textColor),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEF4444).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444), size: 12),
-                        const SizedBox(width: 2),
-                        Text(isEn ? 'Delete' : 'ลบ', style: const TextStyle(color: Color(0xFFEF4444), fontSize: 9.5, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E293B),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.timer_rounded, color: Color(0xFFF59E0B), size: 14),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      isEn ? 'Deleted (Restoring in 5s...)' : 'ลบ 1 รายการ (นับถอยหลัง 5 วินาที...)',
-                      style: const TextStyle(color: Colors.white, fontSize: 10),
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF59E0B),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      isEn ? 'UNDO' : 'เลิกทำ',
-                      style: const TextStyle(color: Colors.black, fontSize: 9.5, fontWeight: FontWeight.w900),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        );
-        break;
-
-      case 4: // Subscription Vault
-        content = Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E293B) : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: currentTheme.borderColor),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE50914).withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Center(
-                  child: Text('N', style: TextStyle(color: Color(0xFFE50914), fontWeight: FontWeight.w900, fontSize: 18)),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Netflix Premium', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: currentTheme.textColor)),
-                        const Text('฿419/ด.', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12, color: Color(0xFF6366F1))),
-                      ],
-                    ),
-                    const SizedBox(height: 3),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            isEn ? '🔔 In 3 days' : '🔔 อีก 3 วันตัดรอบ',
-                            style: const TextStyle(color: Color(0xFFD97706), fontSize: 9.5, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF10B981).withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            isEn ? 'Mark Paid ✓' : 'บันทึกจ่ายแล้ว ✓',
-                            style: const TextStyle(color: Color(0xFF10B981), fontSize: 9.5, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-        break;
-
-      case 5: // Currency & Precious Metals
-        content = Row(
-          children: [
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: currentTheme.borderColor),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text('💵 USD/THB', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: currentTheme.textColor)),
-                        const Spacer(),
-                        Container(
-                          width: 5,
-                          height: 5,
-                          decoration: const BoxDecoration(color: Color(0xFF10B981), shape: BoxShape.circle),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    const Text('฿35.42', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: Color(0xFF3B82F6))),
-                    const Text('+0.15% วันนี้', style: TextStyle(fontSize: 8.5, color: Color(0xFF10B981), fontWeight: FontWeight.bold)),
-                  ],
-                ),
+              child: _OutlineButton(
+                pal: p,
+                height: 46,
+                label: i == 0 ? (isEn ? '‹ First topic' : '‹ หัวข้อแรกแล้ว') : '‹ ${_topics[i - 1].title(isEn)}',
+                color: i == 0 ? p.faint : p.text,
+                onTap: i == 0 ? null : () => _open(i - 1),
               ),
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFD97706).withValues(alpha: 0.4)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text('🥇 ทองคำ 96.5%', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: currentTheme.textColor)),
-                        const Spacer(),
-                        const Icon(Icons.diamond_rounded, color: Color(0xFFD97706), size: 12),
-                      ],
+              child: last
+                  ? (tryIt == null
+                      ? _PrimaryButton(pal: p, height: 46, radius: 14, label: isEn ? 'Got it, start' : 'เข้าใจแล้ว เริ่มใช้งาน', onTap: _finishGuide)
+                      : _OutlineButton(
+                          pal: p, height: 46, label: isEn ? 'Got it, start' : 'เข้าใจแล้ว เริ่มใช้งาน', color: p.text, onTap: _finishGuide))
+                  : _OutlineButton(
+                      pal: p,
+                      height: 46,
+                      label: '${_topics[i + 1].title(isEn)} ›',
+                      color: p.text,
+                      onTap: () => _open(i + 1),
                     ),
-                    const SizedBox(height: 2),
-                    const Text('฿42,500', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: Color(0xFFD97706))),
-                    const Text('คำนวณแร่ทอง/เงิน', style: TextStyle(fontSize: 8.5, color: Color(0xFFD97706), fontWeight: FontWeight.bold)),
-                  ],
-                ),
-              ),
             ),
           ],
-        );
-        break;
-
-      case 6: // Islamic Halal Finance & Gold Zakat
-        content = Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: const Color(0xFF14B8A6).withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFF14B8A6).withValues(alpha: 0.35)),
-          ),
-          child: Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    isEn ? 'Gold Weight: 85.00 g (Passed Nisab)' : 'ทองคำสะสม: 85.00 กรัม (ผ่านเกณฑ์นิศอบ)',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: currentTheme.textColor),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF14B8A6),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Text('2.5% ZAKAT', style: TextStyle(color: Colors.white, fontSize: 8.5, fontWeight: FontWeight.bold)),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    isEn ? 'Zakat Due:' : 'ยอดซะกาตที่ต้องจ่าย:',
-                    style: TextStyle(fontSize: 11, color: currentTheme.textSecondaryColor),
-                  ),
-                  const Text(
-                    '฿5,250.00',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFF0F766E)),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-        break;
-
-      case 7: // Thai Voice AI Assistant
-        content = Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: const Color(0xFFEC4899).withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFEC4899).withValues(alpha: 0.3)),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(colors: [Color(0xFFF472B6), Color(0xFFDB2777)]),
-                ),
-                child: const Icon(Icons.mic_rounded, color: Colors.white, size: 20),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      isEn ? '🗣️ "Lunch 65 baht from KBank"' : '🗣️ "กินข้าวเที่ยง 65 บาท โอนกสิกร"',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5, color: currentTheme.textColor),
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        const Icon(Icons.bolt_rounded, size: 12, color: Color(0xFFDB2777)),
-                        const SizedBox(width: 2),
-                        Text(
-                          isEn ? 'AI parsed: Food • ฿65.00 • KBank' : 'AI จัดการ: อาหาร • ฿65.00 • กสิกร',
-                          style: const TextStyle(fontSize: 10, color: Color(0xFFDB2777), fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-        break;
-
-      case 8: // Bank Filter & Multi-Accounts
-        content = Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFF10B981).withValues(alpha: 0.18),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFF10B981)),
-              ),
-              child: Row(
-                children: const [
-                  Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 14),
-                  SizedBox(width: 4),
-                  Text('กสิกรไทย (KBank)', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF047857))),
-                ],
-              ),
-            ),
-            const SizedBox(width: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFF4F46E5).withValues(alpha: 0.18),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFF4F46E5)),
-              ),
-              child: Row(
-                children: const [
-                  Icon(Icons.check_circle_rounded, color: Color(0xFF4F46E5), size: 14),
-                  SizedBox(width: 4),
-                  Text('SCB', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF4338CA))),
-                ],
-              ),
-            ),
-            const SizedBox(width: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0284C7).withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Text('เป๋าตัง', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF0284C7))),
-            ),
-          ],
-        );
-        break;
-
-      case 9: // Calculator Numpad & XL Input
-        content = Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E293B) : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: currentTheme.borderColor),
-          ),
-          child: Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('120 + 45 + 60', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF8B5CF6))),
-                  const Text('= ฿225.00', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Color(0xFF10B981))),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: ['+', '-', '×', '÷', '='].map((op) {
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: op == '=' ? const Color(0xFF8B5CF6) : (isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9)),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      op,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 12,
-                        color: op == '=' ? Colors.white : currentTheme.textColor,
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
-          ),
-        );
-        break;
-
-      case 10: // 2-Month Deep Analytics
-        content = Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E293B) : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: currentTheme.borderColor),
-          ),
-          child: Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(isEn ? 'August: ฿18,200' : 'เดือน ส.ค. : ฿18,200', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: currentTheme.textColor)),
-                  const Text('เดือน ก.ย. : ฿14,500', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0284C7))),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.trending_down_rounded, color: Color(0xFF10B981), size: 14),
-                    const SizedBox(width: 4),
-                    Text(
-                      isEn ? 'Saved ฿3,700 (-20.3%) • AI: Great discipline!' : 'ประหยัดขึ้น ฿3,700 (-20.3%) • AI: คุมงบได้ยอดเยี่ยม',
-                      style: const TextStyle(color: Color(0xFF047857), fontSize: 10.5, fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-        break;
-
-      case 11: // Statement PDF & Excel
-        content = Row(
-          children: [
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEF4444).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.3)),
-                ),
-                child: Column(
-                  children: const [
-                    Icon(Icons.picture_as_pdf_rounded, color: Color(0xFFEF4444), size: 20),
-                    SizedBox(height: 2),
-                    Text('PDF Statement A4', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Color(0xFFEF4444))),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
-                ),
-                child: Column(
-                  children: const [
-                    Icon(Icons.table_chart_rounded, color: Color(0xFF10B981), size: 20),
-                    SizedBox(height: 2),
-                    Text('Excel (.xlsx)', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Color(0xFF10B981))),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF3B82F6).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.3)),
-                ),
-                child: Column(
-                  children: const [
-                    Icon(Icons.security_rounded, color: Color(0xFF3B82F6), size: 20),
-                    SizedBox(height: 2),
-                    Text('สำรองข้อมูลออฟไลน์', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Color(0xFF3B82F6))),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        );
-        break;
-
-      default:
-        content = const SizedBox.shrink();
-    }
-
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(top: 12, bottom: 4),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderColor),
-      ),
-      child: content,
+        ),
+      ],
     );
   }
 
-  Widget _buildLangTab(String langCode, String label, dynamic currentTheme) {
-    final isSelected = _selectedLang == langCode;
+  // ---------------------------------------------------------------------------
+  // Shared pieces
+  // ---------------------------------------------------------------------------
 
-    return TactileButton(
-      onTap: () => _onLangChanged(langCode),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? currentTheme.primaryColor : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: currentTheme.primaryColor.withValues(alpha: 0.25),
-                    blurRadius: 4,
-                    offset: const Offset(0, 1),
-                  )
-                ]
-              : null,
+  BoxDecoration _box(_Pal p) =>
+      BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: p.line));
+
+  Widget _sectionLabel(_Pal p, String text) => Padding(
+        padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+        child: Text(text, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: p.sub)),
+      );
+
+  Widget _card(_Pal p, List<Widget> rows) => Container(
+        decoration: _box(p),
+        clipBehavior: Clip.antiAlias,
+        child: Material(color: Colors.transparent, child: Column(children: rows)),
+      );
+
+  Widget _row(
+    _Pal p, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    Widget? trailing,
+    bool first = false,
+    bool chevron = true,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.only(left: 14, right: 10),
+        child: Row(
+          children: [
+            Icon(icon, size: 22, color: p.icon),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Container(
+                constraints: const BoxConstraints(minHeight: 64),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(border: first ? null : Border(top: BorderSide(color: p.divider))),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: p.text)),
+                          const SizedBox(height: 1),
+                          Text(subtitle, style: TextStyle(fontSize: 12.5, height: 1.4, color: p.sub)),
+                        ],
+                      ),
+                    ),
+                    if (trailing != null) ...[const SizedBox(width: 8), trailing],
+                    if (chevron) Icon(Icons.chevron_right_rounded, size: 20, color: p.faint),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: isSelected ? Colors.white : currentTheme.textSecondaryColor,
-            fontSize: 12,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Content
+// ---------------------------------------------------------------------------
+
+enum _Group {
+  auto('จดง่าย อัตโนมัติ', 'Easy & automatic'),
+  plan('วิเคราะห์ & วางแผน', 'Insights & planning'),
+  tool('เครื่องมือการเงิน & อิสลาม', 'Money & Islamic tools'),
+  safe('ปลอดภัย & ย้ายข้อมูลได้เอง', 'Safe & portable data');
+
+  final String th, en;
+  const _Group(this.th, this.en);
+  String label(bool isEn) => isEn ? en : th;
+}
+
+enum _Tone { expense, income, accent, muted, plain }
+
+class _Topic {
+  final _Group group;
+  final IconData icon;
+  final List<String> _title, _what, _desc, _steps, _tip, _try;
+  final List<List<String>> _mock; // [th(title, meta, value), en(...)]
+  final _Tone mockTone;
+
+  const _Topic(this.group, this.icon, this._title, this._what, this._desc, this._steps, this._tip, this._mock, this.mockTone, this._try);
+
+  String title(bool en) => _title[en ? 1 : 0];
+  String what(bool en) => _what[en ? 1 : 0];
+  String desc(bool en) => _desc[en ? 1 : 0];
+  List<String> steps(bool en) => _steps[en ? 1 : 0].split('\n');
+  String tip(bool en) => _tip[en ? 1 : 0];
+  (String, String, String) mock(bool en) {
+    final m = _mock[en ? 1 : 0];
+    return (m[0], m[1], m[2]);
+  }
+
+  String tryLabel(bool en) => _try[en ? 1 : 0];
+}
+
+// Order = guide order 1..12.
+const _topics = <_Topic>[
+  _Topic(
+    _Group.auto,
+    Icons.receipt_long_outlined,
+    ['ดึงสลิปอัตโนมัติ', 'Auto slip import'],
+    ['โอนเงินแล้วบันทึกให้เอง รองรับ 22 ธนาคาร', 'Transfers are recorded for you • 22 banks'],
+    [
+      'เหมียวตังค์อ่านสลิปโอนเงินที่แอปธนาคารบันทึกไว้ในอัลบั้มรูป แล้วสร้างรายการให้ทันที ไม่ต้องพิมพ์เอง รองรับ 22 ธนาคารและ e-Wallet',
+      'MeowTang reads the transfer slips your bank app saves to your photos and creates the entry right away — no typing. Works with 22 banks and e-wallets.',
+    ],
+    [
+      'อนุญาตสิทธิ์ “รูปภาพ” ให้เหมียวตังค์ (ทำครั้งเดียว)\nโอนเงินในแอปธนาคารตามปกติ และให้แอปธนาคารบันทึกสลิปลงเครื่อง\nเหมียวตังค์อ่านสลิปใหม่และบันทึกให้ — ถ้าหมวดหรือยอดไม่ถูก แตะรายการเพื่อแก้ได้',
+      'Allow MeowTang to use “Photos” (once)\nTransfer in your bank app as usual and let it save the slip to your phone\nMeowTang reads the new slip and records it — tap the entry to fix the category or amount',
+    ],
+    [
+      'เปิด/ปิด “บันทึกสลิปอัตโนมัติ” แยกทีละบัญชีได้ที่ เมนู › บัญชี & กระเป๋าเงิน',
+      'Turn “auto-record slips” on or off per account in Menu › Accounts & wallets.',
+    ],
+    [
+      ['โอนเงิน • ร้านข้าวมันไก่', 'บันทึกจากสลิป', '−฿50'],
+      ['Transfer • Chicken rice shop', 'Recorded from a slip', '−฿50'],
+    ],
+    _Tone.expense,
+    ['ลองเลย: ตั้งค่าสลิปอัตโนมัติ', 'Try it: set up auto slips'],
+  ),
+  _Topic(
+    _Group.safe,
+    Icons.verified_user_outlined,
+    ['ตรวจสลิปแท้', 'Check real slips'],
+    ['เช็กสลิปที่ลูกค้าส่งมาว่าเป็นของจริง', 'Check that a customer’s slip is genuine'],
+    [
+      'เวลาขายของแล้วลูกค้าส่งสลิปมา ให้เหมียวตังค์อ่าน QR บนสลิปเพื่อเช็กว่าข้อมูลตรงกับรายการโอนจริง ช่วยกันสลิปปลอมหรือภาพตัดต่อ',
+      'When a customer sends you a slip, MeowTang reads its QR code to check it matches a real transfer — protection against fake or edited slips.',
+    ],
+    [
+      'แตะปุ่มเมนูด่วน มุมขวาล่างของหน้าภาพรวม › ตรวจสลิปแท้ออนไลน์\nเลือกรูปสลิปที่มี QR Code จากอัลบั้ม หรือสแกนสด (ต้องต่ออินเทอร์เน็ต)\nดูผล “ข้อมูลตรง” หรือ “น่าสงสัย” พร้อมยอดเงิน ชื่อผู้รับ และเวลาโอน',
+      'Tap the quick-menu button at the bottom right of Overview › Online slip check\nPick a slip with a QR code from your photos, or scan it live (needs internet)\nSee “matches” or “suspicious” with the amount, receiver and transfer time',
+    ],
+    [
+      'สลิปที่ผ่านแล้วก็ควรเช็กยอดเงินเข้าในแอปธนาคารของคุณอีกครั้งก่อนส่งของ',
+      'Even for a slip that passes, check the money arrived in your bank app before you ship.',
+    ],
+    [
+      ['สลิปถูกต้อง', 'ไทยพาณิชย์ • 14:05', '฿1,290'],
+      ['Slip is genuine', 'SCB • 14:05', '฿1,290'],
+    ],
+    _Tone.income,
+    ['', ''],
+  ),
+  _Topic(
+    _Group.auto,
+    Icons.wifi_off_rounded,
+    ['อ่านสลิปออฟไลน์', 'Offline slip reading'],
+    ['อ่านสลิปบนเครื่อง ไม่ต้องใช้เน็ต', 'Slips are read on your phone, no internet'],
+    [
+      'การอ่านสลิปทำบนมือถือของคุณเอง ไม่ต้องต่ออินเทอร์เน็ต และรูปสลิปไม่ถูกส่งออกไปที่ไหน จึงทั้งเร็วและเป็นส่วนตัว',
+      'Slips are read on your own phone without internet, and slip photos are never sent anywhere — fast and private.',
+    ],
+    [
+      'ไม่ต้องตั้งค่าเพิ่ม — เปิดดึงสลิปอัตโนมัติไว้ก็พอ\nแม้ไม่มีเน็ต ก็โอนเงินหรือสแกนจ่ายได้ตามปกติ\nเปิดเหมียวตังค์ สลิปใหม่จะถูกอ่านและบันทึกทันที',
+      'Nothing to set up — just keep auto slip import on\nTransfer or scan-to-pay as usual, even offline\nOpen MeowTang and new slips are read and recorded right away',
+    ],
+    [
+      'เหมาะกับตอนสัญญาณไม่ดี เช่น บนรถไฟฟ้าใต้ดินหรือต่างจังหวัด',
+      'Handy when the signal is weak, such as on the subway or upcountry.',
+    ],
+    [
+      ['ไม่มีอินเทอร์เน็ต', 'อ่านสลิปใหม่แล้ว 2 ใบ', 'บันทึกแล้ว'],
+      ['No internet', '2 new slips read', 'Recorded'],
+    ],
+    _Tone.muted,
+    ['', ''],
+  ),
+  _Topic(
+    _Group.auto,
+    Icons.swipe_outlined,
+    ['ปัดรายการ & เลิกทำ', 'Swipe & undo'],
+    ['ปัดเพื่อแก้หรือลบ ลบผิดกดเลิกทำได้', 'Swipe to edit or delete, undo mistakes'],
+    [
+      'จัดการรายการได้เร็วขึ้นด้วยการปัด ไม่ต้องเปิดเข้าไปทีละรายการ และถ้าลบผิดก็เรียกคืนได้ทันที',
+      'Handle entries faster with a swipe instead of opening each one — and bring back anything deleted by mistake.',
+    ],
+    [
+      'ในหน้ารายการ ปัดรายการไปทางซ้ายเพื่อลบ\nปัดไปทางขวาเพื่อแก้ไขยอด หมวด หรือบัญชี\nลบผิด? แตะ “เลิกทำ” ที่แถบด้านล่างก่อนแถบหายไป',
+      'In the list, swipe an entry left to delete it\nSwipe right to edit the amount, category or account\nDeleted by mistake? Tap “Undo” on the bar at the bottom before it disappears',
+    ],
+    [
+      'ปัดลบหลายรายการติดกันได้ แถบเลิกทำจะรวมไว้ให้เรียกคืนพร้อมกัน',
+      'You can swipe-delete several entries in a row — the undo bar collects them all.',
+    ],
+    [
+      ['ลบ “กาแฟหน้าออฟฟิศ” แล้ว', 'แตะเพื่อเรียกคืน', 'เลิกทำ'],
+      ['Deleted “Office coffee”', 'Tap to bring it back', 'Undo'],
+    ],
+    _Tone.accent,
+    ['', ''],
+  ),
+  _Topic(
+    _Group.plan,
+    Icons.event_repeat_outlined,
+    ['Subscription', 'Subscriptions'],
+    ['รวมค่าสมาชิกรายเดือน เตือนก่อนตัดเงิน', 'All memberships in one place, reminders first'],
+    [
+      'รวมบริการที่ตัดเงินประจำ เช่น Netflix เพลง หรือค่ามือถือ ไว้ในที่เดียว เห็นยอดรวมต่อเดือนและต่อปี และเตือนก่อนถึงวันตัดเงิน',
+      'Keep recurring charges like Netflix, music or your phone bill in one place, see the monthly and yearly total, and get reminded before each charge.',
+    ],
+    [
+      'เปิดแท็บพรีเมี่ยม › Subscription & บิลประจำ\nแตะ “+ เพิ่ม” เลือกบริการ ใส่ราคาและวันตัดเงิน เช่น Netflix ฿419 ทุกวันที่ 5\nตั้งให้เตือนล่วงหน้ากี่วันก็ได้ เมื่อจ่ายแล้วกด “บันทึกจ่ายแล้ว” ได้ใน 1 แตะ',
+      'Open the Premium tab › Subscriptions & bills\nTap “+ Add”, pick the service and enter the price and billing day, e.g. Netflix ฿419 on the 5th\nChoose how many days ahead to be reminded; once paid, mark it paid in one tap',
+    ],
+    [
+      'ดู “ยอดต่อปี” แล้วลองยกเลิกบริการที่ไม่ค่อยได้ใช้ — ประหยัดได้มากกว่าที่คิด',
+      'Look at the yearly total and cancel what you rarely use — it adds up.',
+    ],
+    [
+      ['Netflix', 'ตัดเงินพรุ่งนี้ • บันเทิง', '฿419'],
+      ['Netflix', 'Charged tomorrow • Entertainment', '฿419'],
+    ],
+    _Tone.expense,
+    ['ลองเลย: เพิ่ม Subscription', 'Try it: add a subscription'],
+  ),
+  _Topic(
+    _Group.tool,
+    Icons.language_rounded,
+    ['แปลงเงิน & ทอง', 'Currency & gold'],
+    ['150+ สกุลเงิน และราคาทองวันนี้', '150+ currencies and today’s gold price'],
+    [
+      'แปลงค่าเงินได้มากกว่า 150 สกุล และดูราคาทองคำแท่ง/ทองรูปพรรณวันนี้ ใช้ตอนเที่ยวต่างประเทศหรือซื้อขายทอง',
+      'Convert more than 150 currencies and check today’s gold bar and jewellery prices — for trips abroad or buying and selling gold.',
+    ],
+    [
+      'เปิดแท็บพรีเมี่ยม › แปลงค่าเงิน หรือ คำนวณทอง & แร่เงิน\nเลือกสกุลเงิน เช่น JPY แล้วพิมพ์จำนวน แอปแปลงเป็นบาทให้ทันที\nในหน้าคำนวณทอง ใส่น้ำหนักเป็นบาทหรือกรัม ดูราคาซื้อ-ขายและกราฟราคา',
+      'Open the Premium tab › Currency converter or Gold & silver calculator\nPick a currency such as JPY and type the amount — it converts to baht instantly\nIn the gold calculator, enter the weight in baht or grams to see buy/sell prices and the chart',
+    ],
+    [
+      'ตอนเพิ่มรายการ เลือกสกุลเงินอื่นได้ แอปจะบันทึกเป็นบาทตามอัตราวันนั้นให้',
+      'When adding an entry you can pick another currency; it is saved in baht at that day’s rate.',
+    ],
+    [
+      ['10,000 JPY', 'อัตราวันนี้', '≈ ฿2,250'],
+      ['10,000 JPY', 'Today’s rate', '≈ ฿2,250'],
+    ],
+    _Tone.plain,
+    ['ลองเลย: แปลงค่าเงิน', 'Try it: convert currency'],
+  ),
+  _Topic(
+    _Group.tool,
+    Icons.dark_mode_outlined,
+    ['การเงินอิสลาม & ซากาต', 'Islamic finance & zakat'],
+    ['คำนวณซากาตจากเงินออมและทอง', 'Work out zakat on savings and gold'],
+    [
+      'ช่วยคำนวณซากาตประจำปีจากเงินออม ทอง และทรัพย์สินที่ครอบครองครบ 1 ปี โดยเทียบกับเกณฑ์นิศอบให้อัตโนมัติ',
+      'Calculates your yearly zakat on savings, gold and assets held for a full year, checked against the nisab automatically.',
+    ],
+    [
+      'เปิดแท็บพรีเมี่ยม › คำนวณซากาต\nใส่เงินออม ทอง และทรัพย์สินที่ถือครองครบ 1 ปี (ดึงยอดบัญชีจากแอปได้)\nแอปเทียบกับนิศอบ แล้วบอกยอดซากาตที่ต้องจ่าย (2.5%)',
+      'Open the Premium tab › Zakat calculator\nEnter savings, gold and assets held for a full year (account balances can be pulled in)\nThe app compares with the nisab and shows the zakat due (2.5%)',
+    ],
+    [
+      'นิศอบคิดจากราคาทองวันนี้ในหน้า แปลงเงิน & ทอง หากไม่แน่ใจกรณีพิเศษ ควรปรึกษาผู้รู้',
+      'The nisab uses today’s gold price. For special cases, ask a scholar.',
+    ],
+    [
+      ['ซากาตปีนี้', 'ทรัพย์สินถึงนิศอบแล้ว', '2.5%'],
+      ['Zakat this year', 'Assets have reached the nisab', '2.5%'],
+    ],
+    _Tone.plain,
+    ['ลองเลย: คำนวณซากาต', 'Try it: calculate zakat'],
+  ),
+  _Topic(
+    _Group.auto,
+    Icons.mic_none_rounded,
+    ['พูดจดด้วยเสียง', 'Record by voice'],
+    ['พูด “กาแฟ 65 บาท” แล้วบันทึกให้', 'Say “coffee 65 baht” and it is recorded'],
+    [
+      'จดรายการด้วยการพูด ไม่ต้องพิมพ์ แอปแยกชื่อรายการ จำนวนเงิน และเลือกหมวดหมู่ให้',
+      'Record entries by speaking instead of typing — the app picks out the name and amount and chooses the category.',
+    ],
+    [
+      'แตะปุ่ม + แล้วแตะไอคอนไมโครโฟน (ครั้งแรกให้อนุญาตไมโครโฟน)\nพูดชื่อรายการตามด้วยจำนวนเงิน เช่น “กาแฟ 65 บาท”\nตรวจหมวดหมู่และบัญชีที่แอปเลือกให้ แล้วกด บันทึก',
+      'Tap + and then the microphone icon (allow the microphone the first time)\nSay the item followed by the amount, e.g. “coffee 65 baht”\nCheck the category and account the app chose, then tap Save',
+    ],
+    [
+      'ตั้งคีย์เวิร์ดเองได้ เช่น “ชาตรามือ” → อาหาร #ชานม ที่ เมนู › กฎคีย์เวิร์ดจัดหมวด แอปจะเลือกหมวดได้แม่นขึ้น',
+      'Add your own keywords, e.g. “Cha Tra Mue” → Food #milktea, in Menu › Keyword category rules for better category picks.',
+    ],
+    [
+      ['“กาแฟ 65 บาท”', 'อาหาร • เงินสด', '−฿65'],
+      ['“Coffee 65 baht”', 'Food • Cash', '−฿65'],
+    ],
+    _Tone.expense,
+    ['ลองเลย: พูดจดรายการแรก', 'Try it: say your first entry'],
+  ),
+  _Topic(
+    _Group.plan,
+    Icons.account_balance_outlined,
+    ['แยกตามธนาคาร', 'By bank account'],
+    ['ดูยอดและรายการแยกทีละบัญชี', 'Balances and entries per account'],
+    [
+      'ดูยอดคงเหลือ รายรับ และรายจ่ายของแต่ละบัญชีแยกกัน เช่น กสิกรไทย ไทยพาณิชย์ TrueMoney หรือเงินสด',
+      'See the balance, income and spending of each account separately — KBank, SCB, TrueMoney or cash.',
+    ],
+    [
+      'เปิด เมนู › บัญชี & กระเป๋าเงิน\nแตะบัญชีที่ต้องการ เช่น กสิกรไทย\nดูรายการและสรุปรายรับ-รายจ่ายเฉพาะบัญชีนั้น เลือกเดือนได้',
+      'Open Menu › Accounts & wallets\nTap the account you want, e.g. KBank\nSee only that account’s entries and income/spending summary, by month',
+    ],
+    [
+      'ย้ายเงินระหว่างบัญชีของตัวเองให้ใช้ “โอนระหว่างบัญชี” จะไม่นับเป็นรายจ่าย',
+      'Moving money between your own accounts? Use “Transfer between accounts” so it is not counted as spending.',
+    ],
+    [
+      ['กสิกรไทย', 'บัญชีหลัก • สลิปอัตโนมัติ', 'ยอดคงเหลือ'],
+      ['KBank', 'Main account • auto slips', 'Balance'],
+    ],
+    _Tone.income,
+    ['ลองเลย: ดูบัญชีของฉัน', 'Try it: see my accounts'],
+  ),
+  _Topic(
+    _Group.auto,
+    Icons.calculate_outlined,
+    ['แป้นคิดเลข', 'Built-in calculator'],
+    ['พิมพ์ 120+35 ในช่องเงินได้เลย', 'Type 120+35 straight into the amount'],
+    [
+      'ช่องจำนวนเงินคิดเลขได้ในตัว รวมหลายยอดหรือหารค่าอาหารกับเพื่อนได้โดยไม่ต้องสลับไปแอปเครื่องคิดเลข',
+      'The amount field is a calculator — add up several amounts or split a bill with friends without switching apps.',
+    ],
+    [
+      'ตอนเพิ่มรายการ แตะช่องจำนวนเงิน\nใช้ปุ่ม + − × ÷ เช่น 120+35+15\nกด = หรือกด บันทึก แอปคิดยอดให้ (฿170)',
+      'When adding an entry, tap the amount field\nUse + − × ÷, e.g. 120+35+15\nTap = or Save and the app works out the total (฿170)',
+    ],
+    [
+      'หารค่าอาหาร: พิมพ์ 1,280÷4 ได้ ฿320 ต่อคน',
+      'Splitting a meal: type 1,280÷4 to get ฿320 each.',
+    ],
+    [
+      ['120+35+15', 'อาหาร', '= ฿170'],
+      ['120+35+15', 'Food', '= ฿170'],
+    ],
+    _Tone.plain,
+    ['ลองเลย: เพิ่มรายการ', 'Try it: add an entry'],
+  ),
+  _Topic(
+    _Group.plan,
+    Icons.table_chart_outlined,
+    ['เทียบ 2 เดือน', 'Compare 2 months'],
+    ['เห็นทันทีว่าหมวดไหนใช้เพิ่มขึ้น', 'See which categories went up'],
+    [
+      'เทียบรายรับ-รายจ่ายของ 2 เดือนแบบหมวดต่อหมวด รู้ทันทีว่าเดือนนี้ใช้มากขึ้นหรือน้อยลงตรงไหน',
+      'Compare two months category by category to see straight away where you spent more or less.',
+    ],
+    [
+      'เปิดแท็บ สถิติ › เทียบเดือน\nเลือก 2 เดือนที่ต้องการ\nดูหมวดที่เพิ่มขึ้น ▲ หรือลดลง ▼ แตะหมวดเพื่อดูรายการ',
+      'Open the Stats tab › Compare months\nPick the two months you want\nSee categories that went up ▲ or down ▼ and tap one to see its entries',
+    ],
+    [
+      'เริ่มจากหมวดที่เพิ่มขึ้นมากที่สุด แล้วตั้งงบประมาณให้หมวดนั้นในเดือนหน้า',
+      'Start with the category that rose most and set a budget for it next month.',
+    ],
+    [
+      ['อาหาร', 'เดือนนี้เทียบเดือนก่อน', '▼ ฿590'],
+      ['Food', 'This month vs last month', '▼ ฿590'],
+    ],
+    _Tone.income,
+    ['ลองเลย: เทียบเดือนนี้', 'Try it: compare this month'],
+  ),
+  _Topic(
+    _Group.safe,
+    Icons.file_download_outlined,
+    ['ส่งออก & สำรองข้อมูล', 'Export & backup'],
+    ['ส่งออก Excel / PDF และสำรองไว้ย้ายเครื่อง', 'Excel / PDF export and backups for a new phone'],
+    [
+      'ข้อมูลเป็นของคุณ ส่งออกเป็นไฟล์ไปใช้ต่อ หรือสำรองไว้เพื่อกู้คืนตอนเปลี่ยนมือถือ',
+      'Your data is yours — export it as a file, or back it up to restore when you change phones.',
+    ],
+    [
+      'เปิด เมนู › ส่งออก แล้วเลือกช่วงเวลา\nเลือก Excel หรือ PDF แล้วกดส่งออก (สำหรับสมาชิก VIP)\nสำรอง: เมนู › สำรองข้อมูล › บันทึกไฟล์สำรอง แล้วกู้คืนหรือสแกน QR ในเครื่องใหม่',
+      'Open Menu › Export and pick a period\nChoose Excel or PDF and export (for VIP members)\nBackup: Menu › Backup › save a backup file, then restore it or scan the QR on the new phone',
+    ],
+    [
+      'ก่อนเปลี่ยนเครื่องให้สำรองใหม่อีกครั้ง ข้อมูลทั้งหมดจะย้ายไปครบ',
+      'Make a fresh backup right before you switch phones so everything moves across.',
+    ],
+    [
+      ['รายงานเดือนนี้.xlsx', 'Excel • พร้อมแชร์', 'แชร์'],
+      ['This month.xlsx', 'Excel • ready to share', 'Share'],
+    ],
+    _Tone.accent,
+    ['ลองเลย: สำรองข้อมูลตอนนี้', 'Try it: back up now'],
+  ),
+];
+
+// ---------------------------------------------------------------------------
+// Private building blocks
+// ---------------------------------------------------------------------------
+
+class _PrimaryButton extends StatelessWidget {
+  final _Pal pal;
+  final String label;
+  final VoidCallback onTap;
+  final double height;
+  final double radius;
+
+  const _PrimaryButton({required this.pal, required this.label, required this.onTap, this.height = 52, this.radius = 16});
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        button: true,
+        child: FxPress(
+          onTap: onTap,
+          child: Container(
+            height: height,
+            width: double.infinity,
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(color: pal.accent, borderRadius: BorderRadius.circular(radius)),
+            child: Text(label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white)),
+          ),
+        ),
+      );
+}
+
+class _OutlineButton extends StatelessWidget {
+  final _Pal pal;
+  final String label;
+  final Color color;
+  final VoidCallback? onTap;
+  final double height;
+
+  const _OutlineButton({required this.pal, required this.label, required this.color, required this.onTap, this.height = 48});
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: pal.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: pal.line)),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: Container(
+            height: height,
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Text(label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: height < 48 ? 13 : 14, fontWeight: FontWeight.w600, color: color)),
+          ),
+        ),
+      );
+}
+
+/// White app bar: 44px back chevron, left-aligned title and a one-line subtitle.
+class _AppBarPlain extends StatelessWidget {
+  final _Pal pal;
+  final String title;
+  final String subtitle;
+  final String backLabel;
+  final VoidCallback? onBack;
+
+  const _AppBarPlain({required this.pal, required this.title, required this.subtitle, required this.backLabel, this.onBack});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = pal;
+    return Container(
+      decoration: BoxDecoration(color: p.card, border: Border(bottom: BorderSide(color: p.line))),
+      padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 60),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(4, 8, 16, 8),
+          child: Row(
+            children: [
+              IconButton(
+                onPressed: onBack ?? () => Navigator.maybePop(context),
+                tooltip: backLabel,
+                icon: Icon(Icons.chevron_left_rounded, size: 30, color: p.text),
+                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: p.text)),
+                    const SizedBox(height: 1),
+                    Text(subtitle,
+                        maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: p.sub)),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Neutral palette derived from the active theme (same mapping as the menu).
+class _Pal {
+  final Color bg, card, text, sub, body, icon, faint, line, strongLine, divider, accent, link, income, expense;
+
+  const _Pal({
+    required this.bg,
+    required this.card,
+    required this.text,
+    required this.sub,
+    required this.body,
+    required this.icon,
+    required this.faint,
+    required this.line,
+    required this.strongLine,
+    required this.divider,
+    required this.accent,
+    required this.link,
+    required this.income,
+    required this.expense,
+  });
+
+  factory _Pal.of(ExpenseController ctl) {
+    final t = ctl.currentTheme;
+    final dark = ctl.isDarkMode;
+    return _Pal(
+      bg: t.scaffoldBackground,
+      card: t.cardBackground,
+      text: t.textColor,
+      sub: t.textSecondaryColor,
+      body: dark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+      icon: dark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+      faint: dark ? Colors.white30 : const Color(0xFF9AA3B2),
+      line: t.borderColor,
+      strongLine: dark ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
+      divider: dark ? Colors.white10 : const Color(0xFFEEF0F4),
+      accent: t.primaryColor,
+      link: dark ? const Color(0xFF93C5FD) : t.primaryColor,
+      income: dark ? const Color(0xFF34D399) : MeowTheme.incomeGreen,
+      expense: dark ? const Color(0xFFF87171) : const Color(0xFFDC2626),
     );
   }
 }

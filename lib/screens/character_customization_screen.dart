@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import '../state/expense_controller.dart';
 import '../theme/meow_theme.dart';
 import '../widgets/meow_mascot_widget.dart';
-import '../widgets/tactile_button.dart';
+import '../widgets/meow_fx.dart';
 import '../widgets/custom_photo_avatar_dialog.dart';
 
 class CharacterCustomizationScreen extends StatefulWidget {
@@ -32,6 +32,21 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
     _usePhoto = widget.controller.isCustomAvatarEnabled;
   }
 
+  bool get _dirty =>
+      _selectedMascotId != widget.controller.selectedMascotId ||
+      _selectedAccessory != widget.controller.selectedMascotAccessory ||
+      _usePhoto != widget.controller.isCustomAvatarEnabled;
+
+  void _revert() {
+    HapticFeedback.selectionClick();
+    setState(() {
+      _selectedMascotId = widget.controller.selectedMascotId;
+      _selectedAccessory = widget.controller.selectedMascotAccessory;
+      _usePhoto = widget.controller.isCustomAvatarEnabled;
+      _accessoryPicked = false;
+    });
+  }
+
   void _saveMascot() async {
     HapticFeedback.mediumImpact();
     if (_usePhoto != widget.controller.isCustomAvatarEnabled) {
@@ -45,17 +60,10 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle_rounded, color: Colors.white),
-            const SizedBox(width: 10),
-            Text(
-              widget.controller.isEnglish
-                  ? 'Mascot updated successfully!'
-                  : 'บันทึกมาสคอตและอุปกรณ์เรียบร้อยแล้ว!',
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ],
+        content: Text(
+          widget.controller.isEnglish
+              ? 'Saved — this character is now used across the app'
+              : 'บันทึกแล้ว — ใช้ตัวละครนี้ทั่วทั้งแอป',
         ),
         backgroundColor: MeowTheme.incomeGreen,
         behavior: SnackBarBehavior.floating,
@@ -76,662 +84,744 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
     );
   }
 
-  String _getCategoryTag(String id) {
-    if (id.startsWith('cat_')) return 'แมว';
-    if (id == 'robot_ai') return 'AI';
-    return 'เพื่อนสัตว์';
+  void _onPhotoTile() {
+    // A saved photo can be previewed first; tapping again (or with no photo yet) opens the picker.
+    if (!_usePhoto && widget.controller.customAvatarPath != null) {
+      HapticFeedback.selectionClick();
+      setState(() => _usePhoto = true);
+    } else {
+      _openCustomPhotoDialog();
+    }
   }
 
-  Widget _buildFilterChip(String value, String label, String currentSelected, ValueChanged<String> onSelected) {
-    final bool isSelected = currentSelected == value;
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        onSelected(value);
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF0F172A) : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? const Color(0xFF0F172A) : const Color(0xFFE2E8F0),
-            width: 1.2,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: isSelected ? Colors.white : const Color(0xFF475569),
-          ),
-        ),
-      ),
-    );
+  static String _group(String id) {
+    if (id.startsWith('cat_')) return 'cat';
+    if (id == 'robot_ai') return 'ai';
+    return 'friend';
+  }
+
+  String _groupLabel(String group, bool isEn) => switch (group) {
+        'cat' => isEn ? 'Cat' : 'แมว',
+        'ai' => 'AI',
+        'photo' => isEn ? 'My photo' : 'รูปของฉัน',
+        _ => isEn ? 'Animal friend' : 'เพื่อนสัตว์',
+      };
+
+  /// "เหมี่ยวส้มจอมวางแผน (Ginger Tabby)" -> ("เหมี่ยวส้มจอมวางแผน", "Ginger Tabby").
+  static (String, String) _splitName(String name) {
+    final m = RegExp(r'^(.*?)\s*\((.*?)\)$').firstMatch(name);
+    if (m == null) return (name, '');
+    return (m.group(1)?.trim() ?? name, m.group(2)?.trim() ?? '');
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = widget.controller.isDarkMode;
     final isEn = widget.controller.isEnglish;
-    const bgColor = Color(0xFFFDFBF7);
-    const cardBg = Colors.white;
-    const textPrimary = Color(0xFF0F172A);
-    const textSecondary = Color(0xFF64748B);
+    final p = _Pal.of(widget.controller);
+    final chars = MascotCatalog.characters;
+    final accs = MascotCatalog.accessories;
+    final dirty = _dirty;
 
-    final isCustomPhoto = _usePhoto;
-    final customPhoto = widget.controller.customAvatarPath;
+    final current = chars.firstWhere((m) => m.id == _selectedMascotId, orElse: () => chars.first);
+    final index = chars.indexWhere((m) => m.id == current.id);
+    final (thName, enName) = _splitName(current.name);
+    final acc = accs.where((a) => a.id == _selectedAccessory).firstOrNull;
+    final accName = acc?.name;
 
-    final currentMascot = MascotCatalog.characters.firstWhere(
-      (m) => m.id == _selectedMascotId,
-      orElse: () => MascotCatalog.characters.first,
-    );
-
-    final currentMascotIndex = MascotCatalog.characters.indexWhere((m) => m.id == _selectedMascotId);
-
-    String thaiName = currentMascot.name;
-    String enName = '';
-    final parenMatch = RegExp(r'^(.*?)\s*\((.*?)\)$').firstMatch(currentMascot.name);
-    if (parenMatch != null) {
-      thaiName = parenMatch.group(1)?.trim() ?? currentMascot.name;
-      enName = parenMatch.group(2)?.trim() ?? '';
-    }
+    final footNote = dirty
+        ? (isEn
+            ? 'Tap Save to use ${_usePhoto ? 'your photo' : (enName.isEmpty ? thName : enName)}${accName == null ? '' : ' + $accName'}'
+            : 'กดบันทึกเพื่อใช้ ${_usePhoto ? 'รูปของฉัน' : thName}${accName == null ? '' : ' + $accName'}')
+        : (isEn ? 'No changes yet' : 'ยังไม่มีการเปลี่ยนแปลง');
 
     return Scaffold(
-      backgroundColor: bgColor,
-      appBar: AppBar(
-        backgroundColor: MeowTheme.mustardYellow,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: MeowTheme.textDarkPrimary),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          isEn ? 'Mascot & Companion Accessories' : 'ตัวละครและมาสคอต & อุปกรณ์คู่กาย',
-          style: const TextStyle(
-            color: MeowTheme.textDarkPrimary,
-            fontSize: 16.5,
-            fontWeight: FontWeight.bold,
+      backgroundColor: p.bg,
+      body: Column(
+        children: [
+          _AppBarPlain(
+            pal: p,
+            title: isEn ? 'Mascot & accessories' : 'ตัวละคร & มาสคอต',
+            subtitle: isEn
+                ? '${chars.length} characters • ${accs.length} accessories'
+                : '${chars.length} ตัวละคร • ${accs.length} อุปกรณ์คู่กาย',
+            backLabel: isEn ? 'Back' : 'ย้อนกลับ',
           ),
-        ),
-        centerTitle: true,
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // 1. FIXED Hero Mascot Showcase Card (สไตล์แบบขั้นตอนที่ 2 ไม่มีมุมเล็กๆ)
-            Container(
-              margin: const EdgeInsets.fromLTRB(16, 10, 16, 8),
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
-              decoration: BoxDecoration(
-                color: cardBg,
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: const Color(0xFFF1ECE1), width: 1.5),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 14,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  // Top Row: Index Badge & [ เลือกรูปของฉัน ] & Category Tag
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF8F6F0),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          '${currentMascotIndex >= 0 ? currentMascotIndex + 1 : 1} / ${MascotCatalog.characters.length}',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF786C59),
-                          ),
-                        ),
-                      ),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          TactileButton(
-                            onTap: _openCustomPhotoDialog,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
-                              decoration: BoxDecoration(
-                                color: isCustomPhoto ? const Color(0xFFFEF3C7) : const Color(0xFFF8F6F0),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: isCustomPhoto ? MeowTheme.mustardYellowDark : const Color(0xFFE2E8F0),
-                                  width: 1,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.add_a_photo_rounded,
-                                    size: 11.5,
-                                    color: isCustomPhoto ? const Color(0xFFB45309) : const Color(0xFF64748B),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    isEn ? 'My Photo' : 'เลือกรูปของฉัน',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                      color: isCustomPhoto ? const Color(0xFFB45309) : const Color(0xFF475569),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF0F172A),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              _getCategoryTag(currentMascot.id),
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  // Mascot Avatar in circular warm backdrop (No corner badge!)
-                  Container(
-                    width: 86,
-                    height: 86,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: const Color(0xFFFEF3C7),
-                      boxShadow: [
-                        BoxShadow(
-                          color: MeowTheme.mustardYellow.withValues(alpha: 0.2),
-                          blurRadius: 10,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    alignment: Alignment.center,
-                    child: MeowMascotWidget(
-                      size: 66,
-                      mascotId: currentMascot.id,
-                      accessory: _selectedAccessory,
-                      customPhotoPath: customPhoto,
-                      isCustomPhoto: isCustomPhoto,
-                      animate: true,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    thaiName,
-                    style: const TextStyle(
-                      fontSize: 15.5,
-                      fontWeight: FontWeight.w800,
-                      color: textPrimary,
-                      letterSpacing: -0.2,
-                    ),
-                  ),
-                  if (enName.isNotEmpty) ...[
-                    const SizedBox(height: 1),
-                    Text(
-                      enName,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color: textSecondary,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-
-            // 2. SEGMENTED TAB SWITCHER (มาสคอต & อุปกรณ์ - ไม่มีชุด)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Container(
-                height: 46,
-                padding: const EdgeInsets.all(3.5),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF1ECE1),
-                  borderRadius: BorderRadius.circular(23),
-                ),
-                child: Row(
-                  children: [
-                    // Tab 1: มาสคอต
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          HapticFeedback.selectionClick();
-                          setState(() => _activeTabIndex = 0);
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          curve: Curves.easeInOut,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: _activeTabIndex == 0 ? Colors.white : Colors.transparent,
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: _activeTabIndex == 0
-                                ? [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.08),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ]
-                                : null,
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.pets_rounded,
-                                size: 14,
-                                color: _activeTabIndex == 0 ? const Color(0xFF0F172A) : const Color(0xFF64748B),
-                              ),
-                              const SizedBox(width: 5),
-                              Text(
-                                isEn ? 'Mascot' : 'มาสคอต',
-                                style: TextStyle(
-                                  fontSize: 13.5,
-                                  fontWeight: _activeTabIndex == 0 ? FontWeight.bold : FontWeight.w600,
-                                  color: _activeTabIndex == 0 ? const Color(0xFF0F172A) : const Color(0xFF64748B),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // Tab 2: อุปกรณ์
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          HapticFeedback.selectionClick();
-                          setState(() => _activeTabIndex = 1);
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          curve: Curves.easeInOut,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: _activeTabIndex == 1 ? Colors.white : Colors.transparent,
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: _activeTabIndex == 1
-                                ? [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.08),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ]
-                                : null,
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.auto_awesome_rounded,
-                                size: 14,
-                                color: _activeTabIndex == 1 ? const Color(0xFF0F172A) : const Color(0xFF64748B),
-                              ),
-                              const SizedBox(width: 5),
-                              Text(
-                                isEn ? 'Accessories' : '✨ อุปกรณ์',
-                                style: TextStyle(
-                                  fontSize: 13.5,
-                                  fontWeight: _activeTabIndex == 1 ? FontWeight.bold : FontWeight.w600,
-                                  color: _activeTabIndex == 1 ? const Color(0xFF0F172A) : const Color(0xFF64748B),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // 3. SCROLLABLE GRID
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  children: [
-                    if (_activeTabIndex == 0) ...[
-                      // Mascot Filters
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        physics: const BouncingScrollPhysics(),
-                        child: Row(
-                          children: [
-                            _buildFilterChip('all', isEn ? 'All' : 'ทั้งหมด', _mascotCategoryFilter, (val) {
-                              setState(() => _mascotCategoryFilter = val);
-                            }),
-                            const SizedBox(width: 6),
-                            _buildFilterChip('cat', isEn ? 'Cats' : 'แมว', _mascotCategoryFilter, (val) {
-                              setState(() => _mascotCategoryFilter = val);
-                            }),
-                            const SizedBox(width: 6),
-                            _buildFilterChip('friend', isEn ? 'Animals' : 'เพื่อนสัตว์', _mascotCategoryFilter, (val) {
-                              setState(() => _mascotCategoryFilter = val);
-                            }),
-                            const SizedBox(width: 6),
-                            _buildFilterChip('ai', isEn ? 'AI' : 'AI', _mascotCategoryFilter, (val) {
-                              setState(() => _mascotCategoryFilter = val);
-                            }),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-
-                      // 4-Column Mascot Grid
-                      _buildMascotGrid(),
-                    ] else ...[
-                      // 4-Column Accessories Grid (ชุดถูกเอาออก)
-                      _buildAccessoriesGrid(),
-                    ],
-                    const SizedBox(height: 16),
-                  ],
-                ),
-              ),
-            ),
-
-            // 4. BOTTOM ACTION BAR (เฉพาะปุ่มบันทึกปุ่มเดียว)
-            Container(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
-              decoration: BoxDecoration(
-                color: bgColor,
-                border: Border(top: BorderSide(color: Colors.black.withValues(alpha: 0.04))),
-              ),
-              child: SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: TactileButton(
-                  onTap: _saveMascot,
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
+              children: [
+                FxFadeUp(index: 0, child: _buildHero(p, isEn, current, index, thName, enName, acc, dirty)),
+                const SizedBox(height: 14),
+                FxFadeUp(index: 1, child: _buildTabs(p, isEn, chars.length, accs.length)),
+                const SizedBox(height: 14),
+                FxFadeUp(
+                  index: 2,
                   child: Container(
+                    padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
                     decoration: BoxDecoration(
-                      color: MeowTheme.mustardYellow,
+                      color: p.card,
                       borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: MeowTheme.mustardYellow.withValues(alpha: 0.35),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
+                      border: Border.all(color: p.line),
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.check_circle_rounded, color: MeowTheme.textDarkPrimary, size: 20),
-                        const SizedBox(width: 8),
-                        Text(
-                          isEn ? 'Save Mascot' : 'บันทึก',
-                          style: const TextStyle(
-                            color: MeowTheme.textDarkPrimary,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 220),
+                      child: _activeTabIndex == 0
+                          ? KeyedSubtree(key: const ValueKey('m'), child: _buildMascotPanel(p, isEn))
+                          : KeyedSubtree(key: const ValueKey('a'), child: _buildAccessoryPanel(p, isEn)),
                     ),
                   ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
+          ),
+          Container(
+            decoration: BoxDecoration(color: p.card, border: Border(top: BorderSide(color: p.line))),
+            padding: EdgeInsets.fromLTRB(16, 10, 16, 14 + MediaQuery.of(context).padding.bottom),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(footNote,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 12, color: p.sub)),
+                const SizedBox(height: 6),
+                _PrimaryButton(
+                  pal: p,
+                  label: isEn ? 'Save' : 'บันทึก',
+                  enabled: dirty,
+                  onTap: _saveMascot,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildMascotGrid() {
-    final filtered = MascotCatalog.characters.where((m) {
-      if (_mascotCategoryFilter == 'cat') return m.id.startsWith('cat_');
-      if (_mascotCategoryFilter == 'ai') return m.id == 'robot_ai';
-      if (_mascotCategoryFilter == 'friend') return !m.id.startsWith('cat_') && m.id != 'robot_ai';
-      return true;
-    }).toList();
+  Widget _buildHero(_Pal p, bool isEn, MascotInfo current, int index, String thName, String enName, AccessoryInfo? acc,
+      bool dirty) {
+    final photo = _usePhoto;
+    final group = photo ? 'photo' : _group(current.id);
+    final title = photo ? (isEn ? 'My photo' : 'รูปของฉัน') : thName;
+    final line2 = photo
+        ? (isEn ? 'From your phone • tap the tile again to change it' : 'รูปจากเครื่องของคุณ • แตะอีกครั้งเพื่อเปลี่ยนรูป')
+        : '${enName.isEmpty ? '' : '$enName • '}${isEn ? 'No. ${index + 1} of ${MascotCatalog.characters.length}' : 'ตัวที่ ${index + 1} จาก ${MascotCatalog.characters.length}'}';
+    final accLine = acc == null
+        ? (isEn ? 'No accessory' : 'ไม่ได้ใส่อุปกรณ์คู่กาย')
+        : (isEn ? 'Accessory: ${acc.name}' : 'อุปกรณ์คู่กาย: ${acc.name}');
 
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
-        childAspectRatio: 0.82,
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+      decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: p.line)),
+      child: Column(
+        children: [
+          SizedBox(
+            width: 132,
+            height: 142,
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.topCenter,
+              children: [
+                Container(
+                  width: 132,
+                  height: 132,
+                  decoration: BoxDecoration(color: p.seg, shape: BoxShape.circle),
+                  alignment: Alignment.center,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 260),
+                    transitionBuilder: (child, a) => FadeTransition(
+                      opacity: a,
+                      child: ScaleTransition(scale: Tween(begin: 0.9, end: 1.0).animate(a), child: child),
+                    ),
+                    child: MeowMascotWidget(
+                      key: ValueKey('$photo/${current.id}/$_selectedAccessory'),
+                      size: 92,
+                      mascotId: current.id,
+                      accessory: _selectedAccessory,
+                      customPhotoPath: widget.controller.customAvatarPath,
+                      isCustomPhoto: photo,
+                      animate: true,
+                    ),
+                  ),
+                ),
+                if (acc != null)
+                  Positioned(
+                    right: 2,
+                    top: 4,
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 220),
+                      child: Container(
+                        key: ValueKey(acc.id),
+                        width: 46,
+                        height: 46,
+                        decoration: BoxDecoration(
+                          color: p.card,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: p.line),
+                        ),
+                        child: Icon(acc.icon, size: 22, color: p.icon),
+                      ),
+                    ),
+                  ),
+                Positioned(
+                  bottom: 0,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: p.card,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: p.line),
+                    ),
+                    child: Text(_groupLabel(group, isEn),
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: p.sub)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(title,
+              textAlign: TextAlign.center, style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700, color: p.text)),
+          const SizedBox(height: 1),
+          Text(line2, textAlign: TextAlign.center, style: TextStyle(fontSize: 12.5, color: p.sub)),
+          const SizedBox(height: 4),
+          Text(accLine, textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: p.sub)),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+            child: dirty
+                ? Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: Container(
+                      padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
+                      decoration: BoxDecoration(
+                        color: p.seg,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: p.line),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline_rounded, size: 18, color: p.icon),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text.rich(
+                              TextSpan(children: [
+                                TextSpan(
+                                    text: isEn ? 'Not saved' : 'ยังไม่บันทึก',
+                                    style: const TextStyle(fontWeight: FontWeight.w600)),
+                                TextSpan(text: isEn ? ' — this is only a preview' : ' — ตอนนี้เป็นแค่ตัวอย่าง'),
+                              ]),
+                              style: TextStyle(fontSize: 13, color: p.text),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: _revert,
+                            style: TextButton.styleFrom(
+                              minimumSize: const Size(44, 44),
+                              foregroundColor: p.link,
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                            ),
+                            child: Text(isEn ? 'Undo' : 'ยกเลิก',
+                                style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : const SizedBox(width: double.infinity),
+          ),
+        ],
       ),
-      itemCount: filtered.length,
-      itemBuilder: (context, index) {
-        final character = filtered[index];
-        final isSelected = !_usePhoto && _selectedMascotId == character.id;
+    );
+  }
 
-        String shortName = character.name;
-        final paren = character.name.indexOf('(');
-        if (paren > 0) {
-          shortName = character.name.substring(0, paren).replaceAll('เหมี่ยว', '').replaceAll('แมว', '').trim();
-        }
+  Widget _buildTabs(_Pal p, bool isEn, int nChars, int nAccs) {
+    return _Segmented(
+      pal: p,
+      selected: _activeTabIndex,
+      labels: [
+        isEn ? 'Mascots ($nChars)' : 'มาสคอต ($nChars)',
+        isEn ? 'Accessories ($nAccs)' : 'อุปกรณ์ ($nAccs)',
+      ],
+      onSelect: (i) {
+        HapticFeedback.selectionClick();
+        setState(() => _activeTabIndex = i);
+      },
+    );
+  }
 
-        return GestureDetector(
+  Widget _buildMascotPanel(_Pal p, bool isEn) {
+    final chars = MascotCatalog.characters;
+    int count(String g) => chars.where((m) => _group(m.id) == g).length;
+    final names = {
+      'all': isEn ? 'All' : 'ทั้งหมด',
+      'cat': isEn ? 'Cats' : 'แมว',
+      'friend': isEn ? 'Animals' : 'เพื่อนสัตว์',
+      'ai': 'AI',
+    };
+    final filtered = chars.where((m) => _mascotCategoryFilter == 'all' || _group(m.id) == _mascotCategoryFilter).toList();
+    final hint = isEn
+        ? 'Tap to preview above • ${names[_mascotCategoryFilter]} ${filtered.length} + your own photo'
+        : 'แตะเพื่อดูตัวอย่างด้านบน • ${names[_mascotCategoryFilter]} ${filtered.length} ตัว + รูปของคุณเอง';
+
+    final tiles = <Widget>[
+      _Tile(
+        pal: p,
+        selected: _usePhoto,
+        dashed: !_usePhoto,
+        label: isEn ? 'My photo' : 'รูปของฉัน',
+        art: Icon(Icons.photo_camera_outlined, size: 28, color: p.icon),
+        onTap: _onPhotoTile,
+      ),
+      for (final m in filtered)
+        _Tile(
+          pal: p,
+          selected: !_usePhoto && _selectedMascotId == m.id,
+          label: _splitName(m.name).$1,
+          art: MeowMascotWidget(size: 40, mascotId: m.id, isHeadOnly: true, animate: false),
           onTap: () {
             HapticFeedback.selectionClick();
             setState(() {
               _usePhoto = false;
-              _selectedMascotId = character.id;
+              _selectedMascotId = m.id;
               // Keep an accessory the user already picked; otherwise show the mascot's own.
-              if (!_accessoryPicked) {
-                final cur = MascotCatalog.characters.firstWhere(
-                  (m) => m.id == character.id,
-                  orElse: () => character,
-                );
-                _selectedAccessory = cur.signatureAccessory;
-              }
+              if (!_accessoryPicked) _selectedAccessory = m.signatureAccessory;
             });
           },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            decoration: BoxDecoration(
-              color: isSelected ? const Color(0xFFFFFDF5) : Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: isSelected ? const Color(0xFFF59E0B) : const Color(0xFFF1ECE1),
-                width: isSelected ? 2.0 : 1.2,
+        ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            for (final id in ['all', 'cat', 'friend', 'ai'])
+              _Chip(
+                pal: p,
+                label: '${names[id]} ${id == 'all' ? chars.length : count(id)}',
+                selected: _mascotCategoryFilter == id,
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  setState(() => _mascotCategoryFilter = id);
+                },
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: isSelected ? const Color(0xFFF59E0B).withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.02),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Stack(
-              children: [
-                if (isSelected)
-                  Positioned(
-                    top: 4,
-                    right: 4,
-                    child: Container(
-                      width: 15,
-                      height: 15,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF0F172A),
-                        shape: BoxShape.circle,
-                      ),
-                      alignment: Alignment.center,
-                      child: const Icon(Icons.check, size: 10, color: Colors.white),
-                    ),
-                  ),
-                Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 46,
-                        height: 46,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFDF4E7),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        alignment: Alignment.center,
-                        child: MeowMascotWidget(
-                          size: 34,
-                          mascotId: character.id,
-                          isHeadOnly: true,
-                          animate: false,
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 2),
-                        child: Text(
-                          shortName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                            color: isSelected ? const Color(0xFF0F172A) : const Color(0xFF334155),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+          ],
+        ),
+        const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          child: Text(hint, style: TextStyle(fontSize: 12.5, color: p.sub)),
+        ),
+        const SizedBox(height: 12),
+        _grid(tiles, 4),
+      ],
     );
   }
 
-  Widget _buildAccessoriesGrid() {
-    final items = MascotCatalog.accessories;
-
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
-        childAspectRatio: 0.82,
+  Widget _buildAccessoryPanel(_Pal p, bool isEn) {
+    final tiles = <Widget>[
+      _Tile(
+        pal: p,
+        selected: _selectedAccessory == 'none',
+        label: isEn ? 'None' : 'ไม่ใส่',
+        muted: true,
+        art: Icon(Icons.block_rounded, size: 28, color: p.sub),
+        onTap: () {
+          HapticFeedback.selectionClick();
+          setState(() {
+            _selectedAccessory = 'none';
+            _accessoryPicked = true;
+          });
+        },
       ),
-      itemCount: items.length,
-      itemBuilder: (context, index) {
-        final item = items[index];
-        final String itemId = item.id;
-        final String itemName = item.name;
-        final IconData itemIcon = item.icon;
-
-        final bool isSelected = _selectedAccessory == itemId;
-
-        return GestureDetector(
+      for (final a in MascotCatalog.accessories)
+        _Tile(
+          pal: p,
+          selected: _selectedAccessory == a.id,
+          label: a.name,
+          art: Icon(a.icon, size: 28, color: p.icon),
           onTap: () {
             HapticFeedback.selectionClick();
             setState(() {
-              _selectedAccessory = itemId;
+              _selectedAccessory = a.id;
               _accessoryPicked = true;
             });
           },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            decoration: BoxDecoration(
-              color: isSelected ? const Color(0xFFFFFDF5) : Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: isSelected ? const Color(0xFFF59E0B) : const Color(0xFFF1ECE1),
-                width: isSelected ? 2.0 : 1.2,
+        ),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          child: Text(
+            isEn ? 'Tap to try it on • choose "None" to take it off' : 'แตะเพื่อลองใส่ • เลือก "ไม่ใส่" เพื่อถอดออก',
+            style: TextStyle(fontSize: 12.5, color: p.sub),
+          ),
+        ),
+        const SizedBox(height: 12),
+        _grid(tiles, 3),
+      ],
+    );
+  }
+
+  /// Rows of equal-width tiles; each row is as tall as its tallest tile.
+  Widget _grid(List<Widget> tiles, int cols) {
+    final rows = <Widget>[];
+    for (var i = 0; i < tiles.length; i += cols) {
+      final cells = <Widget>[];
+      for (var j = 0; j < cols; j++) {
+        if (j > 0) cells.add(const SizedBox(width: 8));
+        cells.add(Expanded(child: i + j < tiles.length ? tiles[i + j] : const SizedBox()));
+      }
+      if (rows.isNotEmpty) rows.add(const SizedBox(height: 8));
+      rows.add(IntrinsicHeight(child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: cells)));
+    }
+    return Column(children: rows);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Small private building blocks (calm monochrome menu style)
+// ---------------------------------------------------------------------------
+
+class _Tile extends StatelessWidget {
+  final _Pal pal;
+  final bool selected;
+  final bool dashed;
+  final bool muted;
+  final String label;
+  final Widget art;
+  final VoidCallback onTap;
+
+  const _Tile({
+    required this.pal,
+    required this.selected,
+    required this.label,
+    required this.art,
+    required this.onTap,
+    this.dashed = false,
+    this.muted = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final p = pal;
+    final body = AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
+      constraints: const BoxConstraints(minHeight: 98),
+      padding: const EdgeInsets.fromLTRB(4, 10, 4, 8),
+      decoration: BoxDecoration(
+        color: p.card,
+        borderRadius: BorderRadius.circular(16),
+        border: dashed ? null : Border.all(color: selected ? p.link : p.line, width: selected ? 2 : 1),
+      ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(height: 40, child: Center(child: art)),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, height: 1.3, fontWeight: FontWeight.w600, color: muted ? p.sub : p.text),
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: isSelected ? const Color(0xFFF59E0B).withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.02),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+            ],
+          ),
+          Positioned(
+            top: -6,
+            right: -0,
+            child: AnimatedScale(
+              scale: selected ? 1 : 0,
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOutBack,
+              child: Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(color: p.link, shape: BoxShape.circle),
+                child: Icon(Icons.check_rounded, size: 13, color: p.card),
+              ),
             ),
-            child: Stack(
-              children: [
-                if (isSelected)
-                  Positioned(
-                    top: 4,
-                    right: 4,
-                    child: Container(
-                      width: 15,
-                      height: 15,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF0F172A),
-                        shape: BoxShape.circle,
-                      ),
-                      alignment: Alignment.center,
-                      child: const Icon(Icons.check, size: 10, color: Colors.white),
-                    ),
+          ),
+        ],
+      ),
+    );
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      child: FxPress(
+        onTap: onTap,
+        child: dashed ? CustomPaint(foregroundPainter: _DashedBorder(color: p.dash, radius: 16), child: body) : body,
+      ),
+    );
+  }
+}
+
+class _DashedBorder extends CustomPainter {
+  final Color color;
+  final double radius;
+  const _DashedBorder({required this.color, required this.radius});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    final path = Path()
+      ..addRRect(RRect.fromRectAndRadius(Offset.zero & size, Radius.circular(radius)).deflate(0.75));
+    for (final metric in path.computeMetrics()) {
+      var d = 0.0;
+      while (d < metric.length) {
+        canvas.drawPath(metric.extractPath(d, d + 5), paint);
+        d += 9;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedBorder old) => old.color != color;
+}
+
+class _Chip extends StatelessWidget {
+  final _Pal pal;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _Chip({required this.pal, required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = pal;
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: IntrinsicWidth(child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            height: 40,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: selected ? p.link : p.card,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: selected ? p.link : p.line),
+            ),
+            child: Text(label,
+                style: TextStyle(
+                    fontSize: 13, fontWeight: selected ? FontWeight.w600 : FontWeight.w500, color: selected ? p.card : p.text)),
+          )),
+        ),
+      ),
+    );
+  }
+}
+
+/// Grey track with a white sliding pill (animated) — the draft's segmented control.
+class _Segmented extends StatelessWidget {
+  final _Pal pal;
+  final List<String> labels;
+  final int selected;
+  final ValueChanged<int> onSelect;
+
+  const _Segmented({required this.pal, required this.labels, required this.selected, required this.onSelect});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = pal;
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(color: p.seg, borderRadius: BorderRadius.circular(14)),
+      child: LayoutBuilder(builder: (context, c) {
+        final w = (c.maxWidth - 4 * (labels.length - 1)) / labels.length;
+        return SizedBox(
+          height: 44,
+          child: Stack(
+            children: [
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                left: selected * (w + 4),
+                top: 0,
+                bottom: 0,
+                width: w,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: p.card,
+                    borderRadius: BorderRadius.circular(11),
+                    boxShadow: const [BoxShadow(color: Color(0x140F172A), blurRadius: 2, offset: Offset(0, 1))],
                   ),
-                Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF8F6F0),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        alignment: Alignment.center,
-                        child: Icon(itemIcon, size: 24, color: const Color(0xFFD97706)),
-                      ),
-                      const SizedBox(height: 5),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 2),
-                        child: Text(
-                          itemName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                            color: isSelected ? const Color(0xFF0F172A) : const Color(0xFF334155),
+                ),
+              ),
+              Row(
+                children: [
+                  for (var i = 0; i < labels.length; i++) ...[
+                    if (i > 0) const SizedBox(width: 4),
+                    SizedBox(
+                      width: w,
+                      child: Semantics(
+                        button: true,
+                        selected: i == selected,
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => onSelect(i),
+                          child: Center(
+                            child: AnimatedDefaultTextStyle(
+                              duration: const Duration(milliseconds: 180),
+                              style: TextStyle(
+                                fontFamily: DefaultTextStyle.of(context).style.fontFamily,
+                                fontSize: 14,
+                                fontWeight: i == selected ? FontWeight.w600 : FontWeight.w500,
+                                color: i == selected ? p.link : p.sub,
+                              ),
+                              child: Text(labels[i], maxLines: 1, overflow: TextOverflow.ellipsis),
+                            ),
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
           ),
         );
-      },
+      }),
+    );
+  }
+}
+
+class _PrimaryButton extends StatelessWidget {
+  final _Pal pal;
+  final String label;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  const _PrimaryButton({required this.pal, required this.label, required this.enabled, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = pal;
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      child: FxPress(
+        onTap: enabled ? onTap : null,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          height: 52,
+          width: double.infinity,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(color: enabled ? p.accent : p.seg, borderRadius: BorderRadius.circular(16)),
+          child: Text(label,
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: enabled ? Colors.white : p.disabled)),
+        ),
+      ),
+    );
+  }
+}
+
+/// White app bar: 44px back chevron, left-aligned title and a one-line subtitle.
+class _AppBarPlain extends StatelessWidget {
+  final _Pal pal;
+  final String title;
+  final String subtitle;
+  final String backLabel;
+
+  const _AppBarPlain({required this.pal, required this.title, required this.subtitle, required this.backLabel});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = pal;
+    return Container(
+      decoration: BoxDecoration(color: p.card, border: Border(bottom: BorderSide(color: p.line))),
+      padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 60),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(4, 8, 16, 8),
+          child: Row(
+            children: [
+              IconButton(
+                onPressed: () => Navigator.maybePop(context),
+                tooltip: backLabel,
+                icon: Icon(Icons.chevron_left_rounded, size: 30, color: p.text),
+                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: p.text)),
+                    const SizedBox(height: 1),
+                    Text(subtitle,
+                        maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: p.sub)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Neutral palette derived from the active theme (same mapping as the menu).
+class _Pal {
+  final Color bg, card, text, sub, icon, line, seg, accent, link, dash, disabled;
+
+  const _Pal({
+    required this.bg,
+    required this.card,
+    required this.text,
+    required this.sub,
+    required this.icon,
+    required this.line,
+    required this.seg,
+    required this.accent,
+    required this.link,
+    required this.dash,
+    required this.disabled,
+  });
+
+  factory _Pal.of(ExpenseController ctl) {
+    final t = ctl.currentTheme;
+    final dark = ctl.isDarkMode;
+    return _Pal(
+      bg: t.scaffoldBackground,
+      card: t.cardBackground,
+      text: t.textColor,
+      sub: t.textSecondaryColor,
+      icon: dark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+      line: t.borderColor,
+      seg: dark ? const Color(0xFF0F172A) : const Color(0xFFF1F3F8),
+      accent: t.primaryColor,
+      link: dark ? const Color(0xFF93C5FD) : t.primaryColor,
+      dash: dark ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
+      disabled: dark ? const Color(0xFF475569) : const Color(0xFF94A3B8),
     );
   }
 }
