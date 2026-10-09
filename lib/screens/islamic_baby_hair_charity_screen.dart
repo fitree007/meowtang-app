@@ -6,6 +6,7 @@ import '../models/category_item.dart';
 import '../services/currency_exchange_service.dart';
 import '../theme/meow_theme.dart';
 import '../utils/format_utils.dart';
+import '../widgets/meow_fx.dart';
 
 class IslamicBabyHairCharityScreen extends StatefulWidget {
   final ExpenseController controller;
@@ -145,81 +146,226 @@ class _IslamicBabyHairCharityScreenState extends State<IslamicBabyHairCharityScr
     );
   }
 
+  bool _showTranslation = false;
+
+  // Islamic green: semantic colour for this page, lighter text variants in dark mode.
+  static const Color _deepGreen = Color(0xFF14532D);
+  static const Color _green = Color(0xFF15803D);
+  static const Color _mint = Color(0xFFBBF7D0);
+  static const Color _mintMuted = Color(0xFFCFEFD9);
+
+  Color get _greenText => widget.controller.isDarkMode ? const Color(0xFF86EFAC) : _deepGreen;
+
+  void _selectMetal(String metal) {
+    HapticFeedback.selectionClick();
+    setState(() => _metalType = metal);
+    _updateMetalPrice();
+    _recalculate();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final currentTheme = widget.controller.currentTheme;
+    final theme = widget.controller.currentTheme;
     final isDark = widget.controller.isDarkMode;
     final isEn = widget.controller.isEnglish;
+    final cardBg = theme.cardBackground;
+    final textPrimary = theme.textColor;
+    final textSecondary = theme.textSecondaryColor;
+    final borderColor = theme.borderColor;
+    final selectedBg = Color.alphaBlend(_green.withValues(alpha: isDark ? 0.22 : 0.1), cardBg);
+    final softBg = Color.alphaBlend(_green.withValues(alpha: isDark ? 0.1 : 0.05), cardBg);
+    final headerColor = isDark ? const Color(0xFF0F3D22) : _deepGreen;
+    final metalName = _metalType == 'silver' ? 'โลหะเงิน' : 'ทองคำ';
 
-    return Scaffold(
-      backgroundColor: currentTheme.scaffoldBackground,
-      appBar: AppBar(
-        backgroundColor: currentTheme.cardBackground,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: currentTheme.textColor, size: 18),
-          onPressed: () => Navigator.pop(context),
+    final card = BoxDecoration(
+      color: cardBg,
+      borderRadius: BorderRadius.circular(20),
+      border: isDark ? Border.all(color: borderColor) : null,
+      boxShadow: [
+        BoxShadow(
+          color: const Color(0xFF0E2A18).withValues(alpha: isDark ? 0.2 : 0.06),
+          blurRadius: 14,
+          offset: const Offset(0, 4),
         ),
-        title: Text(
-          isEn ? 'Newborn Hair Charity (Sunnah)' : 'ทานน้ำหนักผมทารกแรกเกิด',
-          style: TextStyle(
-            color: currentTheme.textColor,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
+      ],
+    );
+
+    InputDecoration field({String? hint, String? prefix, Widget? suffix, bool active = false}) {
+      OutlineInputBorder b(Color c) => OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: c, width: 1.5),
+          );
+      return InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(color: textSecondary.withValues(alpha: 0.7)),
+        prefixText: prefix,
+        prefixStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: textPrimary),
+        suffixIcon: suffix,
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        filled: true,
+        fillColor: cardBg,
+        border: b(borderColor),
+        enabledBorder: b(active ? _green : borderColor),
+        focusedBorder: b(_green),
+      );
+    }
+
+    Widget label(String text) => Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Text(text, style: TextStyle(fontSize: 13, color: textSecondary)),
+        );
+
+    Widget choice({
+      required String title,
+      String? subtitle,
+      required bool selected,
+      required VoidCallback onTap,
+      double minHeight = 48,
+    }) {
+      return Semantics(
+        button: true,
+        selected: selected,
+        child: FxPress(
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            constraints: BoxConstraints(minHeight: minHeight),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            decoration: BoxDecoration(
+              color: selected ? selectedBg : cardBg,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: selected ? _green : borderColor, width: selected ? 2 : 1.5),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                    color: selected ? _greenText : textSecondary,
+                  ),
+                ),
+                if (subtitle != null)
+                  Text(
+                    subtitle,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12, color: selected ? (isDark ? _greenText : _green) : textSecondary),
+                  ),
+              ],
+            ),
           ),
         ),
-        centerTitle: false,
-      ),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackground,
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(14, 10, 14, 32),
+        padding: EdgeInsets.zero,
         physics: const BouncingScrollPhysics(),
         children: [
-          // 1. Hero Info Card (Compact & Minimal)
+          // Header with the hadith
           Container(
-            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: isDark
-                    ? [const Color(0xFF0F2E28), const Color(0xFF0F172A)]
-                    : [const Color(0xFFECFDF5), const Color(0xFFD1FAE5)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+              color: headerColor,
+              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
             ),
-            child: Row(
+            padding: EdgeInsets.fromLTRB(8, MediaQuery.of(context).padding.top + 10, 8, 18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF10B981).withValues(alpha: 0.18),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Center(child: Text('👶', style: TextStyle(fontSize: 22))),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left_rounded, color: Colors.white, size: 28),
+                      tooltip: 'ย้อนกลับ',
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        isEn ? 'Newborn Hair Charity' : 'ทานน้ำหนักผมทารก',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.only(right: 12, left: 8),
+                      child: Text(
+                        'صدقة الشعر',
+                        textDirection: TextDirection.rtl,
+                        style: TextStyle(color: _mint, fontSize: 18, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 10),
-                Expanded(
+                const SizedBox(height: 12),
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 12),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       const Text(
-                        'ซุนนะฮ์โกนผมไฟ (ตะฮ์ลีกุรร็ออ์ส)',
-                        style: TextStyle(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF047857),
+                        '« يَا فَاطِمَةُ احْلِقِي رَأْسَهُ، وَتَصَدَّقِي بِزِنَةِ شَعْرِهِ فِضَّةً »',
+                        textDirection: TextDirection.rtl,
+                        style: TextStyle(fontSize: 16, height: 1.7, color: Colors.white),
+                      ),
+                      const SizedBox(height: 4),
+                      InkWell(
+                        onTap: () => setState(() => _showTranslation = !_showTranslation),
+                        borderRadius: BorderRadius.circular(8),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(minHeight: 44),
+                          child: Row(
+                            children: [
+                              AnimatedRotation(
+                                turns: _showTranslation ? 0.25 : 0,
+                                duration: const Duration(milliseconds: 180),
+                                child: const Icon(Icons.chevron_right_rounded, color: Colors.white, size: 18),
+                              ),
+                              const SizedBox(width: 4),
+                              const Text(
+                                'อ่านคำแปล & ที่มา',
+                                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Colors.white),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'ซุนนะฮ์ให้โกนผมทารกในวันที่ 7 และชั่งน้ำหนักเส้นผมเพื่อบริจาคทานเทียบเท่าน้ำหนักโลหะเงิน',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF065F46),
-                          height: 1.25,
-                        ),
+                      AnimatedSize(
+                        duration: const Duration(milliseconds: 200),
+                        alignment: Alignment.topCenter,
+                        child: !_showTranslation
+                            ? const SizedBox(width: double.infinity)
+                            : const Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '"โอ้ฟาฏิมะฮ์ จงโกนผมของเขา และจงบริจาคทานด้วยโลหะเงินตามน้ำหนักผมของเขา"',
+                                    style: TextStyle(fontSize: 12.5, height: 1.6, color: _mintMuted),
+                                  ),
+                                  SizedBox(height: 4),
+                                  Text(
+                                    'สุนันอัตติรมิซีย์ เลขที่ 1519 (หะซัน)',
+                                    style: TextStyle(fontSize: 12, color: Color(0xFFA7D9B8)),
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    'ซุนนะฮ์ให้โกนผมทารกในวันที่ 7 และชั่งน้ำหนักเส้นผมเพื่อบริจาคทานเทียบเท่าน้ำหนักโลหะเงิน',
+                                    style: TextStyle(fontSize: 12, height: 1.5, color: _mintMuted),
+                                  ),
+                                ],
+                              ),
                       ),
                     ],
                   ),
@@ -227,134 +373,243 @@ class _IslamicBabyHairCharityScreenState extends State<IslamicBabyHairCharityScr
               ],
             ),
           ),
-          const SizedBox(height: 10),
 
-          // 2. Baby Details & Day 7 Card
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: currentTheme.cardBackground,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: currentTheme.borderColor),
-            ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Baby Name Field
-                TextField(
-                  controller: _babyNameCtrl,
-                  style: TextStyle(fontSize: 13, color: currentTheme.textColor),
-                  decoration: InputDecoration(
-                    labelText: 'ชื่อทารก (ไม่ระบุก็ได้)',
-                    labelStyle: TextStyle(fontSize: 11.5, color: currentTheme.textSecondaryColor),
-                    prefixIcon: const Icon(Icons.badge_outlined, size: 16),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    filled: true,
-                    fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                  ),
-                ),
-                const SizedBox(height: 8),
-
-                // Gender Selector Row
-                Row(
-                  children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => setState(() => _gender = 'boy'),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          decoration: BoxDecoration(
-                            color: _gender == 'boy'
-                                ? const Color(0xFF0284C7).withValues(alpha: 0.15)
-                                : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: _gender == 'boy' ? const Color(0xFF0284C7) : currentTheme.borderColor,
-                              width: _gender == 'boy' ? 1.5 : 1.0,
-                            ),
-                          ),
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text('👦', style: TextStyle(fontSize: 15)),
-                              SizedBox(width: 4),
-                              Text('ลูกชาย (แพะ 2 ตัว)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => setState(() => _gender = 'girl'),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          decoration: BoxDecoration(
-                            color: _gender == 'girl'
-                                ? const Color(0xFFEC4899).withValues(alpha: 0.15)
-                                : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: _gender == 'girl' ? const Color(0xFFEC4899) : currentTheme.borderColor,
-                              width: _gender == 'girl' ? 1.5 : 1.0,
-                            ),
-                          ),
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text('👧', style: TextStyle(fontSize: 15)),
-                              SizedBox(width: 4),
-                              Text('ลูกสาว (แพะ 1 ตัว)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-
-                // Birth Date & Day 7 Selector
-                GestureDetector(
-                  onTap: _pickBirthDate,
+                // 1. Baby details
+                FxFadeUp(
+                  index: 0,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: currentTheme.borderColor),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    padding: const EdgeInsets.all(16),
+                    decoration: card,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        label('ชื่อทารก (ไม่ระบุก็ได้)'),
+                        TextField(
+                          controller: _babyNameCtrl,
+                          style: TextStyle(fontSize: 15, color: textPrimary),
+                          decoration: field(hint: 'ชื่อทารก'),
+                        ),
+                        const SizedBox(height: 12),
                         Row(
                           children: [
-                            const Icon(Icons.calendar_today_rounded, size: 15, color: Color(0xFF10B981)),
-                            const SizedBox(width: 6),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text('วันเกิด', style: TextStyle(fontSize: 10, color: Colors.grey)),
-                                Text(
-                                  FormatUtils.formatDateThai(_birthDate),
-                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: currentTheme.textColor),
-                                ),
-                              ],
+                            Expanded(
+                              child: choice(
+                                title: 'ลูกชาย',
+                                selected: _gender == 'boy',
+                                onTap: () => setState(() => _gender = 'boy'),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: choice(
+                                title: 'ลูกสาว',
+                                selected: _gender == 'girl',
+                                onTap: () => setState(() => _gender = 'girl'),
+                              ),
                             ),
                           ],
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF10B981).withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(6),
+                        const SizedBox(height: 12),
+                        Material(
+                          color: softBg,
+                          borderRadius: BorderRadius.circular(12),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: _pickBirthDate,
+                            child: Container(
+                              constraints: const BoxConstraints(minHeight: 44),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.calendar_today_outlined, size: 18, color: isDark ? _greenText : _green),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text.rich(
+                                      TextSpan(children: [
+                                        TextSpan(text: 'วันเกิด ${FormatUtils.formatDateThai(_birthDate)} → '),
+                                        TextSpan(
+                                          text: 'วันที่ 7: ${FormatUtils.formatDateThai(_day7Date)}',
+                                          style: const TextStyle(fontWeight: FontWeight.w700),
+                                        ),
+                                      ]),
+                                      style: TextStyle(fontSize: 13, color: textPrimary),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
-                          child: Text(
-                            'วันที่ 7: ${FormatUtils.formatDateThai(_day7Date)}',
-                            style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF047857)),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'อะกีเกาะฮ์: ลูกชาย แพะ 2 ตัว • ลูกสาว แพะ 1 ตัว',
+                          style: TextStyle(fontSize: 12, color: textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                // 2. Metal & weight
+                FxFadeUp(
+                  index: 1,
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: card,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        label('ชนิดโลหะที่ใช้เทียบ'),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: choice(
+                                title: 'โลหะเงิน 99.9%',
+                                subtitle: 'ซุนนะฮ์หลัก',
+                                selected: _metalType == 'silver',
+                                minHeight: 60,
+                                onTap: () => _selectMetal('silver'),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: choice(
+                                title: 'ทองคำ 96.5%',
+                                subtitle: 'ทัศนะทางเลือก',
+                                selected: _metalType == 'gold',
+                                minHeight: 60,
+                                onTap: () => _selectMetal('gold'),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  label('น้ำหนักผม (กรัม)'),
+                                  TextField(
+                                    controller: _weightCtrl,
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: textPrimary),
+                                    onChanged: (_) => _recalculate(),
+                                    decoration: field(hint: '0.0', active: true),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  label('ราคา${_metalType == 'silver' ? 'เงิน' : 'ทอง'}/กรัม'),
+                                  TextField(
+                                    controller: _pricePerGramCtrl,
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: textPrimary),
+                                    onChanged: (_) => _recalculate(),
+                                    decoration: field(
+                                      prefix: '฿',
+                                      suffix: IconButton(
+                                        icon: Icon(Icons.refresh_rounded, size: 18, color: textSecondary),
+                                        tooltip: 'ใช้ราคาล่าสุด',
+                                        onPressed: () {
+                                          _updateMetalPrice();
+                                          _recalculate();
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: ['0.5', '0.8', '1.0', '1.2', '1.5', '2.0'].map((w) {
+                            final isSelected = _weightCtrl.text.trim() == w;
+                            return FxPress(
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                _weightCtrl.text = w;
+                                _recalculate();
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 180),
+                                height: 44,
+                                padding: const EdgeInsets.symmetric(horizontal: 14),
+                                decoration: BoxDecoration(
+                                  color: isSelected ? _green : cardBg,
+                                  borderRadius: BorderRadius.circular(22),
+                                  border: Border.all(color: isSelected ? _green : borderColor),
+                                ),
+                                child: Center(
+                                  widthFactor: 1,
+                                  child: Text(
+                                    '$w ก.',
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                                      color: isSelected ? Colors.white : textSecondary,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                // 3. Result
+                FxFadeUp(
+                  index: 2,
+                  child: Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: headerColor,
+                      borderRadius: BorderRadius.circular(22),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'ยอดเงินบริจาคทานที่ต้องจ่าย (ศอดะเกาะฮ์)',
+                          style: TextStyle(color: _mintMuted, fontSize: 12.5),
+                        ),
+                        const SizedBox(height: 6),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: FxProgress(
+                            value: _calculatedCharity,
+                            builder: (_, v) => Text(
+                              '฿${FormatUtils.formatCurrency(v)}',
+                              style: const TextStyle(color: _mint, fontSize: 34, fontWeight: FontWeight.w700),
+                            ),
                           ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '${_weightCtrl.text.trim()} กรัม × ฿${_pricePerGramCtrl.text.trim()}/กรัม ($metalName)',
+                          style: const TextStyle(color: _mintMuted, fontSize: 12.5),
                         ),
                       ],
                     ),
@@ -363,271 +618,63 @@ class _IslamicBabyHairCharityScreenState extends State<IslamicBabyHairCharityScr
               ],
             ),
           ),
-          const SizedBox(height: 10),
-
-          // 3. Weight & Metal Standard Card
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: currentTheme.cardBackground,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: currentTheme.borderColor),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Hair Weight Input
-                TextField(
-                  controller: _weightCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: currentTheme.textColor),
-                  onChanged: (_) => _recalculate(),
-                  decoration: InputDecoration(
-                    labelText: 'น้ำหนักเส้นผมที่โกนได้ (กรัม)',
-                    labelStyle: TextStyle(fontSize: 11.5, color: currentTheme.textSecondaryColor),
-                    suffixText: 'กรัม (g)',
-                    prefixIcon: const Icon(Icons.scale_rounded, size: 18, color: Color(0xFF0284C7)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    filled: true,
-                    fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                  ),
-                ),
-                const SizedBox(height: 6),
-
-                // Quick Weight Chips
-                Wrap(
-                  spacing: 4,
-                  runSpacing: 4,
-                  children: ['0.5', '0.8', '1.0', '1.2', '1.5', '2.0'].map((w) {
-                    final isSelected = _weightCtrl.text.trim() == w;
-                    return InkWell(
-                      onTap: () {
-                        HapticFeedback.selectionClick();
-                        _weightCtrl.text = w;
-                        _recalculate();
-                      },
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? const Color(0xFF0284C7)
-                              : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          '$w g',
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                            color: isSelected ? Colors.white : currentTheme.textColor,
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 10),
-
-                // Metal Choice Selector (Silver vs Gold)
-                Row(
-                  children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          setState(() => _metalType = 'silver');
-                          _updateMetalPrice();
-                          _recalculate();
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-                          decoration: BoxDecoration(
-                            color: _metalType == 'silver'
-                                ? const Color(0xFF64748B).withValues(alpha: 0.15)
-                                : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: _metalType == 'silver' ? const Color(0xFF64748B) : currentTheme.borderColor,
-                              width: _metalType == 'silver' ? 1.5 : 1.0,
-                            ),
-                          ),
-                          child: const Column(
-                            children: [
-                              Text('🥈 โลหะเงิน 99.9%', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
-                              SizedBox(height: 1),
-                              Text('(ซุนนะฮ์หลัก ﷺ)', style: TextStyle(fontSize: 9.5, color: Color(0xFF10B981), fontWeight: FontWeight.bold)),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          setState(() => _metalType = 'gold');
-                          _updateMetalPrice();
-                          _recalculate();
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-                          decoration: BoxDecoration(
-                            color: _metalType == 'gold'
-                                ? const Color(0xFFD97706).withValues(alpha: 0.15)
-                                : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: _metalType == 'gold' ? const Color(0xFFD97706) : currentTheme.borderColor,
-                              width: _metalType == 'gold' ? 1.5 : 1.0,
-                            ),
-                          ),
-                          child: const Column(
-                            children: [
-                              Text('🥇 ทองคำ 96.5%', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
-                              SizedBox(height: 1),
-                              Text('(ทัศนะทางเลือก)', style: TextStyle(fontSize: 9.5, color: Color(0xFFD97706))),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-
-                // Metal Price Field
-                TextField(
-                  controller: _pricePerGramCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  style: TextStyle(fontSize: 13, color: currentTheme.textColor),
-                  onChanged: (_) => _recalculate(),
-                  decoration: InputDecoration(
-                    labelText: 'ราคา ${_metalType == 'silver' ? 'โลหะเงิน' : 'ทองคำ'} ต่อกรัม',
-                    labelStyle: TextStyle(fontSize: 11, color: currentTheme.textSecondaryColor),
-                    prefixText: '฿ ',
-                    suffixIcon: IconButton(
-                      icon: const Icon(Icons.refresh_rounded, size: 16),
-                      onPressed: () {
-                        _updateMetalPrice();
-                        _recalculate();
-                      },
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    filled: true,
-                    fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // 4. Result Card (Compact & Glowing)
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF047857), Color(0xFF065F46)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(18),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF047857).withValues(alpha: 0.3),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                const Text(
-                  'ยอดเงินบริจาคทานที่ต้องจ่าย (ศอดะเกาะฮ์)',
-                  style: TextStyle(color: Colors.white70, fontSize: 11.5),
-                ),
-                const SizedBox(height: 4),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    '฿${FormatUtils.formatCurrency(_calculatedCharity)}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 26,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${_weightCtrl.text.trim()} กรัม × ฿${_pricePerGramCtrl.text.trim()}/g (${_metalType == 'silver' ? 'โลหะเงิน' : 'ทองคำ'})',
-                  style: const TextStyle(color: Colors.white70, fontSize: 10.5),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-
-          // 5. Action Button: Record to Expense Ledger
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0284C7),
-              foregroundColor: Colors.white,
-              minimumSize: const Size(double.infinity, 44),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              elevation: 0,
-            ),
-            icon: const Icon(Icons.bookmark_add_rounded, size: 18),
-            label: const Text(
-              'บันทึกเป็นรายจ่ายบริจาคทานทันที',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-            ),
-            onPressed: _saveToExpenseLedger,
-          ),
-          const SizedBox(height: 12),
-
-          // 6. Islamic Knowledge & References (Compact)
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: currentTheme.cardBackground,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: currentTheme.borderColor),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.menu_book_rounded, size: 15, color: Color(0xFF10B981)),
-                    SizedBox(width: 6),
-                    Text('หลักฐาน & ซุนนะฮ์ตามแบบฉบับอิสลาม', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text(
-                    '« يَا فَاطِمَةُ احْلِقِي رَأْسَهُ، وَتَصَدَّقِي بِزِنَةِ شَعْرِهِ فِضَّةً »\n"โอ้ฟาฏิมะฮ์ จงโกนผมของเขา และจงบริจาคทานด้วยโลหะเงินตามน้ำหนักผมของเขา"',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF047857), height: 1.3),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '📚 อ้างอิง: สุนันอัตติรมิซีย์ (เลขที่ 1519, เกรดหะซัน)',
-                  style: TextStyle(fontSize: 10, color: currentTheme.textSecondaryColor),
-                ),
-              ],
-            ),
-          ),
         ],
+      ),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: cardBg,
+          border: Border(top: BorderSide(color: borderColor)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+            child: Row(
+              children: [
+                Flexible(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('ยอดบริจาค', style: TextStyle(fontSize: 12, color: textSecondary)),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: FxProgress(
+                          value: _calculatedCharity,
+                          builder: (_, v) => Text(
+                            '฿${FormatUtils.formatCurrency(v)}',
+                            style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700, color: _greenText),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: FxPress(
+                    onTap: _saveToExpenseLedger,
+                    child: Container(
+                      height: 56,
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      decoration: BoxDecoration(color: _green, borderRadius: BorderRadius.circular(18)),
+                      child: const FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          'บันทึกเป็นรายจ่ายบริจาค',
+                          style: TextStyle(color: Colors.white, fontSize: 15.5, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

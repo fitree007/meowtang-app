@@ -2,10 +2,10 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../state/expense_controller.dart';
-import '../theme/meow_theme.dart';
+import '../theme/app_theme_model.dart';
 import '../services/currency_exchange_service.dart';
 import '../utils/format_utils.dart';
-import '../widgets/tactile_button.dart';
+import '../widgets/meow_fx.dart';
 import '../models/transaction_item.dart';
 import 'add_transaction_screen.dart';
 
@@ -133,16 +133,107 @@ class _GoldSilverCalculatorScreenState extends State<GoldSilverCalculatorScreen>
     return points;
   }
 
+  // ---- palette (gold / silver are semantic colours, page & cards follow the theme) ----
+  bool get _isGold => _selectedAsset == 0;
+
+  /// Deep colour used for the price hero card.
+  Color get _heroColor => _isGold ? const Color(0xFF92400E) : const Color(0xFF475569);
+
+  /// Accent for buttons, chips and borders.
+  Color get _accent => _isGold ? const Color(0xFFB45309) : const Color(0xFF475569);
+
+  /// Accent for text (lighter in dark mode so it stays readable).
+  Color get _accentText {
+    final dark = widget.controller.isDarkMode;
+    if (_isGold) return dark ? const Color(0xFFF59E0B) : const Color(0xFF92400E);
+    return dark ? const Color(0xFFCBD5E1) : const Color(0xFF334155);
+  }
+
+  String _baht(double v, {int decimals = 0}) {
+    if (decimals == 0) return '฿${CurrencyFormat.format(v.roundToDouble(), trimZero: true)}';
+    return '฿${CurrencyFormat.format(v)}';
+  }
+
+  String get _weightUnitLabel => _unitMode == 0 ? 'บาททอง' : 'กรัม';
+
+  static const _thaiMonths = [
+    'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+    'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
+  ];
+
+  String _shortDate(DateTime d) => '${d.day} ${_thaiMonths[d.month - 1]}';
+
+  void _selectGoldType(int type) {
+    HapticFeedback.selectionClick();
+    setState(() => _goldType = type);
+    _loadHistoryData();
+  }
+
+  void _selectAsset(int index) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      _selectedAsset = index;
+      _unitMode = index == 0 ? 0 : 1;
+      _weightValue = index == 0 ? 1.0 : 100.0;
+      _weightController.text = _weightValue.toString().replaceAll(RegExp(r'\.0$'), '');
+      _scrubbedIndex = -1;
+    });
+    _loadHistoryData();
+  }
+
+  void _selectChartDays(int days) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      _chartDays = days;
+      _scrubbedIndex = -1;
+    });
+    _loadHistoryData();
+  }
+
+  void _recordPurchase(double totalSellPrice) {
+    HapticFeedback.mediumImpact();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AddTransactionScreen(
+          controller: widget.controller,
+          initialAmount: totalSellPrice,
+          initialNote: _isGold
+              ? 'ซื้อทองคำ (${_weightController.text} ${_unitMode == 0 ? 'บาท' : 'กรัม'})'
+              : 'ซื้อแร่เงิน (${_weightController.text} กรัม)',
+          initialType: TransactionType.expense,
+        ),
+      ),
+    );
+  }
+
+  void _copyTotal(double totalSellPrice) {
+    HapticFeedback.selectionClick();
+    Clipboard.setData(ClipboardData(text: totalSellPrice.toStringAsFixed(2)));
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('คัดลอกยอด ฿${FormatUtils.formatCurrency(totalSellPrice)} แล้ว'),
+        backgroundColor: const Color(0xFF047857),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = widget.controller.currentTheme;
     final isDark = widget.controller.isDarkMode;
     final isEn = widget.controller.isEnglish;
 
-    final bgColor = isDark ? MeowTheme.navyBackground : const Color(0xFFF8FAFC);
-    final cardBg = isDark ? MeowTheme.navySurface : Colors.white;
-    final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
-    final textSecondary = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
-    final borderColor = isDark ? MeowTheme.borderColor : const Color(0xFFE2E8F0);
+    final cardBg = theme.cardBackground;
+    final textPrimary = theme.textColor;
+    final textSecondary = theme.textSecondaryColor;
+    final borderColor = theme.borderColor;
+    final track = Color.alphaBlend(_accent.withValues(alpha: isDark ? 0.22 : 0.12), cardBg);
+    final softTile = Color.alphaBlend(textSecondary.withValues(alpha: isDark ? 0.14 : 0.08), cardBg);
+    final warmTile = Color.alphaBlend(_accent.withValues(alpha: isDark ? 0.2 : 0.09), cardBg);
 
     // Live Prices
     final goldBarSell = CurrencyExchangeService.getGoldBarSellPrice();
@@ -203,420 +294,483 @@ class _GoldSilverCalculatorScreenState extends State<GoldSilverCalculatorScreen>
 
     final String scrubbedDateText;
     if (scrubbedPoint != null) {
-      const thaiMonths = [
-        'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
-        'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
-      ];
-      scrubbedDateText = '${scrubbedPoint.date.day} ${thaiMonths[scrubbedPoint.date.month - 1]} ${scrubbedPoint.date.year + 543}';
+      scrubbedDateText = '${scrubbedPoint.date.day} ${_thaiMonths[scrubbedPoint.date.month - 1]} ${scrubbedPoint.date.year + 543}';
     } else {
       scrubbedDateText = isEn ? 'Today (Live)' : 'วันนี้ (ล่าสุด)';
     }
 
-    return Scaffold(
-      backgroundColor: bgColor,
-      appBar: AppBar(
-        backgroundColor: cardBg,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: textPrimary, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          isEn ? 'Gold & Silver Calculator' : 'คำนวณแร่ทอง & แร่เงิน',
-          style: TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.bold,
-            color: textPrimary,
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.table_chart_outlined, color: Color(0xFFF59E0B)),
-            tooltip: isEn ? 'Daily Price History' : 'ประวัติราคารายวัน',
-            onPressed: () => _showHistorySheet(context),
-          ),
-          IconButton(
-            icon: _isLoading
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Icon(Icons.refresh_rounded, color: Color(0xFFF59E0B)),
-            tooltip: isEn ? 'Refresh Live Rates' : 'อัปเดตราคาล่าสุด',
-            onPressed: _isLoading ? null : _refreshRates,
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 1. Asset Switcher
-            Container(
-              height: 44,
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _buildAssetTab(
-                      index: 0,
-                      title: isEn ? '🥇 Gold 96.5%' : '🥇 ทองคำ 96.5%',
-                      isSelected: _selectedAsset == 0,
-                      activeColor: const Color(0xFFF59E0B),
-                      cardBg: cardBg,
-                      textPrimary: textPrimary,
-                      textSecondary: textSecondary,
-                    ),
-                  ),
-                  Expanded(
-                    child: _buildAssetTab(
-                      index: 1,
-                      title: isEn ? '🥈 Silver 99.9%' : '🥈 แร่เงิน 99.9%',
-                      isSelected: _selectedAsset == 1,
-                      activeColor: const Color(0xFF0284C7),
-                      cardBg: cardBg,
-                      textPrimary: textPrimary,
-                      textSecondary: textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 14),
+    final chartDecimals = isGold ? 0 : 2;
+    final rangeName = const {7: '7 วัน', 15: '15 วัน', 30: '1 เดือน', 90: '3 เดือน'}[_chartDays] ?? '$_chartDays วัน';
+    final assetName = isGold ? (_goldType == 0 ? 'ทองคำแท่ง' : 'ทองรูปพรรณ') : 'แร่เงิน 99.9%';
+    final chartUnit = isGold ? '$assetName ขายออก/บาท • $rangeName' : '$assetName /กรัม • $rangeName';
+    final changeColor = isUpTrend
+        ? (isDark ? const Color(0xFF34D399) : const Color(0xFF047857))
+        : (isDark ? const Color(0xFFF87171) : const Color(0xFFB91C1C));
+    final changeText =
+        '${isUpTrend ? '▲' : '▼'} ${_baht(priceDiff.abs(), decimals: chartDecimals)} (${isUpTrend ? '+' : '−'}${percentChange.abs().toStringAsFixed(1)}%)';
 
-            // 2. Interactive Price Trend Chart Card
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: cardBg,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: isGold
-                      ? const Color(0xFFF59E0B).withValues(alpha: 0.35)
-                      : const Color(0xFF0284C7).withValues(alpha: 0.35),
-                  width: 1.2,
+    final List<String> dateLabels;
+    if (_dailyHistoryPoints.length >= 2) {
+      final pts = _dailyHistoryPoints;
+      dateLabels = [_shortDate(pts.first.date), _shortDate(pts[pts.length ~/ 2].date), 'วันนี้'];
+    } else {
+      dateLabels = ['$rangeNameก่อน', '', 'วันนี้'];
+    }
+
+    final updateMatch = RegExp(r'(\d{1,2}[:.]\d{2})').firstMatch(CurrencyExchangeService.getGoldLastUpdatedText());
+    final updateTime = updateMatch != null ? '${updateMatch.group(1)} น.' : '';
+
+    final bottomLabel = isGold
+        ? '${_goldType == 0 ? 'ทองแท่ง' : 'ทองรูปพรรณ'} ${_weightController.text} ${_unitMode == 0 ? 'บาท' : 'กรัม'}'
+        : 'แร่เงิน ${_weightController.text} ${_unitMode == 0 ? 'บาท' : 'กรัม'}';
+
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackground,
+      body: Column(
+        children: [
+          // Header
+          Container(
+            decoration: BoxDecoration(
+              color: cardBg,
+              border: Border(bottom: BorderSide(color: borderColor)),
+            ),
+            padding: EdgeInsets.fromLTRB(8, MediaQuery.of(context).padding.top + 10, 8, 10),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: Icon(Icons.chevron_left_rounded, color: textPrimary, size: 28),
+                  tooltip: 'ย้อนกลับ',
+                  onPressed: () => Navigator.pop(context),
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: (isGold ? const Color(0xFFF59E0B) : const Color(0xFF0284C7))
-                        .withValues(alpha: isDark ? 0.15 : 0.06),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    isEn ? 'Gold & Silver Calculator' : 'คำนวณแร่ทอง & แร่เงิน',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: textPrimary),
                   ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
+                ),
+                IconButton(
+                  icon: Icon(Icons.history_rounded, color: textPrimary, size: 22),
+                  tooltip: isEn ? 'Daily Price History' : 'ประวัติราคารายวัน',
+                  onPressed: () => _showHistorySheet(context),
+                ),
+                IconButton(
+                  icon: _isLoading
+                      ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: _accentText))
+                      : Icon(Icons.refresh_rounded, color: textPrimary, size: 22),
+                  tooltip: isEn ? 'Refresh Live Rates' : 'อัปเดตราคาล่าสุด',
+                  onPressed: _isLoading ? null : _refreshRates,
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+              children: [
+                // 1. Asset segmented control
+                _Segmented(
+                  labels: [isEn ? 'Gold 96.5%' : 'ทองคำ 96.5%', isEn ? 'Silver 99.9%' : 'แร่เงิน 99.9%'],
+                  selected: _selectedAsset,
+                  onSelect: _selectAsset,
+                  track: track,
+                  thumb: cardBg,
+                  activeText: _accentText,
+                  inactiveText: textSecondary,
+                  height: 42,
+                  fontSize: 14,
+                  radius: 14,
+                  expand: true,
+                ),
+                const SizedBox(height: 16),
+
+                // 2. Today's price hero
+                FxFadeUp(
+                  index: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(color: _heroColor, borderRadius: BorderRadius.circular(22)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                isGold ? 'ราคาวันนี้ • สมาคมค้าทองคำ' : 'ราคาวันนี้ • แร่เงิน 99.9%',
+                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white),
+                              ),
+                            ),
+                            if (updateTime.isNotEmpty)
+                              Text(updateTime, style: TextStyle(fontSize: 12, color: isGold ? const Color(0xFFFDE7C2) : const Color(0xFFE2E8F0))),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        if (isGold)
                           Row(
                             children: [
-                              Text(
-                                isGold
-                                    ? (_goldType == 0 ? 'ราคาทองคำแท่ง' : 'ราคาทองรูปพรรณ')
-                                    : 'ราคาแร่เงินบริสุทธิ์',
-                                style: TextStyle(fontSize: 12.5, color: textSecondary, fontWeight: FontWeight.w600),
-                              ),
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: (_scrubbedIndex >= 0)
-                                      ? (isDark ? Colors.white12 : const Color(0xFFE2E8F0))
-                                      : (isUpTrend
-                                          ? const Color(0xFF10B981).withValues(alpha: 0.15)
-                                          : const Color(0xFFEF4444).withValues(alpha: 0.15)),
-                                  borderRadius: BorderRadius.circular(6),
+                              Expanded(
+                                child: _HeroPriceTile(
+                                  title: 'ทองคำแท่ง',
+                                  sell: _baht(goldBarSell),
+                                  buy: _baht(goldBarBuy),
+                                  selected: _goldType == 0,
+                                  onTap: () => _selectGoldType(0),
                                 ),
-                                child: Text(
-                                  (_scrubbedIndex >= 0)
-                                      ? '📅 $scrubbedDateText'
-                                      : '${isUpTrend ? '+' : ''}${percentChange.toStringAsFixed(2)}%',
-                                  style: TextStyle(
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.bold,
-                                    color: (_scrubbedIndex >= 0)
-                                        ? textPrimary
-                                        : (isUpTrend ? const Color(0xFF10B981) : const Color(0xFFEF4444)),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _HeroPriceTile(
+                                  title: 'ทองรูปพรรณ',
+                                  sell: _baht(goldOrnamentSell),
+                                  buy: _baht(goldOrnamentBuy),
+                                  selected: _goldType == 1,
+                                  onTap: () => _selectGoldType(1),
+                                ),
+                              ),
+                            ],
+                          )
+                        else
+                          _HeroPriceTile(
+                            title: 'โลหะเงินบริสุทธิ์ /กรัม',
+                            sell: _baht(silverPricePerGram, decimals: 2),
+                            buy: _baht(silverPricePerGram * 0.94, decimals: 2),
+                            buyLabel: 'รับซื้อ (ประมาณ)',
+                            mutedColor: const Color(0xFFE2E8F0),
+                            selected: true,
+                            onTap: null,
+                          ),
+                        if (isGold) ...[
+                          const SizedBox(height: 10),
+                          const Text(
+                            'แตะการ์ดเพื่อเลือกชนิดทองที่ใช้คำนวณ',
+                            style: TextStyle(fontSize: 12, color: Color(0xFFFDE7C2)),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // 3. Weight card
+                FxFadeUp(
+                  index: 1,
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: _cardDecoration(cardBg, borderColor, isDark),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'ระบุน้ำหนัก',
+                                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: textPrimary),
+                              ),
+                            ),
+                            _Segmented(
+                              labels: const ['บาททอง', 'กรัม'],
+                              selected: _unitMode,
+                              onSelect: (i) {
+                                HapticFeedback.selectionClick();
+                                setState(() => _unitMode = i);
+                              },
+                              track: softTile,
+                              thumb: cardBg,
+                              activeText: _accentText,
+                              inactiveText: textSecondary,
+                              height: 38,
+                              fontSize: 12.5,
+                              radius: 10,
+                              expand: false,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          constraints: const BoxConstraints(minHeight: 56),
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: _accent, width: 1.5),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: _weightController,
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: textPrimary),
+                                  decoration: InputDecoration(
+                                    border: InputBorder.none,
+                                    isDense: true,
+                                    hintText: '1.0',
+                                    hintStyle: TextStyle(color: textSecondary.withValues(alpha: 0.5)),
+                                  ),
+                                  onChanged: _onAmountChanged,
+                                ),
+                              ),
+                              Text(_weightUnitLabel, style: TextStyle(fontSize: 14, color: textSecondary)),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: isGold
+                              ? [
+                                  for (final p in const [
+                                    ['1 สลึง', 0.25],
+                                    ['2 สลึง', 0.50],
+                                    ['1 บาท', 1.0],
+                                    ['2 บาท', 2.0],
+                                    ['5 บาท', 5.0],
+                                    ['10 บาท', 10.0],
+                                  ])
+                                    _PresetChip(
+                                      label: p[0] as String,
+                                      selected: _unitMode == 0 && _weightValue == (p[1] as double),
+                                      accent: _accent,
+                                      theme: theme,
+                                      onTap: () => _setGoldPreset(p[1] as double),
+                                    ),
+                                ]
+                              : [
+                                  for (final p in const [
+                                    ['10 กรัม', 10.0],
+                                    ['50 กรัม', 50.0],
+                                    ['100 กรัม', 100.0],
+                                    ['500 กรัม', 500.0],
+                                    ['1 กิโลกรัม', 1000.0],
+                                  ])
+                                    _PresetChip(
+                                      label: p[0] as String,
+                                      selected: _unitMode == 1 && _weightValue == (p[1] as double),
+                                      accent: _accent,
+                                      theme: theme,
+                                      onTap: () => _setSilverPreset(p[1] as double),
+                                    ),
+                                  _PresetChip(
+                                    label: '1 บาท (15.24 ก.)',
+                                    selected: _unitMode == 1 && (_weightValue - 15.244).abs() < 0.01,
+                                    accent: _accent,
+                                    theme: theme,
+                                    onTap: () => _setSilverPreset(15.244),
+                                  ),
+                                ],
+                        ),
+                        if (isGold && _goldType == 1) ...[
+                          const SizedBox(height: 12),
+                          Container(
+                            constraints: const BoxConstraints(minHeight: 48),
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: borderColor, width: 1.5),
+                            ),
+                            child: Row(
+                              children: [
+                                Text('ค่ากำเหน็จ/บาท', style: TextStyle(fontSize: 13, color: textSecondary)),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: TextField(
+                                    controller: _craftingFeeController,
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    textAlign: TextAlign.right,
+                                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: textPrimary),
+                                    decoration: const InputDecoration(
+                                      border: InputBorder.none,
+                                      isDense: true,
+                                      hintText: '800',
+                                    ),
+                                    onChanged: _onCraftingFeeChanged,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Text('บาท', style: TextStyle(fontSize: 13, color: textSecondary)),
+                              ],
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _ResultTile(
+                                label: isGold ? 'ซื้อ$assetName' : 'ซื้อแร่เงิน',
+                                value: totalSellPrice,
+                                format: (v) => _baht(v, decimals: isGold ? 0 : 2),
+                                background: warmTile,
+                                labelColor: _accentText,
+                                valueColor: isDark ? _accentText : (isGold ? const Color(0xFF7A2E0B) : const Color(0xFF1E293B)),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _ResultTile(
+                                label: 'ขายคืนร้าน',
+                                value: totalBuyPrice,
+                                format: (v) => _baht(v, decimals: isGold ? 0 : 2),
+                                background: softTile,
+                                labelColor: textSecondary,
+                                valueColor: textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'ส่วนต่างซื้อ–ขายคืน ${_baht(spread.abs(), decimals: isGold ? 0 : 2)}',
+                          style: TextStyle(fontSize: 12, color: textSecondary),
+                        ),
+                        if (isGold && _goldType == 0)
+                          Text(
+                            'ทองรูปพรรณ: ระบุค่ากำเหน็จต่อบาทเพิ่มได้',
+                            style: TextStyle(fontSize: 12, color: textSecondary),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // 4. Price chart card
+                FxFadeUp(
+                  index: 2,
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: _cardDecoration(cardBg, borderColor, isDark),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'กราฟราคา',
+                                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: textPrimary),
+                              ),
+                            ),
+                            TextButton.icon(
+                              style: TextButton.styleFrom(
+                                foregroundColor: _accentText,
+                                minimumSize: const Size(44, 44),
+                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                              ),
+                              onPressed: () => _showHistorySheet(context),
+                              icon: const Icon(Icons.history_rounded, size: 18),
+                              label: Text(
+                                isEn ? 'History' : 'ประวัติรายวัน',
+                                style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        _Segmented(
+                          labels: const ['7 วัน', '15 วัน', '1 เดือน', '3 เดือน'],
+                          selected: const [7, 15, 30, 90].indexOf(_chartDays),
+                          onSelect: (i) => _selectChartDays(const [7, 15, 30, 90][i]),
+                          track: softTile,
+                          thumb: cardBg,
+                          activeText: _accentText,
+                          inactiveText: textSecondary,
+                          height: 40,
+                          fontSize: 12.5,
+                          radius: 12,
+                          expand: true,
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _scrubbedIndex >= 0 ? scrubbedDateText : chartUnit,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(fontSize: 12, color: textSecondary),
+                                  ),
+                                  FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      _baht(displayScrubbedPrice, decimals: chartDecimals),
+                                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: textPrimary),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: Text(
+                                changeText,
+                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: changeColor),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          height: 120,
+                          child: LayoutBuilder(
+                            builder: (context, box) => GestureDetector(
+                              onPanDown: (details) => _handleScrub(details.localPosition.dx, box.maxWidth, trendPoints.length),
+                              onPanUpdate: (details) => _handleScrub(details.localPosition.dx, box.maxWidth, trendPoints.length),
+                              onPanEnd: (_) => setState(() => _scrubbedIndex = -1),
+                              onPanCancel: () => setState(() => _scrubbedIndex = -1),
+                              child: FxProgress(
+                                key: ValueKey('$_currentAssetKey-$_chartDays'),
+                                value: 1,
+                                duration: const Duration(milliseconds: 1000),
+                                builder: (_, t) => CustomPaint(
+                                  size: Size(box.maxWidth, 120),
+                                  painter: _InteractiveTrendPainter(
+                                    points: trendPoints,
+                                    lineColor: isUpTrend ? _accent : const Color(0xFFB91C1C),
+                                    dotColor: isDark && isUpTrend ? _accentText : (isUpTrend ? _accent : const Color(0xFFB91C1C)),
+                                    gridColor: borderColor,
+                                    selectedIndex: _scrubbedIndex,
+                                    progress: t,
                                   ),
                                 ),
                               ),
-                            ],
+                            ),
                           ),
-                          const SizedBox(height: 2),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.baseline,
-                            textBaseline: TextBaseline.alphabetic,
-                            children: [
-                              Text(
-                                '฿${FormatUtils.formatCurrency(displayScrubbedPrice)}',
-                                style: TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w900,
-                                  color: isGold ? const Color(0xFFD97706) : const Color(0xFF0284C7),
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                isGold ? '/ บาททอง' : '/ กรัม',
-                                style: TextStyle(fontSize: 11.5, color: textSecondary),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      Container(
-                        height: 30,
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Row(
+                        const SizedBox(height: 6),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            _buildTimeframeBtn(7, '7D'),
-                            _buildTimeframeBtn(15, '15D'),
-                            _buildTimeframeBtn(30, '1M'),
-                            _buildTimeframeBtn(90, '3M'),
+                            for (final l in dateLabels) Text(l, style: TextStyle(fontSize: 12, color: textSecondary)),
                           ],
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            'ต่ำสุด: ฿${FormatUtils.formatCurrency(minPrice)}',
-                            style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            'สูงสุด: ฿${FormatUtils.formatCurrency(maxPrice)}',
-                            style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
-                          ),
-                        ],
-                      ),
-                      InkWell(
-                        onTap: () => _showHistorySheet(context),
-                        borderRadius: BorderRadius.circular(6),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.history_rounded, size: 12, color: isGold ? const Color(0xFFD97706) : const Color(0xFF0284C7)),
-                              const SizedBox(width: 2),
-                              Text(
-                                isEn ? 'History' : 'ประวัติรายวัน',
-                                style: TextStyle(
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.bold,
-                                  color: isGold ? const Color(0xFFD97706) : const Color(0xFF0284C7),
-                                ),
-                              ),
-                            ],
-                          ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(child: _MinMaxTile(label: 'ต่ำสุดช่วงนี้', value: _baht(minPrice, decimals: chartDecimals), background: softTile, theme: theme)),
+                            const SizedBox(width: 8),
+                            Expanded(child: _MinMaxTile(label: 'สูงสุดช่วงนี้', value: _baht(maxPrice, decimals: chartDecimals), background: softTile, theme: theme)),
+                          ],
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: 110,
-                    width: double.infinity,
-                    child: GestureDetector(
-                      onPanDown: (details) => _handleScrub(details.localPosition.dx, context, trendPoints.length),
-                      onPanUpdate: (details) => _handleScrub(details.localPosition.dx, context, trendPoints.length),
-                      onPanEnd: (_) => setState(() => _scrubbedIndex = -1),
-                      child: CustomPaint(
-                        painter: _InteractiveTrendPainter(
-                          points: trendPoints,
-                          lineColor: isUpTrend
-                              ? (isGold ? const Color(0xFFD97706) : const Color(0xFF0284C7))
-                              : const Color(0xFFEF4444),
-                          selectedIndex: _scrubbedIndex,
-                          isUpTrend: isUpTrend,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Center(
-                    child: Text(
-                      isEn
-                          ? 'Tap or drag on chart to inspect daily price history'
-                          : 'แตะหรือลากนิ้วบนกราฟเพื่อดูราคาย้อนหลังรายวัน',
-                      style: TextStyle(fontSize: 10, color: textSecondary),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // 3. Controls
-            if (isGold) ...[
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTypeRadio(
-                      title: isEn ? 'Gold Bar' : 'ทองคำแท่ง 96.5%',
-                      isSelected: _goldType == 0,
-                      onTap: () {
-                        HapticFeedback.selectionClick();
-                        setState(() => _goldType = 0);
-                        _loadHistoryData();
-                      },
-                      activeColor: const Color(0xFFF59E0B),
-                      cardBg: cardBg,
-                      textPrimary: textPrimary,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _buildTypeRadio(
-                      title: isEn ? 'Gold Ornament' : 'ทองรูปพรรณ 96.5%',
-                      isSelected: _goldType == 1,
-                      onTap: () {
-                        HapticFeedback.selectionClick();
-                        setState(() => _goldType = 1);
-                        _loadHistoryData();
-                      },
-                      activeColor: const Color(0xFFF59E0B),
-                      cardBg: cardBg,
-                      textPrimary: textPrimary,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-            ],
-
-            Text(
-              isGold
-                  ? (isEn ? 'Quick Gold Weights' : 'น้ำหนักมาตรฐานไทย (เลือกด่วน)')
-                  : (isEn ? 'Quick Silver Weights' : 'น้ำหนักแร่เงิน (เลือกด่วน)'),
-              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: textPrimary),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: isGold
-                  ? [
-                      _buildPresetChip('1 สลึง', 0.25, isSelected: _unitMode == 0 && _weightValue == 0.25),
-                      _buildPresetChip('2 สลึง (50 สต.)', 0.50, isSelected: _unitMode == 0 && _weightValue == 0.50),
-                      _buildPresetChip('1 บาททอง', 1.0, isSelected: _unitMode == 0 && _weightValue == 1.0),
-                      _buildPresetChip('2 บาททอง', 2.0, isSelected: _unitMode == 0 && _weightValue == 2.0),
-                      _buildPresetChip('5 บาททอง', 5.0, isSelected: _unitMode == 0 && _weightValue == 5.0),
-                      _buildPresetChip('10 บาททอง', 10.0, isSelected: _unitMode == 0 && _weightValue == 10.0),
-                    ]
-                  : [
-                      _buildSilverPresetChip('10 กรัม', 10.0, isSelected: _unitMode == 1 && _weightValue == 10.0),
-                      _buildSilverPresetChip('50 กรัม', 50.0, isSelected: _unitMode == 1 && _weightValue == 50.0),
-                      _buildSilverPresetChip('100 กรัม', 100.0, isSelected: _unitMode == 1 && _weightValue == 100.0),
-                      _buildSilverPresetChip('500 กรัม', 500.0, isSelected: _unitMode == 1 && _weightValue == 500.0),
-                      _buildSilverPresetChip('1 กิโลกรัม (1,000g)', 1000.0, isSelected: _unitMode == 1 && _weightValue == 1000.0),
-                      _buildSilverPresetChip('1 บาทน้ำหนัก (15.24g)', 15.244, isSelected: _unitMode == 1 && (_weightValue - 15.244).abs() < 0.01),
-                    ],
-            ),
-            const SizedBox(height: 14),
-
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: cardBg,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: borderColor),
-                    ),
-                    child: TextField(
-                      controller: _weightController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimary),
-                      decoration: InputDecoration(
-                        border: InputBorder.none,
-                        labelText: isEn ? 'Weight / Amount' : 'ระบุน้ำหนักที่ต้องการคำนวณ',
-                        labelStyle: TextStyle(fontSize: 12, color: textSecondary),
-                        hintText: '1.0',
-                      ),
-                      onChanged: _onAmountChanged,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  flex: 2,
-                  child: Container(
-                    height: 58,
-                    padding: const EdgeInsets.all(3),
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () {
-                              HapticFeedback.selectionClick();
-                              setState(() => _unitMode = 0);
-                            },
-                            child: Container(
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: _unitMode == 0 ? cardBg : Colors.transparent,
-                                borderRadius: BorderRadius.circular(11),
-                              ),
-                              child: Text(
-                                'บาท',
-                                style: TextStyle(
-                                  fontSize: 12.5,
-                                  fontWeight: _unitMode == 0 ? FontWeight.bold : FontWeight.w500,
-                                  color: _unitMode == 0 ? textPrimary : textSecondary,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () {
-                              HapticFeedback.selectionClick();
-                              setState(() => _unitMode = 1);
-                            },
-                            child: Container(
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: _unitMode == 1 ? cardBg : Colors.transparent,
-                                borderRadius: BorderRadius.circular(11),
-                              ),
-                              child: Text(
-                                'กรัม',
-                                style: TextStyle(
-                                  fontSize: 12.5,
-                                  fontWeight: _unitMode == 1 ? FontWeight.bold : FontWeight.w500,
-                                  color: _unitMode == 1 ? textPrimary : textSecondary,
-                                ),
-                              ),
-                            ),
-                          ),
+                        const SizedBox(height: 12),
+                        Text(
+                          isEn
+                              ? 'Tap or drag on chart to inspect daily price history'
+                              : 'แตะหรือลากนิ้วบนกราฟเพื่อดูราคาย้อนหลังรายวัน',
+                          style: TextStyle(fontSize: 12, color: textSecondary),
                         ),
                       ],
                     ),
@@ -624,219 +778,104 @@ class _GoldSilverCalculatorScreenState extends State<GoldSilverCalculatorScreen>
                 ),
               ],
             ),
-
-            if (isGold && _goldType == 1) ...[
-              const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                decoration: BoxDecoration(
-                  color: cardBg,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: borderColor),
-                ),
-                child: TextField(
-                  controller: _craftingFeeController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: textPrimary),
-                  decoration: InputDecoration(
-                    border: InputBorder.none,
-                    labelText: isEn ? 'Crafting Fee (THB/Baht weight)' : 'ค่ากำเหน็จต่อบาททอง (บาท)',
-                    labelStyle: TextStyle(fontSize: 12, color: textSecondary),
-                    hintText: '800',
-                  ),
-                  onChanged: _onCraftingFeeChanged,
-                ),
-              ),
-            ],
-            const SizedBox(height: 16),
-
-            // 4. Results Card
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: isGold
-                      ? [
-                          const Color(0xFFFFFBEB),
-                          isDark ? const Color(0xFF1E293B) : const Color(0xFFFEF3C7),
-                        ]
-                      : [
-                          const Color(0xFFF0F9FF),
-                          isDark ? const Color(0xFF1E293B) : const Color(0xFFE0F2FE),
-                        ],
-                ),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: isGold
-                      ? const Color(0xFFF59E0B).withValues(alpha: 0.4)
-                      : const Color(0xFF0284C7).withValues(alpha: 0.4),
-                  width: 1.5,
-                ),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          ),
+        ],
+      ),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: cardBg,
+          border: Border(top: BorderSide(color: borderColor)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+            child: Row(
+              children: [
+                Flexible(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        isEn ? 'Estimated Market Value' : 'มูลค่าขายออก (ซื้อทอง/เงิน)',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: isGold ? const Color(0xFFB45309) : const Color(0xFF0369A1),
-                        ),
+                        bottomLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12, color: textSecondary),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: isGold ? const Color(0xFFF59E0B) : const Color(0xFF0284C7),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          isGold ? 'ทอง 96.5%' : 'เงิน 99.9%',
-                          style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      '฿${FormatUtils.formatCurrency(totalSellPrice)}',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w900,
-                        color: isGold ? const Color(0xFFD97706) : const Color(0xFF0284C7),
-                      ),
-                    ),
-                  ),
-                  const Divider(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('ราคารับซื้อคืน (ขายคืนร้าน)', style: TextStyle(fontSize: 11.5, color: textSecondary)),
-                          const SizedBox(height: 2),
-                          Text(
-                            '฿${FormatUtils.formatCurrency(totalBuyPrice)}',
-                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: textPrimary),
-                          ),
-                        ],
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text('ส่วนต่างราคา (Spread)', style: TextStyle(fontSize: 11.5, color: textSecondary)),
-                          const SizedBox(height: 2),
-                          Text(
-                            '฿${FormatUtils.formatCurrency(spread.abs())}',
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: FxProgress(
+                          value: totalSellPrice,
+                          builder: (_, v) => Text(
+                            _baht(v, decimals: isGold ? 0 : 2),
                             style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: isDark ? Colors.amberAccent : const Color(0xFFD97706),
+                              fontSize: 19,
+                              fontWeight: FontWeight.w700,
+                              color: isDark ? _accentText : (isGold ? const Color(0xFF7A2E0B) : const Color(0xFF1E293B)),
                             ),
                           ),
-                        ],
+                        ),
                       ),
                     ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // 5. Action Buttons
-            Row(
-              children: [
-                Expanded(
-                  child: TactileButton(
-                    onTap: () {
-                      HapticFeedback.mediumImpact();
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => AddTransactionScreen(
-                            controller: widget.controller,
-                            initialAmount: totalSellPrice,
-                            initialNote: isGold
-                                ? 'ซื้อทองคำ (${_weightController.text} ${_unitMode == 0 ? 'บาท' : 'กรัม'})'
-                                : 'ซื้อแร่เงิน (${_weightController.text} กรัม)',
-                            initialType: TransactionType.expense,
-                          ),
-                        ),
-                      );
-                    },
-                    child: Container(
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: isGold ? const Color(0xFFF59E0B) : const Color(0xFF0284C7),
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: [
-                          BoxShadow(
-                            color: (isGold ? const Color(0xFFF59E0B) : const Color(0xFF0284C7))
-                                .withValues(alpha: 0.35),
-                            blurRadius: 8,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.add_shopping_cart_rounded, color: Colors.white, size: 18),
-                          const SizedBox(width: 6),
-                          Text(
-                            isEn ? 'Record Asset Expense' : 'บันทึกเป็นรายการซื้อ',
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                          ),
-                        ],
-                      ),
-                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                TactileButton(
-                  onTap: () {
-                    HapticFeedback.selectionClick();
-                    Clipboard.setData(ClipboardData(text: totalSellPrice.toStringAsFixed(2)));
-                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('คัดลอกยอด ฿${FormatUtils.formatCurrency(totalSellPrice)} แล้ว!'),
-                        backgroundColor: const Color(0xFF10B981),
-                        behavior: SnackBarBehavior.floating,
-                        duration: const Duration(seconds: 2),
+                IconButton(
+                  tooltip: 'คัดลอกยอด',
+                  onPressed: () => _copyTotal(totalSellPrice),
+                  style: IconButton.styleFrom(
+                    minimumSize: const Size(48, 48),
+                    side: BorderSide(color: borderColor),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  icon: Icon(Icons.copy_rounded, size: 20, color: textPrimary),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 2,
+                  child: FxPress(
+                    onTap: () => _recordPurchase(totalSellPrice),
+                    child: Container(
+                      height: 56,
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      decoration: BoxDecoration(color: _accent, borderRadius: BorderRadius.circular(18)),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          isEn ? 'Record purchase' : 'บันทึกรายการซื้อ',
+                          style: const TextStyle(color: Colors.white, fontSize: 15.5, fontWeight: FontWeight.w600),
+                        ),
                       ),
-                    );
-                  },
-                  child: Container(
-                    height: 48,
-                    width: 48,
-                    decoration: BoxDecoration(
-                      color: cardBg,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: borderColor),
                     ),
-                    child: Icon(Icons.copy_rounded, color: textPrimary, size: 20),
                   ),
                 ),
               ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  void _handleScrub(double localX, BuildContext context, int pointsCount) {
-    final RenderBox? box = context.findRenderObject() as RenderBox?;
-    if (box == null) return;
-    final totalWidth = box.size.width - 32;
+  BoxDecoration _cardDecoration(Color cardBg, Color borderColor, bool isDark) {
+    return BoxDecoration(
+      color: cardBg,
+      borderRadius: BorderRadius.circular(20),
+      border: isDark ? Border.all(color: borderColor) : null,
+      boxShadow: [
+        BoxShadow(
+          color: const Color(0xFF1F1A10).withValues(alpha: isDark ? 0.2 : 0.06),
+          blurRadius: 14,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    );
+  }
+
+  void _handleScrub(double localX, double totalWidth, int pointsCount) {
     if (totalWidth <= 0 || pointsCount < 2) return;
 
     final stepX = totalWidth / (pointsCount - 1);
@@ -852,9 +891,9 @@ class _GoldSilverCalculatorScreenState extends State<GoldSilverCalculatorScreen>
     HapticFeedback.lightImpact();
     final isDark = widget.controller.isDarkMode;
     final isEn = widget.controller.isEnglish;
-    final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
-    final textSecondary = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
-    final cardBg = isDark ? MeowTheme.navySurface : Colors.white;
+    final textPrimary = widget.controller.currentTheme.textColor;
+    final textSecondary = widget.controller.currentTheme.textSecondaryColor;
+    final cardBg = widget.controller.currentTheme.cardBackground;
     final isGold = _selectedAsset == 0;
 
     final String assetName = isGold
@@ -1040,165 +1079,150 @@ class _GoldSilverCalculatorScreenState extends State<GoldSilverCalculatorScreen>
       ),
     );
   }
+}
 
-  Widget _buildAssetTab({
-    required int index,
-    required String title,
-    required bool isSelected,
-    required Color activeColor,
-    required Color cardBg,
-    required Color textPrimary,
-    required Color textSecondary,
-  }) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        setState(() {
-          _selectedAsset = index;
-          _unitMode = index == 0 ? 0 : 1;
-          _weightValue = index == 0 ? 1.0 : 100.0;
-          _weightController.text = _weightValue.toString().replaceAll(RegExp(r'\.0$'), '');
-          _scrubbedIndex = -1;
-        });
-        _loadHistoryData();
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: isSelected ? cardBg : Colors.transparent,
-          borderRadius: BorderRadius.circular(11),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 4,
-                    offset: const Offset(0, 1),
-                  ),
-                ]
-              : null,
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          title,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-            color: isSelected ? activeColor : textSecondary,
-          ),
-        ),
-      ),
-    );
-  }
+/// Pill segmented control (track + raised white thumb), as on the board.
+class _Segmented extends StatelessWidget {
+  final List<String> labels;
+  final int selected;
+  final ValueChanged<int> onSelect;
+  final Color track;
+  final Color thumb;
+  final Color activeText;
+  final Color inactiveText;
+  final double height;
+  final double fontSize;
+  final double radius;
+  final bool expand;
 
-  Widget _buildTimeframeBtn(int days, String label) {
-    final isSelected = _chartDays == days;
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        setState(() {
-          _chartDays = days;
-          _scrubbedIndex = -1;
-        });
-        _loadHistoryData();
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFF59E0B) : Colors.transparent,
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-            color: isSelected ? Colors.white : Colors.grey,
-          ),
-        ),
-      ),
-    );
-  }
+  const _Segmented({
+    required this.labels,
+    required this.selected,
+    required this.onSelect,
+    required this.track,
+    required this.thumb,
+    required this.activeText,
+    required this.inactiveText,
+    required this.height,
+    required this.fontSize,
+    required this.radius,
+    required this.expand,
+  });
 
-  Widget _buildTypeRadio({
-    required String title,
-    required bool isSelected,
-    required VoidCallback onTap,
-    required Color activeColor,
-    required Color cardBg,
-    required Color textPrimary,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected ? activeColor.withValues(alpha: 0.12) : cardBg,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? activeColor : Colors.grey.withValues(alpha: 0.3),
-            width: isSelected ? 1.8 : 1.0,
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              isSelected ? Icons.radio_button_checked_rounded : Icons.radio_button_unchecked_rounded,
-              color: isSelected ? activeColor : Colors.grey,
-              size: 16,
+  @override
+  Widget build(BuildContext context) {
+    Widget seg(int i) {
+      final on = i == selected;
+      final child = Semantics(
+        button: true,
+        selected: on,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => onSelect(i),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            height: height,
+            alignment: Alignment.center,
+            padding: EdgeInsets.symmetric(horizontal: expand ? 2 : 12),
+            decoration: BoxDecoration(
+              color: on ? thumb : Colors.transparent,
+              borderRadius: BorderRadius.circular(radius - 3),
+              boxShadow: on
+                  ? [BoxShadow(color: const Color(0xFF1F1A10).withValues(alpha: 0.12), blurRadius: 4, offset: const Offset(0, 1))]
+                  : null,
             ),
-            const SizedBox(width: 6),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                color: isSelected ? activeColor : textPrimary,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                labels[i],
+                maxLines: 1,
+                style: TextStyle(
+                  fontSize: fontSize,
+                  fontWeight: on ? FontWeight.w600 : FontWeight.w400,
+                  color: on ? activeText : inactiveText,
+                ),
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPresetChip(String label, double bahtAmount, {required bool isSelected}) {
-    return GestureDetector(
-      onTap: () => _setGoldPreset(bahtAmount),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFF59E0B) : const Color(0xFFF59E0B).withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: isSelected ? 1.0 : 0.3)),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
-            color: isSelected ? Colors.white : const Color(0xFFB45309),
           ),
         ),
+      );
+      return expand ? Expanded(child: child) : child;
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(color: track, borderRadius: BorderRadius.circular(radius)),
+      child: Row(
+        mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
+        children: [
+          for (int i = 0; i < labels.length; i++) ...[
+            if (i > 0) const SizedBox(width: 3),
+            seg(i),
+          ],
+        ],
       ),
     );
   }
+}
 
-  Widget _buildSilverPresetChip(String label, double gramAmount, {required bool isSelected}) {
-    return GestureDetector(
-      onTap: () => _setSilverPreset(gramAmount),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF0284C7) : const Color(0xFF0284C7).withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFF0284C7).withValues(alpha: isSelected ? 1.0 : 0.3)),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
-            color: isSelected ? Colors.white : const Color(0xFF0369A1),
+class _HeroPriceTile extends StatelessWidget {
+  final String title;
+  final String sell;
+  final String buy;
+  final String buyLabel;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  const _HeroPriceTile({
+    required this.title,
+    required this.sell,
+    required this.buy,
+    required this.selected,
+    required this.onTap,
+    this.buyLabel = 'รับซื้อ',
+    this.mutedColor = const Color(0xFFFDE7C2),
+  });
+
+  final Color mutedColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = TextStyle(fontSize: 12, color: mutedColor);
+    const strong = TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Colors.white);
+    Widget line(String l, String v) => Row(
+          children: [
+            Text(l, style: muted, maxLines: 1),
+            const SizedBox(width: 6),
+            Expanded(
+              child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerRight, child: Text(v, style: strong)),
+            ),
+          ],
+        );
+    return Semantics(
+      button: onTap != null,
+      selected: selected,
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: selected && onTap != null ? 0.22 : 0.14),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: selected && onTap != null ? Colors.white.withValues(alpha: 0.7) : Colors.transparent,
+              width: 1.5,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(title, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Colors.white)),
+              const SizedBox(height: 4),
+              line('ขายออก', sell),
+              const SizedBox(height: 4),
+              line(buyLabel, buy),
+            ],
           ),
         ),
       ),
@@ -1206,98 +1230,211 @@ class _GoldSilverCalculatorScreenState extends State<GoldSilverCalculatorScreen>
   }
 }
 
+class _PresetChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final Color accent;
+  final AppThemeModel theme;
+  final VoidCallback onTap;
+
+  const _PresetChip({
+    required this.label,
+    required this.selected,
+    required this.accent,
+    required this.theme,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return FxPress(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        height: 44,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: selected ? accent : theme.cardBackground,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: selected ? accent : theme.borderColor),
+        ),
+        child: Center(
+          widthFactor: 1,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+              color: selected ? Colors.white : theme.textSecondaryColor,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ResultTile extends StatelessWidget {
+  final String label;
+  final double value;
+  final String Function(double) format;
+  final Color background;
+  final Color labelColor;
+  final Color valueColor;
+
+  const _ResultTile({
+    required this.label,
+    required this.value,
+    required this.format,
+    required this.background,
+    required this.labelColor,
+    required this.valueColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(14)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: labelColor)),
+          const SizedBox(height: 2),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: FxProgress(
+              value: value,
+              builder: (_, v) => Text(
+                format(v),
+                style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700, color: valueColor),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MinMaxTile extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color background;
+  final AppThemeModel theme;
+
+  const _MinMaxTile({required this.label, required this.value, required this.background, required this.theme});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(10)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: TextStyle(fontSize: 12, color: theme.textSecondaryColor)),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: theme.textColor)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Line + area chart with 3 grid lines; [progress] 0..1 draws the line in (fx-draw).
 class _InteractiveTrendPainter extends CustomPainter {
   final List<double> points;
   final Color lineColor;
+  final Color dotColor;
+  final Color gridColor;
   final int selectedIndex;
-  final bool isUpTrend;
+  final double progress;
 
   _InteractiveTrendPainter({
     required this.points,
     required this.lineColor,
+    required this.dotColor,
+    required this.gridColor,
     required this.selectedIndex,
-    required this.isUpTrend,
+    required this.progress,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
+    const top = 10.0;
+    final bottom = size.height - 10;
+
+    final grid = Paint()
+      ..color = gridColor
+      ..strokeWidth = 1;
+    for (final y in [top, (top + bottom) / 2, bottom]) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), grid);
+    }
+
     if (points.length < 2) return;
 
     final minVal = points.reduce(math.min);
     final maxVal = points.reduce(math.max);
     final range = (maxVal - minVal) == 0 ? 1.0 : (maxVal - minVal);
+    final left = 4.0;
+    final width = size.width - 10;
+    final stepX = width / (points.length - 1);
 
-    final double paddingY = size.height * 0.12;
-    final double drawHeight = size.height - (paddingY * 2);
-    final double stepX = size.width / (points.length - 1);
+    final offsets = <Offset>[
+      for (int i = 0; i < points.length; i++)
+        Offset(left + i * stepX, bottom - (points[i] - minVal) / range * (bottom - top)),
+    ];
 
-    final offsets = <Offset>[];
-    for (int i = 0; i < points.length; i++) {
-      final normY = (points[i] - minVal) / range;
-      final x = i * stepX;
-      final y = size.height - paddingY - (normY * drawHeight);
-      offsets.add(Offset(x, y));
+    final line = Path()..moveTo(offsets.first.dx, offsets.first.dy);
+    for (final o in offsets.skip(1)) {
+      line.lineTo(o.dx, o.dy);
     }
 
-    final path = Path();
-    path.moveTo(offsets[0].dx, offsets[0].dy);
+    final area = Path.from(line)
+      ..lineTo(offsets.last.dx, bottom)
+      ..lineTo(offsets.first.dx, bottom)
+      ..close();
+    canvas.drawPath(area, Paint()..color = lineColor.withValues(alpha: 0.12 * progress));
 
-    for (int i = 0; i < offsets.length - 1; i++) {
-      final p0 = offsets[i];
-      final p1 = offsets[i + 1];
-      final controlX = (p0.dx + p1.dx) / 2;
-      path.cubicTo(controlX, p0.dy, controlX, p1.dy, p1.dx, p1.dy);
-    }
+    final metric = line.computeMetrics().first;
+    final drawn = metric.extractPath(0, metric.length * progress);
+    canvas.drawPath(
+      drawn,
+      Paint()
+        ..color = lineColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round,
+    );
 
-    final fillPath = Path.from(path);
-    fillPath.lineTo(size.width, size.height);
-    fillPath.lineTo(0, size.height);
-    fillPath.close();
-
-    final fillPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          lineColor.withValues(alpha: 0.28),
-          lineColor.withValues(alpha: 0.0),
-        ],
-      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height))
-      ..style = PaintingStyle.fill;
-    canvas.drawPath(fillPath, fillPaint);
-
-    final strokePaint = Paint()
-      ..color = lineColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    canvas.drawPath(path, strokePaint);
+    if (progress < 1) return;
 
     final activeIndex = selectedIndex >= 0 ? selectedIndex : (offsets.length - 1);
-    final targetPoint = offsets[activeIndex];
-
-    canvas.drawCircle(
-      targetPoint,
-      6.0,
-      Paint()..color = lineColor.withValues(alpha: 0.35),
-    );
-    canvas.drawCircle(targetPoint, 4.0, Paint()..color = Colors.white);
-    canvas.drawCircle(targetPoint, 2.4, Paint()..color = lineColor);
-
+    final target = offsets[activeIndex];
     if (selectedIndex >= 0) {
-      final guidePaint = Paint()
-        ..color = lineColor.withValues(alpha: 0.5)
-        ..strokeWidth = 1.2
-        ..style = PaintingStyle.stroke;
-      canvas.drawLine(Offset(targetPoint.dx, 0), Offset(targetPoint.dx, size.height), guidePaint);
+      canvas.drawLine(
+        Offset(target.dx, 0),
+        Offset(target.dx, size.height),
+        Paint()
+          ..color = lineColor.withValues(alpha: 0.5)
+          ..strokeWidth = 1.2,
+      );
     }
+    canvas.drawCircle(target, 4.5, Paint()..color = dotColor);
   }
 
   @override
   bool shouldRepaint(covariant _InteractiveTrendPainter oldDelegate) {
     return oldDelegate.points != points ||
         oldDelegate.selectedIndex != selectedIndex ||
-        oldDelegate.lineColor != lineColor;
+        oldDelegate.lineColor != lineColor ||
+        oldDelegate.progress != progress ||
+        oldDelegate.gridColor != gridColor;
   }
 }
