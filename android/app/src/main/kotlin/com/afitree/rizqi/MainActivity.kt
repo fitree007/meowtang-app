@@ -40,6 +40,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -322,8 +324,13 @@ class MainActivity : FlutterActivity() {
                     if (filePath.isNullOrEmpty()) {
                         result.error("INVALID_PATH", "File path is empty", null)
                     } else {
-                        val savedPath = compressAndSaveSlipInternal(filePath, customName)
-                        result.success(savedPath)
+                        // Decoding + re-encoding the image is slow; doing it on the UI
+                        // thread froze the app (and could trigger "app not responding")
+                        // while slips were being imported.
+                        CoroutineScope(Dispatchers.IO).launch {
+                            val savedPath = compressAndSaveSlipInternal(filePath, customName)
+                            withContext(Dispatchers.Main) { result.success(savedPath) }
+                        }
                     }
                 }
                 "showScanProgressNotification" -> {
@@ -364,6 +371,57 @@ class MainActivity : FlutterActivity() {
     /**
      * Executes real Google ML Kit Barcode/QR Scanning & Thai OCR Text Recognition on the image file
      */
+    /** At most two images in ML Kit at once, whoever asks (scan, observer, manual). */
+    private val mlKitPermits = Semaphore(2)
+
+    /** Longest side handed to ML Kit. Phone screenshots and bank slips are below this. */
+    private val mlKitMaxSide = 2560
+
+    /**
+     * Loads [uri] for ML Kit. Normal slips and screenshots load as before; very large
+     * images (e.g. 12 MP camera photos) are decoded downscaled so a few of them in a
+     * row cannot run the app out of memory.
+     */
+    private fun loadInputImage(uri: Uri): InputImage {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+        val longSide = maxOf(bounds.outWidth, bounds.outHeight)
+        if (longSide <= mlKitMaxSide) {
+            return InputImage.fromFilePath(this, uri)
+        }
+
+        var sample = 1
+        while (longSide / (sample * 2) >= mlKitMaxSide) sample *= 2
+        val decoded = contentResolver.openInputStream(uri)?.use {
+            BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample })
+        } ?: return InputImage.fromFilePath(this, uri)
+
+        val scale = mlKitMaxSide.toFloat() / maxOf(decoded.width, decoded.height)
+        val bitmap = if (scale < 1f) {
+            android.graphics.Bitmap.createScaledBitmap(
+                decoded, (decoded.width * scale).toInt(), (decoded.height * scale).toInt(), true
+            ).also { if (it !== decoded) decoded.recycle() }
+        } else {
+            decoded
+        }
+
+        val rotation = try {
+            contentResolver.openInputStream(uri)?.use {
+                when (android.media.ExifInterface(it).getAttributeInt(
+                    android.media.ExifInterface.TAG_ORIENTATION, android.media.ExifInterface.ORIENTATION_NORMAL
+                )) {
+                    android.media.ExifInterface.ORIENTATION_ROTATE_90 -> 90
+                    android.media.ExifInterface.ORIENTATION_ROTATE_180 -> 180
+                    android.media.ExifInterface.ORIENTATION_ROTATE_270 -> 270
+                    else -> 0
+                }
+            } ?: 0
+        } catch (e: Exception) {
+            0
+        }
+        return InputImage.fromBitmap(bitmap, rotation)
+    }
+
     private fun processSlipImageWithMlKit(filePath: String, result: MethodChannel.Result) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -375,11 +433,10 @@ class MainActivity : FlutterActivity() {
                     return@launch
                 }
 
-                val inputImage: InputImage = if (filePath.startsWith("content://")) {
-                    InputImage.fromFilePath(this@MainActivity, Uri.parse(filePath))
-                } else {
-                    InputImage.fromFilePath(this@MainActivity, Uri.fromFile(file))
-                }
+              mlKitPermits.withPermit {
+                val inputImage: InputImage = loadInputImage(
+                    if (filePath.startsWith("content://")) Uri.parse(filePath) else Uri.fromFile(file)
+                )
 
                 // Execute QR Code Scanning & OCR Text Recognition concurrently in parallel
                 val (qrPayload, ocrText) = coroutineScope {
@@ -422,6 +479,7 @@ class MainActivity : FlutterActivity() {
                 withContext(Dispatchers.Main) {
                     result.success(resMap)
                 }
+              }
             } catch (e: Exception) {
                 e.printStackTrace()
                 withContext(Dispatchers.Main) {

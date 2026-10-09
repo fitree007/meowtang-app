@@ -187,6 +187,9 @@ class SlipAutoSyncService {
       // Pre-cache deduplication sets in memory once to avoid heavy O(N*M) shared_preferences and .toSet() overhead
       final cachedDeletedSet = controller.storage.getDeletedSlips().map((s) => s.trim().toLowerCase()).toSet();
       final cachedImportedSet = controller.storage.getImportedSlipIdentifiers().map((s) => s.trim().toLowerCase()).toSet();
+      // Lookup index over saved transactions, so each slip is compared only with
+      // the few transactions that could match instead of the whole list.
+      final txIndex = SlipIndex.from(controller.allTransactions);
 
       final now = DateTime.now();
       final startOfPreviousMonth = getStartOfPreviousMonth(now);
@@ -347,7 +350,9 @@ class SlipAutoSyncService {
       );
     }
 
-    const int kSlipScanConcurrency = 3;
+    // Two slips at a time: each one decodes a full image for ML Kit, and three
+    // in parallel could exhaust memory on low-end phones and kill the app.
+    const int kSlipScanConcurrency = 2;
     final importedSlips = <TransactionItem>[];
     final pendingBatch = <TransactionItem>[];
     final pendingIdentifiers = <String>[];
@@ -395,6 +400,7 @@ class SlipAutoSyncService {
               date: slipDate,
               cachedDeletedSet: cachedDeletedSet,
               cachedImportedSet: cachedImportedSet,
+              txIndex: txIndex,
             );
           } finally {
             if (key.isNotEmpty) {
@@ -447,13 +453,15 @@ class SlipAutoSyncService {
         pendingBatch.add(item);
         pendingIdentifiers.addAll(newIds);
 
-        // 7. Batch commit: initial scan flush every 10 items or 2000ms; regular scan flush every item
+        // 7. Batch commit: initial scan flush every 20 items or 4s (each flush re-saves
+        // every transaction and redraws the app); regular scan flush every item
         final shouldFlush = !isInitialScan ||
-            pendingBatch.length >= 10 ||
-            DateTime.now().difference(lastBatchSaveTime).inMilliseconds >= 2000;
+            pendingBatch.length >= 20 ||
+            DateTime.now().difference(lastBatchSaveTime).inMilliseconds >= 4000;
 
         if (shouldFlush) {
           final saved = await _flushBatch(controller, pendingBatch, pendingIdentifiers, isInitialScan);
+          saved.forEach(txIndex.add);
           importedSlips.addAll(saved);
           lastBatchSaveTime = DateTime.now();
 
@@ -466,6 +474,9 @@ class SlipAutoSyncService {
           }
         }
       }
+
+      // Let the UI draw a frame between chunks so scrolling stays smooth.
+      await Future.delayed(const Duration(milliseconds: 16));
     }
 
     for (final slip in allSlips) {
@@ -504,6 +515,7 @@ class SlipAutoSyncService {
         cachedImportedSet: cachedImportedSet,
         filePath: path.isNotEmpty ? path : uri,
         fileName: name,
+        index: txIndex,
       );
       if (isDup) {
         if (key.isNotEmpty) _processedKeys.add(key);
@@ -535,6 +547,7 @@ class SlipAutoSyncService {
     // Flush any remaining batch
     if (pendingBatch.isNotEmpty) {
       final saved = await _flushBatch(controller, pendingBatch, pendingIdentifiers, isInitialScan);
+      saved.forEach(txIndex.add);
       importedSlips.addAll(saved);
       if (isInitialScan && importedSlips.isNotEmpty) {
         NativeBridgeService.showScanProgressNotification(
@@ -599,49 +612,47 @@ class SlipAutoSyncService {
 
     final toRemoveIds = <String>{};
     final seenSlips = <String>{};
+    // Transactions kept so far. Each one is checked only against these (via the
+    // index), which is the same as the old every-pair comparison where a later
+    // duplicate is removed in favour of the earlier one, but linear in time.
+    final kept = SlipIndex.from(const []);
 
     for (int i = 0; i < all.length; i++) {
+      // Give the UI a frame now and then on very large histories.
+      if (i % 200 == 199) await Future.delayed(Duration.zero);
       final tx = all[i];
-      if (toRemoveIds.contains(tx.id)) continue;
 
       // 1. Check duplicate image filename
-      if (tx.slipImageUrl != null && tx.slipImageUrl!.isNotEmpty) {
-        final bName = DuplicateSlipChecker.extractBasename(tx.slipImageUrl);
-        if (bName.isNotEmpty) {
-          if (seenSlips.contains(bName)) {
-            toRemoveIds.add(tx.id);
-            continue;
-          }
-          seenSlips.add(bName);
-        }
+      final bName = DuplicateSlipChecker.extractBasename(tx.slipImageUrl);
+      if (bName.isNotEmpty && seenSlips.contains(bName)) {
+        toRemoveIds.add(tx.id);
+        continue;
       }
 
-      // 2. Check duplicate with another transaction in the list
-      for (int j = i + 1; j < all.length; j++) {
-        final other = all[j];
-        if (toRemoveIds.contains(other.id)) continue;
-
-        final isDup = DuplicateSlipChecker.isDuplicate(
-          existingTransactions: [tx],
-          filePath: other.slipImageUrl,
-          fileName: other.slipImageUrl != null ? DuplicateSlipChecker.extractBasename(other.slipImageUrl) : null,
-          refId: other.slipRefId,
-          amount: other.amount,
-          date: other.date,
-          bankName: other.bankName,
-          excludeId: other.id,
-        );
-
-        if (isDup) {
-          toRemoveIds.add(other.id);
-        }
+      // 2. Check duplicate against an earlier kept transaction
+      final isDup = DuplicateSlipChecker.isDuplicate(
+        existingTransactions: const [],
+        index: kept,
+        filePath: tx.slipImageUrl,
+        fileName: tx.slipImageUrl != null ? bName : null,
+        refId: tx.slipRefId,
+        amount: tx.amount,
+        date: tx.date,
+        bankName: tx.bankName,
+        excludeId: tx.id,
+      );
+      if (isDup) {
+        toRemoveIds.add(tx.id);
+        continue;
       }
+
+      if (bName.isNotEmpty) seenSlips.add(bName);
+      kept.add(tx);
     }
 
+    // One save and one redraw for all of them, instead of one per duplicate.
     if (toRemoveIds.isNotEmpty) {
-      for (final id in toRemoveIds) {
-        await controller.deleteTransaction(id);
-      }
+      await controller.deleteTransactionsBatch(toRemoveIds);
     }
 
     return toRemoveIds.length;
@@ -695,12 +706,13 @@ class SlipAutoSyncService {
     required DateTime date,
     Set<String>? cachedDeletedSet,
     Set<String>? cachedImportedSet,
+    SlipIndex? txIndex,
   }) async {
-    final effectivePath = (path.isNotEmpty && File(path).existsSync())
+    final effectivePath = (path.isNotEmpty && await File(path).exists())
         ? path
         : ((uri != null && uri.startsWith('content://')) ? uri : path);
     final file = File(effectivePath);
-    if (!file.existsSync() && !effectivePath.startsWith('content://')) {
+    if (!effectivePath.startsWith('content://') && !await file.exists()) {
       return null;
     }
 
@@ -863,6 +875,7 @@ class SlipAutoSyncService {
       amount: detectedAmount,
       date: txDate,
       bankName: bankName,
+      index: txIndex,
     );
     if (isPostDup) {
       final ids = [

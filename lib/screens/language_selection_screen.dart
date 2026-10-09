@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../state/expense_controller.dart';
-import '../theme/meow_theme.dart';
 import '../widgets/tactile_button.dart';
 import '../widgets/app_logo_widget.dart';
 import '../widgets/onboarding_step_header.dart';
@@ -38,148 +37,75 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
   @override
   Widget build(BuildContext context) {
     final isEn = _selectedLang == 'en';
-    const bgColor = Color(0xFFFDFBF7);
-    const textPrimary = Color(0xFF0F172A);
-    const textSecondary = Color(0xFF64748B);
+    final theme = widget.controller.currentTheme;
 
     return Scaffold(
-      backgroundColor: bgColor,
-      body: SafeArea(
-        child: Column(
-          children: [
-            OnboardingStepHeader(
-              currentStep: 1,
-              totalSteps: 4,
-              badgeText: isEn ? 'Step 1/4 • Select Language' : 'ขั้นตอนที่ 1/4 • เลือกภาษา',
-              stepIcon: Icons.language_rounded,
-              title: isEn ? 'Select Language' : 'เลือกภาษาการใช้งาน',
-              subtitle: isEn
-                  ? 'Choose your preferred language for MeowTang'
-                  : 'ยินดีต้อนรับสู่เหมียวตังค์ กรุณาเลือกภาษาเพื่อเริ่มต้น',
-              primaryColor: const Color(0xFF0284C7),
-              textColor: textPrimary,
-              subtitleColor: textSecondary,
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                child: Column(
-                  children: [
-                    const Spacer(flex: 1),
-
-                    // Modern Minimalist Logo with Glow
-                    Center(
-                      child: Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(28),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF3B82F6).withValues(alpha: 0.12),
-                              blurRadius: 28,
-                              offset: const Offset(0, 10),
-                            ),
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.04),
-                              blurRadius: 10,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: const AppLogoWidget(
-                          size: 76,
-                          borderRadius: 20,
-                          withBorder: false,
-                          withShadow: false,
-                        ),
-                      ),
+      backgroundColor: theme.scaffoldBackground,
+      body: Column(
+        children: [
+          OnboardingStepHeader(
+            controller: widget.controller,
+            currentStep: 1,
+            title: isEn ? 'Select Language' : 'เลือกภาษาการใช้งาน',
+            subtitle: isEn
+                ? 'Welcome to MeowTang. Pick a language to begin'
+                : 'ยินดีต้อนรับสู่เหมียวตังค์ เลือกภาษาเพื่อเริ่มต้น',
+          ),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 28, 16, 20),
+              children: [
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: theme.cardBackground,
+                      borderRadius: BorderRadius.circular(26),
+                      border: Border.all(color: theme.borderColor.withValues(alpha: 0.6)),
                     ),
-
-                    const Spacer(flex: 1),
-
-                    // Language Option 1: ภาษาไทย (Thai)
-                    _buildModernLangCard(
-                      langCode: 'th',
-                      flag: '🇹🇭',
-                      title: 'ภาษาไทย',
-                      subtitle: 'ระบบบันทึกรายรับรายจ่าย AI อัจฉริยะ',
-                      isSelected: _selectedLang == 'th',
-                      accentColor: const Color(0xFF0284C7),
-                    ),
-                    const SizedBox(height: 14),
-
-                    // Language Option 2: English
-                    _buildModernLangCard(
-                      langCode: 'en',
-                      flag: '🇬🇧',
-                      title: 'English',
-                      subtitle: 'Smart AI Expense & Income Tracker',
-                      isSelected: _selectedLang == 'en',
-                      accentColor: const Color(0xFF6366F1),
-                    ),
-
-                    const Spacer(flex: 2),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, -2),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          top: false,
-          child: SizedBox(
-            height: 50,
-            child: TactileButton(
-              onTap: _onConfirm,
-              child: Container(
-                width: double.infinity,
-                height: 50,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF0284C7), Color(0xFF0369A1)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+                    child: const AppLogoWidget(size: 72, borderRadius: 18, withBorder: false, withShadow: false),
                   ),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF0284C7).withValues(alpha: 0.35),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      isEn ? 'Next: Choose Mascot (1/4) →' : 'ขั้นตอนถัดไป: เลือกคู่หู (1/4) →',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
+                const SizedBox(height: 28),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
+                  child: Text(
+                    isEn ? 'Language' : 'ภาษา',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: theme.textColor),
+                  ),
                 ),
-              ),
+                _buildModernLangCard(
+                  langCode: 'th',
+                  flag: '🇹🇭',
+                  title: 'ภาษาไทย',
+                  subtitle: 'ระบบบันทึกรายรับรายจ่าย AI อัจฉริยะ',
+                  isSelected: _selectedLang == 'th',
+                ),
+                const SizedBox(height: 10),
+                _buildModernLangCard(
+                  langCode: 'en',
+                  flag: '🇬🇧',
+                  title: 'English',
+                  subtitle: 'Smart AI Expense & Income Tracker',
+                  isSelected: _selectedLang == 'en',
+                ),
+                const SizedBox(height: 14),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Text(
+                    isEn ? 'You can change this later in Menu › Language.' : 'เปลี่ยนภาษาได้ภายหลังที่ เมนู › ภาษา',
+                    style: TextStyle(fontSize: 12.5, color: theme.textSecondaryColor),
+                  ),
+                ),
+              ],
             ),
           ),
-        ),
+        ],
+      ),
+      bottomNavigationBar: OnboardingBottomBar(
+        controller: widget.controller,
+        nextLabel: isEn ? 'Next: choose a mascot' : 'ถัดไป: เลือกคู่หู',
+        onNext: _onConfirm,
       ),
     );
   }
@@ -190,8 +116,11 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
     required String title,
     required String subtitle,
     required bool isSelected,
-    required Color accentColor,
   }) {
+    final theme = widget.controller.currentTheme;
+    final isDark = widget.controller.isDarkMode;
+    final accentColor = theme.primaryColor;
+    final accentText = isDark ? Color.lerp(accentColor, Colors.white, 0.55)! : accentColor;
     return TactileButton(
       onTap: () {
         HapticFeedback.selectionClick();
@@ -202,44 +131,33 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 220),
         curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+        constraints: const BoxConstraints(minHeight: 72),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white : const Color(0xFFF1F5F9),
-          borderRadius: BorderRadius.circular(20),
+          color: isSelected
+              ? Color.alphaBlend(accentColor.withValues(alpha: isDark ? 0.18 : 0.06), theme.cardBackground)
+              : theme.cardBackground,
+          borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: isSelected ? accentColor : const Color(0xFFE2E8F0),
-            width: isSelected ? 2.2 : 1.0,
+            color: isSelected ? accentColor : theme.borderColor.withValues(alpha: 0.6),
+            width: isSelected ? 2 : 1,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: isSelected
-                  ? accentColor.withValues(alpha: 0.18)
-                  : Colors.black.withValues(alpha: 0.02),
-              blurRadius: isSelected ? 16 : 6,
-              offset: const Offset(0, 3),
-            ),
-          ],
         ),
         child: Row(
           children: [
-            // Flag Icon in circle
             Container(
-              width: 48,
-              height: 48,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
-                color: isSelected ? accentColor.withValues(alpha: 0.1) : Colors.white,
+                color: theme.scaffoldBackground,
                 shape: BoxShape.circle,
-                border: Border.all(
-                  color: isSelected ? accentColor.withValues(alpha: 0.3) : const Color(0xFFE2E8F0),
-                ),
+                border: Border.all(color: theme.borderColor.withValues(alpha: 0.6)),
               ),
               child: Center(
-                child: Text(flag, style: const TextStyle(fontSize: 24)),
+                child: Text(flag, style: const TextStyle(fontSize: 22)),
               ),
             ),
             const SizedBox(width: 14),
-
-            // Text Details
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -247,24 +165,19 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
                   Text(
                     title,
                     style: TextStyle(
-                      color: isSelected ? accentColor : const Color(0xFF0F172A),
-                      fontSize: 16.5,
-                      fontWeight: FontWeight.bold,
+                      color: isSelected ? accentText : theme.textColor,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: const TextStyle(
-                      color: Color(0xFF64748B),
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: theme.textSecondaryColor, fontSize: 12.5),
                   ),
                 ],
               ),
             ),
-
-            // Radio Indicator
             AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               width: 24,
@@ -273,7 +186,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
                 shape: BoxShape.circle,
                 color: isSelected ? accentColor : Colors.transparent,
                 border: Border.all(
-                  color: isSelected ? accentColor : const Color(0xFF94A3B8),
+                  color: isSelected ? accentColor : theme.textSecondaryColor.withValues(alpha: 0.6),
                   width: 2,
                 ),
               ),

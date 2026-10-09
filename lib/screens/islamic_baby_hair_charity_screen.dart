@@ -264,21 +264,15 @@ class _IslamicBabyHairCharityScreenState extends State<IslamicBabyHairCharityScr
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackground,
-      body: ListView(
-        padding: EdgeInsets.zero,
-        physics: const BouncingScrollPhysics(),
+      // The title bar stays put; the hadith panel below scrolls in the same
+      // colour, and clamping physics stop a pull-down from revealing a gap.
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header with the hadith
           Container(
-            decoration: BoxDecoration(
-              color: headerColor,
-              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
-            ),
-            padding: EdgeInsets.fromLTRB(8, MediaQuery.of(context).padding.top + 10, 8, 18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
+            color: headerColor,
+            padding: EdgeInsets.fromLTRB(8, MediaQuery.of(context).padding.top + 10, 8, 4),
+            child: Row(
                   children: [
                     IconButton(
                       icon: const Icon(Icons.chevron_left_rounded, color: Colors.white, size: 28),
@@ -303,8 +297,23 @@ class _IslamicBabyHairCharityScreenState extends State<IslamicBabyHairCharityScr
                       ),
                     ),
                   ],
-                ),
-                const SizedBox(height: 12),
+            ),
+          ),
+          Expanded(
+           child: ListView(
+            padding: EdgeInsets.zero,
+            physics: const ClampingScrollPhysics(),
+            children: [
+          // Hadith panel, continuing the header colour
+          Container(
+            decoration: BoxDecoration(
+              color: headerColor,
+              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+            ),
+            padding: const EdgeInsets.fromLTRB(8, 8, 8, 18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 12),
                   padding: const EdgeInsets.all(14),
@@ -617,6 +626,9 @@ class _IslamicBabyHairCharityScreenState extends State<IslamicBabyHairCharityScr
                 ),
               ],
             ),
+          ),
+            ],
+           ),
           ),
         ],
       ),

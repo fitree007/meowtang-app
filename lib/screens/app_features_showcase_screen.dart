@@ -530,7 +530,6 @@ class AppFeaturesShowcaseScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = controller.currentTheme;
     final isEn = controller.isEnglish;
     final p = _Pal.of(controller);
     final categories = _getCategories(isEn);
@@ -555,30 +554,15 @@ class AppFeaturesShowcaseScreen extends StatelessWidget {
               backLabel: isEn ? 'Back' : 'ย้อนกลับ',
             )
           else
-            SafeArea(
-              bottom: false,
-              child: OnboardingStepHeader(
-                currentStep: 4,
-                totalSteps: 4,
-                badgeText: isEn ? 'Step 4/4 • Features' : 'ขั้นตอนที่ 4/4 • จุดเด่นของแอพ',
-                stepIcon: Icons.auto_awesome_outlined,
-                title: isEn ? 'MeowTang Highlights' : 'จุดเด่นของเหมียวตังค์',
-                subtitle: isEn
-                    ? 'Smart features to take control of your finances'
-                    : 'ฟีเจอร์อัจฉริยะที่จะช่วยให้คุณคุมเงินได้ง่ายขึ้น',
-                primaryColor: theme.primaryColor,
-                textColor: theme.textColor,
-                subtitleColor: theme.textSecondaryColor,
-                trailing: TextButton(
-                  onPressed: () => _onFinish(context),
-                  style: TextButton.styleFrom(
-                    minimumSize: const Size(44, 44),
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    foregroundColor: p.link,
-                  ),
-                  child: Text(isEn ? 'Skip' : 'ข้าม', style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
-                ),
-              ),
+            OnboardingStepHeader(
+              controller: controller,
+              currentStep: 4,
+              title: isEn ? 'MeowTang Highlights' : 'จุดเด่นของเหมียวตังค์',
+              subtitle: isEn
+                  ? 'Smart features to take control of your finances'
+                  : 'ฟีเจอร์อัจฉริยะที่จะช่วยให้คุณคุมเงินได้ง่ายขึ้น',
+              onBack: controller.revertToThemeOnboarding,
+              trailing: OnboardingSkipButton(controller: controller, onTap: () => _onFinish(context)),
             ),
           Expanded(
             child: ListView(
@@ -591,54 +575,27 @@ class AppFeaturesShowcaseScreen extends StatelessWidget {
               ],
             ),
           ),
-          Container(
-            decoration: BoxDecoration(color: p.card, border: Border(top: BorderSide(color: p.line))),
-            padding: EdgeInsets.fromLTRB(16, 12, 16, 14 + MediaQuery.of(context).padding.bottom),
-            child: _isStandalone
-                ? _PrimaryButton(
-                    pal: p,
-                    label: isEn ? 'See step-by-step how-tos' : 'ดูวิธีใช้งานทีละขั้น',
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      Navigator.pushReplacement(
-                          context, MaterialPageRoute(builder: (_) => AppGuideScreen(controller: controller)));
-                    },
-                  )
-                : Row(
-                    children: [
-                      Expanded(
-                        flex: 35,
-                        child: Material(
-                          color: p.card,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: p.line)),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(16),
-                            onTap: () async {
-                              HapticFeedback.selectionClick();
-                              await controller.revertToThemeOnboarding();
-                            },
-                            child: SizedBox(
-                              height: 52,
-                              child: Center(
-                                child: Text(isEn ? 'Back' : 'ย้อนกลับ',
-                                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: p.text)),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        flex: 65,
-                        child: _PrimaryButton(
-                          pal: p,
-                          label: isEn ? 'Get started' : 'เริ่มใช้งานเหมียวตังค์',
-                          onTap: () => _onFinish(context),
-                        ),
-                      ),
-                    ],
-                  ),
-          ),
+          if (_isStandalone)
+            Container(
+              decoration: BoxDecoration(color: p.card, border: Border(top: BorderSide(color: p.line))),
+              padding: EdgeInsets.fromLTRB(16, 12, 16, 14 + MediaQuery.of(context).padding.bottom),
+              child: _PrimaryButton(
+                pal: p,
+                label: isEn ? 'See step-by-step how-tos' : 'ดูวิธีใช้งานทีละขั้น',
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  Navigator.pushReplacement(
+                      context, MaterialPageRoute(builder: (_) => AppGuideScreen(controller: controller)));
+                },
+              ),
+            )
+          else
+            OnboardingBottomBar(
+              controller: controller,
+              nextLabel: isEn ? 'Get started' : 'เริ่มใช้งานเหมียวตังค์',
+              onNext: () => _onFinish(context),
+              onBack: controller.revertToThemeOnboarding,
+            ),
         ],
       ),
     );

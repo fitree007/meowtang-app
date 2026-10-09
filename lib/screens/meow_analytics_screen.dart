@@ -508,6 +508,7 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> {
       body: Column(
         children: [
           _buildHeader(),
+          _buildTabBar(),
           Expanded(child: _buildActiveTabContent()),
         ],
       ),
@@ -524,12 +525,21 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> {
       controller: _c,
       title: _isEn ? 'Statistics' : 'สถิติ',
       subtitle: subtitle,
-      bottom: Container(
-        height: 48,
+    );
+  }
+
+  /// Tabs sit below the coloured header on the page background, the same way
+  /// the menu tab keeps its header to the title only.
+  Widget _buildTabBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 2),
+      child: Container(
+        height: 46,
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: _c.currentTheme.heroTextColor(_isDark).withValues(alpha: 0.14),
+          color: _card,
           borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: _c.currentTheme.borderColor.withValues(alpha: 0.6)),
         ),
         child: Row(
           children: [
@@ -544,7 +554,6 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> {
 
   Widget _headerTab(AnalyticsMainTab tab, String label, {int flex = 20}) {
     final selected = _activeTab == tab;
-    final heroText = _c.currentTheme.heroTextColor(_isDark);
     return Expanded(
       flex: flex,
       child: GestureDetector(
@@ -559,7 +568,7 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> {
           curve: Curves.easeOut,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: selected ? _card : Colors.transparent,
+            color: selected ? _c.currentTheme.primaryColor : Colors.transparent,
             borderRadius: BorderRadius.circular(11),
           ),
           margin: const EdgeInsets.symmetric(horizontal: 2),
@@ -570,7 +579,7 @@ class _MeowAnalyticsScreenState extends State<MeowAnalyticsScreen> {
             style: TextStyle(
               fontSize: 13,
               fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
-              color: selected ? _accent : heroText,
+              color: selected ? Colors.white : _sub,
             ),
           ),
         ),

@@ -262,13 +262,14 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
                 controller: _c,
                 title: isEn ? 'Financial tools' : 'เครื่องมือการเงิน',
                 subtitle: _headerSubtitle,
-                bottom: _buildPriceStrip(),
               ),
               Expanded(
                 child: ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 28),
-                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+                  physics: const ClampingScrollPhysics(),
                   children: [
+                    FxFadeUp(index: 0, child: _buildPriceStrip()),
+                    const SizedBox(height: 22),
                     if (locked) ...[
                       FxFadeUp(index: 0, child: _buildUpgradeCard()),
                       const SizedBox(height: 22),
@@ -381,8 +382,8 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
 
   Widget _buildPriceStrip() {
     final theme = _c.currentTheme;
-    final heroText = theme.heroTextColor(_isDark);
-    final heroMuted = theme.heroTextMutedColor(_isDark);
+    final heroText = theme.textColor;
+    final heroMuted = theme.textSecondaryColor;
     final silver = CurrencyExchangeService.getSilverPricePerGram();
 
     Widget chip(String label, double value, NumberFormat f) {
@@ -390,7 +391,7 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
         child: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: heroText.withValues(alpha: 0.12),
+            color: _gold.chip(_isDark),
             borderRadius: BorderRadius.circular(14),
           ),
           child: Column(
@@ -422,7 +423,14 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: _openRatesSheet,
-        child: Column(
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 12, 12, 14),
+          decoration: BoxDecoration(
+            color: theme.cardBackground,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: theme.borderColor.withValues(alpha: 0.6)),
+          ),
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
@@ -456,6 +464,7 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
               ],
             ),
           ],
+          ),
         ),
       ),
     );

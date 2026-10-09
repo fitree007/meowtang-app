@@ -33,7 +33,7 @@ enum MascotMood {
 }
 
 class ExpenseController extends ChangeNotifier {
-  static const String appVersion = '1.43.0';
+  static const String appVersion = '1.43.1';
 
   final StorageService _storage;
   final OcrEngineService _ocrEngine = OcrEngineService();
@@ -1346,9 +1346,11 @@ class ExpenseController extends ChangeNotifier {
     final cachedImportedSet = _storage.getImportedSlipIdentifiers().map((s) => s.trim().toLowerCase()).toSet();
 
     final toAdd = <TransactionItem>[];
+    final index = SlipIndex.from(_transactions);
     for (final item in items) {
       final isDup = DuplicateSlipChecker.isDuplicate(
         existingTransactions: _transactions,
+        index: index,
         cachedDeletedSet: cachedDeletedSet,
         cachedImportedSet: cachedImportedSet,
         filePath: item.slipImageUrl,
@@ -1502,6 +1504,55 @@ class ExpenseController extends ChangeNotifier {
     await syncAndroidWidget();
     notifyListeners();
    }
+  }
+
+  /// Deletes many transactions with a single save and a single UI update
+  /// (same balance and blacklist handling as [deleteTransaction]).
+  Future<void> deleteTransactionsBatch(Iterable<String> ids, {bool recordToDeletedBlacklist = true}) async {
+    final idSet = ids.toSet();
+    if (idSet.isEmpty) return;
+
+    final removed = <TransactionItem>[];
+    _transactions.removeWhere((t) {
+      if (!idSet.contains(t.id)) return false;
+      removed.add(t);
+      return true;
+    });
+    if (removed.isEmpty) return;
+
+    final identifiers = <String>[];
+    for (final item in removed) {
+      final accIndex = _accounts.indexWhere((a) => a.id == item.accountId);
+      if (accIndex != -1) {
+        final acc = _accounts[accIndex];
+        if (item.type == TransactionType.expense) {
+          _accounts[accIndex] = acc.copyWith(balance: acc.balance + item.amount);
+        } else if (item.type == TransactionType.income) {
+          _accounts[accIndex] = acc.copyWith(balance: acc.balance - item.amount);
+        }
+      }
+      if (!recordToDeletedBlacklist) continue;
+      if (item.slipImageUrl != null && item.slipImageUrl!.isNotEmpty) {
+        identifiers.add(item.slipImageUrl!);
+        final bName = DuplicateSlipChecker.extractBasename(item.slipImageUrl!);
+        if (bName.isNotEmpty) identifiers.add(bName);
+      }
+      if (item.slipRefId != null && item.slipRefId!.isNotEmpty && !item.slipRefId!.startsWith('SLIP-')) {
+        identifiers.add(item.slipRefId!);
+      }
+      if (item.amount > 0) {
+        final d = item.date;
+        identifiers.add('fp_${item.amount}_${d.year}_${d.month}_${d.day}_${d.hour}_${d.minute}');
+      }
+    }
+    if (identifiers.isNotEmpty) {
+      await _storage.addDeletedSlipIdentifiers(identifiers);
+    }
+
+    await _storage.saveTransactions(_transactions);
+    await _storage.saveAccounts(_accounts);
+    await syncAndroidWidget();
+    notifyListeners();
   }
 
   /// Clears the deleted slips blacklist (allows re-scanning old deleted slips if desired)

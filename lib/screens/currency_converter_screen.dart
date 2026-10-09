@@ -305,15 +305,18 @@ class _CurrencyConverterScreenState extends State<CurrencyConverterScreen> {
             ),
           ),
         ),
-        body: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Column(
+        // The header stays put and only the content below it scrolls;
+        // clamping physics stop a pull-down from revealing a gap above it.
+        body: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Header
+              // Header (pinned)
               Container(
-                decoration: BoxDecoration(gradient: theme.heroGradient),
-                padding: EdgeInsets.fromLTRB(8, MediaQuery.of(context).padding.top + 10, 8, 64),
+                decoration: BoxDecoration(
+                  gradient: theme.heroGradient,
+                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+                ),
+                padding: EdgeInsets.fromLTRB(8, MediaQuery.of(context).padding.top + 10, 8, 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -381,10 +384,10 @@ class _CurrencyConverterScreenState extends State<CurrencyConverterScreen> {
                 ),
               ),
 
-              Transform.translate(
-                offset: const Offset(0, -52),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const ClampingScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -598,7 +601,6 @@ class _CurrencyConverterScreenState extends State<CurrencyConverterScreen> {
                 ),
               ),
             ],
-          ),
         ),
       ),
     );

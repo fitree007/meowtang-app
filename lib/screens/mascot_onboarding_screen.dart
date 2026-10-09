@@ -33,7 +33,6 @@ class _MascotOnboardingScreenState extends State<MascotOnboardingScreen> {
 
   // Filter chips
   String _mascotCategoryFilter = 'all'; // 'all', 'cat', 'friend', 'ai'
-  String _accCategoryFilter = 'all'; // 'all', 'acc', 'outfit'
 
   @override
   void initState() {
@@ -95,9 +94,9 @@ class _MascotOnboardingScreenState extends State<MascotOnboardingScreen> {
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        decoration: BoxDecoration(
+          color: _card,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: SafeArea(
           child: Column(
@@ -125,11 +124,11 @@ class _MascotOnboardingScreenState extends State<MascotOnboardingScreen> {
                       children: [
                         Text(
                           character.name,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: _text),
                         ),
                         Text(
                           character.subtitle,
-                          style: const TextStyle(color: Colors.black54, fontSize: 12),
+                          style: TextStyle(color: _sub, fontSize: 12),
                         ),
                       ],
                     ),
@@ -224,29 +223,36 @@ class _MascotOnboardingScreenState extends State<MascotOnboardingScreen> {
     return 'เพื่อนสัตว์';
   }
 
+
+  // Theme-driven palette, so the step looks like the rest of the app.
+  Color get _bg => widget.controller.currentTheme.scaffoldBackground;
+  Color get _card => widget.controller.currentTheme.cardBackground;
+  Color get _line => widget.controller.currentTheme.borderColor.withValues(alpha: 0.6);
+  Color get _text => widget.controller.currentTheme.textColor;
+  Color get _sub => widget.controller.currentTheme.textSecondaryColor;
+  Color get _accent => widget.controller.currentTheme.primaryColor;
+  Color get _accentText =>
+      widget.controller.isDarkMode ? Color.lerp(_accent, Colors.white, 0.55)! : _accent;
+  Color get _soft =>
+      Color.alphaBlend(_accent.withValues(alpha: widget.controller.isDarkMode ? 0.18 : 0.07), _card);
+  Color get _tile => widget.controller.isDarkMode ? Colors.white.withValues(alpha: 0.06) : const Color(0xFFF4F5F9);
+
   @override
   Widget build(BuildContext context) {
     final isEn = widget.controller.isEnglish;
     final isCustomPhoto = widget.controller.isCustomAvatarEnabled;
     final customPhoto = widget.controller.customAvatarPath;
 
-    const bgColor = Color(0xFFFDFBF7);
-    const textPrimary = Color(0xFF0F172A);
-    const textSecondary = Color(0xFF64748B);
-
     final currentMascot = MascotCatalog.characters.firstWhere(
       (m) => m.id == _selectedMascotId,
       orElse: () => MascotCatalog.characters.first,
     );
-
-    final currentAcc = MascotCatalog.accessories.firstWhere(
-      (a) => a.id == _selectedAccessory,
-      orElse: () => MascotCatalog.accessories.first,
-    );
-
     final currentMascotIndex = MascotCatalog.characters.indexWhere((m) => m.id == _selectedMascotId);
+    final signatureName = MascotCatalog.accessories
+        .firstWhere((a) => a.id == currentMascot.signatureAccessory, orElse: () => MascotCatalog.accessories.first)
+        .name;
 
-    // Parse English title if enclosed in parentheses
+    // Split "ไทย (English)" names.
     String thaiName = currentMascot.name;
     String enName = '';
     final parenMatch = RegExp(r'^(.*?)\s*\((.*?)\)$').firstMatch(currentMascot.name);
@@ -255,487 +261,219 @@ class _MascotOnboardingScreenState extends State<MascotOnboardingScreen> {
       enName = parenMatch.group(2)?.trim() ?? '';
     }
 
-    return Scaffold(
-      backgroundColor: bgColor,
-      body: SafeArea(
-        child: Column(
+    Widget smallChip({required String label, IconData? icon, bool strong = false, VoidCallback? onTap}) {
+      final chip = Container(
+        constraints: const BoxConstraints(minHeight: 30),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: strong ? _soft : _tile,
+          borderRadius: BorderRadius.circular(10),
+          border: strong ? Border.all(color: _accent.withValues(alpha: 0.5)) : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // 1. Top Header with 4-Segment Bar (รูปแนบ 2)
-            OnboardingStepHeader(
-              currentStep: 2,
-              totalSteps: 4,
-              badgeText: isEn ? 'Step 2/4 • Mascot' : 'ขั้นตอนที่ 2/4 • เลือกคู่หู',
-              stepIcon: Icons.pets_rounded,
-              title: isEn ? 'Choose Your Mascot' : 'เลือกคู่หูประจำตัว',
-              subtitle: isEn
-                  ? 'Your companion will stay with you on the main screen'
-                  : 'คู่หูจะอยู่กับคุณในหน้าหลัก เปลี่ยนตัวได้ทุกเมื่อในเมนูตัวละคร',
-              primaryColor: MeowTheme.mustardYellowDark,
-              textColor: textPrimary,
-              subtitleColor: textSecondary,
+            if (icon != null) ...[
+              Icon(icon, size: 14, color: strong ? _accentText : _sub),
+              const SizedBox(width: 4),
+            ],
+            Text(
+              label,
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: strong ? _accentText : _sub),
             ),
+          ],
+        ),
+      );
+      return onTap == null ? chip : TactileButton(onTap: onTap, child: chip);
+    }
 
-            // 2. FIXED Hero Mascot Showcase Card (รูปแนบ 3)
-            Container(
-              margin: const EdgeInsets.fromLTRB(16, 2, 16, 8),
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: const Color(0xFFF1ECE1), width: 1.5),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 14,
-                    offset: const Offset(0, 3),
+    return Scaffold(
+      backgroundColor: _bg,
+      body: Column(
+        children: [
+          OnboardingStepHeader(
+            controller: widget.controller,
+            currentStep: 2,
+            title: isEn ? 'Choose Your Mascot' : 'เลือกคู่หูประจำตัว',
+            subtitle: isEn
+                ? 'Your companion stays with you on the home screen. Change it any time.'
+                : 'คู่หูจะอยู่กับคุณในหน้าหลัก เปลี่ยนตัวได้ทุกเมื่อในเมนูตัวละคร',
+            onBack: widget.controller.revertToLanguageSelection,
+          ),
+
+          // Preview card (fixed)
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: _card,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: _line),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 84,
+                  height: 84,
+                  decoration: BoxDecoration(shape: BoxShape.circle, color: _soft),
+                  alignment: Alignment.center,
+                  child: MeowMascotWidget(
+                    size: 64,
+                    mascotId: currentMascot.id,
+                    accessory: _selectedAccessory,
+                    outfit: _selectedOutfit,
+                    customPhotoPath: customPhoto,
+                    isCustomPhoto: isCustomPhoto,
+                    animate: true,
                   ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  // Top Row: Index Badge & [ เลือกรูปของฉัน ] & Category Tag
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF8F6F0),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          '${currentMascotIndex >= 0 ? currentMascotIndex + 1 : 1} / ${MascotCatalog.characters.length}',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF786C59),
-                          ),
-                        ),
+                      Text(
+                        '${currentMascotIndex >= 0 ? currentMascotIndex + 1 : 1} / ${MascotCatalog.characters.length} • ${_getCategoryTag(currentMascot.id)}',
+                        style: TextStyle(fontSize: 12, color: _sub),
                       ),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
+                      Text(
+                        thaiName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: _text),
+                      ),
+                      Text(
+                        enName.isNotEmpty ? enName : currentMascot.subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12.5, color: _sub),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
                         children: [
-                          TactileButton(
+                          smallChip(label: signatureName, icon: Icons.star_outline_rounded, strong: true),
+                          smallChip(
+                            label: isEn ? 'My photo' : 'ใช้รูปของฉัน',
+                            icon: Icons.add_a_photo_outlined,
+                            strong: isCustomPhoto,
                             onTap: _openCustomPhotoDialog,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
-                              decoration: BoxDecoration(
-                                color: isCustomPhoto ? const Color(0xFFFEF3C7) : const Color(0xFFF8F6F0),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: isCustomPhoto ? MeowTheme.mustardYellowDark : const Color(0xFFE2E8F0),
-                                  width: 1,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.add_a_photo_rounded,
-                                    size: 11.5,
-                                    color: isCustomPhoto ? const Color(0xFFB45309) : const Color(0xFF64748B),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    isEn ? 'My Photo' : 'เลือกรูปของฉัน',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                      color: isCustomPhoto ? const Color(0xFFB45309) : const Color(0xFF475569),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF0F172A),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              _getCategoryTag(currentMascot.id),
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
                           ),
                         ],
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  // Mascot Avatar in circular warm backdrop
-                  Stack(
-                    clipBehavior: Clip.none,
-                    alignment: Alignment.center,
-                    children: [
-                      Container(
-                        width: 86,
-                        height: 86,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: const Color(0xFFFEF3C7),
-                          boxShadow: [
-                            BoxShadow(
-                              color: MeowTheme.mustardYellow.withValues(alpha: 0.2),
-                              blurRadius: 10,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        alignment: Alignment.center,
-                        child: MeowMascotWidget(
-                          size: 66,
-                          mascotId: currentMascot.id,
-                          accessory: _selectedAccessory,
-                          outfit: _selectedOutfit,
-                          customPhotoPath: customPhoto,
-                          isCustomPhoto: isCustomPhoto,
-                          animate: true,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    thaiName,
-                    style: const TextStyle(
-                      fontSize: 15.5,
-                      fontWeight: FontWeight.w800,
-                      color: textPrimary,
-                      letterSpacing: -0.2,
-                    ),
-                  ),
-                  if (enName.isNotEmpty) ...[
-                    Text(
-                      enName,
-                      style: const TextStyle(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF94A3B8),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 2),
-                  Text(
-                    currentMascot.subtitle,
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFFBEB),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.5)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.stars_rounded, size: 12, color: Color(0xFFD97706)),
-                        const SizedBox(width: 4),
-                        Text(
-                          'อุปกรณ์ประจำตัว: ${MascotCatalog.accessories.firstWhere((a) => a.id == currentMascot.signatureAccessory, orElse: () => MascotCatalog.accessories.first).name}',
-                          style: const TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFFD97706),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // 3. FIXED SEGMENTED SWITCH: [ 🐾 มาสคอต 22 | ✨ อุปกรณ์ 36 ]
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
-              child: Container(
-                padding: const EdgeInsets.all(3.5),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF3EDE3),
-                  borderRadius: BorderRadius.circular(24),
                 ),
-                child: Row(
-                  children: [
-                    // Tab 1: มาสคอต 22
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          HapticFeedback.selectionClick();
-                          setState(() => _activeTabIndex = 0);
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          curve: Curves.easeInOut,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: _activeTabIndex == 0 ? Colors.white : Colors.transparent,
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: _activeTabIndex == 0
-                                ? [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.08),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ]
-                                : null,
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.pets_rounded,
-                                size: 14,
-                                color: _activeTabIndex == 0 ? const Color(0xFF0F172A) : const Color(0xFF64748B),
-                              ),
-                              const SizedBox(width: 5),
-                              Text(
-                                isEn ? 'Mascot 22' : 'มาสคอต 22',
-                                style: TextStyle(
-                                  fontSize: 13.5,
-                                  fontWeight: _activeTabIndex == 0 ? FontWeight.bold : FontWeight.w600,
-                                  color: _activeTabIndex == 0 ? const Color(0xFF0F172A) : const Color(0xFF64748B),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // Tab 2: อุปกรณ์ 36
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          HapticFeedback.selectionClick();
-                          setState(() => _activeTabIndex = 1);
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          curve: Curves.easeInOut,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: _activeTabIndex == 1 ? Colors.white : Colors.transparent,
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: _activeTabIndex == 1
-                                ? [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.08),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ]
-                                : null,
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.auto_awesome_rounded,
-                                size: 14,
-                                color: _activeTabIndex == 1 ? const Color(0xFF0F172A) : const Color(0xFF64748B),
-                              ),
-                              const SizedBox(width: 5),
-                              Text(
-                                isEn ? 'Accessories' : '✨ อุปกรณ์',
-                                style: TextStyle(
-                                  fontSize: 13.5,
-                                  fontWeight: _activeTabIndex == 1 ? FontWeight.bold : FontWeight.w600,
-                                  color: _activeTabIndex == 1 ? const Color(0xFF0F172A) : const Color(0xFF64748B),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              ],
             ),
+          ),
 
-            // 4. SCROLLABLE GRID ONLY (เฉพาะส่วนนี้ที่จะเลื่อน)
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  children: [
-                    if (_activeTabIndex == 0) ...[
-                      // Mascot Filters
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        physics: const BouncingScrollPhysics(),
-                        child: Row(
-                          children: [
-                            _buildFilterChip('all', isEn ? 'All' : 'ทั้งหมด', _mascotCategoryFilter, (val) {
-                              setState(() => _mascotCategoryFilter = val);
-                            }),
-                            const SizedBox(width: 6),
-                            _buildFilterChip('cat', isEn ? 'Cats' : 'แมว', _mascotCategoryFilter, (val) {
-                              setState(() => _mascotCategoryFilter = val);
-                            }),
-                            const SizedBox(width: 6),
-                            _buildFilterChip('friend', isEn ? 'Animals' : 'เพื่อนสัตว์', _mascotCategoryFilter, (val) {
-                              setState(() => _mascotCategoryFilter = val);
-                            }),
-                            const SizedBox(width: 6),
-                            _buildFilterChip('ai', isEn ? 'AI' : 'AI', _mascotCategoryFilter, (val) {
-                              setState(() => _mascotCategoryFilter = val);
-                            }),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-
-                      // 4-Column Mascot Grid
-                      _buildMascotGrid(),
-                    ] else ...[
-                      // 4-Column Accessories Grid (ชุดถูกเอาออกตามคำขอ)
-                      _buildDressingGrid(),
-                    ],
-                    const SizedBox(height: 16),
-                  ],
-                ),
-              ),
-            ),
-
-            // 5. FIXED BOTTOM BAR WITH BACK & CONFIRM BUTTONS
-            Container(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+          // Mascots | accessories switch (fixed)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+            child: Container(
+              height: 46,
+              padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
-                color: bgColor,
-                border: Border(top: BorderSide(color: Colors.black.withValues(alpha: 0.04))),
+                color: _card,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: _line),
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+              child: Row(
                 children: [
-                  SizedBox(
-                    height: 50,
-                    child: Row(
-                      children: [
-                        // Back Button (35%)
-                        Expanded(
-                          flex: 35,
-                          child: TactileButton(
-                            onTap: () async {
-                              HapticFeedback.selectionClick();
-                              await widget.controller.revertToLanguageSelection();
-                            },
-                            child: Container(
-                              height: 50,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF1F5F9),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: const Color(0xFFE2E8F0)),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(Icons.arrow_back_rounded, size: 16, color: Color(0xFF334155)),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    isEn ? 'Back' : 'ย้อนกลับ',
-                                    style: const TextStyle(
-                                      color: Color(0xFF334155),
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        // Confirm Button (65%)
-                        Expanded(
-                          flex: 65,
-                          child: TactileButton(
-                            onTap: _onFinish,
-                            child: Container(
-                              height: 50,
-                              decoration: BoxDecoration(
-                                color: MeowTheme.mustardYellow,
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: MeowTheme.mustardYellow.withValues(alpha: 0.35),
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Flexible(
-                                    child: Text(
-                                      _activeTabIndex == 0
-                                          ? (isEn ? 'Select $thaiName ➔' : 'เลือก $thaiName ➔')
-                                          : (isEn ? 'Save Dressing' : '✔ บันทึกการแต่งตัว'),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        color: Color(0xFF0F172A),
-                                        fontSize: 14.5,
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  _buildTab(0, isEn ? 'Mascots ${MascotCatalog.characters.length}' : 'มาสคอต ${MascotCatalog.characters.length}'),
+                  _buildTab(1, isEn ? 'Accessories' : 'อุปกรณ์'),
+                ],
+              ),
+            ),
+          ),
 
-                  // If in tab 1 (Dressing), show reset button below
-                  if (_activeTabIndex == 1) ...[
-                    const SizedBox(height: 6),
-                    GestureDetector(
-                      onTap: _resetToSignature,
-                      child: Padding(
-                        padding: const EdgeInsets.all(4.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.replay_rounded, size: 14, color: textSecondary),
-                            const SizedBox(width: 5),
-                            Text(
-                              isEn ? 'Reset to signature accessory' : 'รีเซ็ตเป็นอุปกรณ์ประจำตัวดั้งเดิม',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: textSecondary,
-                              ),
-                            ),
+          // Only the grid scrolls
+          Expanded(
+            child: SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (_activeTabIndex == 0) ...[
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          for (final f in [
+                            ('all', isEn ? 'All' : 'ทั้งหมด'),
+                            ('cat', isEn ? 'Cats' : 'แมว'),
+                            ('friend', isEn ? 'Animals' : 'เพื่อนสัตว์'),
+                            ('ai', 'AI'),
+                          ]) ...[
+                            _buildFilterChip(f.$1, f.$2, _mascotCategoryFilter, (val) {
+                              setState(() => _mascotCategoryFilter = val);
+                            }),
+                            const SizedBox(width: 6),
                           ],
-                        ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    _buildMascotGrid(),
+                  ] else ...[
+                    _buildDressingGrid(),
+                    const SizedBox(height: 6),
+                    TextButton.icon(
+                      onPressed: _resetToSignature,
+                      style: TextButton.styleFrom(foregroundColor: _sub, minimumSize: const Size(44, 44)),
+                      icon: const Icon(Icons.replay_rounded, size: 16),
+                      label: Text(
+                        isEn ? 'Reset to signature accessory' : 'กลับเป็นอุปกรณ์ประจำตัว',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                       ),
                     ),
                   ],
                 ],
               ),
             ),
-          ],
+          ),
+        ],
+      ),
+      bottomNavigationBar: OnboardingBottomBar(
+        controller: widget.controller,
+        nextLabel: _activeTabIndex == 0
+            ? (isEn ? 'Choose $thaiName' : 'เลือก $thaiName')
+            : (isEn ? 'Save & continue' : 'บันทึกการแต่งตัว'),
+        onNext: _onFinish,
+        onBack: widget.controller.revertToLanguageSelection,
+      ),
+    );
+  }
+
+  Widget _buildTab(int index, String label) {
+    final selected = _activeTabIndex == index;
+    return Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          if (selected) return;
+          HapticFeedback.selectionClick();
+          setState(() => _activeTabIndex = index);
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          margin: const EdgeInsets.symmetric(horizontal: 2),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected ? _accent.withValues(alpha: widget.controller.isDarkMode ? 0.28 : 0.12) : Colors.transparent,
+            borderRadius: BorderRadius.circular(11),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13.5,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+              color: selected ? _accentText : _sub,
+            ),
+          ),
         ),
       ),
     );
@@ -749,22 +487,91 @@ class _MascotOnboardingScreenState extends State<MascotOnboardingScreen> {
         onSelected(value);
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
+        constraints: const BoxConstraints(minHeight: 36),
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF0F172A) : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? const Color(0xFF0F172A) : const Color(0xFFE2E8F0),
-            width: 1.2,
-          ),
+          color: isSelected ? _accent : _card,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: isSelected ? _accent : _line),
         ),
         child: Text(
           label,
           style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: isSelected ? Colors.white : const Color(0xFF475569),
+            fontSize: 13,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+            color: isSelected ? Colors.white : _sub,
           ),
+        ),
+      ),
+    );
+  }
+
+  /// One square cell of the 4-column pickers.
+  Widget _gridCell({
+    required bool selected,
+    required bool locked,
+    required Widget icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        decoration: BoxDecoration(
+          color: selected ? _soft : _card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: selected ? _accent : _line, width: selected ? 2 : 1),
+        ),
+        child: Stack(
+          children: [
+            if (selected || locked)
+              Positioned(
+                top: 5,
+                right: 5,
+                child: Container(
+                  width: 18,
+                  height: 18,
+                  decoration: BoxDecoration(color: selected ? _accent : _tile, shape: BoxShape.circle),
+                  alignment: Alignment.center,
+                  child: Icon(
+                    selected ? Icons.check_rounded : Icons.lock_outline_rounded,
+                    size: 12,
+                    color: selected ? Colors.white : _sub,
+                  ),
+                ),
+              ),
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(color: _tile, borderRadius: BorderRadius.circular(12)),
+                    alignment: Alignment.center,
+                    child: icon,
+                  ),
+                  const SizedBox(height: 6),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 3),
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+                        color: selected ? _accentText : _text,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -790,7 +597,6 @@ class _MascotOnboardingScreenState extends State<MascotOnboardingScreen> {
       itemCount: filtered.length,
       itemBuilder: (context, index) {
         final character = filtered[index];
-        final isSelected = _selectedMascotId == character.id;
         final isUnlocked = widget.controller.isMascotUnlocked(character.id);
 
         String shortName = character.name;
@@ -799,7 +605,11 @@ class _MascotOnboardingScreenState extends State<MascotOnboardingScreen> {
           shortName = character.name.substring(0, paren).replaceAll('เหมี่ยว', '').replaceAll('แมว', '').trim();
         }
 
-        return GestureDetector(
+        return _gridCell(
+          selected: _selectedMascotId == character.id,
+          locked: !isUnlocked,
+          icon: MeowMascotWidget(size: 34, mascotId: character.id, isHeadOnly: true, animate: false),
+          label: shortName,
           onTap: () {
             HapticFeedback.selectionClick();
             if (!isUnlocked) {
@@ -808,103 +618,11 @@ class _MascotOnboardingScreenState extends State<MascotOnboardingScreen> {
             }
             setState(() {
               _selectedMascotId = character.id;
-              // AUTO-EQUIP SIGNATURE ACCESSORY!
+              // Auto-equip the signature accessory.
               _selectedAccessory = character.signatureAccessory;
               _selectedOutfit = character.signatureOutfit;
             });
           },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            decoration: BoxDecoration(
-              color: isSelected ? const Color(0xFFFFFDF5) : Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: isSelected ? const Color(0xFFF59E0B) : const Color(0xFFF1ECE1),
-                width: isSelected ? 2.0 : 1.2,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: isSelected ? const Color(0xFFF59E0B).withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.02),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Stack(
-              children: [
-                // Selection Checkmark
-                if (isSelected)
-                  Positioned(
-                    top: 4,
-                    right: 4,
-                    child: Container(
-                      width: 15,
-                      height: 15,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF0F172A),
-                        shape: BoxShape.circle,
-                      ),
-                      alignment: Alignment.center,
-                      child: const Icon(Icons.check, size: 10, color: Colors.white),
-                    ),
-                  ),
-
-                // Lock icon if not unlocked
-                if (!isUnlocked)
-                  Positioned(
-                    top: 4,
-                    right: 4,
-                    child: Container(
-                      padding: const EdgeInsets.all(2.5),
-                      decoration: BoxDecoration(
-                        color: Colors.amber.shade100,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.lock_rounded, size: 11, color: Colors.amber),
-                    ),
-                  ),
-
-                // Mascot Icon & Name
-                Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 46,
-                        height: 46,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFDF4E7),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        alignment: Alignment.center,
-                        child: MeowMascotWidget(
-                          size: 34,
-                          mascotId: character.id,
-                          isHeadOnly: true,
-                          animate: false,
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 2),
-                        child: Text(
-                          shortName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                            color: isSelected ? const Color(0xFF0F172A) : const Color(0xFF334155),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
         );
       },
     );
@@ -925,92 +643,15 @@ class _MascotOnboardingScreenState extends State<MascotOnboardingScreen> {
       itemCount: items.length,
       itemBuilder: (context, index) {
         final item = items[index];
-        final String itemId = item.id;
-        final String itemName = item.name;
-        final IconData itemIcon = item.icon;
-
-        final bool isSelected = _selectedAccessory == itemId;
-
-        return GestureDetector(
+        return _gridCell(
+          selected: _selectedAccessory == item.id,
+          locked: false,
+          icon: Icon(item.icon, size: 22, color: _accentText),
+          label: item.name,
           onTap: () {
             HapticFeedback.selectionClick();
-            setState(() {
-              _selectedAccessory = itemId;
-            });
+            setState(() => _selectedAccessory = item.id);
           },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            decoration: BoxDecoration(
-              color: isSelected ? const Color(0xFFFFFDF5) : Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: isSelected ? const Color(0xFFF59E0B) : const Color(0xFFF1ECE1),
-                width: isSelected ? 2.0 : 1.2,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: isSelected ? const Color(0xFFF59E0B).withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.02),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Stack(
-              children: [
-                if (isSelected)
-                  Positioned(
-                    top: 4,
-                    right: 4,
-                    child: Container(
-                      width: 15,
-                      height: 15,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF0F172A),
-                        shape: BoxShape.circle,
-                      ),
-                      alignment: Alignment.center,
-                      child: const Icon(Icons.check, size: 10, color: Colors.white),
-                    ),
-                  ),
-                Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 46,
-                        height: 46,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFDF4E7),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        alignment: Alignment.center,
-                        child: Icon(
-                          itemIcon,
-                          size: 22,
-                          color: const Color(0xFFD97706),
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 2),
-                        child: Text(
-                          itemName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                            color: isSelected ? const Color(0xFF0F172A) : const Color(0xFF334155),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
         );
       },
     );

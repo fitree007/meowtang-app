@@ -1,176 +1,245 @@
 import 'package:flutter/material.dart';
-import 'tactile_button.dart';
+import 'package:flutter/services.dart';
+import '../state/expense_controller.dart';
+import 'meow_fx.dart';
 
-/// A modern, unified header used across all 4 onboarding steps
-/// (Language -> Mascot -> Theme -> Features Showcase).
-/// Displays a 4-segment progress bar and "ขั้นที่ X จาก 4" indicator (รูปแนบ 2)
-/// with unified typography and back/trailing controls.
+/// Header shared by the 4 first-launch steps (Language → Mascot → Theme →
+/// Features). It uses the same coloured top bar as the app's main tabs:
+/// back chevron, a 4-segment progress bar with "ขั้นที่ X จาก 4", an optional
+/// trailing action (e.g. Skip), then a large title and one-line subtitle.
+///
+/// It pads itself for the status bar, so callers should not wrap it in a
+/// SafeArea.
 class OnboardingStepHeader extends StatelessWidget {
+  final ExpenseController controller;
   final int currentStep;
   final int totalSteps;
   final String title;
   final String subtitle;
-  final Color primaryColor;
-  final Color textColor;
-  final Color subtitleColor;
   final VoidCallback? onBack;
-  final Widget? leading;
   final Widget? trailing;
-  final String? badgeText;
-  final IconData? stepIcon;
 
   const OnboardingStepHeader({
     super.key,
-    this.currentStep = 1,
+    required this.controller,
+    required this.currentStep,
     this.totalSteps = 4,
     required this.title,
     required this.subtitle,
-    required this.primaryColor,
-    required this.textColor,
-    required this.subtitleColor,
     this.onBack,
-    this.leading,
     this.trailing,
-    this.badgeText,
-    this.stepIcon,
   });
-
-  static int extractStepFromBadge(String? text) {
-    if (text == null) return 1;
-    final match = RegExp(r'(\d+)\s*/\s*(\d+)').firstMatch(text);
-    if (match != null) {
-      return int.tryParse(match.group(1) ?? '1') ?? 1;
-    }
-    return 1;
-  }
 
   @override
   Widget build(BuildContext context) {
-    final bool isEn = badgeText?.toLowerCase().contains('step') ?? false;
-    final int step = currentStep > 0 ? currentStep : extractStepFromBadge(badgeText);
-    final String stepLabel = isEn
-        ? 'Step $step of $totalSteps'
-        : 'ขั้นที่ $step จาก $totalSteps';
+    final theme = controller.currentTheme;
+    final isDark = controller.isDarkMode;
+    final heroText = theme.heroTextColor(isDark);
+    final heroMuted = theme.heroTextMutedColor(isDark);
+    final isEn = controller.isEnglish;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 12, 18, 8),
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: theme.heroGradient,
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+      ),
+      padding: EdgeInsets.fromLTRB(8, MediaQuery.of(context).padding.top + 6, 8, 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
         children: [
-          // Top Control Row: Leading (Back button), Centered 4-Segment Bars (รูปแนบ 2), Trailing
-          Row(
-            children: [
-              // Leading / Back button
-              if (leading != null)
-                leading!
-              else if (onBack != null)
-                TactileButton(
-                  onTap: onBack!,
-                  child: Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.04),
-                          blurRadius: 4,
-                          offset: const Offset(0, 1),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.arrow_back_ios_new_rounded,
-                      size: 15,
-                      color: Color(0xFF334155),
-                    ),
-                  ),
-                )
-              else
-                const SizedBox(width: 36),
-
-              // Centered Segmented Step Indicator (รูปแนบ 2)
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // 4 Horizontal pill bars
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(totalSteps, (index) {
-                        final bool isCompleted = index < step - 1;
-                        final bool isActive = index == step - 1;
-                        final Color barColor = isCompleted
-                            ? const Color(0xFF0F172A)
-                            : (isActive
-                                ? const Color(0xFFF59E0B)
-                                : const Color(0xFFE5DFD3));
-
-                        return Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 3.5),
-                          width: 32,
-                          height: 7,
-                          decoration: BoxDecoration(
-                            color: barColor,
-                            borderRadius: BorderRadius.circular(10),
+          SizedBox(
+            height: 44,
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 64,
+                  child: onBack == null
+                      ? null
+                      : Align(
+                          alignment: Alignment.centerLeft,
+                          child: IconButton(
+                            icon: Icon(Icons.chevron_left_rounded, color: heroText, size: 28),
+                            tooltip: isEn ? 'Back' : 'ย้อนกลับ',
+                            onPressed: () {
+                              HapticFeedback.selectionClick();
+                              onBack!();
+                            },
                           ),
-                        );
-                      }),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      stepLabel,
-                      style: const TextStyle(
-                        color: Color(0xFF574B38),
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.2,
-                      ),
-                    ),
-                  ],
+                        ),
                 ),
-              ),
-
-              // Trailing
-              if (trailing != null)
-                trailing!
-              else
-                const SizedBox(width: 36),
-            ],
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(totalSteps, (i) {
+                          final reached = i < currentStep;
+                          return AnimatedContainer(
+                            duration: const Duration(milliseconds: 250),
+                            margin: const EdgeInsets.symmetric(horizontal: 3),
+                            width: i == currentStep - 1 ? 28 : 18,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              color: reached ? heroText : heroText.withValues(alpha: 0.28),
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                          );
+                        }),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        isEn ? 'Step $currentStep of $totalSteps' : 'ขั้นที่ $currentStep จาก $totalSteps',
+                        style: TextStyle(color: heroMuted, fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(
+                  width: 64,
+                  child: trailing == null ? null : Align(alignment: Alignment.centerRight, child: trailing),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 12),
-
-          // Title
-          Text(
-            title,
-            style: TextStyle(
-              color: textColor,
-              fontSize: 18.5,
-              fontWeight: FontWeight.bold,
-              letterSpacing: -0.3,
-              height: 1.2,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: heroText, fontSize: 22, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: heroMuted, fontSize: 12.5, height: 1.4),
+                ),
+              ],
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 3),
-
-          // Subtitle
-          Text(
-            subtitle,
-            style: TextStyle(
-              color: subtitleColor,
-              fontSize: 12,
-              height: 1.2,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
+    );
+  }
+}
+
+/// "Skip" text button for the header's trailing slot, in the header's text colour.
+class OnboardingSkipButton extends StatelessWidget {
+  final ExpenseController controller;
+  final VoidCallback onTap;
+
+  const OnboardingSkipButton({super.key, required this.controller, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final heroText = controller.currentTheme.heroTextColor(controller.isDarkMode);
+    return TextButton(
+      onPressed: onTap,
+      style: TextButton.styleFrom(
+        minimumSize: const Size(44, 44),
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        foregroundColor: heroText,
+      ),
+      child: Text(
+        controller.isEnglish ? 'Skip' : 'ข้าม',
+        style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+}
+
+/// Bottom bar shared by the first-launch steps: an optional outlined "Back"
+/// and a solid primary button, on a card strip with a hairline top border.
+class OnboardingBottomBar extends StatelessWidget {
+  final ExpenseController controller;
+  final String nextLabel;
+  final VoidCallback onNext;
+  final VoidCallback? onBack;
+
+  const OnboardingBottomBar({
+    super.key,
+    required this.controller,
+    required this.nextLabel,
+    required this.onNext,
+    this.onBack,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = controller.currentTheme;
+    final isEn = controller.isEnglish;
+
+    final next = Semantics(
+      button: true,
+      child: FxPress(
+        onTap: () {
+          HapticFeedback.mediumImpact();
+          onNext();
+        },
+        child: Container(
+          height: 52,
+          width: double.infinity,
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(color: theme.primaryColor, borderRadius: BorderRadius.circular(16)),
+          child: Text(
+            nextLabel,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white),
+          ),
+        ),
+      ),
+    );
+
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.cardBackground,
+        border: Border(top: BorderSide(color: theme.borderColor)),
+      ),
+      padding: EdgeInsets.fromLTRB(16, 12, 16, 14 + MediaQuery.of(context).padding.bottom),
+      child: onBack == null
+          ? next
+          : Row(
+              children: [
+                Expanded(
+                  flex: 35,
+                  child: Material(
+                    color: theme.cardBackground,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(color: theme.borderColor),
+                    ),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        onBack!();
+                      },
+                      child: SizedBox(
+                        height: 52,
+                        child: Center(
+                          child: Text(
+                            isEn ? 'Back' : 'ย้อนกลับ',
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: theme.textColor),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(flex: 65, child: next),
+              ],
+            ),
     );
   }
 }
