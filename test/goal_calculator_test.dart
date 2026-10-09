@@ -42,6 +42,10 @@ void main() {
       final storage = StorageService();
       await storage.init();
       final controller = ExpenseController(storage);
+      // Tall phone so the result card below the form is built.
+      tester.view.physicalSize = const Size(390, 1400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
 
       await tester.pumpWidget(
         MaterialApp(
@@ -51,9 +55,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('คำนวณเวลาเก็บออม'), findsOneWidget);
-      expect(find.text('⏳ ใช้เวลานานแค่ไหน?'), findsOneWidget);
-      expect(find.text('💰 ต้องออมเท่าไหร่?'), findsOneWidget);
-      expect(find.text('เดือน'), findsOneWidget);
+      expect(find.text('ใช้เวลานานแค่ไหน?'), findsOneWidget);
+      expect(find.text('ต้องออมเท่าไหร่?'), findsOneWidget);
+      expect(find.text('ออมรายเดือน'), findsOneWidget);
       // 100,000 at 5,000/month from 0 => 20 months
       expect(find.text('1 ปี 8 เดือน'), findsOneWidget);
     });

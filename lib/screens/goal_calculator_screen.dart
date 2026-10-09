@@ -5,6 +5,7 @@ import '../models/saving_goal_item.dart';
 import '../state/expense_controller.dart';
 import '../theme/app_theme_model.dart';
 import '../utils/format_utils.dart';
+import '../widgets/meow_fx.dart';
 
 enum CalcMode { howLong, howMuch }
 
@@ -107,6 +108,11 @@ String _thaiDate(DateTime d) {
   return '${d.day} ${months[d.month - 1]} ${d.year + 543}';
 }
 
+String _monthYear(DateTime d) {
+  const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+  return '${months[d.month - 1]} ${d.year + 543}';
+}
+
 String _duration(DateTime from, DateTime to) {
   var months = (to.year - from.year) * 12 + to.month - from.month;
   final lastDayOfTo = DateTime(to.year, to.month + 1, 0).day;
@@ -120,7 +126,9 @@ String _duration(DateTime from, DateTime to) {
   return [if (y > 0) '$y ปี', if (m > 0) '$m เดือน'].join(' ');
 }
 
-String _baht(double v) => '฿${FormatUtils.formatMoney(v)}';
+String _baht(double v) => '฿${FormatUtils.formatMoney(v, trimZero: true)}';
+
+String _plain(double v) => FormatUtils.formatMoney(v, trimZero: true);
 
 class GoalCalculatorScreen extends StatefulWidget {
   final ExpenseController controller;
@@ -134,11 +142,17 @@ class GoalCalculatorScreen extends StatefulWidget {
 class _GoalCalculatorScreenState extends State<GoalCalculatorScreen> {
   CalcMode _mode = CalcMode.howLong;
   SavePeriod _period = SavePeriod.month;
-  final _targetCtrl = TextEditingController(text: '100000');
+  final _targetCtrl = TextEditingController(text: '100,000');
   final _startCtrl = TextEditingController(text: '0');
-  final _amountCtrl = TextEditingController(text: '5000');
+  final _amountCtrl = TextEditingController(text: '5,000');
   final _returnCtrl = TextEditingController(text: '0');
   int _deadlineMonths = 12;
+
+  static const _quick = {
+    SavePeriod.day: [50.0, 100.0, 200.0, 500.0],
+    SavePeriod.week: [300.0, 500.0, 1000.0, 2000.0],
+    SavePeriod.month: [3000.0, 5000.0, 7000.0, 10000.0],
+  };
 
   @override
   void dispose() {
@@ -152,6 +166,24 @@ class _GoalCalculatorScreenState extends State<GoalCalculatorScreen> {
   double _p(TextEditingController c) => double.tryParse(c.text.replaceAll(',', '').trim()) ?? 0.0;
 
   DateTime get _deadline => GoalMath.dateAfter(DateTime.now(), SavePeriod.month, _deadlineMonths);
+
+  SavingGoalItem? get _sourceGoal {
+    for (final g in widget.controller.savingGoals) {
+      if (g.currentAmount < g.targetAmount) return g;
+    }
+    return null;
+  }
+
+  void _useGoal(SavingGoalItem g) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      _targetCtrl.text = _plain(g.targetAmount);
+      _startCtrl.text = _plain(g.currentAmount);
+      final f = SavePeriod.values.where((p) => p.key == g.planFrequency);
+      if (f.isNotEmpty) _period = f.first;
+      if (g.plannedAmount != null && g.plannedAmount! > 0) _amountCtrl.text = _plain(g.plannedAmount!);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -181,98 +213,231 @@ class _GoalCalculatorScreenState extends State<GoalCalculatorScreen> {
     sim = GoalMath.simulate(target: target, start: start, perPeriod: perPeriod, period: _period, annualPct: annual);
     final now = DateTime.now();
     final finish = sim.reachable ? GoalMath.dateAfter(now, _period, sim.periods) : null;
+    final canCreate = sim.reachable && sim.periods > 0;
+    var i = 0;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackground,
-      appBar: AppBar(
-        backgroundColor: theme.scaffoldBackground,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: theme.textColor, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text('คำนวณเวลาเก็บออม',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: theme.textColor)),
-      ),
-      body: GestureDetector(
-        onTap: () => FocusScope.of(context).unfocus(),
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 40),
-          children: [
-            _segmented(theme, [
-              ('⏳ ใช้เวลานานแค่ไหน?', _mode == CalcMode.howLong, () => setState(() => _mode = CalcMode.howLong)),
-              ('💰 ต้องออมเท่าไหร่?', _mode == CalcMode.howMuch, () => setState(() => _mode = CalcMode.howMuch)),
-            ], height: 52),
-            const SizedBox(height: 14),
-            _card(
-              theme,
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      body: Column(
+        children: [
+          _header(theme),
+          Expanded(
+            child: GestureDetector(
+              onTap: () => FocusScope.of(context).unfocus(),
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                 children: [
-                  _field(_targetCtrl, 'อยากมีเงินเท่าไหร่ (เป้าหมาย)', theme, big: true),
-                  const SizedBox(height: 10),
-                  _field(_startCtrl, 'ตอนนี้มีเก็บไว้แล้ว', theme),
-                  const SizedBox(height: 14),
-                  Text(_mode == CalcMode.howLong ? 'จะออมทุก ๆ' : 'ออมเป็นรอบทุก ๆ',
-                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: theme.textSecondaryColor)),
-                  const SizedBox(height: 6),
-                  _segmented(theme, [
-                    for (final p in SavePeriod.values)
-                      (p.th, _period == p, () => setState(() => _period = p)),
-                  ]),
-                  const SizedBox(height: 12),
-                  if (_mode == CalcMode.howLong)
-                    _field(_amountCtrl, 'ออม${_period.th}ละ', theme)
-                  else ...[
-                    Text('อยากให้ครบภายใน',
-                        style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: theme.textSecondaryColor)),
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 6,
-                      children: [
-                        for (final m in [3, 6, 12, 24, 36, 60])
-                          ChoiceChip(
-                            label: Text(m < 12 ? '$m เดือน' : '${m ~/ 12} ปี'),
-                            selected: _deadlineMonths == m,
-                            onSelected: (_) => setState(() => _deadlineMonths = m),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text('ครบกำหนด ${_thaiDate(_deadline)}',
-                        style: TextStyle(fontSize: 12, color: theme.textSecondaryColor)),
+                  FxFadeUp(index: i++, child: _inputCard(theme, isDark)),
+                  const SizedBox(height: 16),
+                  FxFadeUp(index: i++, child: _buildAnswer(theme, isDark, target, start, remaining, perPeriod, sim, finish)),
+                  if (canCreate) ...[
+                    const SizedBox(height: 16),
+                    FxFadeUp(index: i++, child: _buildMilestones(theme, isDark, target, start, sim)),
+                    const SizedBox(height: 16),
+                    FxFadeUp(index: i++, child: _buildEquivalents(theme, isDark, perPeriod)),
                   ],
-                  const SizedBox(height: 12),
-                  _field(_returnCtrl, 'ผลตอบแทนคาดการณ์ต่อปี % (ไม่บังคับ)', theme, prefix: '', suffix: '%'),
-                  const SizedBox(height: 4),
-                  Text('เช่น เงินปันผลกองทุน/สหกรณ์ ใส่ 0 ถ้าเก็บเงินสดหรือบัญชีออมทรัพย์ที่ไม่มีผลตอบแทน',
-                      style: TextStyle(fontSize: 11.5, color: theme.textSecondaryColor)),
                 ],
               ),
             ),
-            const SizedBox(height: 16),
-            _buildAnswer(theme, target, start, remaining, perPeriod, sim, finish),
-            if (sim.reachable && sim.periods > 0) ...[
-              const SizedBox(height: 16),
-              _buildEquivalents(theme, perPeriod),
-              const SizedBox(height: 16),
-              _buildMilestones(theme, isDark, target, start, sim),
-              const SizedBox(height: 16),
-              SizedBox(
-                height: 50,
-                child: FilledButton.icon(
-                  onPressed: () => _createGoal(target, start, perPeriod, finish!),
-                  icon: const Icon(Icons.flag_rounded),
-                  label: const Text('สร้างเป็นเป้าหมายการออม', style: TextStyle(fontWeight: FontWeight.bold)),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: theme.primaryColor,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          ),
+          _bottomBar(theme, canCreate ? () => _createGoal(target, start, perPeriod, finish!) : null),
+        ],
+      ),
+    );
+  }
+
+  Widget _header(AppThemeModel theme) {
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.cardBackground,
+        border: Border(bottom: BorderSide(color: theme.borderColor)),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          child: Row(
+            children: [
+              IconButton(
+                tooltip: 'ย้อนกลับ',
+                constraints: const BoxConstraints.tightFor(width: 44, height: 44),
+                padding: EdgeInsets.zero,
+                icon: Icon(Icons.chevron_left_rounded, color: theme.textColor, size: 28),
+                onPressed: () => Navigator.maybePop(context),
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text('คำนวณเวลาเก็บออม',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: theme.textColor)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _inputCard(AppThemeModel theme, bool isDark) {
+    final goal = _sourceGoal;
+    final amount = _p(_amountCtrl);
+    return _card(
+      theme,
+      isDark,
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Text('ระบุข้อมูล', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: theme.textColor)),
+              const SizedBox(width: 8),
+              if (goal != null)
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                  child: Material(
+                    color: theme.primaryColor.withValues(alpha: isDark ? 0.22 : 0.1),
+                    shape: const StadiumBorder(),
+                    child: InkWell(
+                      customBorder: const StadiumBorder(),
+                      onTap: () => _useGoal(goal),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(minHeight: 44),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Center(
+                            widthFactor: 1,
+                            child: Text(
+                              'ใช้ข้อมูลเป้าหมาย: ${goal.title}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? theme.textColor : theme.primaryColor,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          _segmented(theme, isDark, [
+            ('ใช้เวลานานแค่ไหน?', _mode == CalcMode.howLong, () => setState(() => _mode = CalcMode.howLong)),
+            ('ต้องออมเท่าไหร่?', _mode == CalcMode.howMuch, () => setState(() => _mode = CalcMode.howMuch)),
+          ]),
+          const SizedBox(height: 10),
+          _segmented(theme, isDark, [
+            for (final p in SavePeriod.values) ('ออมราย${p.th}', _period == p, () => setState(() => _period = p)),
+          ]),
+          const SizedBox(height: 14),
+          _field(_targetCtrl, 'เป้าหมายเงินรวมที่ต้องการ (บาท)', theme),
+          const SizedBox(height: 14),
+          _field(_startCtrl, 'เงินเก็บที่มีอยู่', theme),
+          const SizedBox(height: 14),
+          if (_mode == CalcMode.howLong) ...[
+            _field(_amountCtrl, 'เงินที่จะออม/${_period.th}', theme, highlight: true),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                for (final q in _quick[_period]!) ...[
+                  Expanded(child: _quickChip(theme, q, amount == q)),
+                  if (q != _quick[_period]!.last) const SizedBox(width: 6),
+                ],
+              ],
+            ),
+          ] else ...[
+            _label('อยากให้ครบภายใน', theme),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final m in [3, 6, 12, 24, 36, 60])
+                  _optionChip(theme, m < 12 ? '$m เดือน' : '${m ~/ 12} ปี', _deadlineMonths == m,
+                      () => setState(() => _deadlineMonths = m)),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text('ครบกำหนด ${_thaiDate(_deadline)}', style: TextStyle(fontSize: 12.5, color: theme.textSecondaryColor)),
+          ],
+          const SizedBox(height: 14),
+          _field(_returnCtrl, 'ผลตอบแทนคาดการณ์ต่อปี % (ไม่บังคับ)', theme, prefix: '', suffix: '%'),
+          const SizedBox(height: 6),
+          Text('เช่น เงินปันผลกองทุน/สหกรณ์ ใส่ 0 ถ้าเก็บเงินสดหรือบัญชีออมทรัพย์ที่ไม่มีผลตอบแทน',
+              style: TextStyle(fontSize: 12, color: theme.textSecondaryColor, height: 1.4)),
+        ],
+      ),
+    );
+  }
+
+  Widget _quickChip(AppThemeModel theme, double q, bool selected) {
+    return Material(
+      color: selected ? theme.primaryColor : theme.cardBackground,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: selected ? BorderSide.none : BorderSide(color: theme.borderColor),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () {
+          HapticFeedback.selectionClick();
+          setState(() => _amountCtrl.text = _plain(q));
+        },
+        child: SizedBox(
+          height: 44,
+          child: Center(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  _baht(q),
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                    color: selected ? Colors.white : theme.textColor,
                   ),
                 ),
               ),
-            ],
-          ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _optionChip(AppThemeModel theme, String label, bool selected, VoidCallback onTap) {
+    return Material(
+      color: selected ? theme.primaryColor : theme.cardBackground,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: selected ? BorderSide.none : BorderSide(color: theme.borderColor),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44, minWidth: 64),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Center(
+              widthFactor: 1,
+              child: Text(label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                    color: selected ? Colors.white : theme.textColor,
+                  )),
+            ),
+          ),
         ),
       ),
     );
@@ -280,6 +445,7 @@ class _GoalCalculatorScreenState extends State<GoalCalculatorScreen> {
 
   Widget _buildAnswer(
     AppThemeModel theme,
+    bool isDark,
     double target,
     double start,
     double remaining,
@@ -288,43 +454,62 @@ class _GoalCalculatorScreenState extends State<GoalCalculatorScreen> {
     DateTime? finish,
   ) {
     final now = DateTime.now();
-    final String headline;
-    final String big;
-    final String sentence;
+    final heroText = theme.heroTextColor(isDark);
+    final heroMuted = theme.heroTextMutedColor(isDark);
+    final headline = _mode == CalcMode.howLong ? 'ผลการคำนวณระยะเวลาเก็บออม' : 'ผลการคำนวณเงินที่ต้องออม';
+    final ok = target > 0 && remaining > 0 && sim.reachable;
+
+    final bigStyle = TextStyle(fontSize: 34, fontWeight: FontWeight.w700, color: heroText, height: 1.2);
+    final unitStyle = TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: heroText);
+    Widget big;
+    String? note;
     if (target <= 0) {
-      headline = 'ใส่ยอดเป้าหมาย';
-      big = '-';
-      sentence = 'กรอกจำนวนเงินที่อยากมีด้านบน';
+      big = Text('ใส่ยอดเป้าหมาย', style: bigStyle.copyWith(fontSize: 24));
+      note = 'กรอกจำนวนเงินที่อยากมีด้านบน';
     } else if (remaining <= 0) {
-      headline = 'ครบแล้ว';
-      big = '🎉';
-      sentence = 'เงินที่มีอยู่ ${_baht(start)} ถึงเป้าหมายแล้ว';
+      big = Text('ครบแล้ว', style: bigStyle);
+      note = 'เงินที่มีอยู่ ${_baht(start)} ถึงเป้าหมายแล้ว';
     } else if (!sim.reachable) {
-      headline = 'ยังคำนวณไม่ได้';
-      big = '—';
-      sentence = 'ใส่จำนวนเงินที่จะออมต่อ${_period.th}ให้มากกว่า 0';
+      big = Text('ยังคำนวณไม่ได้', style: bigStyle.copyWith(fontSize: 24));
+      note = 'ใส่จำนวนเงินที่จะออมต่อ${_period.th}ให้มากกว่า 0';
     } else if (_mode == CalcMode.howLong) {
-      headline = 'จะครบเป้าหมายใน';
-      big = _duration(now, finish!);
-      sentence =
-          'ถ้าออม${_period.th}ละ ${_baht(perPeriod)} อีก ${sim.periods} ${_period.th} จะมีเงินครบ ${_baht(target)} ประมาณวันที่ ${_thaiDate(finish)}';
+      // "1 ปี 8 เดือน" with the numbers large and the units smaller, as in the draft.
+      final parts = _duration(now, finish!).split(' ');
+      big = Text.rich(
+        TextSpan(children: [
+          for (var k = 0; k < parts.length; k++)
+            TextSpan(
+              text: k == parts.length - 1 ? parts[k] : '${parts[k]} ',
+              style: int.tryParse(parts[k]) != null ? bigStyle : unitStyle,
+            ),
+        ]),
+      );
     } else {
-      headline = 'ต้องออม${_period.th}ละ';
-      big = _baht(perPeriod);
-      sentence =
-          'ออม${_period.th}ละ ${_baht(perPeriod)} รวม ${sim.periods} ${_period.th} จะมีเงินครบ ${_baht(target)} ภายใน ${_thaiDate(finish!)}';
+      big = FxProgress(
+        value: perPeriod,
+        builder: (_, v) => Text.rich(TextSpan(children: [
+          TextSpan(text: '${_baht(v == perPeriod ? v : v.roundToDouble())} ', style: bigStyle),
+          TextSpan(text: '/${_period.th}', style: unitStyle),
+        ])),
+      );
     }
 
-    Widget stat(String label, String value) => Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: const TextStyle(color: Colors.white70, fontSize: 11.5)),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(value, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
-              ),
-            ],
+    Widget tile(String label, String value) => Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(color: heroText.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(14)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: TextStyle(fontSize: 12, color: heroMuted)),
+                const SizedBox(height: 2),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: heroText)),
+                ),
+              ],
+            ),
           ),
         );
 
@@ -332,32 +517,37 @@ class _GoalCalculatorScreenState extends State<GoalCalculatorScreen> {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(gradient: theme.heroGradient, borderRadius: BorderRadius.circular(22)),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(headline, style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600)),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(big, style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900)),
-          ),
-          const SizedBox(height: 6),
-          Text(sentence, style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.45)),
-          if (sim.reachable && sim.periods > 0) ...[
+          Text(headline, style: TextStyle(fontSize: 12.5, color: heroMuted)),
+          const SizedBox(height: 10),
+          FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: big),
+          if (note != null) ...[
+            const SizedBox(height: 4),
+            Text(note, style: TextStyle(fontSize: 13, color: heroMuted, height: 1.4)),
+          ],
+          if (ok && sim.periods > 0) ...[
             const SizedBox(height: 14),
-            Row(
-              children: [
-                stat('ต้องเก็บเพิ่ม', _baht(remaining)),
-                stat('ฝากรวม', _baht(sim.deposited)),
-                stat('ผลตอบแทน', _baht(math.max(0, sim.growth))),
-              ],
-            ),
+            Row(children: [
+              tile('ยอดที่ต้องเก็บเพิ่ม', _baht(remaining)),
+              const SizedBox(width: 8),
+              tile('คาดว่าจะสำเร็จ', _monthYear(finish!)),
+            ]),
+            if (sim.growth > 0) ...[
+              const SizedBox(height: 8),
+              Row(children: [
+                tile('ฝากรวม', _baht(sim.deposited)),
+                const SizedBox(width: 8),
+                tile('ผลตอบแทน', _baht(sim.growth)),
+              ]),
+            ],
           ],
         ],
       ),
     );
   }
 
-  Widget _buildEquivalents(AppThemeModel theme, double perPeriod) {
+  Widget _buildEquivalents(AppThemeModel theme, bool isDark, double perPeriod) {
     final perDay = perPeriod / SavingGoalItem.daysPerPeriod(_period.key);
     final rows = [
       ('ต่อวัน', perDay),
@@ -367,40 +557,41 @@ class _GoalCalculatorScreenState extends State<GoalCalculatorScreen> {
     ];
     return _card(
       theme,
+      isDark,
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('เทียบให้เห็นภาพ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: theme.textColor)),
-          const SizedBox(height: 4),
-          Text('แผนเดียวกัน คิดเป็นเงินออม',
-              style: TextStyle(fontSize: 12, color: theme.textSecondaryColor)),
+          Text('เทียบให้เห็นภาพ', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: theme.textColor)),
+          const SizedBox(height: 2),
+          Text('แผนเดียวกัน คิดเป็นเงินออม', style: TextStyle(fontSize: 12.5, color: theme.textSecondaryColor)),
           const SizedBox(height: 10),
           Row(
             children: [
-              for (final r in rows)
+              for (final r in rows) ...[
                 Expanded(
                   child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 3),
                     padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
                     decoration: BoxDecoration(color: theme.surfaceBackground, borderRadius: BorderRadius.circular(12)),
                     child: Column(
                       children: [
-                        Text(r.$1, style: TextStyle(fontSize: 11, color: theme.textSecondaryColor)),
+                        Text(r.$1, style: TextStyle(fontSize: 12, color: theme.textSecondaryColor)),
                         const SizedBox(height: 2),
                         FittedBox(
                           fit: BoxFit.scaleDown,
-                          child: Text(_baht(r.$2),
-                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: theme.textColor)),
+                          child: Text(_baht(r.$2.roundToDouble()),
+                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: theme.textColor)),
                         ),
                       ],
                     ),
                   ),
                 ),
+                if (r != rows.last) const SizedBox(width: 6),
+              ],
             ],
           ),
           const SizedBox(height: 8),
-          Text('💡 ตัวอย่าง: งดกาแฟแก้วละ ฿60 วันละแก้ว = ออมได้เดือนละ ~${_baht(60 * 30.4375)}',
-              style: TextStyle(fontSize: 11.5, color: theme.textSecondaryColor)),
+          Text('ตัวอย่าง: งดกาแฟแก้วละ ฿60 วันละแก้ว = ออมได้เดือนละ ~${_baht((60 * 30.4375).roundToDouble())}',
+              style: TextStyle(fontSize: 12, color: theme.textSecondaryColor)),
         ],
       ),
     );
@@ -408,8 +599,11 @@ class _GoalCalculatorScreenState extends State<GoalCalculatorScreen> {
 
   Widget _buildMilestones(AppThemeModel theme, bool isDark, double target, double start, SavingPlanResult sim) {
     final now = DateTime.now();
-    final items = <Widget>[];
-    for (final pct in [0.25, 0.5, 0.75, 1.0]) {
+    final labels = {0.25: 'ของเป้าหมาย', 0.5: 'ครึ่งทางแล้ว', 0.75: 'ใกล้ถึงเป้า', 1.0: 'บรรลุเป้าหมาย'};
+    final line = theme.primaryColor.withValues(alpha: 0.2);
+    var nextMarked = false;
+    final rows = <Widget>[];
+    for (final pct in labels.keys) {
       final amount = target * pct;
       final reached = start >= amount;
       int? idx;
@@ -423,68 +617,97 @@ class _GoalCalculatorScreenState extends State<GoalCalculatorScreen> {
       }
       final date = reached ? null : (idx == null ? null : GoalMath.dateAfter(now, _period, idx));
       final last = pct == 1.0;
-      items.add(Row(
-        children: [
-          Column(
-            children: [
-              Container(
-                width: 34,
-                height: 34,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: reached
-                      ? const Color(0xFF10B981)
-                      : (last ? const Color(0xFFF59E0B) : theme.primaryColor).withValues(alpha: 0.14),
-                  shape: BoxShape.circle,
-                ),
-                child: reached
-                    ? const Icon(Icons.check_rounded, color: Colors.white, size: 18)
-                    : Text(last ? '🏆' : '${(pct * 100).toInt()}%',
-                        style: TextStyle(fontSize: last ? 15 : 10.5, fontWeight: FontWeight.bold, color: theme.primaryColor)),
+      final filled = reached || !nextMarked;
+      if (!reached) nextMarked = true;
+      rows.add(IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(
+              width: 20,
+              child: Column(
+                children: [
+                  Container(
+                    width: 14,
+                    height: 14,
+                    margin: const EdgeInsets.only(top: 3),
+                    decoration: BoxDecoration(
+                      color: filled ? theme.primaryColor : Colors.transparent,
+                      shape: BoxShape.circle,
+                      border: filled ? null : Border.all(color: theme.primaryColor, width: 2),
+                    ),
+                    child: reached ? const Icon(Icons.check_rounded, size: 10, color: Colors.white) : null,
+                  ),
+                  if (!last) Expanded(child: Container(width: 2, color: line)),
+                ],
               ),
-            ],
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(last ? 'ครบเป้าหมาย' : '${(pct * 100).toInt()}% ของเป้าหมาย',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: theme.textColor)),
-                Text(_baht(amount), style: TextStyle(fontSize: 12, color: theme.textSecondaryColor)),
-              ],
             ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(reached ? 'ถึงแล้ว ✓' : (date == null ? '-' : _thaiDate(date)),
-                  style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.bold,
-                      color: reached ? const Color(0xFF10B981) : theme.textColor)),
-              if (!reached && date != null)
-                Text('อีก ${_duration(now, date)}', style: TextStyle(fontSize: 11, color: theme.textSecondaryColor)),
-            ],
-          ),
-        ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.only(bottom: last ? 0 : 14),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text.rich(
+                        TextSpan(children: [
+                          TextSpan(text: '${(pct * 100).toInt()}%', style: const TextStyle(fontWeight: FontWeight.w700)),
+                          TextSpan(text: ' ${labels[pct]} • ${_baht(amount)}'),
+                        ]),
+                        style: TextStyle(fontSize: 13.5, color: theme.textColor),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      reached ? 'ถึงแล้ว' : (date == null ? '-' : _monthYear(date)),
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        color: reached ? theme.primaryColor : theme.textSecondaryColor,
+                        fontWeight: reached ? FontWeight.w600 : FontWeight.w400,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ));
-      if (!last) {
-        items.add(Padding(
-          padding: const EdgeInsets.only(left: 16),
-          child: Container(width: 2, height: 16, color: theme.borderColor),
-        ));
-      }
     }
     return _card(
       theme,
+      isDark,
       Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('เส้นทางสู่เป้าหมาย', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: theme.textColor)),
+          Text('เส้นทางความสำเร็จ', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: theme.textColor)),
           const SizedBox(height: 12),
-          ...items,
+          ...rows,
         ],
+      ),
+    );
+  }
+
+  Widget _bottomBar(AppThemeModel theme, VoidCallback? onCreate) {
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.cardBackground,
+        border: Border(top: BorderSide(color: theme.borderColor)),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+      child: SafeArea(
+        top: false,
+        child: FilledButton(
+          onPressed: onCreate,
+          style: FilledButton.styleFrom(
+            backgroundColor: theme.primaryColor,
+            foregroundColor: Colors.white,
+            minimumSize: const Size.fromHeight(56),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          ),
+          child: const Text('สร้างเป็นเป้าหมายการออม', style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600)),
+        ),
       ),
     );
   }
@@ -534,71 +757,94 @@ class _GoalCalculatorScreenState extends State<GoalCalculatorScreen> {
   }
 
   // ---------------------------------------------------------------------------
-  Widget _card(AppThemeModel theme, Widget child) => Container(
-        padding: const EdgeInsets.all(14),
+  Widget _card(AppThemeModel theme, bool isDark, Widget child) => Container(
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: theme.cardBackground,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: theme.borderColor),
+          border: isDark ? Border.all(color: theme.borderColor) : null,
+          boxShadow: isDark ? null : const [BoxShadow(color: Color(0x0F0F172A), blurRadius: 14, offset: Offset(0, 4))],
         ),
         child: child,
       );
 
+  Widget _label(String t, AppThemeModel theme) =>
+      Text(t, style: TextStyle(fontSize: 13, color: theme.textSecondaryColor));
+
   Widget _field(TextEditingController c, String label, AppThemeModel theme,
-      {bool big = false, String prefix = '฿ ', String? suffix}) {
-    return TextField(
-      controller: c,
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
-      onChanged: (_) => setState(() {}),
-      style: TextStyle(color: theme.textColor, fontSize: big ? 20 : 15, fontWeight: FontWeight.bold),
-      decoration: InputDecoration(
-        labelText: label,
-        prefixText: prefix.isEmpty ? null : prefix,
-        suffixText: suffix,
-        filled: true,
-        fillColor: theme.surfaceBackground,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: theme.borderColor)),
-        enabledBorder:
-            OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: theme.borderColor)),
-      ),
+      {String prefix = '', String? suffix, bool highlight = false}) {
+    OutlineInputBorder border(Color color) =>
+        OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: color, width: 1.5));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _label(label, theme),
+        const SizedBox(height: 6),
+        TextField(
+          controller: c,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
+          onChanged: (_) => setState(() {}),
+          style: TextStyle(color: theme.textColor, fontSize: 16, fontWeight: FontWeight.w600),
+          decoration: InputDecoration(
+            isDense: true,
+            prefixText: prefix.isEmpty ? null : prefix,
+            prefixStyle: TextStyle(color: theme.textSecondaryColor, fontSize: 16, fontWeight: FontWeight.w600),
+            suffixText: suffix,
+            filled: true,
+            fillColor: theme.cardBackground,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            border: border(theme.borderColor),
+            enabledBorder: border(highlight ? theme.primaryColor : theme.borderColor),
+            focusedBorder: border(theme.primaryColor),
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _segmented(AppThemeModel theme, List<(String, bool, VoidCallback)> options, {double height = 44}) {
+  Widget _segmented(AppThemeModel theme, bool isDark, List<(String, bool, VoidCallback)> options) {
     return Container(
-      height: height,
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: theme.cardBackground,
+        color: theme.primaryColor.withValues(alpha: isDark ? 0.18 : 0.1),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: theme.borderColor),
       ),
       child: Row(
         children: [
-          for (final o in options)
+          for (final o in options) ...[
             Expanded(
               child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
                 onTap: () {
                   HapticFeedback.selectionClick();
                   o.$3();
                 },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 160),
+                  constraints: const BoxConstraints(minHeight: 44),
                   alignment: Alignment.center,
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
                   decoration: BoxDecoration(
-                    color: o.$2 ? theme.primaryColor : Colors.transparent,
-                    borderRadius: BorderRadius.circular(10),
+                    color: o.$2 ? theme.cardBackground : Colors.transparent,
+                    borderRadius: BorderRadius.circular(11),
+                    boxShadow:
+                        o.$2 ? const [BoxShadow(color: Color(0x1A0F172A), blurRadius: 4, offset: Offset(0, 1))] : null,
                   ),
-                  child: Text(o.$1,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.bold,
-                          color: o.$2 ? Colors.white : theme.textSecondaryColor)),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(o.$1,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: o.$2 ? FontWeight.w600 : FontWeight.w400,
+                            color: o.$2 ? (isDark ? theme.textColor : theme.primaryColor) : theme.textColor)),
+                  ),
                 ),
               ),
             ),
+            if (o != options.last) const SizedBox(width: 4),
+          ],
         ],
       ),
     );

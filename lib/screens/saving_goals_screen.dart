@@ -4,6 +4,7 @@ import '../models/saving_goal_item.dart';
 import '../state/expense_controller.dart';
 import '../theme/app_theme_model.dart';
 import '../utils/format_utils.dart';
+import '../widgets/meow_fx.dart';
 import 'goal_calculator_screen.dart';
 
 const _planLabels = {'day': 'วัน', 'week': 'สัปดาห์', 'month': 'เดือน'};
@@ -13,7 +14,32 @@ String _thaiDate(DateTime d) {
   return '${d.day} ${months[d.month - 1]} ${(d.year + 543).toString().substring(2)}';
 }
 
-String _baht(double v) => '฿${FormatUtils.formatMoney(v)}';
+String _thaiMonthYear(DateTime d) {
+  const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+  return '${months[d.month - 1]} ${d.year + 543}';
+}
+
+/// Goals store an emoji key (older data); the UI shows it as a line icon like the draft.
+const _goalIcons = <String, IconData>{
+  '🎯': Icons.flag_outlined,
+  '🛡️': Icons.shield_outlined,
+  '✈️': Icons.flight_takeoff_rounded,
+  '🚗': Icons.directions_car_outlined,
+  '🏡': Icons.home_outlined,
+  '💻': Icons.laptop_outlined,
+  '📱': Icons.smartphone_outlined,
+  '💍': Icons.diamond_outlined,
+  '📚': Icons.school_outlined,
+  '🕋': Icons.mosque_outlined,
+  '👶': Icons.child_care_outlined,
+  '🏥': Icons.local_hospital_outlined,
+  '🎁': Icons.card_giftcard_outlined,
+  '💰': Icons.savings_outlined,
+};
+
+IconData _goalIcon(String emoji) => _goalIcons[emoji] ?? Icons.flag_outlined;
+
+String _baht(double v) => '฿${FormatUtils.formatMoney(v, trimZero: true)}';
 
 double _parse(String s) => double.tryParse(s.replaceAll(',', '').trim()) ?? 0.0;
 
@@ -38,14 +64,15 @@ class _SavingGoalsScreenState extends State<SavingGoalsScreen> {
     0xFFEF4444,
     0xFF14B8A6,
   ];
+  // Popular ideas shown as chips (draft copy first, then the app's extra ideas).
   static const _templates = [
-    ('🛡️', 'เงินสำรองฉุกเฉิน', 60000.0, 0xFF10B981),
-    ('🕋', 'ไปทำฮัจญ์/อุมเราะฮ์', 150000.0, 0xFF14B8A6),
-    ('✈️', 'ทริปเที่ยว', 30000.0, 0xFF3B82F6),
-    ('📱', 'มือถือ/คอมใหม่', 35000.0, 0xFF8B5CF6),
-    ('🚗', 'เงินดาวน์รถ', 100000.0, 0xFFF59E0B),
+    ('🛡️', 'เงินสำรองฉุกเฉิน 6 เดือน', 60000.0, 0xFF10B981),
+    ('✈️', 'ทริปท่องเที่ยวในฝัน', 30000.0, 0xFF3B82F6),
+    ('🚗', 'เงินดาวน์รถยนต์', 100000.0, 0xFFF59E0B),
+    ('💻', 'ซื้อคอมพิวเตอร์ / มือถือ', 35000.0, 0xFF8B5CF6),
+    ('📚', 'ทุนการศึกษา / พัฒนาตัวเอง', 30000.0, 0xFF06B6D4),
     ('🏡', 'ดาวน์บ้าน/คอนโด', 200000.0, 0xFFEC4899),
-    ('📚', 'การศึกษา', 30000.0, 0xFF06B6D4),
+    ('🕋', 'ไปทำฮัจญ์/อุมเราะฮ์', 150000.0, 0xFF14B8A6),
   ];
 
   ExpenseController get c => widget.controller;
@@ -62,16 +89,17 @@ class _SavingGoalsScreenState extends State<SavingGoalsScreen> {
   // ---------------------------------------------------------------------------
   // Create / edit
   // ---------------------------------------------------------------------------
-  void _openEditor({SavingGoalItem? goal}) {
+  void _openEditor({SavingGoalItem? goal, (String, String, double, int)? template}) {
     HapticFeedback.selectionClick();
     final theme = c.currentTheme;
-    final titleCtrl = TextEditingController(text: goal?.title ?? '');
-    final targetCtrl = TextEditingController(text: goal != null ? goal.targetAmount.toStringAsFixed(0) : '');
+    final titleCtrl = TextEditingController(text: goal?.title ?? template?.$2 ?? '');
+    final targetCtrl = TextEditingController(
+        text: goal != null ? goal.targetAmount.toStringAsFixed(0) : template?.$3.toStringAsFixed(0) ?? '');
     final currentCtrl = TextEditingController(text: goal != null ? goal.currentAmount.toStringAsFixed(0) : '');
     final planCtrl = TextEditingController(
         text: goal?.plannedAmount != null ? goal!.plannedAmount!.toStringAsFixed(0) : '');
-    var emoji = goal?.categoryEmoji.isNotEmpty == true ? goal!.categoryEmoji : '🎯';
-    var color = goal?.colorHex ?? _colors.first;
+    var emoji = goal?.categoryEmoji.isNotEmpty == true ? goal!.categoryEmoji : template?.$1 ?? '🎯';
+    var color = goal?.colorHex ?? template?.$4 ?? _colors.first;
     var freq = goal?.planFrequency ?? 'month';
     DateTime? targetDate = goal?.targetDate;
 
@@ -87,15 +115,15 @@ class _SavingGoalsScreenState extends State<SavingGoalsScreen> {
           final remaining = (target - current).clamp(0.0, double.infinity);
           String? preview;
           if (target > 0 && remaining == 0) {
-            preview = '🎉 ยอดที่มีอยู่ครบเป้าหมายแล้ว';
+            preview = 'ยอดที่มีอยู่ครบเป้าหมายแล้ว';
           } else if (target > 0 && targetDate != null) {
             final need = SavingGoalItem.requiredFor(remaining, targetDate!, freq);
             if (need != null) {
               preview = 'ต้องออม${_planLabels[freq]}ละ ${_baht(need)} เพื่อให้ครบภายใน ${_thaiDate(targetDate!)}';
               if (plan > 0) {
                 preview += plan + 0.01 >= need
-                    ? '\n✅ แผนของคุณทันกำหนด'
-                    : '\n⚠️ แผนปัจจุบันยังไม่ทัน ขาดอีก ${_baht(need - plan)}/${_planLabels[freq]}';
+                    ? '\nแผนของคุณทันกำหนด'
+                    : '\nแผนปัจจุบันยังไม่ทัน ขาดอีก ${_baht(need - plan)}/${_planLabels[freq]}';
               }
             }
           } else if (target > 0 && plan > 0) {
@@ -129,7 +157,7 @@ class _SavingGoalsScreenState extends State<SavingGoalsScreen> {
                         Padding(
                           padding: const EdgeInsets.only(right: 8),
                           child: ActionChip(
-                            avatar: Text(t.$1),
+                            avatar: Icon(_goalIcon(t.$1), size: 16),
                             label: Text(t.$2, style: const TextStyle(fontSize: 12)),
                             onPressed: () => setSheet(() {
                               emoji = t.$1;
@@ -239,7 +267,7 @@ class _SavingGoalsScreenState extends State<SavingGoalsScreen> {
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: emoji == e ? Color(color) : theme.borderColor),
                         ),
-                        child: Text(e, style: const TextStyle(fontSize: 20)),
+                        child: Icon(_goalIcon(e), size: 20, color: emoji == e ? Color(color) : theme.textSecondaryColor),
                       ),
                     ),
                 ],
@@ -461,7 +489,7 @@ class _SavingGoalsScreenState extends State<SavingGoalsScreen> {
                   Navigator.pop(ctx);
                   HapticFeedback.mediumImpact();
                   if (!withdraw && !wasDone && goal.currentAmount >= goal.targetAmount) {
-                    _snack('🎉 ยินดีด้วย! บรรลุเป้าหมาย "${goal.title}" แล้ว', color: const Color(0xFF10B981));
+                    _snack('ยินดีด้วย! บรรลุเป้าหมาย "${goal.title}" แล้ว', color: const Color(0xFF10B981));
                   } else {
                     _snack(withdraw ? 'ถอน ${_baht(amt)} แล้ว' : 'ออมเพิ่ม ${_baht(amt)} แล้ว');
                   }
@@ -484,6 +512,23 @@ class _SavingGoalsScreenState extends State<SavingGoalsScreen> {
         theme: theme,
         title: 'ประวัติ "${goal.title}"',
         children: [
+          if (goal.currentAmount > 0) ...[
+            OutlinedButton.icon(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _openMoneySheet(goal, withdraw: true);
+              },
+              icon: const Icon(Icons.remove_rounded, size: 18),
+              label: const Text('ถอนเงินออก', style: TextStyle(fontWeight: FontWeight.w600)),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: theme.textColor,
+                minimumSize: const Size.fromHeight(44),
+                side: BorderSide(color: theme.borderColor, width: 1.5),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
           if (goal.depositHistory.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 24),
@@ -530,89 +575,41 @@ class _SavingGoalsScreenState extends State<SavingGoalsScreen> {
         final goals = c.savingGoals;
         final active = goals.where((g) => g.currentAmount < g.targetAmount).toList();
         final done = goals.where((g) => g.currentAmount >= g.targetAmount).toList();
-        final totalTarget = goals.fold(0.0, (s, g) => s + g.targetAmount);
-        final totalSaved = goals.fold(0.0, (s, g) => s + g.currentAmount);
-        final progress = totalTarget > 0 ? (totalSaved / totalTarget).clamp(0.0, 1.0) : 0.0;
-        final heroText = theme.heroTextColor(isDark);
-        final heroMuted = theme.heroTextMutedColor(isDark);
+        final ordered = [...active, ...done];
+        var i = 0;
 
         return Scaffold(
           backgroundColor: theme.scaffoldBackground,
-          appBar: AppBar(
-            backgroundColor: theme.scaffoldBackground,
-            elevation: 0,
-            leading: IconButton(
-              icon: Icon(Icons.arrow_back_ios_new_rounded, color: theme.textColor, size: 20),
-              onPressed: () => Navigator.pop(context),
-            ),
-            title: Text('เป้าหมายการออมของฉัน',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: theme.textColor)),
-            actions: [
-              IconButton(
-                tooltip: 'คำนวณเวลาเก็บออม',
-                icon: Icon(Icons.calculate_rounded, color: theme.primaryColor),
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => GoalCalculatorScreen(controller: c)),
-                ),
-              ),
-            ],
-          ),
-          floatingActionButton: FloatingActionButton.extended(
-            onPressed: () => _openEditor(),
-            backgroundColor: theme.primaryColor,
-            foregroundColor: Colors.white,
-            icon: const Icon(Icons.add_rounded),
-            label: const Text('ตั้งเป้าหมาย', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-          body: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
+          body: Column(
             children: [
-              Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(gradient: theme.heroGradient, borderRadius: BorderRadius.circular(22)),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              _header(theme),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
                   children: [
-                    Text('ออมแล้วทั้งหมด', style: TextStyle(color: heroMuted, fontSize: 12.5, fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 2),
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(_baht(totalSaved),
-                          style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: heroText)),
-                    ),
-                    Text('จากเป้าหมายรวม ${_baht(totalTarget)}', style: TextStyle(color: heroMuted, fontSize: 12.5)),
-                    const SizedBox(height: 12),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: LinearProgressIndicator(
-                        value: progress,
-                        minHeight: 9,
-                        backgroundColor: Colors.white24,
-                        valueColor: AlwaysStoppedAnimation(heroText),
+                    FxFadeUp(index: i++, child: _hero(goals, theme, isDark)),
+                    const SizedBox(height: 18),
+                    FxFadeUp(
+                      index: i++,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _listHeader(goals.length, theme),
+                          const SizedBox(height: 10),
+                          if (goals.isEmpty) _EmptyState(theme: theme),
+                          for (final g in ordered) ...[
+                            _goalCard(g, theme, isDark),
+                            if (g != ordered.last) const SizedBox(height: 12),
+                          ],
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Text('${(progress * 100).toStringAsFixed(0)}% • กำลังออม ${active.length} • สำเร็จ ${done.length}',
-                        style: TextStyle(color: heroText, fontSize: 12, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 18),
+                    FxFadeUp(index: i++, child: _ideas(theme)),
                   ],
                 ),
               ),
-              const SizedBox(height: 18),
-              if (goals.isEmpty)
-                _EmptyState(theme: theme, onCreate: () => _openEditor())
-              else ...[
-                if (active.isNotEmpty) ...[
-                  _sectionTitle('กำลังออม', theme),
-                  for (final g in active) _goalCard(g, theme, isDark),
-                ],
-                if (done.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  _sectionTitle('สำเร็จแล้ว 🎉', theme),
-                  for (final g in done) _goalCard(g, theme, isDark),
-                ],
-              ],
+              _bottomBar(theme),
             ],
           ),
         );
@@ -620,35 +617,213 @@ class _SavingGoalsScreenState extends State<SavingGoalsScreen> {
     );
   }
 
-  Widget _sectionTitle(String t, AppThemeModel theme) => Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: Text(t, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: theme.textColor)),
+  Widget _header(AppThemeModel theme) {
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.cardBackground,
+        border: Border(bottom: BorderSide(color: theme.borderColor)),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          child: Row(
+            children: [
+              IconButton(
+                tooltip: 'ย้อนกลับ',
+                constraints: const BoxConstraints.tightFor(width: 44, height: 44),
+                padding: EdgeInsets.zero,
+                icon: Icon(Icons.chevron_left_rounded, color: theme.textColor, size: 28),
+                onPressed: () => Navigator.maybePop(context),
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text('เป้าหมายการออมของฉัน',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: theme.textColor)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _hero(List<SavingGoalItem> goals, AppThemeModel theme, bool isDark) {
+    final totalTarget = goals.fold(0.0, (s, g) => s + g.targetAmount);
+    final totalSaved = goals.fold(0.0, (s, g) => s + g.currentAmount);
+    final remaining = goals.fold(0.0, (s, g) => s + g.remainingAmount);
+    final progress = totalTarget > 0 ? (totalSaved / totalTarget).clamp(0.0, 1.0) : 0.0;
+    final heroText = theme.heroTextColor(isDark);
+    final heroMuted = theme.heroTextMutedColor(isDark);
+
+    String? forecast;
+    if (goals.isNotEmpty) {
+      if (remaining <= 0) {
+        forecast = 'ครบทุกเป้าหมายแล้ว เก่งมาก!';
+      } else {
+        final days = (remaining / 100).ceil();
+        final when = DateTime.now().add(Duration(days: days));
+        forecast = 'จะครบเป้าหมายในอีก ${FormatUtils.formatMoney(days.toDouble(), trimZero: true)} วัน (ประมาณ ${_thaiMonthYear(when)})';
+      }
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(gradient: theme.heroGradient, borderRadius: BorderRadius.circular(22)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              SizedBox(
+                width: 96,
+                height: 96,
+                child: FxProgress(
+                  value: progress,
+                  duration: const Duration(milliseconds: 1000),
+                  builder: (_, v) => CustomPaint(
+                    painter: _RingPainter(value: v, track: heroText.withValues(alpha: 0.2), color: heroText),
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('${(v * 100).round()}%',
+                              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: heroText, height: 1.2)),
+                          Text('สำเร็จ', style: TextStyle(fontSize: 12, color: heroMuted, height: 1.2)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('ความคืบหน้าเงินออมทุกเป้าหมาย', style: TextStyle(fontSize: 12.5, color: heroMuted)),
+                    const SizedBox(height: 4),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: FxProgress(
+                        value: totalSaved,
+                        builder: (_, v) => Text(_baht(v == totalSaved ? v : v.roundToDouble()),
+                            maxLines: 1, style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: heroText)),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text('จากยอดเป้าหมายรวม ${_baht(totalTarget)}', style: TextStyle(fontSize: 13, color: heroMuted)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (forecast != null) ...[
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: heroText.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(14)),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 1),
+                    child: Icon(Icons.auto_awesome_outlined,
+                        size: 20, color: theme.isHeroLight(isDark) ? const Color(0xFFB45309) : const Color(0xFFFDE68A)),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('AI คาดการณ์ (ถ้าออม 100 บ./วัน)',
+                            style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: heroText)),
+                        const SizedBox(height: 2),
+                        Text(forecast, style: TextStyle(fontSize: 12.5, color: heroMuted, height: 1.4)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _listHeader(int count, AppThemeModel theme) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text.rich(
+              TextSpan(children: [
+                const TextSpan(text: 'รายการเป้าหมาย '),
+                TextSpan(
+                    text: '· $count', style: TextStyle(fontWeight: FontWeight.w500, color: theme.textSecondaryColor)),
+              ]),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: theme.textColor),
+            ),
+          ),
+          InkWell(
+            borderRadius: BorderRadius.circular(10),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => GoalCalculatorScreen(controller: c)),
+            ),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 44),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Center(
+                  widthFactor: 1,
+                  child: Text('คำนวณเวลาเก็บออม ›',
+                      style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: theme.isDark ? Color.lerp(theme.primaryColor, Colors.white, 0.5) : theme.primaryColor)),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  BoxDecoration _cardDecoration(AppThemeModel theme, bool isDark) => BoxDecoration(
+        color: theme.cardBackground,
+        borderRadius: BorderRadius.circular(20),
+        border: isDark ? Border.all(color: theme.borderColor) : null,
+        boxShadow: isDark ? null : const [BoxShadow(color: Color(0x0F0F172A), blurRadius: 14, offset: Offset(0, 4))],
       );
 
   Widget _goalCard(SavingGoalItem g, AppThemeModel theme, bool isDark) {
     final color = Color(g.colorHex);
     final isDone = g.currentAmount >= g.targetAmount;
-    final pct = (g.progressRatio * 100).toStringAsFixed(0);
+    final pct = (g.progressRatio * 100).round();
+    final insight = _insight(g, theme);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: theme.cardBackground,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: isDone ? const Color(0xFF10B981).withValues(alpha: 0.5) : theme.borderColor),
-      ),
+      padding: const EdgeInsets.all(16),
+      decoration: _cardDecoration(theme, isDark),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
               Container(
-                width: 46,
-                height: 46,
+                width: 48,
+                height: 48,
                 alignment: Alignment.center,
-                decoration: BoxDecoration(color: color.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(14)),
-                child: Text(g.categoryEmoji.isEmpty ? '🎯' : g.categoryEmoji, style: const TextStyle(fontSize: 24)),
+                decoration: BoxDecoration(
+                    color: color.withValues(alpha: isDark ? 0.22 : 0.14), borderRadius: BorderRadius.circular(14)),
+                child: Icon(_goalIcon(g.categoryEmoji), size: 24, color: color),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -658,73 +833,83 @@ class _SavingGoalsScreenState extends State<SavingGoalsScreen> {
                     Text(g.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: theme.textColor)),
+                        style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600, color: theme.textColor)),
                     const SizedBox(height: 2),
-                    Text('${_baht(g.currentAmount)} จาก ${_baht(g.targetAmount)}',
-                        style: TextStyle(fontSize: 12.5, color: theme.textSecondaryColor)),
+                    Text(isDone ? 'บรรลุเป้าหมายแล้ว' : 'เหลืออีก ${_baht(g.remainingAmount)}',
+                        style: TextStyle(
+                            fontSize: 12.5,
+                            color: isDone ? const Color(0xFF059669) : theme.textSecondaryColor,
+                            fontWeight: isDone ? FontWeight.w600 : FontWeight.w400)),
                   ],
                 ),
               ),
-              Text('$pct%', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: color)),
-              PopupMenuButton<String>(
-                icon: Icon(Icons.more_vert_rounded, color: theme.textSecondaryColor),
-                onSelected: (v) {
-                  if (v == 'edit') _openEditor(goal: g);
-                  if (v == 'history') _openHistory(g);
-                  if (v == 'delete') _confirmDelete(g);
-                },
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'edit', child: Text('แก้ไข / ตั้งแผน')),
-                  PopupMenuItem(value: 'history', child: Text('ประวัติการออม')),
-                  PopupMenuItem(value: 'delete', child: Text('ลบ', style: TextStyle(color: Color(0xFFEF4444)))),
-                ],
+              IconButton(
+                tooltip: 'แก้ไขเป้าหมาย',
+                constraints: const BoxConstraints.tightFor(width: 44, height: 44),
+                padding: EdgeInsets.zero,
+                icon: Icon(Icons.edit_outlined, size: 20, color: theme.textSecondaryColor),
+                onPressed: () => _openEditor(goal: g),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: g.progressRatio,
-              minHeight: 9,
-              backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-              valueColor: AlwaysStoppedAnimation(isDone ? const Color(0xFF10B981) : color),
-            ),
-          ),
-          const SizedBox(height: 10),
-          _insight(g, theme, color),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
-                child: FilledButton.icon(
+                child: Text.rich(
+                  TextSpan(children: [
+                    TextSpan(text: _baht(g.currentAmount)),
+                    TextSpan(
+                      text: ' / ${_baht(g.targetAmount)}',
+                      style: TextStyle(fontWeight: FontWeight.w400, color: theme.textSecondaryColor),
+                    ),
+                  ]),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: theme.textColor),
+                ),
+              ),
+              Text('$pct%', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color)),
+            ],
+          ),
+          const SizedBox(height: 6),
+          FxBar(
+            value: g.progressRatio,
+            color: color,
+            track: isDark ? theme.borderColor : const Color(0xFFE9EDF3),
+          ),
+          if (insight != null) ...[
+            const SizedBox(height: 10),
+            insight,
+          ],
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton(
                   onPressed: () => _openMoneySheet(g, withdraw: false),
-                  icon: const Icon(Icons.add_rounded, size: 18),
-                  label: const Text('ออมเงิน', style: TextStyle(fontWeight: FontWeight.bold)),
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF10B981),
-                    padding: const EdgeInsets.symmetric(vertical: 11),
+                    backgroundColor: theme.primaryColor,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size.fromHeight(44),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
+                  child: const Text('+ หยอดเงิน', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: g.currentAmount > 0 ? () => _openMoneySheet(g, withdraw: true) : null,
-                  icon: const Icon(Icons.remove_rounded, size: 18),
-                  label: const Text('ถอน', style: TextStyle(fontWeight: FontWeight.bold)),
+                child: OutlinedButton(
+                  onPressed: () => _openHistory(g),
                   style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 11),
+                    foregroundColor: theme.textColor,
+                    backgroundColor: theme.cardBackground,
+                    minimumSize: const Size.fromHeight(44),
+                    side: BorderSide(color: theme.borderColor, width: 1.5),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
+                  child: const Text('ดูประวัติ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                 ),
-              ),
-              const SizedBox(width: 4),
-              IconButton(
-                tooltip: 'ประวัติ',
-                onPressed: () => _openHistory(g),
-                icon: Icon(Icons.history_rounded, color: theme.textSecondaryColor),
               ),
             ],
           ),
@@ -733,60 +918,110 @@ class _SavingGoalsScreenState extends State<SavingGoalsScreen> {
     );
   }
 
-  Widget _insight(SavingGoalItem g, AppThemeModel theme, Color color) {
+  /// Plan / deadline hint for a goal. Null when the goal has neither, as in the draft.
+  Widget? _insight(SavingGoalItem g, AppThemeModel theme) {
     final per = _planLabels[g.planFrequency] ?? 'เดือน';
     String text;
     IconData icon;
-    Color tone = color;
+    Color tone = theme.textSecondaryColor;
 
     if (g.currentAmount >= g.targetAmount) {
-      text = 'บรรลุเป้าหมายแล้ว เก่งมาก!';
-      icon = Icons.emoji_events_rounded;
-      tone = const Color(0xFF10B981);
+      return null;
     } else if (g.targetDate != null) {
       final days = g.targetDate!.difference(DateTime.now()).inDays;
       if (days <= 0) {
-        text = 'เลยกำหนด ${_thaiDate(g.targetDate!)} แล้ว ยังขาด ${_baht(g.remainingAmount)} — แตะ ⋮ เพื่อเลื่อนวันหรือปรับแผน';
-        icon = Icons.warning_amber_rounded;
-        tone = const Color(0xFFEF4444);
+        text = 'เลยกำหนด ${_thaiDate(g.targetDate!)} แล้ว ยังขาด ${_baht(g.remainingAmount)} แตะไอคอนแก้ไขเพื่อเลื่อนวันหรือปรับแผน';
+        icon = Icons.error_outline_rounded;
+        tone = const Color(0xFFDC2626);
       } else {
         final need = g.requiredPerPeriod ?? 0;
         text = 'เหลือ $days วัน (ถึง ${_thaiDate(g.targetDate!)}) ต้องออม$perละ ${_baht(need)}';
-        icon = Icons.flag_rounded;
+        icon = Icons.flag_outlined;
         final plan = g.plannedAmount;
         if (plan != null && plan > 0) {
           if (plan + 0.01 >= need) {
-            text += '\n✅ แผน ${_baht(plan)}/$per ทันกำหนด';
+            text += '\nแผน ${_baht(plan)}/$per ทันกำหนด';
           } else {
-            text += '\n⚠️ แผน ${_baht(plan)}/$per ยังไม่ทัน ขาดอีก ${_baht(need - plan)}/$per';
-            tone = const Color(0xFFF59E0B);
+            text += '\nแผน ${_baht(plan)}/$per ยังไม่ทัน ขาดอีก ${_baht(need - plan)}/$per';
+            tone = const Color(0xFFD97706);
           }
         }
       }
     } else if (g.projectedFinishDate != null) {
       final periods = (g.remainingAmount / g.plannedAmount!).ceil();
       text = 'ออม$perละ ${_baht(g.plannedAmount!)} อีก $periods $per จะครบ (ประมาณ ${_thaiDate(g.projectedFinishDate!)})';
-      icon = Icons.timeline_rounded;
+      icon = Icons.schedule_rounded;
     } else {
-      text = 'ยังไม่ได้ตั้งแผน — แตะ ⋮ > แก้ไข เพื่อดูว่าจะครบเมื่อไหร่';
-      icon = Icons.lightbulb_outline_rounded;
-      tone = theme.textSecondaryColor;
+      return null;
     }
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(color: tone.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12)),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 17, color: tone),
-          const SizedBox(width: 8),
-          Expanded(child: Text(text, style: TextStyle(fontSize: 12.5, height: 1.4, color: theme.textColor))),
-        ],
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(padding: const EdgeInsets.only(top: 1), child: Icon(icon, size: 16, color: tone)),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(text,
+              style: TextStyle(
+                  fontSize: 12.5, height: 1.4, color: tone == theme.textSecondaryColor ? theme.textSecondaryColor : tone)),
+        ),
+      ],
+    );
+  }
+
+  Widget _ideas(AppThemeModel theme) {
+    return CustomPaint(
+      foregroundPainter: _DashedBorderPainter(color: theme.primaryColor.withValues(alpha: 0.4), radius: 20),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(color: theme.cardBackground, borderRadius: BorderRadius.circular(20)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('ตั้งเป้าหมายใหม่',
+                style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700, color: theme.textColor)),
+            const SizedBox(height: 2),
+            Text('เลือกจากไอเดียยอดนิยม หรือพิมพ์ชื่อเอง',
+                style: TextStyle(fontSize: 12.5, color: theme.textSecondaryColor)),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final t in _templates)
+                  _IdeaChip(theme: theme, label: t.$2, onTap: () => _openEditor(template: t)),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
+
+  Widget _bottomBar(AppThemeModel theme) {
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.cardBackground,
+        border: Border(top: BorderSide(color: theme.borderColor)),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+      child: SafeArea(
+        top: false,
+        child: FilledButton.icon(
+          onPressed: () => _openEditor(),
+          style: FilledButton.styleFrom(
+            backgroundColor: theme.primaryColor,
+            foregroundColor: Colors.white,
+            minimumSize: const Size.fromHeight(56),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          ),
+          icon: const Icon(Icons.add_rounded, size: 22),
+          label: const Text('ตั้งเป้าหมายการออมใหม่', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+        ),
+      ),
+    );
+  }
+
 
   // ---------------------------------------------------------------------------
   // Form helpers
@@ -919,14 +1154,13 @@ class _Segmented extends StatelessWidget {
 
 class _EmptyState extends StatelessWidget {
   final AppThemeModel theme;
-  final VoidCallback onCreate;
 
-  const _EmptyState({required this.theme, required this.onCreate});
+  const _EmptyState({required this.theme});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
       decoration: BoxDecoration(
         color: theme.cardBackground,
         borderRadius: BorderRadius.circular(20),
@@ -934,23 +1168,96 @@ class _EmptyState extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Text('🎯', style: TextStyle(fontSize: 46)),
+          Icon(Icons.flag_outlined, size: 36, color: theme.textSecondaryColor),
           const SizedBox(height: 10),
           Text('ยังไม่มีเป้าหมายการออม',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: theme.textColor)),
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: theme.textColor)),
           const SizedBox(height: 4),
           Text('ตั้งเป้าหมาย ใส่แผนออมต่อเดือน แล้วแอพจะบอกว่าจะครบเมื่อไหร่',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 12.5, height: 1.4, color: theme.textSecondaryColor)),
-          const SizedBox(height: 14),
-          FilledButton.icon(
-            onPressed: onCreate,
-            icon: const Icon(Icons.add_rounded),
-            label: const Text('ตั้งเป้าหมายแรก'),
-            style: FilledButton.styleFrom(backgroundColor: theme.primaryColor),
-          ),
         ],
       ),
     );
   }
+}
+
+class _IdeaChip extends StatelessWidget {
+  final AppThemeModel theme;
+  final String label;
+  final VoidCallback onTap;
+
+  const _IdeaChip({required this.theme, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: theme.surfaceBackground,
+      shape: StadiumBorder(side: BorderSide(color: theme.borderColor)),
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Center(
+              widthFactor: 1,
+              child: Text(label, style: TextStyle(fontSize: 13, color: theme.textColor)),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RingPainter extends CustomPainter {
+  final double value;
+  final Color track;
+  final Color color;
+
+  _RingPainter({required this.value, required this.track, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const stroke = 10.0;
+    final rect = Rect.fromCircle(center: size.center(Offset.zero), radius: size.shortestSide / 2 - stroke / 2 - 3);
+    final p = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(rect, 0, 6.2832, false, p..color = track);
+    if (value > 0) canvas.drawArc(rect, -1.5708, 6.2832 * value.clamp(0.0, 1.0), false, p..color = color);
+  }
+
+  @override
+  bool shouldRepaint(_RingPainter old) => old.value != value || old.color != color || old.track != track;
+}
+
+class _DashedBorderPainter extends CustomPainter {
+  final Color color;
+  final double radius;
+
+  _DashedBorderPainter({required this.color, required this.radius});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rrect = RRect.fromRectAndRadius(Offset.zero & size, Radius.circular(radius)).deflate(0.75);
+    final path = Path()..addRRect(rrect);
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..color = color;
+    for (final m in path.computeMetrics()) {
+      var d = 0.0;
+      while (d < m.length) {
+        canvas.drawPath(m.extractPath(d, d + 5), paint);
+        d += 9;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedBorderPainter old) => old.color != color;
 }
