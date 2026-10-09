@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../state/expense_controller.dart';
-import '../theme/meow_theme.dart';
 import '../services/currency_exchange_service.dart';
 import '../utils/format_utils.dart';
+import '../theme/app_theme_model.dart';
+import '../widgets/meow_fx.dart';
 import 'add_transaction_screen.dart';
 import 'zakat_calculator_screen.dart';
 
@@ -28,6 +29,10 @@ class _CurrencyConverterScreenState extends State<CurrencyConverterScreen> {
   double _inputAmount = 100.0;
   bool _isLoading = false;
   String _searchQuery = '';
+  bool _showAllRates = false;
+  static const int _collapsedRateCount = 6;
+
+  static const List<double> _quickAmounts = [50, 100, 500, 1000];
 
   @override
   void initState() {
@@ -64,11 +69,45 @@ class _CurrencyConverterScreenState extends State<CurrencyConverterScreen> {
     });
   }
 
+  void _setQuickAmount(double amount) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      _inputAmount = amount;
+      _amountController.text = amount.toStringAsFixed(0);
+    });
+  }
+
+  CurrencyInfo _infoFor(String code) =>
+      CurrencyExchangeService.supportedCurrencies[code] ??
+      CurrencyInfo(code: code, nameTh: code.toUpperCase(), nameEn: '', symbol: '', flag: '🌐');
+
+  /// "฿3,250.00" for baht, "3,250.00 USD" for anything else.
+  String _money(double amount, String code) {
+    if (code == 'thb') return '฿${CurrencyFormat.format(amount)}';
+    return '${CurrencyFormat.format(amount)} ${code.toUpperCase()}';
+  }
+
+  /// "อัปเดตล่าสุด: 9 ต.ค. 2569 เวลา 15:57 น." -> "อัปเดต 15:57 น." when it is today.
+  String _shortUpdated(String raw) {
+    final text = raw.replaceFirst('อัปเดตล่าสุด: ', '');
+    final today = CurrencyExchangeService.formatThaiDateTime(DateTime.now()).split(' เวลา ').first;
+    final time = RegExp(r'(\d{1,2}:\d{2}) น\.').firstMatch(text)?.group(1);
+    if (time != null && text.startsWith(today)) return 'อัปเดต $time น.';
+    return 'อัปเดต ${text.replaceFirst(' เวลา ', ' ')}';
+  }
+
+  String _rateText(double rate) {
+    if (rate >= 1) return CurrencyFormat.format(rate);
+    return rate.toStringAsFixed(4);
+  }
+
   void _openCurrencyPicker({required bool isSource}) {
     HapticFeedback.selectionClick();
-    final isDark = widget.controller.isDarkMode;
-    final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
-    final cardBg = isDark ? MeowTheme.navySurface : Colors.white;
+    final theme = widget.controller.currentTheme;
+    final textPrimary = theme.textColor;
+    final textSecondary = theme.textSecondaryColor;
+    final cardBg = theme.cardBackground;
+    final primary = theme.primaryColor;
 
     showModalBottomSheet(
       context: context,
@@ -91,79 +130,50 @@ class _CurrencyConverterScreenState extends State<CurrencyConverterScreen> {
 
             return Container(
               height: MediaQuery.of(context).size.height * 0.72,
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
               child: Column(
                 children: [
                   Container(
                     width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: Colors.grey.withValues(alpha: 0.3),
+                      color: theme.borderColor,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 8),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        isSource ? 'เลือกสกุลเงินต้นทาง' : 'เลือกสกุลเงินปลายทาง',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimary),
+                      Expanded(
+                        child: Text(
+                          isSource ? 'เลือกสกุลเงินต้นทาง' : 'เลือกสกุลเงินปลายทาง',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: textPrimary),
+                        ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.close_rounded, size: 20),
+                        icon: Icon(Icons.close_rounded, size: 22, color: textSecondary),
+                        tooltip: 'ปิด',
                         onPressed: () => Navigator.pop(ctx),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    style: TextStyle(color: textPrimary, fontSize: 13),
-                    decoration: InputDecoration(
-                      hintText: 'ค้นหาชื่อสกุลเงิน หรือรหัส เช่น SAR, USD, JPY...',
-                      hintStyle: const TextStyle(fontSize: 12, color: Colors.grey),
-                      prefixIcon: const Icon(Icons.search_rounded, size: 20),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                    ),
+                  const SizedBox(height: 4),
+                  _SearchField(
+                    hint: 'ค้นหาชื่อสกุลเงิน หรือรหัส เช่น SAR, USD, JPY',
+                    theme: theme,
                     onChanged: (val) => setModalState(() => filter = val),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   Expanded(
                     child: ListView.separated(
                       itemCount: list.length,
-                      separatorBuilder: (_, _) => const Divider(height: 1),
+                      separatorBuilder: (_, _) => Divider(height: 1, color: theme.borderColor),
                       itemBuilder: (_, idx) {
                         final item = list[idx];
                         final isSelected = isSource ? (_fromCurrency == item.code) : (_toCurrency == item.code);
                         final rateToThb = CurrencyExchangeService.getRateToThb(item.code);
 
-                        return ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          leading: Text(item.flag, style: const TextStyle(fontSize: 26)),
-                          title: Row(
-                            children: [
-                              Text(item.code.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  item.nameTh,
-                                  style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : Colors.grey[700]),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                          subtitle: Text(
-                            item.code == 'thb'
-                                ? 'สกุลเงินหลัก (1.00 ฿)'
-                                : '1 ${item.code.toUpperCase()} ≈ ฿${CurrencyFormat.format(rateToThb)}',
-                            style: const TextStyle(fontSize: 11, color: MeowTheme.actionBlue),
-                          ),
-                          trailing: isSelected
-                              ? const Icon(Icons.check_circle_rounded, color: MeowTheme.incomeGreen, size: 22)
-                              : null,
+                        return InkWell(
                           onTap: () {
                             setState(() {
                               if (isSource) {
@@ -174,6 +184,45 @@ class _CurrencyConverterScreenState extends State<CurrencyConverterScreen> {
                             });
                             Navigator.pop(ctx);
                           },
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(minHeight: 64),
+                            child: Row(
+                              children: [
+                                _FlagDot(flag: item.flag, size: 40, ring: theme.borderColor),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text.rich(
+                                        TextSpan(children: [
+                                          TextSpan(
+                                            text: item.code.toUpperCase(),
+                                            style: const TextStyle(fontWeight: FontWeight.w600),
+                                          ),
+                                          TextSpan(
+                                            text: ' • ${item.nameTh}',
+                                            style: TextStyle(color: textSecondary),
+                                          ),
+                                        ]),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(fontSize: 14.5, color: textPrimary),
+                                      ),
+                                      Text(
+                                        item.code == 'thb'
+                                            ? 'สกุลเงินหลัก (1.00 ฿)'
+                                            : '1 ${item.code.toUpperCase()} ≈ ฿${CurrencyFormat.format(rateToThb)}',
+                                        style: TextStyle(fontSize: 12, color: textSecondary),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (isSelected) Icon(Icons.check_rounded, color: primary, size: 22),
+                              ],
+                            ),
+                          ),
                         );
                       },
                     ),
@@ -208,573 +257,357 @@ class _CurrencyConverterScreenState extends State<CurrencyConverterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final currentTheme = widget.controller.currentTheme;
+    final theme = widget.controller.currentTheme;
     final isDark = widget.controller.isDarkMode;
     final isEn = widget.controller.isEnglish;
-    final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
-    final textSecondary = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
-    final cardBg = isDark ? MeowTheme.navySurface : Colors.white;
-    final borderColor = isDark ? MeowTheme.borderColor : const Color(0xFFE2E8F0);
+    final textPrimary = theme.textColor;
+    final textSecondary = theme.textSecondaryColor;
+    final cardBg = theme.cardBackground;
+    final borderColor = theme.borderColor;
+    final primary = theme.primaryColor;
+    final heroText = theme.heroTextColor(isDark);
+    final tint = Color.alphaBlend(primary.withValues(alpha: isDark ? 0.14 : 0.06), cardBg);
 
-    final fromInfo = CurrencyExchangeService.supportedCurrencies[_fromCurrency] ??
-        CurrencyInfo(code: _fromCurrency, nameTh: _fromCurrency.toUpperCase(), nameEn: '', symbol: '', flag: '🌐');
-    final toInfo = CurrencyExchangeService.supportedCurrencies[_toCurrency] ??
-        CurrencyInfo(code: _toCurrency, nameTh: _toCurrency.toUpperCase(), nameEn: '', symbol: '', flag: '🌐');
+    final fromInfo = _infoFor(_fromCurrency);
+    final toInfo = _infoFor(_toCurrency);
 
     final convertedAmount = CurrencyExchangeService.convert(_inputAmount, _fromCurrency, _toCurrency);
     final unitRate = CurrencyExchangeService.convert(1.0, _fromCurrency, _toCurrency);
+    final thbValue = _toCurrency == 'thb'
+        ? convertedAmount
+        : CurrencyExchangeService.convert(_inputAmount, _fromCurrency, 'thb');
 
-    final goldPricePerBaht = CurrencyExchangeService.getGoldPricePerBahtWeight();
-    final silverPricePerGram = CurrencyExchangeService.getSilverPricePerGram();
+    final updated = _shortUpdated(CurrencyExchangeService.getLastUpdatedText());
 
-    return Scaffold(
-      backgroundColor: currentTheme.scaffoldBackground,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_rounded, color: textPrimary, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Row(
-          children: [
-            const Text('💱 ', style: TextStyle(fontSize: 18)),
-            Expanded(
-              child: Text(
-                isEn ? 'Live Currency Converter' : 'แปลงค่าเงิน & ตลาดอัตราแลกเปลี่ยน',
-                style: TextStyle(color: textPrimary, fontSize: 16.5, fontWeight: FontWeight.bold),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: theme.isHeroLight(isDark) ? SystemUiOverlayStyle.dark : SystemUiOverlayStyle.light,
+      child: Scaffold(
+        backgroundColor: theme.scaffoldBackground,
+        bottomNavigationBar: _BottomBar(
+          theme: theme,
+          child: FxPress(
+            onTap: () => _recordAsExpense(thbValue),
+            child: Container(
+              height: 56,
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(color: primary, borderRadius: BorderRadius.circular(18)),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: FxProgress(
+                  value: thbValue,
+                  builder: (_, v) => Text(
+                    'บันทึกเป็นรายจ่าย ฿${CurrencyFormat.format(v)}',
+                    style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                ),
               ),
             ),
-          ],
+          ),
         ),
-        actions: [
-          IconButton(
-            icon: _isLoading
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: MeowTheme.mustardYellow))
-                : Icon(Icons.refresh_rounded, color: textPrimary, size: 22),
-            onPressed: _refreshRates,
-            tooltip: 'อัปเดตเรทสด',
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 36),
-        children: [
-          // 1. Live Exchange Status Bar
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF0F1E36) : const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: borderColor),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: MeowTheme.incomeGreen,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    CurrencyExchangeService.getLastUpdatedText(),
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: textSecondary,
-                    ),
-                    maxLines: 2,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: MeowTheme.mustardYellow.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Text(
-                    'Real-time 🛡️',
-                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: MeowTheme.mustardYellow),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-
-          // 2. Interactive Two-Way Converter Card
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: cardBg,
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: borderColor),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                // Source Currency Box
-                _buildCurrencyBox(
-                  label: 'คุณจ่าย (สกุลเงินต้นทาง)',
-                  currencyInfo: fromInfo,
-                  isSource: true,
-                  textPrimary: textPrimary,
-                  textSecondary: textSecondary,
-                  isDark: isDark,
-                  child: TextField(
-                    controller: _amountController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: textPrimary),
-                    decoration: const InputDecoration(
-                      isDense: true,
-                      border: InputBorder.none,
-                      hintText: '0.00',
-                    ),
-                    onChanged: _onAmountChanged,
-                  ),
-                ),
-                const SizedBox(height: 8),
-
-                // Quick Amount Chips
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _buildQuickChip('+10', 10),
-                      _buildQuickChip('+50', 50),
-                      _buildQuickChip('+100', 100),
-                      _buildQuickChip('+500', 500),
-                      _buildQuickChip('+1,000', 1000),
-                      _buildQuickChip('+5,000', 5000),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 8),
-
-                // Swap Button Row
-                Stack(
-                  alignment: Alignment.center,
+        body: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Header
+              Container(
+                decoration: BoxDecoration(gradient: theme.heroGradient),
+                padding: EdgeInsets.fromLTRB(8, MediaQuery.of(context).padding.top + 10, 8, 64),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Divider(),
-                    GestureDetector(
-                      onTap: _swapCurrencies,
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: MeowTheme.mustardYellow,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.15),
-                              blurRadius: 6,
-                            ),
-                          ],
-                        ),
-                        child: const Icon(Icons.swap_vert_rounded, color: Colors.black87, size: 22),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-
-                // Target Currency Box
-                _buildCurrencyBox(
-                  label: 'แปลงเป็นเงินไทย (หรือสกุลปลายทาง)',
-                  currencyInfo: toInfo,
-                  isSource: false,
-                  textPrimary: textPrimary,
-                  textSecondary: textSecondary,
-                  isDark: isDark,
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      CurrencyFormat.format(convertedAmount),
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: MeowTheme.incomeGreen,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // Rate Equation Box (Wrapped for overflow prevention)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF0F1E36) : const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Wrap(
-                    alignment: WrapAlignment.spaceBetween,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: 8,
-                    runSpacing: 4,
-                    children: [
-                      Text(
-                        '1 ${fromInfo.code.toUpperCase()} = ${unitRate.toStringAsFixed(4)} ${toInfo.code.toUpperCase()}',
-                        style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: textPrimary),
-                      ),
-                      Text(
-                        '1 ${toInfo.code.toUpperCase()} = ${(1.0 / (unitRate > 0 ? unitRate : 1.0)).toStringAsFixed(4)} ${fromInfo.code.toUpperCase()}',
-                        style: TextStyle(fontSize: 11, color: textSecondary),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Action: Use this amount in Expense Tracker
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: MeowTheme.mustardYellow,
-                      foregroundColor: Colors.black87,
-                      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      elevation: 0,
-                    ),
-                    onPressed: () {
-                      final thbValue = _toCurrency == 'thb'
-                          ? convertedAmount
-                          : CurrencyExchangeService.convert(_inputAmount, _fromCurrency, 'thb');
-                      _recordAsExpense(thbValue);
-                    },
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    Row(
                       children: [
-                        const Icon(Icons.add_circle_outline_rounded, size: 20),
-                        const SizedBox(width: 8),
-                        Flexible(
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(
-                              'บันทึกเป็นรายจ่าย (฿${CurrencyFormat.format(_toCurrency == "thb" ? convertedAmount : CurrencyExchangeService.convert(_inputAmount, _fromCurrency, "thb"))})',
-                              style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold),
-                            ),
+                        IconButton(
+                          icon: Icon(Icons.chevron_left_rounded, color: heroText, size: 28),
+                          tooltip: 'ย้อนกลับ',
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            isEn ? 'Currency Converter' : 'แปลงค่าเงิน',
+                            style: TextStyle(color: heroText, fontSize: 18, fontWeight: FontWeight.w700),
                           ),
                         ),
                       ],
                     ),
-                  ),
+                    const SizedBox(height: 6),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 12, right: 8),
+                      child: Material(
+                        color: heroText.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(18),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(18),
+                          onTap: _isLoading ? null : _refreshRates,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(minHeight: 44),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (_isLoading)
+                                    SizedBox(
+                                      width: 10,
+                                      height: 10,
+                                      child: CircularProgressIndicator(strokeWidth: 1.6, color: heroText),
+                                    )
+                                  else
+                                    Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: const BoxDecoration(color: Color(0xFF4ADE80), shape: BoxShape.circle),
+                                    ),
+                                  const SizedBox(width: 6),
+                                  Flexible(
+                                    child: Text(
+                                      _isLoading ? 'กำลังอัปเดตเรทสด…' : 'เรทสด • $updated • แตะเพื่อรีเฟรช',
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(color: heroText, fontSize: 12.5),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // 3. Live Precious Metals Card (ทองคำแท่ง & ทองรูปพรรณ & โลหะเงิน)
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: isDark
-                    ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
-                    : [const Color(0xFFFFFBEB), const Color(0xFFFEF3C7)],
               ),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: const [
-                              Text('🥇 ', style: TextStyle(fontSize: 18)),
-                              Flexible(
-                                child: Text(
-                                  'ราคาทองคำ & โลหะเงินสมาคมไทย',
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: Color(0xFFD97706)),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+
+              Transform.translate(
+                offset: const Offset(0, -52),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Converter card
+                      FxFadeUp(
+                        index: 0,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: cardBg,
+                            borderRadius: BorderRadius.circular(22),
+                            border: isDark ? Border.all(color: borderColor) : null,
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF0F172A).withValues(alpha: isDark ? 0.3 : 0.10),
+                                blurRadius: 28,
+                                offset: const Offset(0, 10),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('คุณจ่าย', style: TextStyle(fontSize: 12.5, color: textSecondary)),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        _CurrencyPill(
+                                          info: fromInfo,
+                                          theme: theme,
+                                          background: theme.scaffoldBackground,
+                                          semantic: 'เลือกสกุลเงินต้นทาง ${fromInfo.nameTh}',
+                                          onTap: () => _openCurrencyPicker(isSource: true),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: TextField(
+                                            controller: _amountController,
+                                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                            textAlign: TextAlign.right,
+                                            style: TextStyle(fontSize: 30, fontWeight: FontWeight.w700, color: textPrimary),
+                                            decoration: InputDecoration(
+                                              isDense: true,
+                                              border: InputBorder.none,
+                                              hintText: '0.00',
+                                              hintStyle: TextStyle(color: textSecondary.withValues(alpha: 0.5)),
+                                            ),
+                                            onChanged: _onAmountChanged,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              // Divider band with the swap button
+                              SizedBox(
+                                height: 48,
+                                child: Stack(
+                                  children: [
+                                    Column(
+                                      children: [
+                                        Expanded(child: Container(color: cardBg)),
+                                        Expanded(child: Container(color: tint)),
+                                      ],
+                                    ),
+                                    Positioned(
+                                      left: 16,
+                                      right: 16,
+                                      top: 23.5,
+                                      child: Container(height: 1, color: borderColor),
+                                    ),
+                                    Positioned(
+                                      right: 40,
+                                      top: 0,
+                                      child: Semantics(
+                                        button: true,
+                                        label: 'สลับสกุลเงิน',
+                                        child: FxPress(
+                                          onTap: _swapCurrencies,
+                                          child: Container(
+                                            width: 48,
+                                            height: 48,
+                                            decoration: BoxDecoration(
+                                              color: primary,
+                                              shape: BoxShape.circle,
+                                              border: Border.all(color: cardBg, width: 4),
+                                            ),
+                                            child: const Icon(Icons.swap_vert_rounded, color: Colors.white, size: 20),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                                decoration: BoxDecoration(
+                                  color: tint,
+                                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(22)),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('ได้รับ', style: TextStyle(fontSize: 12.5, color: textSecondary)),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        _CurrencyPill(
+                                          info: toInfo,
+                                          theme: theme,
+                                          background: cardBg,
+                                          semantic: 'เลือกสกุลเงินปลายทาง ${toInfo.nameTh}',
+                                          onTap: () => _openCurrencyPicker(isSource: false),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Align(
+                                            alignment: Alignment.centerRight,
+                                            child: FittedBox(
+                                              fit: BoxFit.scaleDown,
+                                              alignment: Alignment.centerRight,
+                                              child: FxProgress(
+                                                value: convertedAmount,
+                                                builder: (_, v) => Text(
+                                                  _money(v, _toCurrency),
+                                                  style: TextStyle(fontSize: 30, fontWeight: FontWeight.w700, color: _accentText(theme)),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      '1 ${fromInfo.code.toUpperCase()} = ${_toCurrency == 'thb' ? '฿${_rateText(unitRate)}' : '${_rateText(unitRate)} ${toInfo.code.toUpperCase()}'}',
+                                      style: TextStyle(fontSize: 12, color: textSecondary),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            CurrencyExchangeService.getGoldLastUpdatedText(),
-                            style: TextStyle(fontSize: 10.5, color: textSecondary),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ZakatCalculatorScreen(controller: widget.controller),
-                          ),
-                        );
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Text('คำนวณซากาต ➔', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFD97706))),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
+                      const SizedBox(height: 16),
 
-                // 2 Columns: ทองคำแท่ง & ทองรูปพรรณ
-                Row(
-                  children: [
-                    // 1. ทองคำแท่ง
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: cardBg,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: borderColor),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text('🥇 ทองคำแท่ง', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFFD97706))),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                                  decoration: BoxDecoration(color: const Color(0xFFD97706).withValues(alpha: 0.15), borderRadius: BorderRadius.circular(4)),
-                                  child: const Text('96.5%', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Color(0xFFD97706))),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerLeft,
-                              child: Text('ขายออก: ฿${CurrencyFormat.format(CurrencyExchangeService.getGoldBarSellPrice())}',
-                                  style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: Color(0xFFD97706))),
-                            ),
-                            const SizedBox(height: 2),
-                            FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerLeft,
-                              child: Text('รับซื้อ: ฿${CurrencyFormat.format(CurrencyExchangeService.getGoldBarBuyPrice())}',
-                                  style: TextStyle(fontSize: 11, color: textSecondary)),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-
-                    // 2. ทองรูปพรรณ
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: cardBg,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: borderColor),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text('📿 ทองรูปพรรณ', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFFB45309))),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                                  decoration: BoxDecoration(color: const Color(0xFFB45309).withValues(alpha: 0.15), borderRadius: BorderRadius.circular(4)),
-                                  child: const Text('96.5%', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Color(0xFFB45309))),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerLeft,
-                              child: Text('ขายออก: ฿${CurrencyFormat.format(CurrencyExchangeService.getGoldOrnamentSellPrice())}',
-                                  style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: Color(0xFFB45309))),
-                            ),
-                            const SizedBox(height: 2),
-                            FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerLeft,
-                              child: Text('ฐานภาษี: ฿${CurrencyFormat.format(CurrencyExchangeService.getGoldOrnamentBuyPrice())}',
-                                  style: TextStyle(fontSize: 11, color: textSecondary)),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-
-                // 3. โลหะเงินบริสุทธิ์ (Silver)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: cardBg,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: borderColor),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
+                      // Quick amounts
                       Row(
                         children: [
-                          const Text('🥈 โลหะเงินบริสุทธิ์ (XAG)', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),
+                          for (int i = 0; i < _quickAmounts.length; i++) ...[
+                            if (i > 0) const SizedBox(width: 8),
+                            Expanded(
+                              child: _QuickAmount(
+                                label: CurrencyFormat.format(_quickAmounts[i], trimZero: true),
+                                selected: _inputAmount == _quickAmounts[i],
+                                theme: theme,
+                                onTap: () => _setQuickAmount(_quickAmounts[i]),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
-                      Text(
-                        '฿${FormatUtils.formatCurrency(silverPricePerGram)} / กรัม',
-                        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: Color(0xFF64748B)),
+                      const SizedBox(height: 16),
+
+                      // Popular currencies
+                      FxFadeUp(
+                        index: 1,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      'สกุลเงินยอดนิยม',
+                                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: textPrimary),
+                                    ),
+                                  ),
+                                  Text('ราคาต่อ 1 หน่วย', style: TextStyle(fontSize: 12, color: textSecondary)),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            _SearchField(
+                              hint: 'ค้นหาชื่อประเทศหรือรหัส เช่น SAR, MYR',
+                              theme: theme,
+                              onChanged: (val) => setState(() => _searchQuery = val),
+                            ),
+                            const SizedBox(height: 10),
+                            _buildRatesCard(theme),
+                          ],
+                        ),
                       ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 22),
+                      const SizedBox(height: 16),
 
-          // 4. Live Rates Comparison Table
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'ตารางเรทแลกเปลี่ยนสด (เทียบเงิน 1 บาทไทย 🇹🇭)',
-                style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: textPrimary),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-
-          // Search Field for Rates Table
-          TextField(
-            style: TextStyle(color: textPrimary, fontSize: 12.5),
-            decoration: InputDecoration(
-              hintText: 'ค้นหาสกุลเงินในตาราง เช่น USD, MYR, SAR...',
-              hintStyle: const TextStyle(fontSize: 11.5, color: Colors.grey),
-              prefixIcon: const Icon(Icons.filter_list_rounded, size: 18),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              filled: true,
-              fillColor: isDark ? const Color(0xFF0F1E36) : const Color(0xFFF8FAFC),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
-            ),
-            onChanged: (val) => setState(() => _searchQuery = val),
-          ),
-          const SizedBox(height: 10),
-
-          // Rates List
-          ..._buildRatesList(cardBg, borderColor, textPrimary, textSecondary),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCurrencyBox({
-    required String label,
-    required CurrencyInfo currencyInfo,
-    required bool isSource,
-    required Color textPrimary,
-    required Color textSecondary,
-    required bool isDark,
-    required Widget child,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF0F1E36) : const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: TextStyle(fontSize: 11, color: textSecondary)),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              GestureDetector(
-                onTap: () => _openCurrencyPicker(isSource: isSource),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.white10 : Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: isDark ? Colors.white24 : const Color(0xFFCBD5E1)),
-                  ),
-                  child: Row(
-                    children: [
-                      Text(currencyInfo.flag, style: const TextStyle(fontSize: 20)),
-                      const SizedBox(width: 6),
-                      Text(currencyInfo.code.toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: textPrimary)),
-                      const SizedBox(width: 4),
-                      Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: textSecondary),
+                      // Thai gold association prices (kept from the previous layout)
+                      FxFadeUp(index: 2, child: _buildMetalsCard(theme)),
+                      const SizedBox(height: 24),
                     ],
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(child: child),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildQuickChip(String label, double addAmount) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 6),
-      child: ActionChip(
-        label: Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-        backgroundColor: widget.controller.isDarkMode ? Colors.white10 : const Color(0xFFF1F5F9),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        padding: EdgeInsets.zero,
-        onPressed: () {
-          HapticFeedback.selectionClick();
-          final newAmount = _inputAmount + addAmount;
-          setState(() {
-            _inputAmount = newAmount;
-            _amountController.text = newAmount.toStringAsFixed(0);
-          });
-        },
-      ),
-    );
-  }
-
-  List<Widget> _buildRatesList(Color cardBg, Color borderColor, Color textPrimary, Color textSecondary) {
-    final items = CurrencyExchangeService.getPopularRateItems().where((item) {
+  Widget _buildRatesCard(AppThemeModel theme) {
+    final textPrimary = theme.textColor;
+    final textSecondary = theme.textSecondaryColor;
+    var items = CurrencyExchangeService.getPopularRateItems().where((item) {
       if (item.info.code == 'thb') return false;
       if (_searchQuery.isEmpty) return true;
       final q = _searchQuery.toLowerCase();
@@ -782,62 +615,390 @@ class _CurrencyConverterScreenState extends State<CurrencyConverterScreen> {
           item.info.nameTh.toLowerCase().contains(q) ||
           item.info.nameEn.toLowerCase().contains(q);
     }).toList();
+    final total = items.length;
+    final collapsed = _searchQuery.isEmpty && !_showAllRates && total > _collapsedRateCount;
+    if (collapsed) items = items.take(_collapsedRateCount).toList();
 
-    return items.map((item) {
+    final card = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      decoration: _softCard(theme, 20),
+      child: items.isEmpty
+          ? Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Text(
+                'ไม่พบสกุลเงินที่ค้นหา',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: textSecondary),
+              ),
+            )
+          : Column(
+              children: [
+                for (int i = 0; i < items.length; i++)
+                  InkWell(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() => _fromCurrency = items[i].info.code);
+                    },
+                    child: Container(
+                      constraints: const BoxConstraints(minHeight: 64),
+                      decoration: BoxDecoration(
+                        border: i == items.length - 1
+                            ? null
+                            : Border(bottom: BorderSide(color: theme.borderColor)),
+                      ),
+                      child: Row(
+                        children: [
+                          _FlagDot(flag: items[i].info.flag, size: 40, ring: theme.borderColor),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text.rich(
+                                  TextSpan(children: [
+                                    TextSpan(
+                                      text: items[i].info.code.toUpperCase(),
+                                      style: const TextStyle(fontWeight: FontWeight.w600),
+                                    ),
+                                    TextSpan(
+                                      text: ' • ${items[i].info.nameTh}',
+                                      style: TextStyle(color: textSecondary),
+                                    ),
+                                  ]),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(fontSize: 14.5, color: textPrimary),
+                                ),
+                                Text(
+                                  '100 ฿ = ${FormatUtils.formatCurrency(100.0 * items[i].thbToRate)} ${items[i].info.code.toUpperCase()}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(fontSize: 12, color: textSecondary),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 120),
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerRight,
+                              child: Text(
+                                '฿${CurrencyFormat.format(items[i].rateToThb)}',
+                                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: textPrimary),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+    );
+    if (!collapsed && (_searchQuery.isNotEmpty || total <= _collapsedRateCount)) return card;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        card,
+        TextButton(
+          style: TextButton.styleFrom(
+            foregroundColor: _accentText(theme),
+            minimumSize: const Size(44, 44),
+          ),
+          onPressed: () => setState(() => _showAllRates = !_showAllRates),
+          child: Text(
+            collapsed ? 'ดูทั้งหมด $total สกุลเงิน' : 'ย่อรายการ',
+            style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMetalsCard(AppThemeModel theme) {
+    final textPrimary = theme.textColor;
+    final textSecondary = theme.textSecondaryColor;
+    final silverPricePerGram = CurrencyExchangeService.getSilverPricePerGram();
+
+    Widget row(String label, String sub, String value, {bool last = false}) {
       return Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        constraints: const BoxConstraints(minHeight: 56),
         decoration: BoxDecoration(
-          color: cardBg,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: borderColor),
+          border: last ? null : Border(bottom: BorderSide(color: theme.borderColor)),
         ),
         child: Row(
           children: [
-            Text(item.info.flag, style: const TextStyle(fontSize: 24)),
-            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Row(
-                    children: [
-                      Text(item.info.code.toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: textPrimary)),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          item.info.nameTh,
-                          style: TextStyle(fontSize: 11, color: textSecondary),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '100 ฿ = ${FormatUtils.formatCurrency(100.0 * item.thbToRate)} ${item.info.code.toUpperCase()}',
-                    style: const TextStyle(fontSize: 10.5, color: Colors.grey),
-                  ),
+                  Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textPrimary)),
+                  Text(sub, style: TextStyle(fontSize: 12, color: textSecondary)),
                 ],
               ),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  '฿${CurrencyFormat.format(item.rateToThb)}',
-                  style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: MeowTheme.actionBlue),
-                ),
-                Text(
-                  'ต่อ 1 ${item.info.code.toUpperCase()}',
-                  style: const TextStyle(fontSize: 10, color: Colors.grey),
-                ),
-              ],
-            ),
+            Text(value, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: textPrimary)),
           ],
         ),
       );
-    }).toList();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'ราคาทองคำ & โลหะเงิน',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: textPrimary),
+                    ),
+                    Text(
+                      CurrencyExchangeService.getGoldLastUpdatedText(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 12, color: textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+              TextButton(
+                style: TextButton.styleFrom(
+                  foregroundColor: _accentText(theme),
+                  minimumSize: const Size(44, 44),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ZakatCalculatorScreen(controller: widget.controller),
+                    ),
+                  );
+                },
+                child: const Text('คำนวณซะกาต', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          decoration: _softCard(theme, 20),
+          child: Column(
+            children: [
+              row(
+                'ทองคำแท่ง 96.5%',
+                'รับซื้อ ฿${CurrencyFormat.format(CurrencyExchangeService.getGoldBarBuyPrice())}',
+                '฿${CurrencyFormat.format(CurrencyExchangeService.getGoldBarSellPrice())}',
+              ),
+              row(
+                'ทองรูปพรรณ 96.5%',
+                'ฐานภาษี ฿${CurrencyFormat.format(CurrencyExchangeService.getGoldOrnamentBuyPrice())}',
+                '฿${CurrencyFormat.format(CurrencyExchangeService.getGoldOrnamentSellPrice())}',
+              ),
+              row(
+                'โลหะเงินบริสุทธิ์ (XAG)',
+                'ราคาต่อกรัม',
+                '฿${FormatUtils.formatCurrency(silverPricePerGram)}',
+                last: true,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Primary colour for text; lifted towards white in dark mode so it stays readable.
+  Color _accentText(AppThemeModel theme) =>
+      widget.controller.isDarkMode ? Color.lerp(theme.primaryColor, Colors.white, 0.55)! : theme.primaryColor;
+
+  BoxDecoration _softCard(AppThemeModel theme, double radius) {
+    final isDark = widget.controller.isDarkMode;
+    return BoxDecoration(
+      color: theme.cardBackground,
+      borderRadius: BorderRadius.circular(radius),
+      border: isDark ? Border.all(color: theme.borderColor) : null,
+      boxShadow: [
+        BoxShadow(
+          color: const Color(0xFF0F172A).withValues(alpha: isDark ? 0.2 : 0.06),
+          blurRadius: 14,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    );
+  }
+}
+
+/// Round flag "coin": the flag emoji cropped to a circle with a thin ring.
+class _FlagDot extends StatelessWidget {
+  final String flag;
+  final double size;
+  final Color ring;
+
+  const _FlagDot({required this.flag, required this.size, required this.ring});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: ring)),
+      child: ClipOval(
+        child: OverflowBox(
+          maxWidth: size * 2,
+          maxHeight: size * 2,
+          child: Text(flag, style: TextStyle(fontSize: size * 1.05, height: 1.0)),
+        ),
+      ),
+    );
+  }
+}
+
+class _CurrencyPill extends StatelessWidget {
+  final CurrencyInfo info;
+  final AppThemeModel theme;
+  final Color background;
+  final String semantic;
+  final VoidCallback onTap;
+
+  const _CurrencyPill({
+    required this.info,
+    required this.theme,
+    required this.background,
+    required this.semantic,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: semantic,
+      child: Material(
+        color: background,
+        shape: StadiumBorder(side: BorderSide(color: theme.borderColor)),
+        child: InkWell(
+          customBorder: const StadiumBorder(),
+          onTap: onTap,
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 48),
+            padding: const EdgeInsets.fromLTRB(6, 6, 10, 6),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _FlagDot(flag: info.flag, size: 34, ring: theme.borderColor),
+                const SizedBox(width: 8),
+                Text(
+                  info.code.toUpperCase(),
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: theme.textColor),
+                ),
+                const SizedBox(width: 4),
+                Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: theme.textColor),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickAmount extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final AppThemeModel theme;
+  final VoidCallback onTap;
+
+  const _QuickAmount({required this.label, required this.selected, required this.theme, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = theme.primaryColor;
+    return FxPress(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        height: 44,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selected ? primary : theme.cardBackground,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: selected ? primary : theme.borderColor),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13.5,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+            color: selected ? Colors.white : theme.textColor,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchField extends StatelessWidget {
+  final String hint;
+  final AppThemeModel theme;
+  final ValueChanged<String> onChanged;
+
+  const _SearchField({required this.hint, required this.theme, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide(color: theme.borderColor, width: 1.5),
+    );
+    return TextField(
+      style: TextStyle(color: theme.textColor, fontSize: 14),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(fontSize: 14, color: theme.textSecondaryColor),
+        prefixIcon: Icon(Icons.search_rounded, size: 20, color: theme.textSecondaryColor),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        filled: true,
+        fillColor: theme.cardBackground,
+        border: border,
+        enabledBorder: border,
+        focusedBorder: border.copyWith(borderSide: BorderSide(color: theme.primaryColor, width: 1.5)),
+      ),
+      onChanged: onChanged,
+    );
+  }
+}
+
+class _BottomBar extends StatelessWidget {
+  final AppThemeModel theme;
+  final Widget child;
+
+  const _BottomBar({required this.theme, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.cardBackground,
+        border: Border(top: BorderSide(color: theme.borderColor)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+          child: child,
+        ),
+      ),
+    );
   }
 }
