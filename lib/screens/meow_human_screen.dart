@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../state/expense_controller.dart';
 import '../theme/meow_theme.dart';
-import '../widgets/tactile_button.dart';
 import '../services/native_bridge_service.dart';
 import '../services/category_matcher_service.dart';
 import 'category_management_screen.dart';
@@ -36,80 +35,103 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
 
   void _showLanguagePicker() {
   HapticFeedback.selectionClick();
-  final isDark = widget.controller.isDarkMode;
-  final currentLang = widget.controller.appLanguage;
+  final c = _MenuColors.of(widget.controller);
+  var pending = widget.controller.appLanguage == 'en' ? 'en' : 'th';
 
   showModalBottomSheet(
    context: context,
-   backgroundColor: Colors.transparent,
-   builder: (ctx) => Container(
-    decoration: BoxDecoration(
-     color: isDark ? MeowTheme.navySurface : Colors.white,
-     borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-     border: Border.all(color: isDark ? MeowTheme.borderColor : const Color(0xFFE2E8F0)),
-    ),
-    padding: const EdgeInsets.fromLTRB(20, 16, 20, 30),
-    child: Column(
-     mainAxisSize: MainAxisSize.min,
-     crossAxisAlignment: CrossAxisAlignment.start,
-     children: [
-      Center(
-       child: Container(
-        width: 40,
-        height: 4,
-        decoration: BoxDecoration(
-         color: Colors.grey.withOpacity(0.4),
-         borderRadius: BorderRadius.circular(2),
-        ),
+   backgroundColor: c.card,
+   isScrollControlled: true,
+   shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+   builder: (ctx) => StatefulBuilder(
+    builder: (ctx, setSheet) {
+     final th = pending == 'th';
+     return SafeArea(
+      child: SingleChildScrollView(
+       padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+       child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+         Center(
+          child: Container(width: 36, height: 4, decoration: BoxDecoration(color: c.faint, borderRadius: BorderRadius.circular(2))),
+         ),
+         const SizedBox(height: 12),
+         Text(th ? 'เลือกภาษา' : 'Choose language', style: TextStyle(color: c.text, fontSize: 17, fontWeight: FontWeight.w700)),
+         Text(th ? 'Choose language' : 'เลือกภาษา', style: TextStyle(color: c.sub, fontSize: 12.5)),
+         const SizedBox(height: 12),
+         Container(
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), border: Border.all(color: c.line)),
+          clipBehavior: Clip.antiAlias,
+          child: Material(
+           color: Colors.transparent,
+           child: Column(
+            children: [
+             _buildLanguageOption(
+              code: 'th',
+              flag: '🇹🇭',
+              name: 'ภาษาไทย',
+              sub: 'Thai',
+              isSelected: th,
+              isDark: widget.controller.isDarkMode,
+              onSelect: () => setSheet(() => pending = 'th'),
+             ),
+             _buildLanguageOption(
+              code: 'en',
+              flag: '🇬🇧',
+              name: 'English',
+              sub: 'ภาษาอังกฤษ',
+              isSelected: !th,
+              isDark: widget.controller.isDarkMode,
+              onSelect: () => setSheet(() => pending = 'en'),
+             ),
+            ],
+           ),
+          ),
+         ),
+         const SizedBox(height: 12),
+         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+           Icon(Icons.info_outline_rounded, size: 18, color: c.sub),
+           const SizedBox(width: 10),
+           Expanded(
+            child: Text(
+             th ? 'คู่มือและคำแนะนำในแอปจะแสดงตามภาษาที่เลือก' : 'The guide and in-app tips follow the language you choose',
+             style: TextStyle(color: c.sub, fontSize: 12.5, height: 1.5),
+            ),
+           ),
+          ],
+         ),
+         const SizedBox(height: 12),
+         SizedBox(
+          height: 52,
+          child: ElevatedButton(
+           style: ElevatedButton.styleFrom(
+            backgroundColor: c.accent,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+           ),
+           onPressed: () async {
+            HapticFeedback.mediumImpact();
+            Navigator.pop(ctx);
+            await widget.controller.setAppLanguage(pending);
+            await widget.controller.setGuideLanguage(pending);
+           },
+           child: Text(th ? 'ใช้ภาษาไทย' : 'Use English', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+          ),
+         ),
+        ],
        ),
       ),
-      const SizedBox(height: 16),
-      Row(
-       children: [
-        const Icon(Icons.language_rounded, color: MeowTheme.actionBlue, size: 22),
-        const SizedBox(width: 8),
-        Text(
-         widget.controller.tr('language_modal_title'),
-         style: TextStyle(
-          color: isDark ? Colors.white : const Color(0xFF0F172A),
-          fontSize: 17,
-          fontWeight: FontWeight.bold,
-         ),
-        ),
-       ],
-      ),
-      const SizedBox(height: 16),
-      _buildLanguageOption(
-       code: 'th',
-       flag: '🇹🇭',
-       name: widget.controller.tr('lang_th'),
-       sub: widget.controller.tr('lang_th_sub'),
-       isSelected: currentLang == 'th',
-       isDark: isDark,
-       onSelect: () async {
-        Navigator.pop(ctx);
-        await widget.controller.setAppLanguage('th');
-       },
-      ),
-      const SizedBox(height: 10),
-      _buildLanguageOption(
-       code: 'en',
-       flag: '🇬🇧',
-       name: widget.controller.tr('lang_en'),
-       sub: widget.controller.tr('lang_en_sub'),
-       isSelected: currentLang == 'en',
-       isDark: isDark,
-       onSelect: () async {
-        Navigator.pop(ctx);
-        await widget.controller.setAppLanguage('en');
-       },
-      ),
-     ],
-    ),
+     );
+    },
    ),
   );
  }
 
+ /// One radio row of the language sheet (flag is content, not a UI icon).
  Widget _buildLanguageOption({
   required String code,
   required String flag,
@@ -119,50 +141,45 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
   required bool isDark,
   required VoidCallback onSelect,
  }) {
-  return TactileButton(
-   onTap: onSelect,
-   child: Container(
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-    decoration: BoxDecoration(
-     color: isSelected
-       ? (isDark ? const Color(0xFF1E3A5F) : const Color(0xFFEFF6FF))
-       : (isDark ? MeowTheme.navyCard : const Color(0xFFF8FAFC)),
-     borderRadius: BorderRadius.circular(16),
-     border: Border.all(
-      color: isSelected ? MeowTheme.actionBlue : (isDark ? MeowTheme.borderColor : const Color(0xFFE2E8F0)),
-      width: isSelected ? 2 : 1,
-     ),
-    ),
-    child: Row(
-     children: [
-      Text(flag, style: const TextStyle(fontSize: 26)),
-      const SizedBox(width: 14),
-      Expanded(
-       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-         Text(
-          name,
-          style: TextStyle(
-           color: isDark ? Colors.white : const Color(0xFF0F172A),
-           fontSize: 15,
-           fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-          ),
-         ),
-         const SizedBox(height: 2),
-         Text(
-          sub,
-          style: TextStyle(
-           color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-           fontSize: 12,
-          ),
-         ),
-        ],
+  final c = _MenuColors.of(widget.controller);
+  final ring = isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1);
+  return Semantics(
+   inMutuallyExclusiveGroup: true,
+   checked: isSelected,
+   child: InkWell(
+    onTap: () {
+     HapticFeedback.selectionClick();
+     onSelect();
+    },
+    child: Container(
+     constraints: const BoxConstraints(minHeight: 60),
+     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+     decoration: BoxDecoration(border: code == 'th' ? null : Border(top: BorderSide(color: c.border))),
+     child: Row(
+      children: [
+       Text(flag, style: const TextStyle(fontSize: 22)),
+       const SizedBox(width: 14),
+       Expanded(
+        child: Column(
+         crossAxisAlignment: CrossAxisAlignment.start,
+         children: [
+          Text(name, style: TextStyle(color: c.text, fontSize: 15, fontWeight: FontWeight.w600)),
+          Text(sub, style: TextStyle(color: c.sub, fontSize: 12.5)),
+         ],
+        ),
        ),
-      ),
-      if (isSelected)
-       const Icon(Icons.check_circle_rounded, color: MeowTheme.actionBlue, size: 22),
-     ],
+       AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        width: 22,
+        height: 22,
+        decoration: BoxDecoration(
+         shape: BoxShape.circle,
+         color: c.card,
+         border: Border.all(color: isSelected ? c.link : ring, width: isSelected ? 6 : 2),
+        ),
+       ),
+      ],
+     ),
     ),
    ),
   );
@@ -373,87 +390,265 @@ class _MeowHumanScreenState extends State<MeowHumanScreen> {
   final granted = await NativeBridgeService.isNotificationListenerGranted();
   if (!mounted) return;
   setState(() => _notifGranted = granted);
-  showDialog(
+  final c = _MenuColors.of(widget.controller);
+  final ring = isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1);
+  final body = isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155);
+  const banks = ['K PLUS', 'SCB EASY', 'Krungthai NEXT', 'MyMo', 'ttb touch', 'Bualuang mBanking', 'KMA'];
+  final how = isEn
+      ? ['Your bank sends a “money in” notification to this phone', 'MeowTang reads the amount and sender from it', 'It is recorded as income in that account (you can edit it later)']
+      : ['ธนาคารส่งแจ้งเตือน “เงินเข้า” มาที่เครื่อง', 'เหมียวตังค์อ่านยอดเงินและชื่อผู้โอนจากแจ้งเตือน', 'บันทึกเป็นรายรับเข้าบัญชีนั้นให้อัตโนมัติ (แก้ไขทีหลังได้)'];
+  Widget label(String t) => Text(t, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.sub));
+
+  showModalBottomSheet(
    context: context,
-   builder: (ctx) => AlertDialog(
-    backgroundColor: isDark ? MeowTheme.navySurface : Colors.white,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-    title: Text(
-     granted
-         ? (isEn ? 'Bank notifications: on' : 'ดึงรายรับจากแจ้งเตือน: เปิดอยู่')
-         : (isEn ? 'Bank Notification Access' : 'เปิดระบบอ่านแจ้งเตือนเงินเข้า'),
-     style: TextStyle(color: isDark ? Colors.white : MeowTheme.textDarkPrimary, fontSize: 16, fontWeight: FontWeight.bold),
-    ),
-    content: Text(
-     granted
-         ? (isEn
-             ? 'MeowTang records incoming money from bank app notifications. To turn this off, switch MeowTang off in Notification access settings.'
-             : 'เหมียวตังค์กำลังบันทึกรายรับจากแจ้งเตือนแอปธนาคารให้อัตโนมัติ ถ้าต้องการปิด ให้ปิดเหมียวตังค์ในหน้าการตั้งค่า "การเข้าถึงการแจ้งเตือน"')
-         : (isEn
-             ? 'Allow MeowTang to read bank notifications (K PLUS, SCB EASY, Krungthai, etc.) to automatically record incoming money when you forget.'
-             : 'อนุญาตให้เหมียวตังค์อ่านการแจ้งเตือนจากแอพธนาคาร (เช่น K PLUS, SCB EASY, Krungthai NEXT) เพื่อบันทึกรายรับเข้าให้อัตโนมัติเมื่อคุณรีบจนลืมจด'),
-     style: TextStyle(color: isDark ? Colors.white70 : MeowTheme.textDarkSecondary, fontSize: 13, height: 1.45),
-    ),
-    actions: [
-     TextButton(
-      onPressed: () => Navigator.pop(ctx),
-      child: Text(granted ? (isEn ? 'Close' : 'ปิด') : (isEn ? 'Cancel' : 'ยกเลิก'), style: const TextStyle(color: Colors.grey)),
+   backgroundColor: c.card,
+   isScrollControlled: true,
+   shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+   builder: (ctx) => SafeArea(
+    child: SingleChildScrollView(
+     padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+     child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+       Center(child: Container(width: 36, height: 4, decoration: BoxDecoration(color: c.faint, borderRadius: BorderRadius.circular(2)))),
+       const SizedBox(height: 14),
+       Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+         Padding(padding: const EdgeInsets.only(top: 2), child: Icon(Icons.notifications_none_rounded, size: 22, color: c.icon)),
+         const SizedBox(width: 12),
+         Expanded(
+          child: Column(
+           crossAxisAlignment: CrossAxisAlignment.start,
+           children: [
+            Text(isEn ? 'Income from bank notifications' : 'ดึงรายรับจากแจ้งเตือนธนาคาร',
+             style: TextStyle(color: c.text, fontSize: 17, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 2),
+            Text(isEn ? 'When money comes in, it is recorded as income for you' : 'เงินเข้าเมื่อไร บันทึกเป็นรายรับให้เอง ไม่ต้องจดเอง',
+             style: TextStyle(color: c.sub, fontSize: 12.5, height: 1.45)),
+           ],
+          ),
+         ),
+        ],
+       ),
+       const SizedBox(height: 14),
+       Container(
+        constraints: const BoxConstraints(minHeight: 48),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), border: Border.all(color: c.line)),
+        child: Row(
+         children: [
+          Expanded(child: Text(isEn ? 'Status' : 'สถานะ', style: TextStyle(fontSize: 14, color: body))),
+          Container(width: 8, height: 8, decoration: BoxDecoration(shape: BoxShape.circle, color: granted ? c.link : c.faint)),
+          const SizedBox(width: 6),
+          Text(granted ? (isEn ? 'On' : 'เปิดอยู่') : (isEn ? 'Off' : 'ปิดอยู่'),
+           style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: granted ? c.link : c.sub)),
+         ],
+        ),
+       ),
+       const SizedBox(height: 14),
+       label(isEn ? 'Supported bank apps' : 'แอปธนาคารที่รองรับ'),
+       const SizedBox(height: 8),
+       Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: [
+         for (final b in [...banks, isEn ? 'and more' : 'และอื่นๆ'])
+          Container(
+           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+           decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), border: Border.all(color: c.line)),
+           child: Text(b, style: TextStyle(fontSize: 12.5, color: body)),
+          ),
+        ],
+       ),
+       const SizedBox(height: 14),
+       label(isEn ? 'How it works' : 'ทำงานอย่างไร'),
+       for (var i = 0; i < how.length; i++)
+        Padding(
+         padding: const EdgeInsets.only(top: 8),
+         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+           Container(
+            width: 24,
+            height: 24,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: ring)),
+            child: Text('${i + 1}', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: body)),
+           ),
+           const SizedBox(width: 12),
+           Expanded(child: Text(how[i], style: TextStyle(fontSize: 13.5, height: 1.5, color: body))),
+          ],
+         ),
+        ),
+       const SizedBox(height: 14),
+       Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+         Icon(Icons.lock_outline_rounded, size: 18, color: c.sub),
+         const SizedBox(width: 10),
+         Expanded(
+          child: Text(
+           granted
+               ? (isEn
+                   ? 'Only bank-app notifications are read, on this phone. To turn this off, switch MeowTang off in Notification access settings.'
+                   : 'อ่านเฉพาะแจ้งเตือนจากแอปธนาคาร ประมวลผลในเครื่อง ไม่ส่งออกภายนอก • ถ้าต้องการปิด ให้ปิดเหมียวตังค์ในหน้า “การเข้าถึงการแจ้งเตือน”')
+               : (isEn
+                   ? 'Only bank-app notifications are read, processed on this phone and never sent out.'
+                   : 'อ่านเฉพาะแจ้งเตือนจากแอปธนาคาร ประมวลผลในเครื่อง ไม่ส่งออกภายนอก'),
+           style: TextStyle(color: c.sub, fontSize: 12.5, height: 1.5),
+          ),
+         ),
+        ],
+       ),
+       const SizedBox(height: 16),
+       Row(
+        children: [
+         Expanded(
+          flex: 14,
+          child: SizedBox(
+           height: 52,
+           child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+             backgroundColor: c.accent,
+             foregroundColor: Colors.white,
+             elevation: 0,
+             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+            onPressed: () async {
+             Navigator.pop(ctx);
+             await NativeBridgeService.openNotificationListenerSettings();
+            },
+            child: Text(isEn ? 'Open Settings' : 'ไปที่การตั้งค่า', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+           ),
+          ),
+         ),
+         const SizedBox(width: 10),
+         Expanded(
+          flex: 10,
+          child: SizedBox(
+           height: 52,
+           child: OutlinedButton(
+            style: OutlinedButton.styleFrom(
+             foregroundColor: body,
+             side: BorderSide(color: c.line),
+             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(isEn ? 'Close' : 'ปิด', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+           ),
+          ),
+         ),
+        ],
+       ),
+      ],
      ),
-     ElevatedButton(
-      style: ElevatedButton.styleFrom(
-       backgroundColor: granted ? const Color(0xFF64748B) : widget.controller.currentTheme.primaryColor,
-       elevation: 0,
-       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-      onPressed: () async {
-       Navigator.pop(ctx);
-       await NativeBridgeService.openNotificationListenerSettings();
-      },
-      child: Text(
-       isEn ? 'Open Settings' : 'ไปที่การตั้งค่า',
-       style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-      ),
-     ),
-    ],
+    ),
    ),
   );
  }
 
  void _showGuideChooser({required bool isDark, required bool isEn}) {
   HapticFeedback.selectionClick();
-  final card = isDark ? MeowTheme.navySurface : Colors.white;
-  final text = isDark ? Colors.white : const Color(0xFF0F172A);
-  final sub = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
-  final iconColor = isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155);
-  Widget option(IconData icon, String title, String desc, Widget screen) => ListTile(
-       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-       leading: Icon(icon, size: 22, color: iconColor),
-       title: Text(title, style: TextStyle(color: text, fontWeight: FontWeight.w600, fontSize: 15)),
-       subtitle: Text(desc, style: TextStyle(color: sub, fontSize: 12.5)),
-       trailing: Icon(Icons.chevron_right_rounded, color: sub),
-       onTap: () {
-        Navigator.pop(context);
-        _push(screen);
-       },
+  final c = _MenuColors.of(widget.controller);
+  final ring = isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1);
+  final badgeFg = isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569);
+  Widget option(IconData icon, String title, String badge, String desc, Widget screen) => Padding(
+       padding: const EdgeInsets.only(bottom: 12),
+       child: Material(
+        color: c.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: c.line)),
+        child: InkWell(
+         borderRadius: BorderRadius.circular(14),
+         onTap: () {
+          Navigator.pop(context);
+          _push(screen);
+         },
+         child: Container(
+          constraints: const BoxConstraints(minHeight: 84),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+           children: [
+            Icon(icon, size: 22, color: c.icon),
+            const SizedBox(width: 14),
+            Expanded(
+             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+               Wrap(
+                spacing: 6,
+                runSpacing: 2,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                 Text(title, style: TextStyle(color: c.text, fontWeight: FontWeight.w600, fontSize: 15)),
+                 Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(6), border: Border.all(color: ring)),
+                  child: Text(badge, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: badgeFg)),
+                 ),
+                ],
+               ),
+               const SizedBox(height: 2),
+               Text(desc, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: c.sub, fontSize: 12.5, height: 1.45)),
+              ],
+             ),
+            ),
+            const SizedBox(width: 8),
+            Icon(Icons.chevron_right_rounded, size: 20, color: c.faint),
+           ],
+          ),
+         ),
+        ),
+       ),
       );
   showModalBottomSheet(
    context: context,
-   backgroundColor: card,
-   shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+   backgroundColor: c.card,
+   isScrollControlled: true,
+   shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
    builder: (_) => SafeArea(
-    child: Padding(
-     padding: const EdgeInsets.fromLTRB(8, 12, 8, 12),
+    child: SingleChildScrollView(
+     padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
      child: Column(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-       Container(width: 40, height: 4, decoration: BoxDecoration(color: sub.withValues(alpha: 0.4), borderRadius: BorderRadius.circular(2))),
+       Center(child: Container(width: 36, height: 4, decoration: BoxDecoration(color: c.faint, borderRadius: BorderRadius.circular(2)))),
        const SizedBox(height: 12),
-       option(Icons.menu_book_outlined, isEn ? 'How to use, step by step' : 'วิธีใช้งานทีละขั้น',
-        isEn ? '12 short topics with tips' : '12 หัวข้อ พร้อมเคล็ดลับ', AppGuideScreen(controller: widget.controller)),
-       option(Icons.auto_awesome_outlined, isEn ? 'All features' : 'ฟีเจอร์ทั้งหมดของแอป',
-        isEn ? 'See everything MeowTang can do' : 'ดูภาพรวมว่าเหมียวตังค์ทำอะไรได้บ้าง',
-        AppFeaturesShowcaseScreen(controller: widget.controller, isFromMenu: true)),
+       Text(isEn ? 'Guide & features' : 'คู่มือ & ฟีเจอร์เด่น', style: TextStyle(color: c.text, fontSize: 17, fontWeight: FontWeight.w700)),
+       Text(isEn ? 'How would you like to look?' : 'อยากดูแบบไหน?', style: TextStyle(color: c.sub, fontSize: 12.5)),
+       const SizedBox(height: 12),
+       option(
+        Icons.menu_book_outlined,
+        isEn ? 'How to use, step by step' : 'วิธีใช้งานทีละขั้น',
+        isEn ? '12 topics' : '12 หัวข้อ',
+        isEn
+            ? 'Auto slip import from 22 banks, slip check, voice entry, export & backup …'
+            : 'ดึงสลิปอัตโนมัติ 22 ธนาคาร, ตรวจสลิปแท้, พูดจดด้วยเสียง, ส่งออก & สำรองข้อมูล …',
+        AppGuideScreen(controller: widget.controller),
+       ),
+       option(
+        Icons.auto_awesome_outlined,
+        isEn ? 'All features' : 'ฟีเจอร์ทั้งหมดของแอป',
+        isEn ? 'Everything' : 'รวมทุกอย่าง',
+        isEn
+            ? '150+ currencies & gold, Islamic finance & zakat, 22 characters, 18 themes …'
+            : 'แปลงเงิน 150+ สกุลเงิน & ทอง, การเงินอิสลาม & ซากาต, 22 ตัวละคร, 18 ธีม …',
+        AppFeaturesShowcaseScreen(controller: widget.controller, isFromMenu: true),
+       ),
+       SizedBox(
+        height: 48,
+        child: OutlinedButton(
+         style: OutlinedButton.styleFrom(
+          foregroundColor: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+          side: BorderSide(color: c.line),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+         ),
+         onPressed: () => Navigator.pop(context),
+         child: Text(isEn ? 'Close' : 'ปิด', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+        ),
+       ),
       ],
      ),
     ),
