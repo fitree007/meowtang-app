@@ -26,14 +26,10 @@ Future<void> _tap(WidgetTester tester, Finder f) async {
   await tester.pumpAndSettle();
 }
 
-Finder _fieldUnder(String label) => find.descendant(
-      of: find.ancestor(of: find.text(label), matching: find.byType(Column)).first,
-      matching: find.byType(TextField),
-    );
 
 /// Loads a case study by its title and opens the result screen.
 Future<void> _runCase(WidgetTester tester, String title) async {
-  await _tap(tester, find.text('กรณีศึกษา'));
+  await _tap(tester, find.text('7 กรณีศึกษา'));
   final card = find.ancestor(of: find.text(title), matching: find.byType(Container)).first;
   await _tap(tester, find.descendant(of: card, matching: find.text('ลองคำนวณ')));
   await tester.pump(const Duration(seconds: 3)); // let the snack bar go
@@ -41,26 +37,58 @@ Future<void> _runCase(WidgetTester tester, String title) async {
   await _tap(tester, find.text('ดูผลการแบ่งมรดก'));
 }
 
+/// The amount field on the preset asset row labelled [name].
+Finder _amountIn(String name) => find
+    .descendant(
+      of: find.ancestor(of: find.text(name), matching: find.byType(Row)).first,
+      matching: find.byType(TextField),
+    )
+    .last;
+
 void main() {
-  testWidgets('assets can be itemised, including motorcycles and custom items', (tester) async {
+  testWidgets('asset breakdown (default mode) sums into the read-only total', (tester) async {
     await _pumpScreen(tester);
-    await _tap(tester, find.text('แยกตามประเภททรัพย์สิน'));
-    expect(find.text('🛵 รถจักรยานยนต์'), findsOneWidget);
+    expect(find.text('ใช้ราคาตลาด ณ วันที่เสียชีวิต'), findsOneWidget);
 
-    await tester.enterText(_fieldUnder('🏞️ ที่ดิน / สวน / ไร่นา'), '600000');
-    await tester.enterText(_fieldUnder('🛵 รถจักรยานยนต์'), '50000');
-    await _tap(tester, find.text('เพิ่มทรัพย์สินอื่น (เช่น เรือ เครื่องจักร)'));
-    await tester.enterText(_fieldUnder('📦 ชื่อทรัพย์สิน'), 'เรือประมง');
-    await tester.enterText(_fieldUnder('มูลค่า'), '100000');
+    await tester.enterText(_amountIn('บ้าน/ที่ดิน'), '1000000');
+    await tester.enterText(_amountIn('รถยนต์'), '200000');
     await tester.pumpAndSettle();
+    expect(find.text('1,200,000'), findsOneWidget); // read-only total
+    expect(find.text(_baht(1200000)), findsOneWidget); // net estate
 
-    // itemised total, net estate and bottom bar
-    expect(find.text(_baht(750000)), findsNWidgets(3));
+    // a custom row adds to the total and can be deleted
+    await _tap(tester, find.text('+ เพิ่มรายการอื่น ๆ'));
+    await tester.enterText(find.widgetWithText(TextField, 'ชื่อรายการ เช่น เรือประมง'), 'เรือประมง');
+    await tester.enterText(
+        find
+            .descendant(
+              of: find.ancestor(of: find.byTooltip('ลบรายการ'), matching: find.byType(Row)).first,
+              matching: find.byType(TextField),
+            )
+            .last,
+        '100000');
+    await tester.pumpAndSettle();
+    expect(find.text('1,300,000'), findsOneWidget);
+    await _tap(tester, find.byTooltip('ลบรายการ'));
+    expect(find.text('1,200,000'), findsOneWidget);
+
+    // "กรอกยอดรวม" carries the sum over as an editable manual value
+    await _tap(tester, find.text('กรอกยอดรวม'));
+    final total = find.widgetWithText(TextField, '1,200,000');
+    expect(total, findsOneWidget);
+    expect(find.text('บ้าน/ที่ดิน'), findsNothing);
+    await tester.enterText(total, '900000');
+    await tester.pumpAndSettle();
+    expect(find.text(_baht(900000)), findsOneWidget);
+
+    // switching back keeps the rows the user entered
+    await _tap(tester, find.text('แยกรายการ'));
+    expect(find.text('1,200,000'), findsOneWidget);
   });
 
   testWidgets('al-Haml case holds back the possible share of the unborn child', (tester) async {
     await _pumpScreen(tester);
-    await _runCase(tester, 'ทายาทยังเป็นทารกในครรภ์');
+    await _runCase(tester, 'ทายาทเป็นทารกในครรภ์ (อัล-ฮัมล์)');
 
     expect(find.text('ขั้นที่ 1: แบ่งเฉพาะส่วนที่แน่นอนก่อน'), findsOneWidget);
     // estate 1,200,000: wife 1/9, mother & father 4/27 each, 16/27 held back
@@ -73,7 +101,7 @@ void main() {
 
   testWidgets('al-Mafqud case holds back the missing son\'s share', (tester) async {
     await _pumpScreen(tester);
-    await _runCase(tester, 'ทายาทสูญหาย');
+    await _runCase(tester, 'ทายาทสูญหาย (อัล-มัฟกูด)');
 
     // wife 1/8 = 150,000; son 7/20 = 420,000; daughter 7/40 = 210,000; held back 7/20 = 420,000
     expect(find.text(_baht(150000)), findsOneWidget);
@@ -84,7 +112,7 @@ void main() {
 
   testWidgets('al-Gharqa case divides each estate separately', (tester) async {
     await _pumpScreen(tester);
-    await _runCase(tester, 'เสียชีวิตพร้อมกัน');
+    await _runCase(tester, 'เสียชีวิตพร้อมกันในอุบัติเหตุ (อัล-ฆอร็อก)');
 
     expect(find.text('ขั้นที่ 2: ลูกชาย (เสียชีวิตพร้อมกัน)'), findsOneWidget);
     expect(find.textContaining('ไม่รับมรดกจากผู้ตายคนแรก'), findsOneWidget);
@@ -95,11 +123,11 @@ void main() {
 
   testWidgets('ordinary result screen shows the step-by-step card', (tester) async {
     await _pumpScreen(tester);
-    await _runCase(tester, 'คดีท่านอุมัร (คู่สมรส + พ่อ + แม่)');
+    await _runCase(tester, 'คดีท่านอุมัร (อัล-เฆาะรอวัยน์)');
 
     // wife 1/4, mother 1/3 of the rest = 1/4, father 1/2
     expect(find.text(_baht(300000)), findsWidgets);
     expect(find.text(_baht(600000)), findsWidgets);
-    expect(find.text('วิธีคิดทีละขั้นตอน'), findsOneWidget);
+    expect(find.text('วิธีคิดทีละขั้น'), findsOneWidget);
   });
 }

@@ -43,7 +43,7 @@ void main() {
     expect(find.text('บันทึกเป็นรายจ่าย'), findsOneWidget);
 
     await _tap(tester, find.text('เป็นเครื่องประดับที่สวมใส่ตามปกติ'));
-    expect(find.text('เครื่องประดับที่สวมใส่ ไม่ต้องออกซากาต'), findsOneWidget);
+    expect(find.text('ไม่ต้องออกซากาต'), findsOneWidget);
     expect(find.text('ยังไม่ต้องจ่าย'), findsOneWidget);
 
     await _tap(tester, find.text('เป็นเครื่องประดับที่สวมใส่ตามปกติ'));
@@ -56,15 +56,15 @@ void main() {
     await _tap(tester, find.text('ทองคำ & แร่เงิน'));
     await _tap(tester, find.text('🥈 แร่เงิน'));
     await _tap(tester, find.text('300 กรัม'));
-    expect(find.text('ยังไม่ถึงเกณฑ์นิศอบ'), findsOneWidget);
+    expect(find.text('ยังไม่ถึงนิศอบ — ยังไม่ต้องจ่าย'), findsOneWidget);
     await _tap(tester, find.text('1,000 กรัม'));
-    expect(find.text('ต้องจ่ายซากาตแร่เงิน (วาญิบ)'), findsOneWidget);
+    expect(find.text('ถึงเกณฑ์ — วาญิบต้องออกซากาต'), findsOneWidget);
   });
 
   testWidgets('crops: mixed watering is 7.5%', (tester) async {
     await _pumpScreen(tester);
     await _tap(tester, find.text('ผลผลิตเกษตร'));
-    await tester.enterText(_fieldUnder('🌾 ผลผลิตที่เก็บเกี่ยวได้ (กก.)'), '1000');
+    await tester.enterText(_fieldUnder('🌾 ผลผลิตที่เก็บเกี่ยวได้ (ข้าว ข้าวโพด ฯลฯ)'), '1000');
     await _tap(tester, find.text('ผสมกันพอ ๆ กัน'));
     expect(find.text('${FormatUtils.formatCurrency(75)} กก.'), findsNWidgets(2));
   });
@@ -74,7 +74,7 @@ void main() {
     await _tap(tester, find.text('ปศุสัตว์'));
     await tester.enterText(find.byType(TextField).first, '39');
     await tester.pumpAndSettle();
-    expect(find.text('ยังไม่ถึงเกณฑ์นิศอบ'), findsOneWidget);
+    expect(find.text('ยังไม่ถึงนิศอบ — ยังไม่ต้องจ่าย'), findsOneWidget);
     await _tap(tester, find.byIcon(Icons.add_rounded));
     expect(find.text('แพะหรือแกะ 1 ตัว'), findsNWidgets(2));
   });
