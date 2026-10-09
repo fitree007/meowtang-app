@@ -90,7 +90,8 @@ void main() {
     expect(find.text('ยังไม่มีคีย์เวิร์ดของคุณ'), findsOneWidget);
 
     await _tap(tester, find.text('เพิ่มคีย์เวิร์ดแรก'));
-    await tester.enterText(find.byType(TextField).at(1), 'ชาตรามือ');
+    // TextFields: search, "try a shop name", then the sheet's keyword field.
+    await tester.enterText(find.byType(TextField).at(2), 'ชาตรามือ');
     await _tap(tester, find.widgetWithText(ElevatedButton, 'เพิ่มคีย์เวิร์ด'));
     expect(find.text('ชาตรามือ'), findsOneWidget);
     expect(c.storage.getKeywordRules().length, 1);
@@ -98,13 +99,14 @@ void main() {
     // Tap the rule to edit it in place.
     await _tap(tester, find.text('ชาตรามือ'));
     expect(find.text('แก้ไขคีย์เวิร์ด'), findsOneWidget);
-    await tester.enterText(find.byType(TextField).at(1), 'ชาไทย');
-    await _tap(tester, find.widgetWithText(ElevatedButton, 'บันทึก'));
+    await tester.enterText(find.byType(TextField).at(2), 'ชาไทย');
+    await _tap(tester, find.widgetWithText(ElevatedButton, 'บันทึกการแก้ไข'));
     expect(find.text('ชาไทย'), findsOneWidget);
     expect(c.storage.getKeywordRules().length, 1);
 
-    // Delete, then undo from the snack bar.
-    await _tap(tester, find.byTooltip('ลบคีย์เวิร์ดนี้'));
+    // Delete from the edit sheet, then undo from the snack bar.
+    await _tap(tester, find.text('ชาไทย'));
+    await _tap(tester, find.text('ลบกฎนี้'));
     expect(find.text('ชาไทย'), findsNothing);
     expect(c.storage.getKeywordRules(), isEmpty);
     await tester.tap(find.text('เลิกทำ'));
@@ -149,6 +151,6 @@ void main() {
     expect(find.text('1 รายการ'), findsOneWidget);
     // The two CSV options were the same file; only Excel / CSV and PDF remain.
     expect(find.text('CSV ทั่วไป'), findsNothing);
-    expect(find.text('Excel / CSV'), findsOneWidget);
+    expect(find.text('Excel (.csv)'), findsOneWidget);
   });
 }
