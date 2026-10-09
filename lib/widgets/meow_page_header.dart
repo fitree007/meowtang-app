@@ -30,13 +30,20 @@ class MeowPageHeader extends StatelessWidget {
     final heroText = theme.heroTextColor(isDark);
     final heroMuted = theme.heroTextMutedColor(isDark);
 
-    Widget mascot = MeowMascotWidget(
-      size: 44,
-      mascotId: controller.selectedMascotId,
-      accessory: controller.selectedMascotAccessory,
-      customPhotoPath: controller.customAvatarPath,
-      isCustomPhoto: controller.isCustomAvatarEnabled,
-      withPen: true,
+    // Mascot face in a soft round chip, as in the drafts.
+    Widget mascot = Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(color: heroText.withValues(alpha: 0.18), shape: BoxShape.circle),
+      alignment: Alignment.center,
+      child: MeowMascotWidget(
+        size: 34,
+        mascotId: controller.selectedMascotId,
+        accessory: controller.selectedMascotAccessory,
+        customPhotoPath: controller.customAvatarPath,
+        isCustomPhoto: controller.isCustomAvatarEnabled,
+        isHeadOnly: true,
+      ),
     );
     if (onMascotTap != null) {
       mascot = GestureDetector(
@@ -68,9 +75,9 @@ class MeowPageHeader extends StatelessWidget {
       width: double.infinity,
       decoration: BoxDecoration(
         gradient: theme.heroGradient,
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(22)),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
       ),
-      padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 10, 16, 14),
+      padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 14, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -80,7 +87,7 @@ class MeowPageHeader extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: TextStyle(color: heroText, fontSize: 22, fontWeight: FontWeight.w800)),
+                    Text(title, style: TextStyle(color: heroText, fontSize: 22, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 2),
                     AnimatedSwitcher(
                       duration: const Duration(milliseconds: 200),
@@ -100,7 +107,7 @@ class MeowPageHeader extends StatelessWidget {
             ],
           ),
           if (bottom != null) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             bottom!,
           ],
         ],

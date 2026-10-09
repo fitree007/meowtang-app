@@ -57,9 +57,11 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('#lunch'), findsOneWidget);
     expect(find.text('ไม่ได้ระบุ #แท็ก'), findsOneWidget);
+    // The first tag opens by itself; tapping it closes it again.
+    expect(find.text('#lunch (1 รายการ)'), findsOneWidget);
     await tester.tap(find.text('#lunch'));
     await tester.pumpAndSettle();
-    expect(find.text('#lunch (1 รายการ)'), findsOneWidget);
+    expect(find.text('#lunch (1 รายการ)'), findsNothing);
   });
 
   testWidgets('compare: months and years both render', (tester) async {
@@ -68,7 +70,7 @@ void main() {
     await tester.tap(find.text('เทียบเดือน'));
     await tester.pumpAndSettle();
     expect(find.text('ใช้จ่ายสะสมรายวัน'), findsOneWidget);
-    expect(find.text('ประหยัดมากสุด'), findsOneWidget);
+    expect(find.text('👍 ประหยัดมากสุด'), findsOneWidget);
     await tester.tap(find.text('เทียบ 2 ปี'));
     await tester.pumpAndSettle();
     expect(find.text('ใช้จ่ายสะสมรายเดือน'), findsOneWidget);
