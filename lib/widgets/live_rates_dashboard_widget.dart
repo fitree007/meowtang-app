@@ -549,9 +549,13 @@ class _LiveRatesDashboardWidgetState extends State<LiveRatesDashboardWidget>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'ทองคำแท่ง',
-                        style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFFD97706)),
+                      const Flexible(
+                        child: Text(
+                          'ทองคำแท่ง',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFFD97706)),
+                        ),
                       ),
                       SparklineChartWidget(
                         dataPoints: trend1,
@@ -566,9 +570,14 @@ class _LiveRatesDashboardWidgetState extends State<LiveRatesDashboardWidget>
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text('ขายออก', style: TextStyle(fontSize: 10.5, color: Colors.grey)),
-                      Text(
-                        '฿${FormatUtils.formatCurrency(goldBarSell)}',
-                        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w900, color: Color(0xFFD97706)),
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            '฿${FormatUtils.formatCurrency(goldBarSell)}',
+                            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w900, color: Color(0xFFD97706)),
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -576,9 +585,14 @@ class _LiveRatesDashboardWidgetState extends State<LiveRatesDashboardWidget>
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text('รับซื้อ', style: TextStyle(fontSize: 10.5, color: Colors.grey)),
-                      Text(
-                        '฿${FormatUtils.formatCurrency(goldBarBuy)}',
-                        style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: currentTheme.textColor),
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            '฿${FormatUtils.formatCurrency(goldBarBuy)}',
+                            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: currentTheme.textColor),
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -602,9 +616,13 @@ class _LiveRatesDashboardWidgetState extends State<LiveRatesDashboardWidget>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'ทองรูปพรรณ',
-                        style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFFD97706)),
+                      const Flexible(
+                        child: Text(
+                          'ทองรูปพรรณ',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFFD97706)),
+                        ),
                       ),
                       SparklineChartWidget(
                         dataPoints: trend2,
@@ -619,9 +637,14 @@ class _LiveRatesDashboardWidgetState extends State<LiveRatesDashboardWidget>
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text('ขายออก', style: TextStyle(fontSize: 10.5, color: Colors.grey)),
-                      Text(
-                        '฿${FormatUtils.formatCurrency(goldOrnamentSell)}',
-                        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w900, color: Color(0xFFD97706)),
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            '฿${FormatUtils.formatCurrency(goldOrnamentSell)}',
+                            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w900, color: Color(0xFFD97706)),
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -629,9 +652,14 @@ class _LiveRatesDashboardWidgetState extends State<LiveRatesDashboardWidget>
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text('รับซื้อ', style: TextStyle(fontSize: 10.5, color: Colors.grey)),
-                      Text(
-                        '฿${FormatUtils.formatCurrency(goldOrnamentBuy)}',
-                        style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: currentTheme.textColor),
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            '฿${FormatUtils.formatCurrency(goldOrnamentBuy)}',
+                            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: currentTheme.textColor),
+                          ),
+                        ),
                       ),
                     ],
                   ),
