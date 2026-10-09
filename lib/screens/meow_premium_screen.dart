@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart' show NumberFormat;
 import '../state/expense_controller.dart';
-import '../widgets/meow_mascot_widget.dart';
-import '../widgets/tactile_button.dart';
 import '../services/currency_exchange_service.dart';
 import 'saving_goals_screen.dart';
 import 'goal_calculator_screen.dart';
@@ -15,7 +14,33 @@ import 'currency_converter_screen.dart';
 import 'gold_silver_calculator_screen.dart';
 import 'subscription_vault_screen.dart';
 import '../widgets/live_rates_dashboard_widget.dart';
+import '../widgets/meow_fx.dart';
+import '../widgets/meow_page_header.dart';
 import '../widgets/meow_paywall_modal.dart';
+
+/// Accent pair used by one tool tile (icon chip + accent text), light and dark.
+class _Accent {
+  final Color fg;
+  final Color bg;
+  final Color fgDark;
+
+  const _Accent(this.fg, this.bg, this.fgDark);
+
+  Color color(bool dark) => dark ? fgDark : fg;
+  Color chip(bool dark) => dark ? fgDark.withValues(alpha: 0.16) : bg;
+}
+
+const _gold = _Accent(Color(0xFFB45309), Color(0xFFFEF3C7), Color(0xFFFCD34D));
+const _fx = _Accent(Color(0xFF0369A1), Color(0xFFE6F0FA), Color(0xFF38BDF8));
+const _subs = _Accent(Color(0xFF4F46E5), Color(0xFFEEEBFF), Color(0xFFA5B4FC));
+const _saving = _Accent(Color(0xFF047857), Color(0xFFE3F6EE), Color(0xFF34D399));
+const _budget = _Accent(Color(0xFF1D4ED8), Color(0xFFE5EEFF), Color(0xFF60A5FA));
+const _calc = _Accent(Color(0xFF6D28D9), Color(0xFFF1ECFF), Color(0xFFC4B5FD));
+const _project = _Accent(Color(0xFFBE185D), Color(0xFFFDEBF3), Color(0xFFF472B6));
+const _zakat = _Accent(Color(0xFFB45309), Color(0xFFFFF3DC), Color(0xFFFCD34D));
+
+const _thMonths = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+const _enMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 class MeowPremiumScreen extends StatefulWidget {
   final ExpenseController controller;
@@ -27,7 +52,12 @@ class MeowPremiumScreen extends StatefulWidget {
 }
 
 class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
-  bool _isHeaderCollapsed = false;
+  static final NumberFormat _int = NumberFormat('#,##0', 'en_US');
+  static final NumberFormat _dec = NumberFormat('#,##0.00', 'en_US');
+
+  ExpenseController get _c => widget.controller;
+  bool get _isEn => _c.isEnglish;
+  bool get _isDark => _c.isDarkMode;
 
   @override
   void initState() {
@@ -135,1107 +165,749 @@ class _MeowPremiumScreenState extends State<MeowPremiumScreen> {
     );
   }
 
+  /// Full live-rates dashboard (refresh, watchlist, sparklines) in a sheet,
+  /// opened from the "today's prices" strip in the header.
+  Future<void> _openRatesSheet() async {
+    HapticFeedback.selectionClick();
+    final theme = _c.currentTheme;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: theme.scaffoldBackground,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.85),
+        child: SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(color: theme.borderColor, borderRadius: BorderRadius.circular(2)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Text(
+                    _isEn ? 'Live rates' : 'ราคาและเรทเงินวันนี้',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: theme.textColor),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                LiveRatesDashboardWidget(controller: _c),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (mounted) setState(() {});
+  }
+
+  // ---------------------------------------------------------------------------
+  // Real data shown on the tiles
+  // ---------------------------------------------------------------------------
+
+  String _shortDate(DateTime d, {bool withYear = false}) {
+    final m = _isEn ? _enMonths[d.month - 1] : _thMonths[d.month - 1];
+    if (!withYear) return '${d.day} $m';
+    return '${d.day} $m ${_isEn ? d.year : d.year + 543}';
+  }
+
+  String get _headerSubtitle {
+    if (!_c.isPremium) {
+      return _isEn ? 'Free plan • Unlock every tool with VIP' : 'บัญชีทั่วไป • ปลดล็อคทุกเครื่องมือด้วย VIP';
+    }
+    final expiry = _c.premiumExpiry;
+    if (expiry == null) return _isEn ? 'VIP member • Lifetime' : 'สมาชิก VIP • ตลอดชีพ';
+    return _isEn
+        ? 'VIP member • Renews ${_shortDate(expiry, withYear: true)}'
+        : 'สมาชิก VIP • ต่ออายุ ${_shortDate(expiry, withYear: true)}';
+  }
+
+  String get _updatedText {
+    final raw = CurrencyExchangeService.getLastUpdatedText()
+        .replaceFirst('อัปเดตล่าสุด: ', '')
+        .replaceFirst(' เวลา ', ' • ');
+    return _isEn ? 'Updated $raw' : 'อัปเดต $raw';
+  }
+
+  // ---------------------------------------------------------------------------
+  // Build
+  // ---------------------------------------------------------------------------
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: widget.controller,
       builder: (context, _) {
-        final currentTheme = widget.controller.currentTheme;
-        final isEn = widget.controller.isEnglish;
-        final isDark = widget.controller.isDarkMode;
-        final bgColor = currentTheme.scaffoldBackground;
-        final cardBg = currentTheme.cardBackground;
-        final borderColor = currentTheme.borderColor;
-        final textColor = currentTheme.textColor;
-        final subTextColor = currentTheme.textSecondaryColor;
-
-        final isVip = widget.controller.isPremium;
+        final theme = _c.currentTheme;
+        final isVip = _c.isPremium;
+        final locked = !isVip;
+        final isEn = _isEn;
+        var i = 0;
 
         return Scaffold(
-          backgroundColor: bgColor,
-          body: NotificationListener<ScrollNotification>(
-            onNotification: (notification) {
-              if (notification.metrics.axis == Axis.vertical) {
-                final isScrolled = notification.metrics.pixels > 20.0;
-                if (isScrolled != _isHeaderCollapsed) {
-                  setState(() {
-                    _isHeaderCollapsed = isScrolled;
-                  });
-                }
-              }
-              return false;
-            },
-            child: Column(
-              children: [
-                // 1. VIP Hero Header with Dynamic Active Theme Gradient (Pinned at Top & Collapsible)
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeInOut,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    gradient: currentTheme.heroGradient,
-                    boxShadow: [
-                      BoxShadow(
-                        color: currentTheme.primaryColor.withValues(alpha: isDark ? 0.3 : 0.15),
-                        blurRadius: 16,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  padding: EdgeInsets.only(
-                    top: MediaQuery.of(context).padding.top + (_isHeaderCollapsed ? 11 : 14),
-                    left: 18,
-                    right: 18,
-                    bottom: _isHeaderCollapsed ? 8 : 12,
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              isEn ? 'Advanced Financial Suite' : 'ศูนย์รวมเครื่องมือการเงินขั้นสูง',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: _isHeaderCollapsed ? 16.5 : 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            AnimatedCrossFade(
-                              duration: const Duration(milliseconds: 200),
-                              crossFadeState: _isHeaderCollapsed
-                                  ? CrossFadeState.showSecond
-                                  : CrossFadeState.showFirst,
-                              firstChild: Padding(
-                                padding: const EdgeInsets.only(top: 2),
-                                child: Text(
-                                  isEn
-                                      ? 'Live FX rates, wealth budgets, compound interest & Islamic finance'
-                                      : 'เรทเงินโลกสด, ดอกเบี้ยทบต้น, วางแผนการเงิน & การเงินอิสลาม',
-                                  style: const TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ),
-                              secondChild: const SizedBox.shrink(),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      MeowMascotWidget(
-                        size: _isHeaderCollapsed ? 38 : 52,
-                        mascotId: widget.controller.selectedMascotId,
-                        accessory: widget.controller.selectedMascotAccessory,
-                        customPhotoPath: widget.controller.customAvatarPath,
-                        isCustomPhoto: widget.controller.isCustomAvatarEnabled,
-                        withPen: true,
-                      ),
-                    ],
-                  ),
-                ),
-
-                // 2. Scrollable Body
-                Expanded(
+          backgroundColor: theme.scaffoldBackground,
+          body: Column(
+            children: [
+              MeowPageHeader(
+                controller: _c,
+                title: isEn ? 'Financial tools' : 'เครื่องมือการเงิน',
+                subtitle: _headerSubtitle,
+                bottom: _buildPriceStrip(),
+              ),
+              Expanded(
                 child: ListView(
-                  padding: EdgeInsets.zero,
+                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 28),
                   physics: const BouncingScrollPhysics(),
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(14, 12, 14, 28),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                    if (!isVip) ...[
-                      // Prominent VIP Upgrade / Purchase Banner
-                      InkWell(
-                        onTap: () {
-                          MeowPaywallModal.show(
-                            context,
-                            controller: widget.controller,
-                            reason: 'สั่งซื้อแพ็กเกจพรีเมี่ยม VIP เพื่อปลดล็อคทุกฟีเจอร์อย่างสมบูรณ์แบบ ✨',
-                          );
-                        },
-                        borderRadius: BorderRadius.circular(18),
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.5), width: 1.5),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFFF59E0B).withValues(alpha: 0.18),
-                                blurRadius: 12,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 46,
-                                height: 46,
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [Color(0xFFFBBF24), Color(0xFFD97706)],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  ),
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                                child: const Center(
-                                  child: Text('👑', style: TextStyle(fontSize: 24)),
-                                ),
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      isEn ? 'Upgrade to VIP Premium' : 'สั่งซื้อแพ็กเกจพรีเมี่ยม VIP',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14.5,
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: 0.2,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 3),
-                                    Text(
-                                      isEn
-                                          ? 'Unlock all features • Subscription & Bills • No ads'
-                                          : 'ปลดล็อคทุกฟีเจอร์ • จัดการ Subscription • ไร้โฆษณา',
-                                      style: TextStyle(
-                                        color: Colors.white.withValues(alpha: 0.75),
-                                        fontSize: 11.5,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
-                                  ),
-                                  borderRadius: BorderRadius.circular(10),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(0xFFF59E0B).withValues(alpha: 0.25),
-                                      blurRadius: 6,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: Text(
-                                  isEn ? 'Buy' : 'สั่งซื้อ',
-                                  style: const TextStyle(
-                                    color: Colors.black,
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: InkWell(
-                          onTap: () => _restorePurchases(context),
-                          borderRadius: BorderRadius.circular(8),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.restore_rounded, size: 15, color: Color(0xFF94A3B8)),
-                                const SizedBox(width: 4),
-                                Text(
-                                  isEn ? 'Already bought VIP? Restore' : 'เคยสั่งซื้อ VIP แล้ว? กู้คืนสิทธิ์ (Restore)',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Color(0xFF94A3B8),
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                    ] else ...[
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: InkWell(
-                          onTap: () => _restorePurchases(context),
-                          borderRadius: BorderRadius.circular(8),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.verified_user_rounded, size: 15, color: Color(0xFF10B981)),
-                                const SizedBox(width: 4),
-                                Text(
-                                  isEn ? 'VIP License Active • Info' : 'สิทธิ์ VIP สมบูรณ์ (ตลอดชีพ) • ตรวจสอบ',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Color(0xFF10B981),
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
+                    if (locked) ...[
+                      FxFadeUp(index: 0, child: _buildUpgradeCard()),
+                      const SizedBox(height: 22),
                     ],
 
-                    // ==========================================================
-                    // SECTION 1: GLOBAL CURRENCIES & COMMODITIES (3-in-1 COMPACT HUB)
-                    // ==========================================================
-                    _buildSectionHeader(
-                      title: isEn ? '1. Global Currencies & Metals' : '1. เรททองคำ & อัตราแลกเปลี่ยนสด',
-                      textColor: textColor,
-                    ),
-                    const SizedBox(height: 4),
-
-                    // Ultra Compact 3-in-1 Dashboard (Gold / Silver / Currencies)
-                    LiveRatesDashboardWidget(controller: widget.controller),
-                    const SizedBox(height: 6),
-
-                    // 1. Dedicated Action Button: Currency Converter (เครื่องคิดเลขแปลงเงิน)
-                    TactileButton(
-                      onTap: () {
-                        _openFeature(
-                          CurrencyConverterScreen(controller: widget.controller),
-                          reason: 'เครื่องคิดเลขแปลงค่าเงิน 30+ สกุลทั่วโลก สำหรับสมาชิก VIP 👑',
-                        );
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: cardBg,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFF0284C7).withValues(alpha: 0.35), width: 1.2),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF0284C7).withValues(alpha: isDark ? 0.2 : 0.04),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            const SizedBox(
-                              width: 28,
-                              height: 28,
-                              child: Center(
-                                child: Icon(
-                                  Icons.currency_exchange_rounded,
-                                  size: 22,
-                                  color: Color(0xFF0284C7),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Row(
-                                children: [
-                                  Text(
-                                    isEn ? 'Currency Converter' : 'เครื่องคิดเลขแปลงเงิน',
-                                    style: TextStyle(
-                                      fontSize: 13.5,
-                                      fontWeight: FontWeight.bold,
-                                      color: textColor,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF10B981).withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Container(
-                                          width: 5,
-                                          height: 5,
-                                          decoration: const BoxDecoration(
-                                            color: Color(0xFF10B981),
-                                            shape: BoxShape.circle,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          isEn ? 'LIVE' : 'เรียลไทม์',
-                                          style: const TextStyle(
-                                            fontSize: 9.5,
-                                            fontWeight: FontWeight.bold,
-                                            color: Color(0xFF10B981),
-                                            letterSpacing: 0.2,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  if (!isVip) ...[
-                                    const SizedBox(width: 5),
-                                    Icon(Icons.lock_outline_rounded, size: 13, color: subTextColor),
-                                  ],
-                                ],
-                              ),
-                            ),
-                            const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFF0284C7), size: 13),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-
-                    // 2. Dedicated Action Button: Gold & Silver Calculator (คำนวณแร่ทอง/แร่เงิน พร้อมกราฟ)
-                    TactileButton(
-                      onTap: () {
-                        _openFeature(
-                          GoldSilverCalculatorScreen(controller: widget.controller),
-                          reason: 'คำนวณแร่ทอง & แร่เงิน พร้อมกราฟแนวโน้ม สำหรับสมาชิก VIP 👑',
-                        );
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: cardBg,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4), width: 1.2),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFFF59E0B).withValues(alpha: isDark ? 0.2 : 0.05),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            const SizedBox(
-                              width: 28,
-                              height: 28,
-                              child: Center(
-                                child: Icon(
-                                  Icons.diamond_rounded,
-                                  size: 22,
-                                  color: Color(0xFFD97706),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Row(
-                                children: [
-                                  Text(
-                                    isEn ? 'Gold & Silver Calculator' : 'คำนวณแร่ทอง & แร่เงิน',
-                                    style: TextStyle(
-                                      fontSize: 13.5,
-                                      fontWeight: FontWeight.bold,
-                                      color: textColor,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF10B981).withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Container(
-                                          width: 5,
-                                          height: 5,
-                                          decoration: const BoxDecoration(
-                                            color: Color(0xFF10B981),
-                                            shape: BoxShape.circle,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          isEn ? 'LIVE' : 'เรียลไทม์',
-                                          style: const TextStyle(
-                                            fontSize: 9.5,
-                                            fontWeight: FontWeight.bold,
-                                            color: Color(0xFF10B981),
-                                            letterSpacing: 0.2,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  if (!isVip) ...[
-                                    const SizedBox(width: 5),
-                                    Icon(Icons.lock_outline_rounded, size: 13, color: subTextColor),
-                                  ],
-                                ],
-                              ),
-                            ),
-                            const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFFF59E0B), size: 13),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // ==========================================================
-                    // SECTION 2: SMART WEALTH & BUDGET PLANNING
-                    // ==========================================================
-                    _buildSectionHeader(
-                      title: isEn ? '2. Smart Wealth & Budgets' : '2. การวางแผนการเงินส่วนบุคคล',
-                      textColor: textColor,
-                    ),
-                    const SizedBox(height: 6),
-
-                    // FEATURED HERO CARD: SUBSCRIPTION VAULT (Larger & with brand logos)
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      decoration: BoxDecoration(
-                        color: cardBg,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: const Color(0xFF6366F1).withValues(alpha: isDark ? 0.35 : 0.25),
-                          width: 1.2,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF6366F1).withValues(alpha: isDark ? 0.12 : 0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                      ),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(20),
-                          onTap: () {
-                            if (!isVip) {
-                              MeowPaywallModal.show(
-                                context,
-                                controller: widget.controller,
-                                reason: 'ระบบจัดการ Subscription & รายจ่ายประจำ สำหรับสมาชิก VIP 👑',
-                              );
-                            } else {
-                              HapticFeedback.lightImpact();
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => SubscriptionVaultScreen(
-                                    controller: widget.controller,
-                                  ),
-                                ),
-                              );
-                            }
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.all(13),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Container(
-                                      width: 44,
-                                      height: 44,
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF6366F1).withValues(alpha: 0.12),
-                                        borderRadius: BorderRadius.circular(14),
-                                        border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.25)),
-                                      ),
-                                      child: const Icon(
-                                        Icons.subscriptions_rounded,
-                                        size: 22,
-                                        color: Color(0xFF6366F1),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              Text(
-                                                isEn ? 'Subscription Vault' : 'คุมค่า Subscription & บิลประจำ',
-                                                style: TextStyle(
-                                                  fontSize: 15,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: textColor,
-                                                ),
-                                              ),
-                                              if (!isVip) ...[
-                                                const SizedBox(width: 6),
-                                                Icon(Icons.lock_outline_rounded, size: 14, color: subTextColor),
-                                              ],
-                                            ],
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            isEn
-                                                ? 'Organize & alert before billing'
-                                                : 'จัดระเบียบและเตือนก่อนตัดเงิน',
-                                            style: TextStyle(fontSize: 11.5, color: subTextColor),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Icon(
-                                      Icons.arrow_forward_ios_rounded,
-                                      color: subTextColor.withValues(alpha: 0.6),
-                                      size: 14,
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 10),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: isDark ? Colors.white.withValues(alpha: 0.03) : const Color(0xFFF8FAFC),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: borderColor.withValues(alpha: isDark ? 0.3 : 0.6),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      // Brand logos row
-                                      ...[
-                                        'assets/icons/subscriptions/netflix.png',
-                                        'assets/icons/subscriptions/youtube.png',
-                                        'assets/icons/subscriptions/chatgpt.png',
-                                        'assets/icons/subscriptions/spotify.png',
-                                        'assets/icons/subscriptions/disney_plus.png',
-                                        'assets/icons/subscriptions/claude.png',
-                                        'assets/icons/subscriptions/apple.png',
-                                      ].map((assetPath) {
-                                        return Container(
-                                          width: 26,
-                                          height: 26,
-                                          margin: const EdgeInsets.only(right: 6),
-                                          decoration: BoxDecoration(
-                                            color: Colors.white,
-                                            shape: BoxShape.circle,
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: Colors.black.withValues(alpha: 0.08),
-                                                blurRadius: 3,
-                                                offset: const Offset(0, 1),
-                                              ),
-                                            ],
-                                          ),
-                                          child: ClipOval(
-                                            child: Padding(
-                                              padding: const EdgeInsets.all(2.5),
-                                              child: Image.asset(
-                                                assetPath,
-                                                fit: BoxFit.contain,
-                                                errorBuilder: (_, _, _) => const Icon(Icons.circle, size: 14, color: Colors.grey),
-                                              ),
-                                            ),
-                                          ),
-                                        );
-                                      }),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                                        decoration: BoxDecoration(
-                                          color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        child: Text(
-                                          '+อื่นๆ',
-                                          style: TextStyle(
-                                            fontSize: 9.5,
-                                            fontWeight: FontWeight.bold,
-                                            color: subTextColor,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // 2x2 Square Grid
-                    GridView.count(
-                      crossAxisCount: 2,
-                      shrinkWrap: true,
-                      padding: EdgeInsets.zero,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisSpacing: 8,
-                      mainAxisSpacing: 8,
-                      childAspectRatio: 1.35,
-                      children: [
-                        // 1. Saving Goals
-                        _buildCompactToolCard(
-                          title: isEn ? 'Saving Goals' : 'เป้าหมายการออม',
-                          subtitle: isEn ? 'Track & plan each goal' : 'ออม ถอน ดูวันที่จะครบ',
-                          badgeText: 'ออมเงิน',
-                          icon: Icons.track_changes_rounded,
-                          iconColor: const Color(0xFF10B981),
-                          gradientColors: [const Color(0xFF10B981).withValues(alpha: 0.12), const Color(0xFF059669).withValues(alpha: 0.03)],
-                          cardBg: cardBg,
-                          borderColor: borderColor,
-                          textColor: textColor,
-                          subTextColor: subTextColor,
-                          isLocked: !isVip,
-                          onTap: () => _openFeature(SavingGoalsScreen(controller: widget.controller)),
-                        ),
-
-                        // 2. Budget Management
-                        _buildCompactToolCard(
-                          title: isEn ? 'Budget Plan' : 'วางแผนงบประมาณ',
-                          subtitle: isEn ? 'Monthly limits by category' : 'กำหนดงบรายหมวดต่อเดือน',
-                          badgeText: widget.controller.isBudgetPlanEnabled ? 'เปิดอยู่' : 'ปิดอยู่',
-                          icon: Icons.pie_chart_rounded,
-                          iconColor: const Color(0xFF3B82F6),
-                          gradientColors: [const Color(0xFF3B82F6).withValues(alpha: 0.12), const Color(0xFF2563EB).withValues(alpha: 0.03)],
-                          cardBg: cardBg,
-                          borderColor: borderColor,
-                          textColor: textColor,
-                          subTextColor: subTextColor,
-                          isLocked: !isVip,
-                          onTap: () => _openFeature(BudgetManagementScreen(controller: widget.controller)),
-                        ),
-
-                        // 3. Goal Calculator
-                        _buildCompactToolCard(
-                          title: isEn ? 'Goal Calculator' : 'คำนวณเวลาเก็บออม',
-                          subtitle: isEn ? 'How long / how much' : 'นานแค่ไหน / ต้องออมเท่าไหร่',
-                          badgeText: 'วางแผน',
-                          icon: Icons.calculate_rounded,
-                          iconColor: const Color(0xFF6366F1),
-                          gradientColors: [const Color(0xFF6366F1).withValues(alpha: 0.12), const Color(0xFF4F46E5).withValues(alpha: 0.03)],
-                          cardBg: cardBg,
-                          borderColor: borderColor,
-                          textColor: textColor,
-                          subTextColor: subTextColor,
-                          isLocked: !isVip,
-                          onTap: () => _openFeature(GoalCalculatorScreen(controller: widget.controller)),
-                        ),
-
-                        // 4. Project Budgets
-                        _buildCompactToolCard(
-                          title: isEn ? 'Project Budgets' : 'งบโปรเจกต์ & ทุนวิจัย',
-                          subtitle: isEn ? 'Separate budget per project' : 'แยกงบตามงาน/โครงการ',
-                          badgeText: 'เฉพาะกิจ',
-                          icon: Icons.folder_special_rounded,
-                          iconColor: const Color(0xFFEC4899),
-                          gradientColors: [const Color(0xFFEC4899).withValues(alpha: 0.12), const Color(0xFFDB2777).withValues(alpha: 0.03)],
-                          cardBg: cardBg,
-                          borderColor: borderColor,
-                          textColor: textColor,
-                          subTextColor: subTextColor,
-                          isLocked: !isVip,
+                    // ทองคำ & ค่าเงิน
+                    _sectionTitle(isEn ? 'Gold & currencies' : 'ทองคำ & ค่าเงิน', i),
+                    _pair(
+                      FxFadeUp(
+                        index: i++,
+                        child: _tile(
+                          accent: _gold,
+                          icon: Icons.diamond_outlined,
+                          title: isEn ? 'Gold & silver calculator' : 'คำนวณทอง & เงิน',
+                          subtitle: isEn ? 'Enter weight → buy/sell price' : 'ใส่น้ำหนัก → รู้ราคาซื้อ/ขาย',
+                          footer: _footerText(isEn ? 'baht · salueng · gram' : 'บาท · สลึง · กรัม', _gold),
+                          locked: locked,
                           onTap: () => _openFeature(
-                            ProjectsBudgetScreen(controller: widget.controller),
-                            reason: 'งบโปรเจกต์ & ทุนวิจัย สำหรับสมาชิก VIP 👑',
+                            GoldSilverCalculatorScreen(controller: _c),
+                            reason: 'คำนวณแร่ทอง & แร่เงิน พร้อมกราฟแนวโน้ม สำหรับสมาชิก VIP 👑',
                           ),
                         ),
-                      ],
+                      ),
+                      FxFadeUp(
+                        index: i++,
+                        child: _tile(
+                          accent: _fx,
+                          icon: Icons.swap_horiz_rounded,
+                          title: isEn ? 'Currency converter' : 'แปลงค่าเงิน',
+                          subtitle: isEn ? '30+ currencies, latest rates' : '30+ สกุลเงิน เรทล่าสุด',
+                          footer: _footerText('USD · JPY · MYR · SAR', _fx),
+                          locked: locked,
+                          onTap: () => _openFeature(
+                            CurrencyConverterScreen(controller: _c),
+                            reason: 'เครื่องคิดเลขแปลงค่าเงิน 30+ สกุลทั่วโลก สำหรับสมาชิก VIP 👑',
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 22),
+
+                    // วางแผนการเงิน
+                    _sectionTitle(isEn ? 'Money planning' : 'วางแผนการเงิน', i),
+                    FxFadeUp(index: i++, child: _buildSubscriptionCard(locked)),
+                    const SizedBox(height: 10),
+                    _pair(
+                      FxFadeUp(index: i++, child: _buildSavingGoalsTile(locked)),
+                      FxFadeUp(index: i++, child: _buildBudgetTile(locked)),
                     ),
                     const SizedBox(height: 10),
-
-                    // ==========================================================
-                    // SECTION 3: ISLAMIC FINANCE & FARAID
-                    // ==========================================================
-                    _buildSectionHeader(
-                      title: isEn ? '3. Islamic Wealth & Sunnah' : '3. การเงินตามหลักการอิสลาม',
-                      textColor: textColor,
-                    ),
-                    const SizedBox(height: 4),
-
-                    // Islamic tools as full-width tiles (title + Arabic + what it does)
-                    _buildIslamicTile(
-                      title: isEn ? 'Zakat Calculator' : 'คำนวณซากาต',
-                      arabic: 'الزكاة',
-                      description: isEn
-                          ? 'Savings, gold, crops & livestock with step-by-step explanation'
-                          : 'เงินออม ทองคำ ผลผลิต ปศุสัตว์ พร้อมอธิบายวิธีคิด',
-                      icon: Icons.volunteer_activism_rounded,
-                      color: const Color(0xFFF59E0B),
-                      isLocked: !isVip,
-                      cardBg: cardBg,
-                      borderColor: borderColor,
-                      textColor: textColor,
-                      subTextColor: subTextColor,
-                      onTap: () => _openFeature(ZakatCalculatorScreen(controller: widget.controller)),
-                    ),
-                    const SizedBox(height: 8),
-                    _buildIslamicTile(
-                      title: isEn ? 'Islamic Inheritance' : 'แบ่งมรดกอิสลาม',
-                      arabic: 'الفرائض',
-                      description: isEn
-                          ? 'Shafi\'i rules incl. heirs who die before distribution'
-                          : 'ตามมัซฮับชาฟิอีย์ รองรับทายาทเสียชีวิตก่อนแบ่ง (มรดกซ้อน)',
-                      icon: Icons.account_balance_rounded,
-                      color: const Color(0xFF8B5CF6),
-                      isLocked: !isVip,
-                      cardBg: cardBg,
-                      borderColor: borderColor,
-                      textColor: textColor,
-                      subTextColor: subTextColor,
-                      onTap: () => _openFeature(IslamicInheritanceScreen(controller: widget.controller)),
-                    ),
-                    const SizedBox(height: 8),
-
-                    // Newborn Baby Hair Charity Card (Full Width Compact Strip)
-                    TactileButton(
-                      onTap: () => _openFeature(IslamicBabyHairCharityScreen(controller: widget.controller)),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: cardBg,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: !isVip
-                                ? const Color(0xFFF59E0B).withValues(alpha: 0.35)
-                                : const Color(0xFF10B981).withValues(alpha: 0.4),
-                            width: 1.2,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
+                    _pair(
+                      FxFadeUp(
+                        index: i++,
+                        child: _tile(
+                          accent: _calc,
+                          icon: Icons.calculate_outlined,
+                          title: isEn ? 'Saving time calculator' : 'คำนวณเวลาเก็บออม',
+                          subtitle: isEn ? 'How long / how much to save' : 'นานแค่ไหน / ต้องออมเท่าไหร่',
+                          locked: locked,
+                          onTap: () => _openFeature(GoalCalculatorScreen(controller: _c)),
                         ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 38,
-                              height: 38,
-                              decoration: BoxDecoration(
-                                color: !isVip
-                                    ? const Color(0xFFF59E0B).withValues(alpha: 0.15)
-                                    : const Color(0xFF10B981).withValues(alpha: 0.14),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Center(
-                                child: !isVip
-                                    ? const Icon(Icons.lock_outline_rounded, color: Color(0xFFF59E0B), size: 19)
-                                    : const Icon(Icons.child_care_rounded, color: Color(0xFF10B981), size: 21),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Text(
-                                        isEn ? 'Baby Hair Charity' : 'ทานน้ำหนักผมทารกแรกเกิด',
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.bold,
-                                          color: textColor,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                                        decoration: BoxDecoration(
-                                          color: !isVip
-                                              ? const Color(0xFFF59E0B).withValues(alpha: 0.18)
-                                              : const Color(0xFF10B981).withValues(alpha: 0.15),
-                                          borderRadius: BorderRadius.circular(6),
-                                        ),
-                                        child: Text(
-                                          !isVip ? '🔒 VIP' : 'ซุนนะฮ์ ﷺ',
-                                          style: TextStyle(
-                                            fontSize: 9.5,
-                                            fontWeight: FontWeight.bold,
-                                            color: !isVip ? const Color(0xFFF59E0B) : const Color(0xFF047857),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    isEn
-                                        ? 'Calculate charity by silver/gold weight'
-                                        : 'คำนวณมูลค่าทานตามน้ำหนักเงิน/ทองคำ',
-                                    style: TextStyle(fontSize: 11, color: subTextColor),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFF10B981), size: 13),
-                          ],
+                      ),
+                      FxFadeUp(index: i++, child: _buildProjectsTile(locked)),
+                    ),
+                    const SizedBox(height: 22),
+
+                    // การเงินตามหลักอิสลาม
+                    _sectionTitle(isEn ? 'Islamic finance' : 'การเงินตามหลักอิสลาม', i),
+                    _pair(
+                      FxFadeUp(
+                        index: i++,
+                        child: _tile(
+                          accent: _zakat,
+                          icon: Icons.toll_outlined,
+                          title: isEn ? 'Zakat calculator' : 'คำนวณซากาต',
+                          arabic: 'الزكاة',
+                          locked: locked,
+                          onTap: () => _openFeature(ZakatCalculatorScreen(controller: _c)),
+                        ),
+                      ),
+                      FxFadeUp(
+                        index: i++,
+                        child: _tile(
+                          accent: _calc,
+                          icon: Icons.account_balance_outlined,
+                          title: isEn ? 'Islamic inheritance' : 'แบ่งมรดกอิสลาม',
+                          arabic: 'الفرائض',
+                          locked: locked,
+                          onTap: () => _openFeature(IslamicInheritanceScreen(controller: _c)),
                         ),
                       ),
                     ),
+                    const SizedBox(height: 10),
+                    FxFadeUp(index: i++, child: _buildBabyHairTile(locked)),
+                    const SizedBox(height: 18),
+                    _buildLicenseLink(isVip),
                   ],
                 ),
               ),
             ],
           ),
-        ),
-      ],
-     ),
-    ),
-   );
-  },
+        );
+      },
     );
   }
 
-  Widget _buildSectionHeader({
-    required String title,
-    required Color textColor,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 2, bottom: 4),
-      child: Text(
-        title,
-        style: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.bold,
-          color: textColor,
-          letterSpacing: -0.2,
-        ),
-      ),
-    );
-  }
+  // ---------------------------------------------------------------------------
+  // Header: today's prices
+  // ---------------------------------------------------------------------------
 
-  Widget _buildIslamicTile({
-    required String title,
-    required String arabic,
-    required String description,
-    required IconData icon,
-    required Color color,
-    required bool isLocked,
-    required Color cardBg,
-    required Color borderColor,
-    required Color textColor,
-    required Color subTextColor,
-    required VoidCallback onTap,
-  }) {
-    return TactileButton(
-      pressScale: 0.97,
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: cardBg,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: color.withValues(alpha: 0.35), width: 1.2),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.13),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(isLocked ? Icons.lock_outline_rounded : icon, color: color, size: 24),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: textColor),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(arabic, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color)),
-                      if (isLocked) ...[
-                        const SizedBox(width: 6),
-                        const Text('🔒 VIP',
-                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFFF59E0B))),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    description,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 11.5, height: 1.35, color: subTextColor),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 6),
-            Icon(Icons.arrow_forward_ios_rounded, size: 14, color: color),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget _buildPriceStrip() {
+    final theme = _c.currentTheme;
+    final heroText = theme.heroTextColor(_isDark);
+    final heroMuted = theme.heroTextMutedColor(_isDark);
+    final silver = CurrencyExchangeService.getSilverPricePerGram();
 
-  Widget _buildCompactToolCard({
-    required String title,
-    String subtitle = '',
-    required String badgeText,
-    required IconData icon,
-    required Color iconColor,
-    required List<Color> gradientColors,
-    required Color cardBg,
-    required Color borderColor,
-    required Color textColor,
-    required Color subTextColor,
-    required VoidCallback onTap,
-    bool isLocked = false,
-  }) {
-    final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
-    final watermarkColor = isDarkTheme
-        ? Colors.white.withValues(alpha: 0.06)
-        : const Color(0xFF475569).withValues(alpha: 0.07);
-
-    return TactileButton(
-      onTap: onTap,
-      child: Container(
-        clipBehavior: Clip.antiAlias,
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: cardBg,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isLocked ? const Color(0xFFF59E0B).withValues(alpha: 0.35) : borderColor,
-            width: isLocked ? 1.2 : 1.0,
+    Widget chip(String label, double value, NumberFormat f) {
+      return Expanded(
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: heroText.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(14),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Stack(
-          children: [
-            Positioned(
-              right: -10,
-              bottom: -10,
-              child: IgnorePointer(
-                child: Icon(
-                  icon,
-                  size: 68,
-                  color: watermarkColor,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11.5, color: heroMuted)),
+              const SizedBox(height: 2),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: FxProgress(
+                  value: value,
+                  duration: const Duration(milliseconds: 900),
+                  builder: (_, v) => Text(
+                    '฿${f.format(v)}',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: heroText),
+                  ),
                 ),
               ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Semantics(
+      button: true,
+      label: _isEn ? 'Open live rates' : 'เปิดเรทราคาทั้งหมด',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _openRatesSheet,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: isLocked
-                            ? const Color(0xFFF59E0B).withValues(alpha: 0.15)
-                            : iconColor.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(
-                        isLocked ? Icons.lock_outline_rounded : icon,
-                        color: isLocked ? const Color(0xFFF59E0B) : iconColor,
-                        size: 17,
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: isLocked
-                            ? const Color(0xFFF59E0B).withValues(alpha: 0.15)
-                            : iconColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        isLocked ? '🔒 VIP' : badgeText,
-                        style: TextStyle(
-                          color: isLocked ? const Color(0xFFF59E0B) : iconColor,
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
+                Text(
+                  _isEn ? "Today's prices" : 'ราคาวันนี้',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: heroText),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: textColor,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (subtitle.isNotEmpty) ...[
-                      const SizedBox(height: 1),
-                      Text(
-                        subtitle,
-                        style: TextStyle(
-                          fontSize: 10.5,
-                          color: subTextColor,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ],
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _updatedText,
+                    textAlign: TextAlign.right,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 12, color: heroMuted),
+                  ),
                 ),
+                Icon(Icons.chevron_right_rounded, size: 18, color: heroMuted),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                chip(_isEn ? 'Gold bar/baht' : 'ทองแท่ง/บาท', CurrencyExchangeService.getGoldBarSellPrice(), _int),
+                const SizedBox(width: 8),
+                chip(_isEn ? 'Ornament/baht' : 'รูปพรรณ/บาท', CurrencyExchangeService.getGoldOrnamentSellPrice(), _int),
+                const SizedBox(width: 8),
+                chip(_isEn ? 'Silver/gram' : 'เงิน/กรัม', silver, _dec),
               ],
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Building blocks
+  // ---------------------------------------------------------------------------
+
+  Widget _sectionTitle(String title, int index) {
+    return FxFadeUp(
+      index: index,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
+        child: Text(
+          title,
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _c.currentTheme.textColor),
+        ),
+      ),
+    );
+  }
+
+  /// Two equal-height tiles side by side (the draft's 2-column grid row).
+  Widget _pair(Widget a, Widget b) {
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(child: a),
+          const SizedBox(width: 10),
+          Expanded(child: b),
+        ],
+      ),
+    );
+  }
+
+  BoxDecoration _cardDecoration() {
+    final theme = _c.currentTheme;
+    return BoxDecoration(
+      color: theme.cardBackground,
+      borderRadius: BorderRadius.circular(18),
+      border: _isDark ? Border.all(color: theme.borderColor) : null,
+      boxShadow: _isDark
+          ? null
+          : const [BoxShadow(color: Color(0x0F0F172A), blurRadius: 14, offset: Offset(0, 4))],
+    );
+  }
+
+  Widget _card({required Widget child, required VoidCallback onTap, required String label, EdgeInsets? padding, double minHeight = 0}) {
+    return Semantics(
+      button: true,
+      label: label,
+      child: FxPress(
+        onTap: onTap,
+        child: Container(
+          constraints: BoxConstraints(minHeight: minHeight),
+          padding: padding ?? const EdgeInsets.all(14),
+          decoration: _cardDecoration(),
+          child: child,
+        ),
+      ),
+    );
+  }
+
+  Widget _iconChip(_Accent accent, IconData icon, {double size = 40, double radius = 12, double iconSize = 20}) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(color: accent.chip(_isDark), borderRadius: BorderRadius.circular(radius)),
+      child: Icon(icon, size: iconSize, color: accent.color(_isDark)),
+    );
+  }
+
+  /// Quiet "VIP" mark shown on tools a free user cannot open yet.
+  Widget _vipBadge() {
+    final color = _isDark ? const Color(0xFFFCD34D) : const Color(0xFFB45309);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.7)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.lock_outline_rounded, size: 11, color: color),
+          const SizedBox(width: 3),
+          Text('VIP', style: TextStyle(fontSize: 11, height: 1.2, fontWeight: FontWeight.w700, color: color)),
+        ],
+      ),
+    );
+  }
+
+  TextStyle get _titleStyle =>
+      TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600, height: 1.3, color: _c.currentTheme.textColor);
+  TextStyle get _subStyle => TextStyle(fontSize: 12, height: 1.35, color: _c.currentTheme.textSecondaryColor);
+
+  Widget _footerText(String text, _Accent accent) {
+    return Text(text, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: accent.color(_isDark)));
+  }
+
+  Widget _progressFooter(double value, _Accent accent, Color barLight) {
+    return FxBar(
+      value: value,
+      height: 6,
+      color: _isDark ? accent.fgDark : barLight,
+      track: _isDark ? _c.currentTheme.borderColor : const Color(0xFFE9EDF3),
+    );
+  }
+
+  /// Square-ish grid tile: icon chip, title, subtitle and an optional footer
+  /// pinned to the bottom (chips text or a progress bar).
+  Widget _tile({
+    required _Accent accent,
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    String? arabic,
+    Widget? footer,
+    required bool locked,
+    required VoidCallback onTap,
+  }) {
+    return _card(
+      label: title,
+      onTap: onTap,
+      minHeight: 136,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _iconChip(accent, icon),
+              const Spacer(),
+              if (locked) _vipBadge(),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(title, style: _titleStyle),
+          if (subtitle != null) ...[
+            const SizedBox(height: 8),
+            Text(subtitle, style: _subStyle),
+          ],
+          if (arabic != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              arabic,
+              textDirection: TextDirection.rtl,
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: accent.color(_isDark)),
+            ),
+          ],
+          if (footer != null) ...[
+            const Spacer(),
+            const SizedBox(height: 8),
+            footer,
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Tiles with live data
+  // ---------------------------------------------------------------------------
+
+  Widget _buildSubscriptionCard(bool locked) {
+    final theme = _c.currentTheme;
+    final isEn = _isEn;
+    final active = _c.subscriptions.where((s) => s.isActive).toList();
+    final ongoing = active.where((s) => !s.hasEnded).toList();
+    final monthly = active.fold<double>(0, (sum, s) => sum + CurrencyExchangeService.convertToThb(s.monthlyCost, s.currency));
+
+    final upcoming = _c.upcomingSubscriptions;
+    final next = upcoming.where((s) => s.daysUntilNextBilling >= 0).firstOrNull ?? upcoming.firstOrNull;
+    String noteText;
+    if (next == null) {
+      noteText = isEn ? 'Track bills & get a heads-up before each charge' : 'จัดระเบียบและเตือนก่อนตัดเงิน';
+    } else {
+      final days = next.daysUntilNextBilling;
+      final when = days == 0
+          ? (isEn ? 'today' : 'วันนี้')
+          : days > 0
+              ? (isEn ? 'in $days days' : 'อีก $days วัน')
+              : (isEn ? '${-days} days overdue' : 'เลยกำหนด ${-days} วัน');
+      noteText = isEn
+          ? 'Next charge ${_shortDate(next.nextBillingDate)} • $when'
+          : 'ตัดเงินถัดไป ${_shortDate(next.nextBillingDate)} • $when';
+    }
+
+    final noteBg = _isDark ? const Color(0xFFFBBF24).withValues(alpha: 0.12) : const Color(0xFFFFF7E6);
+    final noteFg = _isDark ? const Color(0xFFFCD98A) : const Color(0xFF92400E);
+    final accent = _subs.color(_isDark);
+
+    return _card(
+      label: 'Subscription',
+      padding: const EdgeInsets.all(16),
+      onTap: () => _openFeature(
+        SubscriptionVaultScreen(controller: _c),
+        reason: 'ระบบจัดการ Subscription & รายจ่ายประจำ สำหรับสมาชิก VIP 👑',
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              _iconChip(_subs, Icons.subscriptions_outlined, size: 48, radius: 14, iconSize: 24),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(child: Text('Subscription', style: _titleStyle, maxLines: 1, overflow: TextOverflow.ellipsis)),
+                        if (locked) ...[const SizedBox(width: 6), _vipBadge()],
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      ongoing.isEmpty
+                          ? (isEn ? 'Subscriptions & recurring bills' : 'ค่าบริการ & บิลที่ต้องจ่ายประจำ')
+                          : (isEn ? '${ongoing.length} recurring payments' : '${ongoing.length} รายการที่ต้องจ่ายประจำ'),
+                      style: _subStyle,
+                    ),
+                  ],
+                ),
+              ),
+              if (active.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    FxProgress(
+                      value: monthly,
+                      duration: const Duration(milliseconds: 900),
+                      builder: (_, v) => Text(
+                        '฿${_int.format(v)}',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, height: 1.2, color: accent),
+                      ),
+                    ),
+                    Text(isEn ? 'per month' : 'ต่อเดือน', style: TextStyle(fontSize: 11.5, color: theme.textSecondaryColor)),
+                  ],
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 14),
+          Container(
+            constraints: const BoxConstraints(minHeight: 40),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(color: noteBg, borderRadius: BorderRadius.circular(12)),
+            child: Row(
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(color: Color(0xFFF59E0B), shape: BoxShape.circle),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(noteText, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: noteFg)),
+                ),
+                const SizedBox(width: 6),
+                Text(isEn ? 'See all' : 'ดูทั้งหมด', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: accent)),
+                Icon(Icons.chevron_right_rounded, size: 16, color: accent),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSavingGoalsTile(bool locked) {
+    final goals = _c.savingGoals;
+    final target = goals.fold<double>(0, (s, g) => s + (g.targetAmount > 0 ? g.targetAmount : 0));
+    final saved = goals.fold<double>(0, (s, g) => s + g.currentAmount.clamp(0, g.targetAmount > 0 ? g.targetAmount : 0));
+    final hasData = target > 0;
+    final pct = hasData ? (saved / target).clamp(0.0, 1.0) : 0.0;
+
+    return _tile(
+      accent: _saving,
+      icon: Icons.track_changes_rounded,
+      title: _isEn ? 'Saving goals' : 'เป้าหมายการออม',
+      subtitle: hasData
+          ? (_isEn ? '${(pct * 100).round()}% of goal saved' : 'ออมแล้ว ${(pct * 100).round()}% ของเป้า')
+          : (_isEn ? 'Track & plan each goal' : 'ออม ถอน ดูวันที่จะครบ'),
+      footer: hasData ? _progressFooter(pct, _saving, const Color(0xFF059669)) : null,
+      locked: locked,
+      onTap: () => _openFeature(SavingGoalsScreen(controller: _c)),
+    );
+  }
+
+  Widget _buildBudgetTile(bool locked) {
+    final now = DateTime.now();
+    final key = 'month_${now.year}_${now.month.toString().padLeft(2, '0')}';
+    var total = _c.getTotalBudgetForScope(key);
+    if (total <= 0) {
+      total = _c.getCategoryBudgetsForScope(key).values.fold<double>(0, (s, v) => s + v);
+    }
+    final hasData = total > 0;
+    final spent = _c.totalExpenseThisMonth;
+    final ratio = hasData ? spent / total : 0.0;
+    final pct = (ratio * 100).round();
+    final left = total - spent;
+
+    String subtitle;
+    if (!hasData) {
+      subtitle = _isEn ? 'Monthly limits by category' : 'กำหนดงบรายหมวดต่อเดือน';
+    } else if (left >= 0) {
+      subtitle = _isEn ? 'Used $pct% • ฿${_int.format(left)} left' : 'ใช้ไป $pct% • เหลือ ฿${_int.format(left)}';
+    } else {
+      subtitle = _isEn ? 'Used $pct% • ฿${_int.format(-left)} over' : 'ใช้ไป $pct% • เกินงบ ฿${_int.format(-left)}';
+    }
+
+    return _tile(
+      accent: _budget,
+      icon: Icons.pie_chart_outline_rounded,
+      title: _isEn ? 'Budget' : 'งบประมาณ',
+      subtitle: subtitle,
+      footer: hasData
+          ? _progressFooter(ratio.clamp(0.0, 1.0), _budget, left < 0 ? const Color(0xFFDC2626) : const Color(0xFF1D4ED8))
+          : null,
+      locked: locked,
+      onTap: () => _openFeature(BudgetManagementScreen(controller: _c)),
+    );
+  }
+
+  Widget _buildProjectsTile(bool locked) {
+    final running = _c.projects.where((p) => !p.isArchived).length;
+    return _tile(
+      accent: _project,
+      icon: Icons.folder_outlined,
+      title: _isEn ? 'Project budgets' : 'งบโปรเจกต์',
+      subtitle: running > 0
+          ? (_isEn ? '$running active projects' : '$running โปรเจกต์กำลังดำเนินการ')
+          : (_isEn ? 'Separate budget per project' : 'แยกงบตามงาน/โครงการ'),
+      locked: locked,
+      onTap: () => _openFeature(
+        ProjectsBudgetScreen(controller: _c),
+        reason: 'งบโปรเจกต์ & ทุนวิจัย สำหรับสมาชิก VIP 👑',
+      ),
+    );
+  }
+
+  Widget _buildBabyHairTile(bool locked) {
+    final theme = _c.currentTheme;
+    final title = _isEn ? 'Baby hair charity' : 'ทานน้ำหนักผมทารก';
+    return _card(
+      label: title,
+      minHeight: 72,
+      onTap: () => _openFeature(IslamicBabyHairCharityScreen(controller: _c)),
+      child: Row(
+        children: [
+          _iconChip(_saving, Icons.balance_rounded),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(child: Text(title, style: _titleStyle)),
+                    if (locked) ...[const SizedBox(width: 6), _vipBadge()],
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _isEn ? 'Charity value by silver/gold weight' : 'คำนวณมูลค่าทานตามน้ำหนักเงิน/ทอง',
+                  style: _subStyle,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Icon(Icons.chevron_right_rounded, size: 20, color: theme.textSecondaryColor.withValues(alpha: 0.7)),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Membership (free: upgrade card, both: restore / licence link)
+  // ---------------------------------------------------------------------------
+
+  Widget _buildUpgradeCard() {
+    final amber = _isDark ? const Color(0xFFFCD34D) : const Color(0xFFB45309);
+    final title = _isEn ? 'Upgrade to VIP Premium' : 'สั่งซื้อแพ็กเกจพรีเมี่ยม VIP';
+    return _card(
+      label: title,
+      onTap: () {
+        MeowPaywallModal.show(
+          context,
+          controller: _c,
+          reason: 'สั่งซื้อแพ็กเกจพรีเมี่ยม VIP เพื่อปลดล็อคทุกฟีเจอร์อย่างสมบูรณ์แบบ ✨',
+        );
+      },
+      child: Row(
+        children: [
+          _iconChip(_gold, Icons.workspace_premium_outlined),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: _titleStyle),
+                const SizedBox(height: 2),
+                Text(
+                  _isEn
+                      ? 'Unlock all features • Subscription & Bills • No ads'
+                      : 'ปลดล็อคทุกฟีเจอร์ • จัดการ Subscription • ไร้โฆษณา',
+                  style: _subStyle,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Container(
+            height: 36,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: amber),
+            ),
+            child: Text(
+              _isEn ? 'Buy' : 'สั่งซื้อ',
+              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: amber),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLicenseLink(bool isVip) {
+    final theme = _c.currentTheme;
+    final color = isVip
+        ? (_isDark ? const Color(0xFF34D399) : const Color(0xFF047857))
+        : theme.textSecondaryColor;
+    final text = isVip
+        ? (_isEn ? 'VIP licence active • Check' : 'สิทธิ์ VIP สมบูรณ์ • ตรวจสอบ')
+        : (_isEn ? 'Already bought VIP? Restore' : 'เคยสั่งซื้อ VIP แล้ว? กู้คืนสิทธิ์ (Restore)');
+    return Center(
+      child: TextButton.icon(
+        onPressed: () => _restorePurchases(context),
+        style: TextButton.styleFrom(
+          foregroundColor: color,
+          minimumSize: const Size(44, 44),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        icon: Icon(isVip ? Icons.verified_user_outlined : Icons.restore_rounded, size: 16, color: color),
+        label: Text(text, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: color)),
       ),
     );
   }
