@@ -4,6 +4,7 @@ import '../state/expense_controller.dart';
 import '../config/app_config.dart';
 import '../services/ad_service.dart';
 import '../services/billing_service.dart';
+import '../services/team_code_service.dart';
 import 'tactile_button.dart';
 import 'meow_mascot_widget.dart';
 
@@ -545,6 +546,22 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
                         ),
                         Text(' • ', style: TextStyle(color: subColor, fontSize: 11)),
                         TextButton(
+                          onPressed: _isProcessing ? null : _handleTeamCode,
+                          style: TextButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          ),
+                          child: Text(
+                            isEn ? 'Enter code' : 'ใส่โค้ด',
+                            style: TextStyle(
+                              color: subColor,
+                              fontSize: 11,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                        Text(' • ', style: TextStyle(color: subColor, fontSize: 11)),
+                        TextButton(
                           onPressed: () => Navigator.pop(context),
                           style: TextButton.styleFrom(
                             visualDensity: VisualDensity.compact,
@@ -849,6 +866,73 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
         ),
       ),
     );
+  }
+
+  /// Team members paste the code they were given to get VIP for free.
+  Future<void> _handleTeamCode() async {
+    HapticFeedback.selectionClick();
+    final isEn = widget.controller.isEnglish;
+    final input = TextEditingController();
+    String? error;
+    var checking = false;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) {
+          Future<void> submit() async {
+            if (input.text.trim().isEmpty || checking) return;
+            setLocal(() {
+              checking = true;
+              error = null;
+            });
+            final message = await TeamCodeService.redeem(widget.controller, input.text, isEn: isEn);
+            if (!ctx.mounted) return;
+            if (message == null) {
+              Navigator.pop(ctx, true);
+            } else {
+              setLocal(() {
+                checking = false;
+                error = message;
+              });
+            }
+          }
+
+          return AlertDialog(
+            title: Text(isEn ? 'Enter code' : 'ใส่โค้ด'),
+            content: TextField(
+              controller: input,
+              autofocus: true,
+              minLines: 1,
+              maxLines: 3,
+              decoration: InputDecoration(
+                hintText: 'MT-...',
+                errorText: error,
+                border: const OutlineInputBorder(),
+              ),
+              onSubmitted: (_) => submit(),
+            ),
+            actions: [
+              TextButton(
+                onPressed: checking ? null : () => Navigator.pop(ctx, false),
+                child: Text(isEn ? 'Cancel' : 'ยกเลิก'),
+              ),
+              FilledButton(
+                onPressed: checking ? null : submit,
+                child: checking
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                    : Text(isEn ? 'Use code' : 'ใช้โค้ด'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    input.dispose();
+
+    if (ok != true || !mounted) return;
+    Navigator.pop(context, true);
+    _toast(isEn ? 'VIP is on 🎉' : 'เปิด VIP เรียบร้อยแล้ว 🎉', const Color(0xFF059669));
   }
 
   Future<void> _handleRestore() async {

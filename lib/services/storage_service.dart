@@ -1150,6 +1150,19 @@ class StorageService {
     return DateTime.tryParse(str);
   }
 
+  // Team member code that unlocks VIP for free (see TeamCodeService).
+  static const String _keyTeamCode = 'meow_team_code_v1';
+
+  String? getTeamCode() => _prefs.getString(_keyTeamCode);
+
+  Future<void> setTeamCode(String? code) async {
+    if (code == null) {
+      await _prefs.remove(_keyTeamCode);
+    } else {
+      await _prefs.setString(_keyTeamCode, code);
+    }
+  }
+
   // PURCHASED THEMES (29 THB each)
   List<String> getPurchasedThemes() {
     return _prefs.getStringList(_keyPurchasedThemes) ?? [];
