@@ -34,8 +34,9 @@ class AppConfig {
   /// Pricing display constants (in Thai Baht)
   static const int themePriceThb = 29;
   static const int iconPriceThb = 10;
-  static const int monthlySubPriceThb = 49;
-  static const int yearlySubPriceThb = 399;
+  // Shown only until Google Play's prices load; keep in step with Play Console.
+  static const int monthlySubPriceThb = 59;
+  static const int yearlySubPriceThb = 490;
   static const int lifetimePriceThb = 390;
 
   /// 30-Second theme trial duration

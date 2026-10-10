@@ -40,7 +40,7 @@ class BillingService {
   bool _available = false;
   bool get isAvailable => _available;
 
-  /// Product details by ID, with Google's localized price (e.g. "฿49.00").
+  /// Product details by ID, with Google's localized price (e.g. "฿59.00").
   final Map<String, ProductDetails> products = {};
 
   static bool get _supported => AppConfig.isPlayStoreEdition && !kIsWeb && Platform.isAndroid;
