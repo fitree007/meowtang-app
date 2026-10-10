@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 
@@ -30,6 +31,9 @@ class BillingService {
 
   final InAppPurchase _iap = InAppPurchase.instance;
   StreamSubscription<List<PurchaseDetails>>? _sub;
+  AppLifecycleListener? _lifecycle;
+  Timer? _timer;
+  DateTime? _lastCheck;
   ExpenseController? _controller;
   Completer<BuyResult>? _pendingBuy;
 
@@ -47,6 +51,10 @@ class BillingService {
     // Listen before anything else: a purchase finished while the app was closed
     // (e.g. a pending PromptPay payment) is delivered here on start.
     _sub ??= _iap.purchaseStream.listen(_onPurchases, onError: (_) {});
+    // Google does not tell the app when a subscription ends, so ask again when
+    // the user comes back to the app and every few minutes while it is open.
+    _lifecycle ??= AppLifecycleListener(onResume: () => _recheck());
+    _timer ??= Timer.periodic(const Duration(minutes: 10), (_) => _recheck());
     try {
       _available = await _iap.isAvailable();
       if (!_available) return;
@@ -68,11 +76,21 @@ class BillingService {
     }
   }
 
+  /// Re-checks the subscription, at most once every 30 seconds and never
+  /// while a purchase is in progress.
+  Future<void> _recheck() async {
+    if (!_available || _pendingBuy != null) return;
+    final last = _lastCheck;
+    if (last != null && DateTime.now().difference(last) < const Duration(seconds: 30)) return;
+    await syncEntitlement();
+  }
+
   /// Asks Google which subscriptions are active and sets VIP to match.
   /// Returns whether VIP is on afterwards; null when Google could not be reached.
   Future<bool?> syncEntitlement() async {
     final controller = _controller;
     if (!_supported || controller == null) return null;
+    _lastCheck = DateTime.now();
     try {
       final addition = _iap.getPlatformAddition<InAppPurchaseAndroidPlatformAddition>();
       final res = await addition.queryPastPurchases();
@@ -156,5 +174,9 @@ class BillingService {
   void dispose() {
     _sub?.cancel();
     _sub = null;
+    _lifecycle?.dispose();
+    _lifecycle = null;
+    _timer?.cancel();
+    _timer = null;
   }
 }
