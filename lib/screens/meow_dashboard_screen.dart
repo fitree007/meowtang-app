@@ -335,6 +335,7 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
           : 'กำลังค้นหาและดึงข้อมูลสลิปในเครื่อง... 🔍';
     });
 
+    var finished = false;
     try {
       final imported = await SlipAutoSyncService.scanAndAutoImportNewSlips(
         widget.controller,
@@ -355,6 +356,7 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
           }
         },
       );
+      finished = true;
 
       if (!mounted) return;
 
@@ -403,7 +405,9 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
       _isFirstTimeSyncRunning = false;
       if (mounted) {
         _setFirstTimeSyncing(false);
-        if (await NativeBridgeService.hasPhotoPermission()) {
+        // Only a scan that ran to the end counts: after an error the 12-month
+        // import runs again on the next launch or resume.
+        if (finished && await NativeBridgeService.hasPhotoPermission()) {
           await widget.controller.completeInitialDeviceScan();
         }
       }

@@ -33,7 +33,7 @@ enum MascotMood {
 }
 
 class ExpenseController extends ChangeNotifier {
-  static const String appVersion = '1.43.4';
+  static const String appVersion = '1.43.5';
 
   final StorageService _storage;
   final OcrEngineService _ocrEngine = OcrEngineService();
@@ -67,6 +67,23 @@ class ExpenseController extends ChangeNotifier {
     if (_isProcessingSlips != value) {
       _isProcessingSlips = value;
       notifyListeners();
+    }
+    value ? slipJobStarted() : slipJobFinished();
+  }
+
+  // Slip imports running now (a scan, or the real-time observer). While any
+  // runs, reloading from disk could read a save still in progress and drop
+  // slips that were just imported, so the reload waits until they finish.
+  int _slipJobs = 0;
+  bool _reloadAfterSlipJobs = false;
+
+  void slipJobStarted() => _slipJobs++;
+
+  void slipJobFinished() {
+    if (_slipJobs > 0) _slipJobs--;
+    if (_slipJobs == 0 && _reloadAfterSlipJobs) {
+      _reloadAfterSlipJobs = false;
+      reloadFromStorage();
     }
   }
 
@@ -1062,6 +1079,10 @@ class ExpenseController extends ChangeNotifier {
 
  /// Forces a complete fresh reload from persistent storage (e.g. after Widget adds a transaction)
  Future<void> reloadFromStorage() async {
+  if (_slipJobs > 0) {
+   _reloadAfterSlipJobs = true;
+   return;
+  }
   try {
     await _storage.reloadPrefs();
   } catch (_) {}

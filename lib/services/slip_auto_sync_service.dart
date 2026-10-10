@@ -45,6 +45,7 @@ class SlipAutoSyncService {
         _inFlightKeys.add(key);
       }
 
+      controller.slipJobStarted();
       try {
         // 1. Initial Duplicate Check against existing database & deleted slips registry & imported registry
         final isDup = DuplicateSlipChecker.isDuplicate(
@@ -101,6 +102,7 @@ class SlipAutoSyncService {
         }
       } finally {
         if (key.isNotEmpty) _inFlightKeys.remove(key);
+        controller.slipJobFinished();
       }
     });
   }
