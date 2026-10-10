@@ -55,3 +55,8 @@ dist_ipa/
 android/build/
 .kotlin/
 
+# Local-only: built APK/AAB, Play Store kit, source artwork, editor config
+/releases/
+/design/
+/.claude/
+

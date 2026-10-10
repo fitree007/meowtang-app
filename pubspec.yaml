@@ -2,7 +2,7 @@ name: ai_expense_tracker
 description: เหมียวตังค์ (MeowTang) - แอพบันทึกรายรับรายจ่าย วางแผนงบประมาณ & สแกนสลิปอัจฉริยะ
 publish_to: 'none'
 
-version: 1.43.1+146
+version: 1.43.2+147
 
 environment:
   sdk: ^3.13.1
@@ -30,6 +30,8 @@ flutter:
   assets:
     - assets/icons/
     - assets/icons/mascot_3d/
+    - assets/mascots/
+    - assets/mascots/acc/
     - assets/icons/banks/
     - assets/icons/subscriptions/
     - assets/icon/

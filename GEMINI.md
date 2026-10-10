@@ -1,9 +1,11 @@
 # Standing Workflow Rules for MeowTang Project
 
 ## Project Location (ตำแหน่งโปรเจกต์ - มีชุดเดียว)
-- The ONLY real project/git repo is `E:\ai_expense_tracker`.
-- `E:\สร้างแอพ apk\ai_expense_tracker` is a folder shortcut (junction) pointing to `E:\ai_expense_tracker` — it is the SAME files, not a copy. Never copy/sync files between them and never commit twice.
-- Always run `flutter`, `gradle`, `git` and scripts with the working directory `E:\ai_expense_tracker` (ASCII path). Running Flutter tools from the Thai path can crash `flutter analyze` or break builds.
+- The ONLY project folder is `E:\ai_expense_tracker` (git repo). Everything for MeowTang lives here; nothing needs syncing with `E:\สร้างแอพ apk`.
+- Always run `flutter`, `gradle`, `git` and scripts with the working directory `E:\ai_expense_tracker` (ASCII path). Running Flutter tools from a Thai path can crash `flutter analyze` or break builds.
+- Local-only folders (gitignored, never committed):
+  - `releases\` — latest Creator APK, `releases\playstore\` (Play Store APK/AAB, screenshots, release notes), `releases\google_play_submission_kit\`, `releases\old\` (previous APK/AAB).
+  - `design\app_logos\` — logo and mascot source artwork.
 - `E:\สร้างแอพ apk\ไม่จำเป็น` contains old files the user will delete. Do not use or modify anything inside it.
 
 Whenever an update or request is received from the user, you MUST strictly follow this 4-step protocol in order:
@@ -27,9 +29,9 @@ Whenever an update or request is received from the user, you MUST strictly follo
 ## 4. Build Release APK (ทำเป็นไฟล์ apk)
 - Build release APK (run in `E:\ai_expense_tracker`):
   `flutter build apk --release --android-skip-build-dependency-validation`
-- Move previous APKs into `E:\สร้างแอพ apk\ไม่จำเป็น\APK เก่า (หน้าหลัก)` and `E:\สร้างแอพ apk\ไม่จำเป็น\APK เก่า (playstore)` (create the folder if missing). Do NOT create new `archive_old_apks` folders.
+- Move previous APKs/AABs into `releases\old\`. Do NOT create new `archive_old_apks` folders.
 - Copy the newly built APK to:
-  - `E:\สร้างแอพ apk\MeowTang-Creator-vX.Y.Z.apk`
-  - `E:\สร้างแอพ apk\playstore_release\MeowTang-PlayStore-vX.Y.Z.apk`
-- Commit to git once, in `E:\ai_expense_tracker` only (no syncing — the other path is the same folder).
+  - `releases\MeowTang-Creator-vX.Y.Z.apk`
+  - `releases\playstore\MeowTang-PlayStore-vX.Y.Z.apk`
+- Commit to git once, in `E:\ai_expense_tracker`.
 - Push to GitHub (`git push origin main` and deploy web to `gh-pages` using `powershell -ExecutionPolicy Bypass -File scripts/deploy_web.ps1` in `E:\ai_expense_tracker`) so that GitHub Pages (`https://fitree007.github.io/meowtang-app/`) is always up-to-date automatically.

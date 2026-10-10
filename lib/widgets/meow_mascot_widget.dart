@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../state/expense_controller.dart';
+import 'mascot_picture.dart';
 
 class MascotInfo {
   final String id;
@@ -613,6 +614,14 @@ class _MeowMascotWidgetState extends State<MeowMascotWidget> with SingleTickerPr
               ),
             ),
         ],
+      );
+    } else if (MascotPictures.available.contains(activeId)) {
+      // 3D picture with its 3D accessory.
+      mascotCore = MascotPicture(
+        mascotId: activeId,
+        size: widget.size,
+        headOnly: widget.isHeadOnly,
+        accessory: activeAcc,
       );
     } else {
       mascotCore = CustomPaint(
