@@ -1,104 +1,218 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>นโยบายความเป็นส่วนตัว - เหมียวตังค์ (MeowTang Privacy Policy)</title>
-  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>นโยบายความเป็นส่วนตัว – เหมียวตังค์ (MeowTang)</title>
+<meta name="description" content="นโยบายความเป็นส่วนตัวของแอปเหมียวตังค์ (MeowTang) / MeowTang Privacy Policy">
+<style>
+  :root {
+    --bg: #FFF9EE;
+    --card: #FFFFFF;
+    --text: #0F172A;
+    --muted: #475569;
+    --border: #EFE4CC;
+    --accent: #B7791F;
+  }
+  @media (prefers-color-scheme: dark) {
     :root {
-      --primary: #10b981;
-      --bg: #0b0f19;
-      --card-bg: #151d30;
-      --text: #f8fafc;
-      --text-muted: #94a3b8;
-      --border: #334155;
+      --bg: #0B1728;
+      --card: #132238;
+      --text: #F1F5F9;
+      --muted: #A9B6C8;
+      --border: #263952;
+      --accent: #F8C63E;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: 'Kanit', sans-serif;
-      background-color: var(--bg);
-      color: var(--text);
-      line-height: 1.7;
-      padding: 32px 16px;
-      display: flex;
-      justify-content: center;
-    }
-    .container {
-      width: 100%;
-      max-width: 800px;
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 24px;
-      padding: 36px 28px;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
-    }
-    h1 { font-size: 26px; color: #fff; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; }
-    .update-date { font-size: 13px; color: var(--primary); margin-bottom: 24px; font-weight: 500; }
-    h2 { font-size: 18px; color: #38bdf8; margin: 24px 0 10px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
-    p, li { font-size: 14.5px; color: var(--text-muted); margin-bottom: 12px; }
-    ul { padding-left: 20px; margin-bottom: 16px; }
-    li { margin-bottom: 6px; }
-    b { color: var(--text); }
-    .highlight-box {
-      background: rgba(16, 185, 129, 0.1);
-      border: 1px solid rgba(16, 185, 129, 0.3);
-      border-radius: 14px;
-      padding: 16px 20px;
-      margin: 20px 0;
-    }
-    .highlight-box p { color: #d1fae5; margin: 0; }
-    footer { margin-top: 32px; text-align: center; font-size: 12px; color: #64748b; }
-  </style>
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Prompt", "Sarabun", "Noto Sans Thai", system-ui, -apple-system, "Segoe UI", sans-serif;
+    line-height: 1.7;
+    font-size: 16px;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 28px 24px; }
+  h1 { font-size: 26px; line-height: 1.35; margin: 0 0 4px; }
+  h2 { font-size: 19px; margin: 32px 0 8px; }
+  h3 { font-size: 16px; margin: 20px 0 4px; }
+  p, li { color: var(--text); }
+  .meta { color: var(--muted); font-size: 14px; margin: 0 0 20px; }
+  ul { padding-left: 22px; margin: 6px 0; }
+  li { margin: 4px 0; }
+  a { color: var(--accent); }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 15px; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 600; }
+  .table-wrap { overflow-x: auto; }
+  .lang { display: flex; gap: 12px; margin-bottom: 20px; font-size: 14px; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 48px 0; }
+</style>
 </head>
 <body>
-  <div class="container">
-    <h1>🐱 นโยบายความเป็นส่วนตัว (Privacy Policy)</h1>
-    <div class="update-date">แอปพลิเคชัน: เหมียวตังค์ (MeowTang) • อัปเดตล่าสุด: กันยายน 2026</div>
+<main>
+<div class="card">
 
-    <div class="highlight-box">
-      <p><b>สรุปหัวใจสำคัญ:</b> "เหมียวตังค์" ให้ความสำคัญสูงสุดต่อความเป็นส่วนตัวของคุณ แอปทำงานแบบ <b>ออฟไลน์ 100% (Offline-First)</b> ข้อมูลรายรับ-รายจ่าย สลิปธนาคาร และยอดเงินของคุณจะถูกจัดเก็บอยู่ภายในโทรศัพท์ของคุณเท่านั้น ไม่มีการส่งข้อมูลการเงินใด ๆ ไปยังเซิร์ฟเวอร์ภายนอกทั้งสิ้น</p>
-    </div>
+<nav class="lang" aria-label="ภาษา / Language">
+  <a href="#th">ภาษาไทย</a>
+  <a href="#en">English</a>
+</nav>
 
-    <h2>1. ข้อมูลที่เราจัดเก็บและการประมวลผล (Data Collection & Processing)</h2>
-    <p>แอปพลิเคชันเหมียวตังค์จัดเก็บและประมวลผลข้อมูลต่อไปนี้เฉพาะบนตัวเครื่องของคุณ (On-Device Storage):</p>
-    <ul>
-      <li><b>ข้อมูลบันทึกรายรับ-รายจ่าย:</b> จำนวนเงิน, วันที่, หมวดหมู่, บัญชี, และบันทึกช่วยจำ ถูกบันทึกไว้ในหน่วยความจำเฉพาะของแอปในโทรศัพท์มือถือของคุณ</li>
-      <li><b>การสแกนและประมวลผลสลิปธนาคาร (Bank Slips):</b> การอ่านตัวอักษรและ QR Code จากรูปสลิป ทำงานผ่านระบบประมวลผลบนเครื่อง (Google ML Kit On-Device Text Recognition) รูปสลิปและรายละเอียดการโอนจะไม่ถูกส่งออกไปภายนอก</li>
-      <li><b>การบันทึกด้วยเสียง (Voice Input):</b> การแปลงเสียงพูดเป็นข้อความทำงานแบบชั่วคราวบนอุปกรณ์ ไม่มีการบันทึกไฟล์เสียงเก็บไว้ในเซิร์ฟเวอร์</li>
-    </ul>
+<!-- ============================ ภาษาไทย ============================ -->
+<section id="th" lang="th">
+<h1>นโยบายความเป็นส่วนตัว<br>แอปเหมียวตังค์ (MeowTang)</h1>
+<p class="meta">มีผลบังคับใช้ตั้งแต่ 10 ตุลาคม 2569 · ผู้พัฒนา: อฟิตรี ยาแมะเน๊าะ · ติดต่อ: <a href="mailto:afitreeyamaenoh@gmail.com">afitreeyamaenoh@gmail.com</a></p>
 
-    <h2>2. บริการภายนอกที่อาจเกี่ยวข้อง (Third-Party Services)</h2>
-    <p>เพื่อสนับสนุนการให้บริการและการพัฒนาแอปอย่างต่อเนื่อง แอปอาจมีการเชื่อมต่อกับบริการบุคคลที่สามที่ได้มาตรฐานความปลอดภัยสากลดังนี้:</p>
-    <ul>
-      <li><b>Google AdMob (Google Mobile Ads SDK):</b> สำหรับแสดงโฆษณาในเวอร์ชันฟรี Google AdMob อาจมีการรวบรวมรหัสโฆษณา (Advertising ID) หรือข้อมูลอุปกรณ์เพื่อแสดงผลโฆษณาที่เหมาะสม ท่านสามารถศึกษานโยบายของ Google ได้ที่ <a href="https://policies.google.com/privacy" style="color:#38bdf8;" target="_blank">Google Privacy & Terms</a></li>
-      <li><b>Google Play In-App Billing:</b> สำหรับการสมัครสมาชิกหรือสั่งซื้อ MeowTang Pro การทำธุรกรรมทางการเงินและการหักเงินดำเนินการโดยตรงผ่านระบบของ Google Play Store ทางผู้พัฒนาจะไม่สามารถเห็นหรือเข้าถึงข้อมูลบัตรเครดิตหรือข้อมูลบัญชีธนาคารของคุณได้</li>
-    </ul>
+<p>เหมียวตังค์ ("แอป") เป็นแอปบันทึกรายรับ–รายจ่ายบน Android นโยบายนี้อธิบายว่าแอปใช้ข้อมูลอะไร ใช้อย่างไร และข้อมูลใดบ้างที่ส่งออกจากเครื่องของคุณ</p>
 
-    <h2>3. สิทธิในการควบคุมและลบข้อมูล (User Data Rights & Deletion)</h2>
-    <p>เนื่องจากข้อมูลทั้งหมดถูกจัดเก็บอยู่ในอุปกรณ์ของคุณเพียงผู้เดียว:</p>
-    <ul>
-      <li>คุณสามารถแก้ไขหรือลบรายการใด ๆ ได้ด้วยตนเองตลอดเวลาผ่านตัวแอป</li>
-      <li>เมื่อคุณถอนการติดตั้งแอป (Uninstall) หรือกด "ล้างข้อมูล" (Clear App Data) ในการตั้งค่าโทรศัพท์ ข้อมูลและสลิปทั้งหมดจะถูกลบออกจากเครื่องของคุณอย่างถาวรทันที</li>
-      <li>แอปมีระบบสำรองข้อมูล (Local Backup) เป็นไฟล์ที่คุณสามารถส่งออกหรือลบได้ตามต้องการ</li>
-    </ul>
+<h2>1. หลักสำคัญ: ข้อมูลการเงินอยู่ในเครื่องคุณเท่านั้น</h2>
+<ul>
+  <li>แอปไม่มีระบบสมัครสมาชิกหรือเข้าสู่ระบบ และผู้พัฒนาไม่มีเซิร์ฟเวอร์เก็บข้อมูลของคุณ</li>
+  <li>รายการรายรับ–รายจ่าย บัญชี หมวดหมู่ งบประมาณ เป้าหมายการออม รายการค่าสมาชิก การตั้งค่า และสำเนารูปสลิปที่บันทึก จะถูกเก็บไว้ในพื้นที่ส่วนตัวของแอปบนเครื่องของคุณเท่านั้น</li>
+  <li>ผู้พัฒนาไม่สามารถเข้าถึง ดู หรือกู้คืนข้อมูลเหล่านี้ได้</li>
+  <li>เราไม่ขาย ไม่ให้เช่า และไม่แบ่งปันข้อมูลการเงินของคุณให้ใคร</li>
+</ul>
 
-    <h2>4. ความเป็นส่วนตัวของเด็ก (Children's Privacy)</h2>
-    <p>แอปพลิเคชันนี้ไม่ได้มีเป้าหมายเพื่อให้บริการแก่เด็กที่มีอายุต่ำกว่า 13 ปีโดยเฉพาะ และไม่มีการรวบรวมข้อมูลส่วนบุคคลที่ระบุตัวตนได้จากเด็ก</p>
+<h2>2. สิทธิ์ที่แอปขอ และเหตุผล</h2>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>สิทธิ์</th><th>ใช้ทำอะไร</th></tr></thead>
+  <tbody>
+    <tr><td>รูปภาพและไฟล์สื่อ</td><td>ค้นหาและอ่านรูปสลิปโอนเงินในเครื่อง เพื่อบันทึกรายการให้อัตโนมัติ (รวมการดึงสลิปย้อนหลังสูงสุด 12 เดือน) การอ่านข้อความและ QR ในรูปทำบนเครื่องด้วย Google ML Kit แบบออฟไลน์ ไม่ได้ส่งรูปขึ้นอินเทอร์เน็ต รูปที่ไม่ใช่สลิปจะไม่ถูกเก็บ</td></tr>
+    <tr><td>กล้อง</td><td>ถ่ายรูปสลิป หรือถ่ายรูปที่คุณเลือกใช้เป็นรูปคู่หู (มาสคอต)</td></tr>
+    <tr><td>ไมโครโฟน</td><td>บันทึกรายการด้วยเสียง (เช่น "กินข้าว 60 บาท") เฉพาะตอนที่คุณกดใช้งาน</td></tr>
+    <tr><td>การแจ้งเตือน</td><td>แจ้งผลการดึงสลิป การบันทึกรายการ และการเตือนค่าสมาชิก</td></tr>
+    <tr><td>การเข้าถึงการแจ้งเตือน (ไม่บังคับ)</td><td>หากคุณเปิดในการตั้งค่าเครื่อง แอปจะอ่านการแจ้งเตือน "เงินเข้า" จากแอปธนาคาร/วอลเล็ต เพื่อบันทึกรายรับให้อัตโนมัติ ประมวลผลบนเครื่องเท่านั้น การแจ้งเตือนอื่นจะถูกข้ามและไม่ถูกเก็บ คุณปิดได้ทุกเมื่อในการตั้งค่าเครื่อง</td></tr>
+    <tr><td>ทำงานเบื้องหลัง / เปิดเครื่อง / ป้องกันเครื่องหลับ</td><td>ให้การดึงสลิปทำงานต่อจนเสร็จ และให้การตรวจจับสลิปใหม่กลับมาทำงานหลังเปิดเครื่อง</td></tr>
+    <tr><td>ตรวจรายชื่อแอปธนาคารในเครื่อง</td><td>ตรวจว่าเครื่องมีแอปธนาคาร/วอลเล็ตของไทยตัวใดติดตั้งอยู่ เพื่อแนะนำและจับคู่บัญชี ตรวจบนเครื่องเท่านั้น ไม่ส่งออก</td></tr>
+    <tr><td>อินเทอร์เน็ต</td><td>แสดงโฆษณา ดึงอัตราแลกเปลี่ยน/ราคาทอง และตรวจสลิปออนไลน์ (ดูข้อ 3)</td></tr>
+  </tbody>
+</table>
+</div>
+<p>คุณปฏิเสธหรือถอนสิทธิ์ได้ทุกเมื่อในการตั้งค่าเครื่อง แอปยังใช้งานส่วนอื่นได้ แต่ฟีเจอร์ที่ต้องใช้สิทธิ์นั้นจะทำงานไม่ได้</p>
 
-    <h2>5. การเปลี่ยนแปลงนโยบายความเป็นส่วนตัว</h2>
-    <p>เราอาจปรับปรุงนโยบายความเป็นส่วนตัวนี้เป็นครั้งคราวตามการพัฒนาของฟีเจอร์ใหม่ ๆ โดยจะแจ้งวันที่มีผลบังคับใช้อย่างชัดเจนที่ด้านบนของหน้านี้</p>
+<h2>3. ข้อมูลที่ส่งออกจากเครื่อง (บริการภายนอก)</h2>
+<h3>3.1 โฆษณา – Google AdMob</h3>
+<p>แอปแสดงโฆษณาผ่าน Google AdMob ซึ่งอาจเก็บข้อมูล เช่น รหัสโฆษณา (Advertising ID) ข้อมูลอุปกรณ์ หมายเลข IP และการโต้ตอบกับโฆษณา เพื่อแสดงและวัดผลโฆษณา ตาม<a href="https://policies.google.com/technologies/ads?hl=th" rel="noopener">นโยบายโฆษณาของ Google</a> คุณรีเซ็ตหรือลบรหัสโฆษณาได้ที่ การตั้งค่า &gt; Google &gt; โฆษณา ข้อมูลการเงินของคุณไม่ถูกส่งให้ AdMob</p>
 
-    <h2>6. การติดต่อเรา (Contact Us)</h2>
-    <p>หากท่านมีข้อสงสัยหรือข้อเสนอแนะเกี่ยวกับนโยบายความเป็นส่วนตัวนี้ สามารถติดต่อทีมพัฒนาได้ที่:</p>
-    <ul>
-      <li><b>ทีมพัฒนาเหมียวตังค์ (MeowTang Team)</b></li>
-      <li><b>อีเมล:</b> meowtang.app@gmail.com</li>
-    </ul>
+<h3>3.2 การพิมพ์ด้วยเสียง</h3>
+<p>ฟีเจอร์บันทึกด้วยเสียงใช้บริการรู้จำเสียงของ Android ในเครื่อง ซึ่งอาจส่งเสียงไปประมวลผลที่ผู้ให้บริการ (เช่น Google) ตามนโยบายของผู้ให้บริการนั้น แอปได้รับเพียงข้อความที่แปลงแล้ว และไม่เก็บไฟล์เสียง</p>
 
-    <footer>
-      © 2026 MeowTang (เหมียวตังค์). All rights reserved.
-    </footer>
-  </div>
+<h3>3.3 อัตราแลกเปลี่ยนและราคาทอง</h3>
+<p>แอปดึงข้อมูลอัตราแลกเปลี่ยนจาก currency-api (latest.currency-api.pages.dev / cdn.jsdelivr.net) และราคาทองจาก api.chnwt.dev เป็นการขอข้อมูลสาธารณะเท่านั้น ไม่ได้ส่งข้อมูลส่วนตัวหรือข้อมูลการเงินของคุณ (ผู้ให้บริการอาจเห็นหมายเลข IP ตามปกติของการเชื่อมต่ออินเทอร์เน็ต)</p>
+
+<h3>3.4 ตรวจสลิปออนไลน์ (เฉพาะเมื่อคุณกดใช้)</h3>
+<p>เมื่อคุณใช้ฟีเจอร์ "ตรวจสลิปออนไลน์" แอปจะส่งข้อมูลใน QR Code ของสลิปและยอดเงิน ไปยังบริการตรวจสลิปภายนอก (slip-c.oiio.download) เพื่อตรวจว่าสลิปเป็นของจริง ตัวรูปสลิปไม่ถูกส่ง ฟีเจอร์นี้ไม่ทำงานเองโดยอัตโนมัติ</p>
+
+<h3>3.5 การสมัคร VIP – Google Play</h3>
+<p>การสมัคร VIP รายเดือน/รายปี ชำระเงินผ่าน Google Play Billing ผู้พัฒนาไม่เห็นและไม่เก็บข้อมูลบัตรหรือบัญชีธนาคารของคุณ แอปถาม Google Play เพียงว่าบัญชี Google ของคุณมีการสมัครที่ยังใช้งานอยู่หรือไม่ เพื่อเปิดหรือปิด VIP ข้อมูลการซื้อเป็นไปตาม<a href="https://policies.google.com/privacy?hl=th" rel="noopener">นโยบายความเป็นส่วนตัวของ Google</a> คุณยกเลิกการสมัครได้ทุกเมื่อที่ Google Play &gt; การชำระเงินและการสมัครใช้บริการ</p>
+
+<h2>4. การสำรองและส่งออกข้อมูล</h2>
+<p>เมื่อคุณสั่งสำรองข้อมูลหรือส่งออกรายงาน (เช่น Excel/PDF) แอปจะสร้างไฟล์บนเครื่อง และส่งต่อไปยังที่ที่คุณเลือกเท่านั้น (เช่น Google Drive, LINE, อีเมล) ไฟล์เหล่านี้มีข้อมูลการเงินของคุณ โปรดเก็บรักษาให้ปลอดภัย</p>
+
+<h2>5. การลบข้อมูล</h2>
+<ul>
+  <li>ลบรายการทีละรายการได้ในแอป</li>
+  <li>ลบข้อมูลทั้งหมดได้โดยถอนการติดตั้งแอป หรือไปที่ การตั้งค่าเครื่อง &gt; แอป &gt; เหมียวตังค์ &gt; พื้นที่เก็บข้อมูล &gt; ล้างข้อมูล</li>
+  <li>เนื่องจากผู้พัฒนาไม่มีเซิร์ฟเวอร์ จึงไม่มีสำเนาข้อมูลของคุณหลงเหลือที่ผู้พัฒนา</li>
+</ul>
+
+<h2>6. ความปลอดภัย</h2>
+<p>ข้อมูลเก็บในพื้นที่ส่วนตัวของแอป ซึ่งแอปอื่นเข้าถึงไม่ได้ตามปกติ แนะนำให้ตั้งรหัสล็อกหน้าจอเครื่อง เพื่อป้องกันผู้อื่นเปิดดูข้อมูลของคุณ</p>
+
+<h2>7. เด็ก</h2>
+<p>แอปนี้ไม่ได้มุ่งเป้าให้เด็กอายุต่ำกว่า 13 ปีใช้งาน และไม่ได้ตั้งใจเก็บข้อมูลของเด็ก</p>
+
+<h2>8. สิทธิ์ของคุณตามกฎหมาย (PDPA)</h2>
+<p>คุณมีสิทธิ์ตามพระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562 เนื่องจากข้อมูลของคุณอยู่ในเครื่องของคุณเอง คุณจึงเข้าถึง แก้ไข ส่งออก และลบได้ด้วยตัวเองโดยตรง หากมีคำถาม ติดต่อผู้พัฒนาได้ที่อีเมลด้านล่าง</p>
+
+<h2>9. การเปลี่ยนแปลงนโยบาย</h2>
+<p>หากมีการเปลี่ยนแปลง เราจะปรับปรุงหน้านี้และแก้วันที่มีผลบังคับใช้ด้านบน</p>
+
+<h2>10. ติดต่อ</h2>
+<p>อฟิตรี ยาแมะเน๊าะ<br>อีเมล: <a href="mailto:afitreeyamaenoh@gmail.com">afitreeyamaenoh@gmail.com</a></p>
+</section>
+
+<hr>
+
+<!-- ============================ English ============================ -->
+<section id="en" lang="en">
+<h1>Privacy Policy<br>MeowTang (เหมียวตังค์)</h1>
+<p class="meta">Effective date: October 10, 2026 · Developer: Afitree Yamaenoh · Contact: <a href="mailto:afitreeyamaenoh@gmail.com">afitreeyamaenoh@gmail.com</a></p>
+
+<p>MeowTang ("the app") is an income and expense tracker for Android. This policy explains what data the app uses, how it is used, and what leaves your device.</p>
+
+<h2>1. Your financial data stays on your device</h2>
+<ul>
+  <li>The app has no sign-up or login, and the developer runs no server that stores your data.</li>
+  <li>Transactions, accounts, categories, budgets, saving goals, subscriptions, settings and copies of saved slip images are stored only in the app's private storage on your device.</li>
+  <li>The developer cannot access, view or recover this data.</li>
+  <li>We do not sell, rent or share your financial data.</li>
+</ul>
+
+<h2>2. Permissions and why we ask</h2>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Permission</th><th>Purpose</th></tr></thead>
+  <tbody>
+    <tr><td>Photos and media</td><td>Find and read bank transfer slips on your device to record transactions automatically (including importing up to 12 months of past slips). Text and QR reading is done on-device with Google ML Kit; images are not uploaded. Non-slip images are not kept.</td></tr>
+    <tr><td>Camera</td><td>Take a photo of a slip, or a photo you choose as your companion (mascot) picture.</td></tr>
+    <tr><td>Microphone</td><td>Voice entry (e.g. "lunch 60 baht"), only when you start it.</td></tr>
+    <tr><td>Notifications</td><td>Show slip import progress, saved transactions and subscription reminders.</td></tr>
+    <tr><td>Notification access (optional)</td><td>If you enable it in system settings, the app reads "money received" notifications from banking/wallet apps to record income automatically. Processed on-device only; other notifications are ignored and not stored. You can turn it off at any time.</td></tr>
+    <tr><td>Background work / boot / wake lock</td><td>Let a slip import finish, and restart new-slip detection after the device reboots.</td></tr>
+    <tr><td>Installed banking apps</td><td>Check which Thai banking/wallet apps are installed to suggest and match accounts. Checked on-device only; not sent anywhere.</td></tr>
+    <tr><td>Internet</td><td>Ads, exchange rates/gold prices and online slip verification (see section 3).</td></tr>
+  </tbody>
+</table>
+</div>
+<p>You can deny or revoke any permission in system settings. The rest of the app keeps working; only the feature that needs it stops.</p>
+
+<h2>3. Data that leaves your device (third-party services)</h2>
+<h3>3.1 Ads – Google AdMob</h3>
+<p>The app shows ads through Google AdMob, which may collect the advertising ID, device information, IP address and ad interactions to serve and measure ads, as described in <a href="https://policies.google.com/technologies/ads" rel="noopener">Google's advertising policy</a>. You can reset or delete your advertising ID in Settings &gt; Google &gt; Ads. Your financial data is not sent to AdMob.</p>
+
+<h3>3.2 Voice input</h3>
+<p>Voice entry uses the device's Android speech recognition service, which may send audio to its provider (such as Google) under that provider's policy. The app only receives the resulting text and does not store audio.</p>
+
+<h3>3.3 Exchange rates and gold prices</h3>
+<p>The app fetches exchange rates from currency-api (latest.currency-api.pages.dev / cdn.jsdelivr.net) and gold prices from api.chnwt.dev. These are requests for public data only; no personal or financial data is sent (the providers may see your IP address, as with any internet connection).</p>
+
+<h3>3.4 Online slip verification (only when you use it)</h3>
+<p>When you use "Verify slip online", the app sends the slip's QR code data and amount to an external slip verification service (slip-c.oiio.download) to check that the slip is genuine. The slip image itself is not sent. This feature never runs automatically.</p>
+
+<h3>3.5 VIP subscriptions – Google Play</h3>
+<p>Monthly and yearly VIP subscriptions are paid through Google Play Billing. The developer never sees or stores your card or bank details. The app only asks Google Play whether your Google account has an active subscription, to turn VIP on or off. Purchase data is handled under the <a href="https://policies.google.com/privacy" rel="noopener">Google Privacy Policy</a>. You can cancel at any time in Google Play &gt; Payments &amp; subscriptions.</p>
+
+<h2>4. Backup and export</h2>
+<p>When you back up or export a report (e.g. Excel/PDF), the app creates a file on your device and shares it only where you choose (e.g. Google Drive, LINE, email). These files contain your financial data; please keep them safe.</p>
+
+<h2>5. Deleting your data</h2>
+<ul>
+  <li>Delete individual transactions in the app.</li>
+  <li>Delete everything by uninstalling the app, or via Settings &gt; Apps &gt; MeowTang &gt; Storage &gt; Clear data.</li>
+  <li>Because the developer has no server, no copy of your data remains with the developer.</li>
+</ul>
+
+<h2>6. Security</h2>
+<p>Data is kept in the app's private storage, which other apps normally cannot access. We recommend using a screen lock on your device.</p>
+
+<h2>7. Children</h2>
+<p>The app is not directed at children under 13 and does not knowingly collect children's data.</p>
+
+<h2>8. Your rights (Thailand PDPA)</h2>
+<p>You have rights under Thailand's Personal Data Protection Act B.E. 2562. Since your data lives on your own device, you can access, correct, export and delete it yourself directly. For questions, contact the developer below.</p>
+
+<h2>9. Changes</h2>
+<p>If this policy changes, we will update this page and the effective date above.</p>
+
+<h2>10. Contact</h2>
+<p>Afitree Yamaenoh<br>Email: <a href="mailto:afitreeyamaenoh@gmail.com">afitreeyamaenoh@gmail.com</a></p>
+</section>
+
+</div>
+</main>
 </body>
 </html>
