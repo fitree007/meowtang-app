@@ -63,13 +63,25 @@ class SlipAutoSyncService {
           return;
         }
 
-        final item = await _createTransactionFromSlip(
-          controller: controller,
-          path: path,
-          name: name,
-          bankName: bankName,
-          date: DateTime.now(),
-        );
+        // The observer fires as soon as the bank app starts saving, often while
+        // the app is in the background, so the image may not be readable yet:
+        // try again a couple of times before leaving it to the next scan.
+        TransactionItem? item;
+        for (final wait in const [Duration.zero, Duration(seconds: 2), Duration(seconds: 5)]) {
+          if (wait > Duration.zero) await Future.delayed(wait);
+          try {
+            item = await _createTransactionFromSlip(
+              controller: controller,
+              path: path,
+              name: name,
+              bankName: bankName,
+              date: DateTime.now(),
+            );
+          } catch (_) {
+            item = null;
+          }
+          if (item != null) break;
+        }
 
         if (item != null) {
           final added = await controller.addTransaction(item);

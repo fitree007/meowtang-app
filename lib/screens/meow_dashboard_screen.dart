@@ -261,9 +261,11 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
     if (state == AppLifecycleState.paused) {
       _lastPausedTime = DateTime.now();
     } else if (state == AppLifecycleState.resumed) {
-      // 1. Immediately reload storage from disk (syncs widget voice entries in real-time)
-      widget.controller.reloadFromStorage();
-      _autoScanSlipsInBackground(showFeedback: false);
+      // 1. Reload storage from disk (syncs widget voice entries in real-time), then look
+      //    for slips saved while the app was in the background. The first scan waits a
+      //    moment for the bank app to finish writing the image; a second one catches
+      //    slips the real-time observer was still reading during the first.
+      _scanAfterResume();
 
       // 2. Auto-refresh if user has been away for 5+ minutes (or on cold launch)
       if (_lastPausedTime != null && DateTime.now().difference(_lastPausedTime!).inMinutes >= 5) {
@@ -274,6 +276,19 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
           }
         });
       }
+    }
+  }
+
+  int _resumeScanSeq = 0;
+
+  Future<void> _scanAfterResume() async {
+    final seq = ++_resumeScanSeq;
+    await widget.controller.reloadFromStorage();
+    for (final wait in const [Duration(milliseconds: 800), Duration(seconds: 6)]) {
+      await Future.delayed(wait);
+      // A newer resume started its own scans.
+      if (!mounted || seq != _resumeScanSeq) return;
+      await _autoScanSlipsInBackground(showFeedback: false);
     }
   }
 

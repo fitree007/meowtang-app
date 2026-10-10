@@ -33,7 +33,7 @@ enum MascotMood {
 }
 
 class ExpenseController extends ChangeNotifier {
-  static const String appVersion = '1.43.3';
+  static const String appVersion = '1.43.4';
 
   final StorageService _storage;
   final OcrEngineService _ocrEngine = OcrEngineService();
