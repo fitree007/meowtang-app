@@ -132,7 +132,7 @@ class StorageService {
   }
 
   String getMascotAccessory() {
-    return _prefs.getString(_keyMascotAccessory) ?? 'pen';
+    return _prefs.getString(_keyMascotAccessory) ?? 'none';
   }
 
   Future<void> saveMascotAccessory(String acc) async {

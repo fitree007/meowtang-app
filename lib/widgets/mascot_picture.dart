@@ -68,7 +68,7 @@ class MascotPictures {
     'owl_wise': MascotAnchors.fromEyes(const Offset(0.35, 0.477), const Offset(0.719, 0.443)),
     'rabbit_rich': MascotAnchors.fromEyes(const Offset(0.35, 0.535), const Offset(0.725, 0.527)),
     'bear_wealth': MascotAnchors.fromEyes(const Offset(0.368, 0.471), const Offset(0.738, 0.462)),
-    'robot_ai': MascotAnchors.fromEyes(const Offset(0.313, 0.49), const Offset(0.63, 0.49)),
+    'robot_ai': MascotAnchors.fromEyes(const Offset(0.313, 0.49), const Offset(0.63, 0.49), headCenterX: 0.51),
   };
 
   static MascotAnchors anchorsFor(String id) => _anchors[id] ?? MascotAnchors.meowtang;
@@ -109,6 +109,12 @@ class MascotPicture extends StatelessWidget {
       final newSide = math.min((bottom - (hatTop - 0.015)) * 1.5, side * 1.3);
       cx -= (newSide - side) / 2;
       cy = bottom - newSide / 1.5;
+      side = newSide;
+    }
+    if (spec != null && spec.zoom > 1 && !headOnly) {
+      // Zoom out around the same top edge, centred.
+      final newSide = side * spec.zoom;
+      cx -= (newSide - side) / 2;
       side = newSide;
     }
     final imgW = size / side;

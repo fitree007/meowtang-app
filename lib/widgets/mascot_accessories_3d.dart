@@ -26,12 +26,14 @@ class MascotAnchors {
 
   /// Anchors from where the glasses lenses should sit; the hat line and tilt
   /// follow the eyes, using the default cat's proportions.
-  factory MascotAnchors.fromEyes(Offset leftEye, Offset rightEye) {
+  /// [headCenterX] overrides the head's centre line when the face is not
+  /// centred on the head (the robot's visor sits left of centre).
+  factory MascotAnchors.fromEyes(Offset leftEye, Offset rightEye, {double? headCenterX}) {
     final mid = Offset((leftEye.dx + rightEye.dx) / 2, (leftEye.dy + rightEye.dy) / 2);
     // Pictures are 2:3, so convert to pixels before measuring the angle.
     final tilt = math.atan2((rightEye.dy - leftEye.dy) * 1.5, rightEye.dx - leftEye.dx) * 180 / math.pi;
     return MascotAnchors(
-      headTop: Offset(mid.dx - 0.02, mid.dy - 0.225),
+      headTop: Offset(headCenterX ?? mid.dx - 0.02, mid.dy - 0.225),
       headWidth: 0.84,
       leftEye: leftEye,
       rightEye: rightEye,
@@ -42,7 +44,7 @@ class MascotAnchors {
   Offset get eyeMid => Offset((leftEye.dx + rightEye.dx) / 2, (leftEye.dy + rightEye.dy) / 2);
 
   /// Centre of the collar.
-  Offset get neck => Offset(eyeMid.dx - 0.02, eyeMid.dy + 0.245);
+  Offset get neck => Offset(headTop.dx, eyeMid.dy + 0.245);
 
   /// The default MeowTang cat picture (1024×1536).
   static const meowtang = MascotAnchors(
@@ -103,6 +105,10 @@ class AccessorySpec {
   /// Draw behind the picture so the mascot covers its middle.
   final bool behind;
 
+  /// How much wider the view gets while this is worn, so an accessory
+  /// behind the body still shows at its sides.
+  final double zoom;
+
   const AccessorySpec(
     this.slot, {
     required this.width,
@@ -113,6 +119,7 @@ class AccessorySpec {
     this.clipTop = 0,
     this.clipBottom = 0,
     this.behind = false,
+    this.zoom = 1,
   });
 
   bool get isBehind => behind || slot == AccessorySlot.back;
@@ -153,9 +160,9 @@ class MascotAccessories {
     // Back
     'wings': AccessorySpec(AccessorySlot.back, width: 1.20, aspect: 2.17, nudge: Offset(0, -0.05)),
     'wings_grand': AccessorySpec(AccessorySlot.back, width: 1.35, aspect: 1.96, nudge: Offset(0, -0.07)),
-    // Only the ermine collar and clasp, worn over the shoulders like a mantle:
-    // the body fills the frame, so a cape behind it would not show.
-    'royal_cape': AccessorySpec(AccessorySlot.neck, width: 1.0, aspect: 0.96, pivot: Offset(0.5, 0.02), nudge: Offset(0, -0.035), clipBottom: 0.62),
+    // Hangs from the shoulders behind the body; the view zooms out so it
+    // flares out on both sides.
+    'royal_cape': AccessorySpec(AccessorySlot.back, width: 1.75, aspect: 0.96, pivot: Offset(0.5, 0), nudge: Offset(0, -0.33), zoom: 1.25),
     // Held
     'pen': AccessorySpec(AccessorySlot.held, width: 0, aspect: 0.72),
     'coin': AccessorySpec(AccessorySlot.held, width: 0, aspect: 0.91),

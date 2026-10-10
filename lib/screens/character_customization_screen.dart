@@ -20,7 +20,6 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
   late String _selectedAccessory;
   // Kept local until "บันทึก", so backing out changes nothing.
   late bool _usePhoto;
-  bool _accessoryPicked = false; // user chose an accessory in this visit
   int _activeTabIndex = 0; // 0 = มาสคอต, 1 = อุปกรณ์
   String _mascotCategoryFilter = 'all'; // 'all', 'cat', 'friend', 'ai'
 
@@ -43,7 +42,6 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
       _selectedMascotId = widget.controller.selectedMascotId;
       _selectedAccessory = widget.controller.selectedMascotAccessory;
       _usePhoto = widget.controller.isCustomAvatarEnabled;
-      _accessoryPicked = false;
     });
   }
 
@@ -385,9 +383,8 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
             HapticFeedback.selectionClick();
             setState(() {
               _usePhoto = false;
+              // The accessory stays as the user chose it.
               _selectedMascotId = m.id;
-              // Keep an accessory the user already picked; otherwise show the mascot's own.
-              if (!_accessoryPicked) _selectedAccessory = m.signatureAccessory;
             });
           },
         ),
@@ -433,10 +430,7 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
         art: Icon(Icons.block_rounded, size: 28, color: p.sub),
         onTap: () {
           HapticFeedback.selectionClick();
-          setState(() {
-            _selectedAccessory = 'none';
-            _accessoryPicked = true;
-          });
+          setState(() => _selectedAccessory = 'none');
         },
       ),
       for (final a in MascotCatalog.accessories)
@@ -447,10 +441,7 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
           art: Icon(a.icon, size: 28, color: p.icon),
           onTap: () {
             HapticFeedback.selectionClick();
-            setState(() {
-              _selectedAccessory = a.id;
-              _accessoryPicked = true;
-            });
+            setState(() => _selectedAccessory = a.id);
           },
         ),
     ];

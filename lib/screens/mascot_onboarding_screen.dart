@@ -41,14 +41,12 @@ class _MascotOnboardingScreenState extends State<MascotOnboardingScreen> {
     _selectedAccessory = widget.controller.selectedMascotAccessory;
     _selectedOutfit = widget.controller.selectedMascotOutfit;
 
-    // If initial accessory is empty, auto-equip signature accessory
+    // Start with no accessory; the user picks one in the accessories tab.
+    if (_selectedAccessory.isEmpty) _selectedAccessory = 'none';
     final initialMascot = MascotCatalog.characters.firstWhere(
       (m) => m.id == _selectedMascotId,
       orElse: () => MascotCatalog.characters.first,
     );
-    if (_selectedAccessory.isEmpty || _selectedAccessory == 'pen') {
-      _selectedAccessory = initialMascot.signatureAccessory;
-    }
     if (_selectedOutfit.isEmpty || _selectedOutfit == 'none') {
       _selectedOutfit = initialMascot.signatureOutfit;
     }
@@ -73,18 +71,6 @@ class _MascotOnboardingScreenState extends State<MascotOnboardingScreen> {
         setState(() {});
       },
     );
-  }
-
-  void _resetToSignature() {
-    HapticFeedback.selectionClick();
-    final current = MascotCatalog.characters.firstWhere(
-      (m) => m.id == _selectedMascotId,
-      orElse: () => MascotCatalog.characters.first,
-    );
-    setState(() {
-      _selectedAccessory = current.signatureAccessory;
-      _selectedOutfit = current.signatureOutfit;
-    });
   }
 
   void _showLockedIconOptions(MascotInfo character) {
@@ -248,9 +234,8 @@ class _MascotOnboardingScreenState extends State<MascotOnboardingScreen> {
       orElse: () => MascotCatalog.characters.first,
     );
     final currentMascotIndex = MascotCatalog.characters.indexWhere((m) => m.id == _selectedMascotId);
-    final signatureName = MascotCatalog.accessories
-        .firstWhere((a) => a.id == currentMascot.signatureAccessory, orElse: () => MascotCatalog.accessories.first)
-        .name;
+    final accessoryName = MascotCatalog.accessories.where((a) => a.id == _selectedAccessory).firstOrNull?.name ??
+        (isEn ? 'No accessory' : 'ไม่ใส่อุปกรณ์');
 
     // Split "ไทย (English)" names.
     String thaiName = currentMascot.name;
@@ -353,7 +338,12 @@ class _MascotOnboardingScreenState extends State<MascotOnboardingScreen> {
                         spacing: 6,
                         runSpacing: 6,
                         children: [
-                          smallChip(label: signatureName, icon: Icons.star_outline_rounded, strong: true),
+                          smallChip(
+                            label: accessoryName,
+                            icon: Icons.checkroom_rounded,
+                            strong: true,
+                            onTap: () => setState(() => _activeTabIndex = 1),
+                          ),
                           smallChip(
                             label: isEn ? 'My photo' : 'ใช้รูปของฉัน',
                             icon: Icons.add_a_photo_outlined,
@@ -419,17 +409,7 @@ class _MascotOnboardingScreenState extends State<MascotOnboardingScreen> {
                     const SizedBox(height: 10),
                     _buildMascotGrid(),
                   ] else ...[
-                    _buildDressingGrid(),
-                    const SizedBox(height: 6),
-                    TextButton.icon(
-                      onPressed: _resetToSignature,
-                      style: TextButton.styleFrom(foregroundColor: _sub, minimumSize: const Size(44, 44)),
-                      icon: const Icon(Icons.replay_rounded, size: 16),
-                      label: Text(
-                        isEn ? 'Reset to signature accessory' : 'กลับเป็นอุปกรณ์ประจำตัว',
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                      ),
-                    ),
+                    _buildDressingGrid(isEn),
                   ],
                 ],
               ),
@@ -617,9 +597,8 @@ class _MascotOnboardingScreenState extends State<MascotOnboardingScreen> {
               return;
             }
             setState(() {
+              // The accessory stays as the user chose it (none by default).
               _selectedMascotId = character.id;
-              // Auto-equip the signature accessory.
-              _selectedAccessory = character.signatureAccessory;
               _selectedOutfit = character.signatureOutfit;
             });
           },
@@ -628,8 +607,12 @@ class _MascotOnboardingScreenState extends State<MascotOnboardingScreen> {
     );
   }
 
-  Widget _buildDressingGrid() {
-    final List<AccessoryInfo> items = MascotCatalog.accessories;
+  Widget _buildDressingGrid(bool isEn) {
+    // First cell takes the accessory off.
+    final List<AccessoryInfo> items = [
+      AccessoryInfo(id: 'none', name: isEn ? 'None' : 'ไม่ใส่', icon: Icons.block_rounded),
+      ...MascotCatalog.accessories,
+    ];
 
     return GridView.builder(
       shrinkWrap: true,

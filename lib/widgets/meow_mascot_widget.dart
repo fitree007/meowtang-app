@@ -434,7 +434,7 @@ class _MeowMascotWidgetState extends State<MeowMascotWidget> with SingleTickerPr
   @override
   Widget build(BuildContext context) {
     final activeId = widget.mascotId ?? 'cat_meowtang';
-    final activeAcc = widget.accessory ?? 'gold_coin';
+    final activeAcc = widget.accessory ?? 'none';
     final activeOutfit = widget.outfit ?? 'none';
 
     Widget mascotCore;
