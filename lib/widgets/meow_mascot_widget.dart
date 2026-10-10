@@ -439,181 +439,39 @@ class _MeowMascotWidgetState extends State<MeowMascotWidget> with SingleTickerPr
 
     Widget mascotCore;
     if (widget.isCustomPhoto && widget.customPhotoPath != null && widget.customPhotoPath!.isNotEmpty) {
-      final acc = MascotCatalog.accessories.firstWhere(
-        (a) => a.id == activeAcc,
-        orElse: () => MascotCatalog.accessories.first,
-      );
-
-      mascotCore = Stack(
-        clipBehavior: Clip.none,
-        alignment: Alignment.center,
-        children: [
-          // 1. Wings Overlay if chosen
-          if (activeAcc == 'wings') ...[
-            Positioned(
-              left: -widget.size * 0.25,
-              top: widget.size * 0.15,
-              child: Icon(Icons.flight_rounded, color: const Color(0xFFFBBF24), size: widget.size * 0.50),
-            ),
-            Positioned(
-              right: -widget.size * 0.25,
-              top: widget.size * 0.15,
-              child: Transform.flip(
-                flipX: true,
-                child: Icon(Icons.flight_rounded, color: const Color(0xFFFBBF24), size: widget.size * 0.50),
-              ),
+      // The user's own photo is shown as it is: accessories are for mascots only.
+      mascotCore = Container(
+        width: widget.size,
+        height: widget.size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: const Color(0xFFF59E0B),
+            width: (widget.size * 0.04).clamp(2.0, 5.0),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFF59E0B).withValues(alpha: 0.35),
+              blurRadius: 14,
+              spreadRadius: 2,
             ),
           ],
-
-          // 2. Main Photo Container
-          Container(
-            width: widget.size,
-            height: widget.size,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: const Color(0xFFF59E0B),
-                width: (widget.size * 0.04).clamp(2.0, 5.0),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFFF59E0B).withValues(alpha: 0.35),
-                  blurRadius: 14,
-                  spreadRadius: 2,
-                ),
-              ],
-            ),
-            child: ClipOval(
-              child: widget.customPhotoPath!.startsWith('http')
-                  ? Image.network(
-                      widget.customPhotoPath!,
+        ),
+        child: ClipOval(
+          child: widget.customPhotoPath!.startsWith('http')
+              ? Image.network(
+                  widget.customPhotoPath!,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, color: Colors.white70),
+                )
+              : File(widget.customPhotoPath!).existsSync()
+                  ? Image.file(
+                      File(widget.customPhotoPath!),
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, color: Colors.white70),
                     )
-                  : File(widget.customPhotoPath!).existsSync()
-                      ? Image.file(
-                          File(widget.customPhotoPath!),
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, color: Colors.white70),
-                        )
-                      : const Icon(Icons.person, color: Colors.white70),
-            ),
-          ),
-
-          // 3. Wearable Crown on Photo
-          if (activeAcc == 'crown')
-            Positioned(
-              top: -widget.size * 0.18,
-              child: Icon(
-                Icons.workspace_premium_rounded,
-                color: const Color(0xFFFBBF24),
-                size: (widget.size * 0.48).clamp(24.0, 48.0),
-                shadows: const [
-                  Shadow(color: Color(0xFFD97706), blurRadius: 8, offset: Offset(0, 2)),
-                ],
-              ),
-            ),
-
-          // 4. Wearable Glasses / Shades on Photo
-          if (activeAcc == 'gold_shades')
-            Positioned(
-              top: widget.size * 0.28,
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: widget.size * 0.08, vertical: widget.size * 0.03),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0F172A).withValues(alpha: 0.92),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFFBBF24), width: 1.5),
-                  boxShadow: const [
-                    BoxShadow(color: Colors.black45, blurRadius: 6, offset: Offset(0, 2)),
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(width: widget.size * 0.18, height: widget.size * 0.12, decoration: BoxDecoration(color: const Color(0xFF1E293B), borderRadius: BorderRadius.circular(6))),
-                    Container(width: widget.size * 0.06, height: 2, color: const Color(0xFFFBBF24)),
-                    Container(width: widget.size * 0.18, height: widget.size * 0.12, decoration: BoxDecoration(color: const Color(0xFF1E293B), borderRadius: BorderRadius.circular(6))),
-                  ],
-                ),
-              ),
-            ),
-
-          // 5. Wearable Grad Cap on Photo
-          if (activeAcc == 'grad_cap')
-            Positioned(
-              top: -widget.size * 0.16,
-              child: Icon(
-                Icons.school_rounded,
-                color: const Color(0xFF6366F1),
-                size: (widget.size * 0.44).clamp(22.0, 44.0),
-                shadows: const [Shadow(color: Colors.black38, blurRadius: 6)],
-              ),
-            ),
-
-          // 6. Wearable Party Hat on Photo
-          if (activeAcc == 'party_hat')
-            Positioned(
-              top: -widget.size * 0.18,
-              right: widget.size * 0.10,
-              child: Icon(
-                Icons.celebration_rounded,
-                color: const Color(0xFFEC4899),
-                size: (widget.size * 0.42).clamp(20.0, 42.0),
-                shadows: const [Shadow(color: Colors.black38, blurRadius: 6)],
-              ),
-            ),
-
-          // 7. Wearable Bowtie on Photo
-          if (activeAcc == 'bowtie')
-            Positioned(
-              bottom: -widget.size * 0.05,
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: widget.size * 0.08, vertical: widget.size * 0.03),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEF4444),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.white, width: 1.2),
-                ),
-                child: const Text('🎀', style: TextStyle(fontSize: 14)),
-              ),
-            ),
-
-          // 8. Wearable Headphones on Photo
-          if (activeAcc == 'headphones')
-            Positioned(
-              top: widget.size * 0.04,
-              child: Icon(
-                Icons.headphones_rounded,
-                color: const Color(0xFF0EA5E9),
-                size: (widget.size * 0.90).clamp(36.0, 90.0),
-                shadows: const [Shadow(color: Colors.black45, blurRadius: 6)],
-              ),
-            ),
-
-          // 9. Companion Badge at Bottom-Right
-          if (widget.withPen && !widget.isHeadOnly)
-            Positioned(
-              right: 0,
-              bottom: 0,
-              child: Container(
-                padding: EdgeInsets.all(widget.size * 0.06),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0F172A),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFFF59E0B), width: 1.5),
-                  boxShadow: const [
-                    BoxShadow(color: Colors.black38, blurRadius: 6, offset: Offset(0, 2)),
-                  ],
-                ),
-                child: Icon(
-                  acc.icon,
-                  color: const Color(0xFFF59E0B),
-                  size: (widget.size * 0.22).clamp(12.0, 22.0),
-                ),
-              ),
-            ),
-        ],
+                  : const Icon(Icons.person, color: Colors.white70),
+        ),
       );
     } else if (MascotPictures.available.contains(activeId)) {
       // 3D picture with its 3D accessory.

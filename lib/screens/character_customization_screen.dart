@@ -47,7 +47,10 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
 
   void _saveMascot() async {
     HapticFeedback.mediumImpact();
-    if (_usePhoto != widget.controller.isCustomAvatarEnabled) {
+    if (!_usePhoto && widget.controller.customAvatarPath != null) {
+      // Saving a mascot replaces the uploaded photo, which is removed.
+      await widget.controller.removeCustomAvatar();
+    } else if (_usePhoto != widget.controller.isCustomAvatarEnabled) {
       await widget.controller.setCustomAvatarEnabled(_usePhoto);
     }
     await widget.controller.updateMascot(
@@ -123,10 +126,14 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
     final current = chars.firstWhere((m) => m.id == _selectedMascotId, orElse: () => chars.first);
     final index = chars.indexWhere((m) => m.id == current.id);
     final (thName, enName) = _splitName(current.name);
-    final acc = accs.where((a) => a.id == _selectedAccessory).firstOrNull;
+    // Accessories are for mascots only; the user's photo is shown as it is.
+    final acc = _usePhoto ? null : accs.where((a) => a.id == _selectedAccessory).firstOrNull;
     final accName = acc?.name;
 
-    final footNote = dirty
+    final dropsPhoto = dirty && !_usePhoto && widget.controller.customAvatarPath != null;
+    final footNote = dropsPhoto
+        ? (isEn ? 'Saving uses $thName and removes your photo' : 'บันทึกแล้วจะใช้ $thName และลบรูปของคุณออก')
+        : dirty
         ? (isEn
             ? 'Tap Save to use ${_usePhoto ? 'your photo' : (enName.isEmpty ? thName : enName)}${accName == null ? '' : ' + $accName'}'
             : 'กดบันทึกเพื่อใช้ ${_usePhoto ? 'รูปของฉัน' : thName}${accName == null ? '' : ' + $accName'}')
@@ -204,11 +211,13 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
     final group = photo ? 'photo' : _group(current.id);
     final title = photo ? (isEn ? 'My photo' : 'รูปของฉัน') : thName;
     final line2 = photo
-        ? (isEn ? 'From your phone • tap the tile again to change it' : 'รูปจากเครื่องของคุณ • แตะอีกครั้งเพื่อเปลี่ยนรูป')
+        ? (isEn ? 'From your phone' : 'รูปจากเครื่องของคุณ')
         : '${enName.isEmpty ? '' : '$enName • '}${isEn ? 'No. ${index + 1} of ${MascotCatalog.characters.length}' : 'ตัวที่ ${index + 1} จาก ${MascotCatalog.characters.length}'}';
-    final accLine = acc == null
-        ? (isEn ? 'No accessory' : 'ไม่ได้ใส่อุปกรณ์คู่กาย')
-        : (isEn ? 'Accessory: ${acc.name}' : 'อุปกรณ์คู่กาย: ${acc.name}');
+    final accLine = photo
+        ? (isEn ? 'Accessories are for mascots only' : 'อุปกรณ์คู่กายใช้ได้เฉพาะมาสคอต')
+        : acc == null
+            ? (isEn ? 'No accessory' : 'ไม่ได้ใส่อุปกรณ์คู่กาย')
+            : (isEn ? 'Accessory: ${acc.name}' : 'อุปกรณ์คู่กาย: ${acc.name}');
 
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
@@ -286,6 +295,21 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
           Text(line2, textAlign: TextAlign.center, style: TextStyle(fontSize: 12.5, color: p.sub)),
           const SizedBox(height: 4),
           Text(accLine, textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: p.sub)),
+          if (photo) ...[
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: _openCustomPhotoDialog,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: p.link,
+                side: BorderSide(color: p.line),
+                minimumSize: const Size(44, 44),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              icon: const Icon(Icons.photo_camera_outlined, size: 18),
+              label: Text(isEn ? 'Change photo' : 'เปลี่ยนรูป',
+                  style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
+            ),
+          ],
           AnimatedSize(
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeOut,
@@ -421,6 +445,44 @@ class _CharacterCustomizationScreenState extends State<CharacterCustomizationScr
   }
 
   Widget _buildAccessoryPanel(_Pal p, bool isEn) {
+    if (_usePhoto) {
+      // Accessories only fit the mascot pictures, not the user's own photo.
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 8),
+        child: Column(
+          children: [
+            Icon(Icons.checkroom_rounded, size: 34, color: p.sub),
+            const SizedBox(height: 10),
+            Text(
+              isEn ? 'Accessories are for mascots only' : 'อุปกรณ์คู่กายใช้ได้เฉพาะมาสคอต',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: p.text),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              isEn ? 'Choose a mascot to try them on' : 'เลือกมาสคอตก่อน แล้วค่อยลองใส่อุปกรณ์',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12.5, color: p.sub),
+            ),
+            const SizedBox(height: 14),
+            OutlinedButton(
+              onPressed: () {
+                HapticFeedback.selectionClick();
+                setState(() => _activeTabIndex = 0);
+              },
+              style: OutlinedButton.styleFrom(
+                foregroundColor: p.link,
+                side: BorderSide(color: p.line),
+                minimumSize: const Size(44, 44),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: Text(isEn ? 'Choose a mascot' : 'เลือกมาสคอต',
+                  style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
+            ),
+          ],
+        ),
+      );
+    }
     final tiles = <Widget>[
       _Tile(
         pal: p,

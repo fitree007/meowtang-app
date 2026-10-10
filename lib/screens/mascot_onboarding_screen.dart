@@ -338,14 +338,17 @@ class _MascotOnboardingScreenState extends State<MascotOnboardingScreen> {
                         spacing: 6,
                         runSpacing: 6,
                         children: [
+                          if (!isCustomPhoto)
+                            smallChip(
+                              label: accessoryName,
+                              icon: Icons.checkroom_rounded,
+                              strong: true,
+                              onTap: () => setState(() => _activeTabIndex = 1),
+                            ),
                           smallChip(
-                            label: accessoryName,
-                            icon: Icons.checkroom_rounded,
-                            strong: true,
-                            onTap: () => setState(() => _activeTabIndex = 1),
-                          ),
-                          smallChip(
-                            label: isEn ? 'My photo' : 'ใช้รูปของฉัน',
+                            label: isCustomPhoto
+                                ? (isEn ? 'Change photo' : 'เปลี่ยนรูป')
+                                : (isEn ? 'My photo' : 'ใช้รูปของฉัน'),
                             icon: Icons.add_a_photo_outlined,
                             strong: isCustomPhoto,
                             onTap: _openCustomPhotoDialog,
@@ -409,7 +412,19 @@ class _MascotOnboardingScreenState extends State<MascotOnboardingScreen> {
                     const SizedBox(height: 10),
                     _buildMascotGrid(),
                   ] else ...[
-                    _buildDressingGrid(isEn),
+                    if (isCustomPhoto)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 8),
+                        child: Text(
+                          isEn
+                              ? 'Accessories are for mascots only.\nChoose a mascot to try them on.'
+                              : 'อุปกรณ์คู่กายใช้ได้เฉพาะมาสคอต\nเลือกมาสคอตก่อน แล้วค่อยลองใส่อุปกรณ์',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 13.5, height: 1.5, color: _sub),
+                        ),
+                      )
+                    else
+                      _buildDressingGrid(isEn),
                   ],
                 ],
               ),
@@ -595,6 +610,10 @@ class _MascotOnboardingScreenState extends State<MascotOnboardingScreen> {
             if (!isUnlocked) {
               _showLockedIconOptions(character);
               return;
+            }
+            // Choosing a mascot replaces the uploaded photo, which is removed.
+            if (widget.controller.customAvatarPath != null) {
+              widget.controller.removeCustomAvatar();
             }
             setState(() {
               // The accessory stays as the user chose it (none by default).

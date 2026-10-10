@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../config/app_config.dart';
@@ -33,7 +34,7 @@ enum MascotMood {
 }
 
 class ExpenseController extends ChangeNotifier {
-  static const String appVersion = '1.43.5';
+  static const String appVersion = '1.43.6';
 
   final StorageService _storage;
   final OcrEngineService _ocrEngine = OcrEngineService();
@@ -180,6 +181,18 @@ class ExpenseController extends ChangeNotifier {
   await _storage.saveCustomAvatarPath(path);
   await _storage.setCustomAvatarEnabled(path != null);
   notifyListeners();
+ }
+
+ /// Switching back to a mascot drops the uploaded photo. Only the app's own
+ /// copy (in its cache) is deleted, never the original in the gallery.
+ Future<void> removeCustomAvatar() async {
+  final path = customAvatarPath;
+  await setCustomAvatar(null);
+  if (path != null && path.contains('/com.afitree.rizqi/')) {
+   try {
+    await File(path).delete();
+   } catch (_) {}
+  }
  }
 
  Future<void> toggleCustomAvatar(bool enabled) async {
