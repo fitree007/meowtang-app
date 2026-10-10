@@ -316,6 +316,8 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
     }
   }
 
+  int _firstTimeSavedCount = 0;
+
   Future<void> _runFirstTimeSlipSync() async {
     if (!mounted || _isFirstTimeSyncRunning) return;
     if (!await NativeBridgeService.hasPhotoPermission()) {
@@ -343,6 +345,7 @@ class _MeowDashboardScreenState extends State<MeowDashboardScreen> with WidgetsB
         onProgress: (savedCount) {
           if (mounted) {
             setState(() {
+              _firstTimeSavedCount = savedCount;
               _firstTimeSyncProgress = (0.35 + (savedCount * 0.04)).clamp(0.35, 0.95);
               _firstTimeSyncStatus = widget.controller.isEnglish
                   ? 'Found $savedCount slips, continuing...'
@@ -1829,7 +1832,18 @@ void _handleMascotPetting() {
                 ],
               ),
             ),
-            const SizedBox(height: 36),
+            const SizedBox(height: 12),
+            // The import keeps going when the user leaves, but Android gives a
+            // background app less CPU, so say so instead of letting it look stuck.
+            if (_firstTimeSyncProgress < 1.0)
+              Text(
+                isEn
+                    ? '💡 You can leave the app, the import keeps going.\nKeeping the app open is fastest.'
+                    : '💡 ออกจากแอปได้ ระบบจะดึงต่อให้\nแต่เปิดแอปค้างไว้จะเร็วที่สุด',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, height: 1.45, color: textPrimary.withValues(alpha: 0.6)),
+              ),
+            const SizedBox(height: 24),
 
             // Skip Button
             TextButton(
@@ -2074,6 +2088,9 @@ void _handleMascotPetting() {
 
         // Permission Warning Banner if storage permission missing
         _buildPermissionWarningBanner(context, isDark, widget.controller.isEnglish),
+
+        // 12-month import still running after its full-screen view closed
+        _buildInitialImportBanner(isDark, widget.controller.isEnglish),
 
         // Account bar removed per user request
         // Main Theme Highlight Card
@@ -4082,6 +4099,45 @@ void _handleMascotPetting() {
    },
   );
  }
+
+  Widget _buildInitialImportBanner(bool isDark, bool isEn) {
+    if (!_isFirstTimeSyncRunning || _isFirstTimeSyncing) return const SizedBox.shrink();
+    final accent = isDark ? const Color(0xFF38BDF8) : const Color(0xFF2563EB);
+    final saved = _firstTimeSavedCount;
+    return Container(
+      margin: const EdgeInsets.only(left: 20, right: 20, top: 4, bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: isDark ? 0.12 : 0.07),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: accent.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: accent)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isEn
+                      ? 'Importing past slips${saved > 0 ? ' · $saved saved' : ''}'
+                      : 'กำลังดึงสลิปย้อนหลัง${saved > 0 ? ' · บันทึกแล้ว $saved รายการ' : ''}',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: accent),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  isEn ? 'Keep the app open to import faster' : 'เปิดแอปค้างไว้จะดึงเร็วขึ้น',
+                  style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildPermissionWarningBanner(BuildContext context, bool isDark, bool isEn) {
     if (!_needsPhotoPermission) return const SizedBox.shrink();

@@ -119,6 +119,10 @@ class SlipAutoSyncService {
     return !date.isBefore(start);
   }
 
+  /// The import keeps going in the background but Android gives it less CPU there;
+  /// the progress notification says how to speed it up (its tap opens the app).
+  static const _tapToSpeedUp = 'แตะเพื่อเปิดแอปให้ดึงเร็วขึ้น';
+
   static Future<List<TransactionItem>>? _activeScan;
   static bool _activeScanIsForced = false;
 
@@ -359,8 +363,8 @@ class SlipAutoSyncService {
     // Background notification ONLY for initial first install scan (never during manual pull-to-refresh)
     if (isInitialScan) {
       NativeBridgeService.showScanProgressNotification(
-        title: 'เหมียวตังค์: กำลังดึงและอ่านสลิป... 🔄',
-        message: 'กำลังค้นหาสลิปในเครื่อง...',
+        title: 'เหมียวตังค์: กำลังดึงสลิปย้อนหลัง... 🔄',
+        message: 'กำลังค้นหาสลิปในเครื่อง · $_tapToSpeedUp',
       );
     }
 
@@ -481,8 +485,8 @@ class SlipAutoSyncService {
 
           if (isInitialScan && importedSlips.isNotEmpty) {
             NativeBridgeService.showScanProgressNotification(
-              title: 'เหมียวตังค์: กำลังดึงและอ่านสลิป... 🔄',
-              message: 'บันทึกแล้ว ${importedSlips.length} รายการ',
+              title: 'เหมียวตังค์: กำลังดึงสลิปย้อนหลัง... 🔄',
+              message: 'บันทึกแล้ว ${importedSlips.length} รายการ · $_tapToSpeedUp',
             );
             onProgress?.call(importedSlips.length);
           }
@@ -565,8 +569,8 @@ class SlipAutoSyncService {
       importedSlips.addAll(saved);
       if (isInitialScan && importedSlips.isNotEmpty) {
         NativeBridgeService.showScanProgressNotification(
-          title: 'เหมียวตังค์: กำลังดึงและอ่านสลิป... 🔄',
-          message: 'บันทึกแล้ว ${importedSlips.length} รายการ',
+          title: 'เหมียวตังค์: กำลังดึงสลิปย้อนหลัง... 🔄',
+          message: 'บันทึกแล้ว ${importedSlips.length} รายการ · $_tapToSpeedUp',
         );
         onProgress?.call(importedSlips.length);
       }
