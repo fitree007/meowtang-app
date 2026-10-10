@@ -34,7 +34,7 @@ enum MascotMood {
 }
 
 class ExpenseController extends ChangeNotifier {
-  static const String appVersion = '1.43.6';
+  static const String appVersion = '1.43.7';
 
   final StorageService _storage;
   final OcrEngineService _ocrEngine = OcrEngineService();
@@ -177,23 +177,22 @@ class ExpenseController extends ChangeNotifier {
  String? get customAvatarPath => _storage.getCustomAvatarPath();
  bool get isCustomAvatarEnabled => _storage.isCustomAvatarEnabled() && customAvatarPath != null;
 
+ /// Sets (or clears, with null) the user's own photo. The previous photo is
+ /// deleted when it is the app's own copy, never an original in the gallery.
  Future<void> setCustomAvatar(String? path) async {
+  final old = customAvatarPath;
   await _storage.saveCustomAvatarPath(path);
   await _storage.setCustomAvatarEnabled(path != null);
   notifyListeners();
- }
-
- /// Switching back to a mascot drops the uploaded photo. Only the app's own
- /// copy (in its cache) is deleted, never the original in the gallery.
- Future<void> removeCustomAvatar() async {
-  final path = customAvatarPath;
-  await setCustomAvatar(null);
-  if (path != null && path.contains('/com.afitree.rizqi/')) {
+  if (old != null && old != path && old.contains('/com.afitree.rizqi/')) {
    try {
-    await File(path).delete();
+    await File(old).delete();
    } catch (_) {}
   }
  }
+
+ /// Switching back to a mascot drops the uploaded photo.
+ Future<void> removeCustomAvatar() => setCustomAvatar(null);
 
  Future<void> toggleCustomAvatar(bool enabled) async {
   await _storage.setCustomAvatarEnabled(enabled);

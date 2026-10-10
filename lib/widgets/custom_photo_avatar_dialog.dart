@@ -5,6 +5,7 @@ import '../state/expense_controller.dart';
 import '../theme/meow_theme.dart';
 import '../services/native_bridge_service.dart';
 import '../widgets/tactile_button.dart';
+import '../screens/avatar_crop_screen.dart';
 
 class CustomPhotoAvatarDialog extends StatefulWidget {
  final ExpenseController controller;
@@ -50,15 +51,36 @@ class _CustomPhotoAvatarDialogState extends State<CustomPhotoAvatarDialog> {
   _useCustomAvatar = widget.controller.isCustomAvatarEnabled;
  }
 
+ // Crops made in this dialog; any not kept are deleted when it closes.
+ final Set<String> _newCrops = {};
+
+ @override
+ void dispose() {
+  final kept = widget.controller.customAvatarPath;
+  for (final p in _newCrops) {
+   if (p != kept) _deleteQuietly(p);
+  }
+  super.dispose();
+ }
+
+ static void _deleteQuietly(String path) {
+  File(path).delete().catchError((_) => File(path));
+ }
+
  Future<void> _pickPhoto() async {
   HapticFeedback.selectionClick();
-  final path = await NativeBridgeService.pickImageFromGallery();
-  if (path != null && path.isNotEmpty) {
-   setState(() {
-    _pickedPath = path;
-    _useCustomAvatar = true;
-   });
-  }
+  final picked = await NativeBridgeService.pickImageFromGallery();
+  if (picked == null || picked.isEmpty || !mounted) return;
+  // Let the user zoom and move the photo inside the circle before using it.
+  final cropped = await AvatarCropScreen.open(context, picked, isEnglish: widget.controller.isEnglish);
+  // The picker's copy in the app cache is no longer needed either way.
+  if (picked.contains('/com.afitree.rizqi/')) _deleteQuietly(picked);
+  if (cropped == null || !mounted) return;
+  _newCrops.add(cropped);
+  setState(() {
+   _pickedPath = cropped;
+   _useCustomAvatar = true;
+  });
  }
 
  void _clearPhoto() {
