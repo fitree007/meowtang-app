@@ -112,7 +112,7 @@
         <!-- FileProvider for CSV and Slip Sharing -->
         <provider
             android:name="androidx.core.content.FileProvider"
-            android:authorities="com.afitree.rizqi.fileprovider"
+            android:authorities="${applicationId}.fileprovider"
             android:exported="false"
             android:grantUriPermissions="true">
             <meta-data

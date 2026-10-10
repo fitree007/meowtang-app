@@ -31,7 +31,9 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.afitree.rizqi"
+        // The Kotlin code keeps the original com.afitree.rizqi package (namespace);
+        // only the ID users and Google Play see is the MeowTang one.
+        applicationId = "com.afitree.meowtang"
         minSdk = 24
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

@@ -6,6 +6,7 @@ import '../theme/meow_theme.dart';
 import '../services/native_bridge_service.dart';
 import '../widgets/tactile_button.dart';
 import '../screens/avatar_crop_screen.dart';
+import '../services/app_files.dart';
 
 class CustomPhotoAvatarDialog extends StatefulWidget {
  final ExpenseController controller;
@@ -74,7 +75,7 @@ class _CustomPhotoAvatarDialogState extends State<CustomPhotoAvatarDialog> {
   // Let the user zoom and move the photo inside the circle before using it.
   final cropped = await AvatarCropScreen.open(context, picked, isEnglish: widget.controller.isEnglish);
   // The picker's copy in the app cache is no longer needed either way.
-  if (picked.contains('/com.afitree.rizqi/')) _deleteQuietly(picked);
+  AppFiles.deleteIfAppOwned(picked);
   if (cropped == null || !mounted) return;
   _newCrops.add(cropped);
   setState(() {

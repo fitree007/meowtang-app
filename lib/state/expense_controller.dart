@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../config/app_config.dart';
@@ -13,6 +12,7 @@ import '../models/saving_goal_item.dart';
 import '../models/salary_auto_record_config.dart';
 import '../models/subscription_item.dart';
 import '../services/storage_service.dart';
+import '../services/app_files.dart';
 import '../services/ocr_engine_service.dart';
 import '../services/nlp_parser_service.dart';
 import '../services/excel_export_service.dart';
@@ -34,7 +34,7 @@ enum MascotMood {
 }
 
 class ExpenseController extends ChangeNotifier {
-  static const String appVersion = '1.43.8';
+  static const String appVersion = '1.43.9';
 
   final StorageService _storage;
   final OcrEngineService _ocrEngine = OcrEngineService();
@@ -184,11 +184,7 @@ class ExpenseController extends ChangeNotifier {
   await _storage.saveCustomAvatarPath(path);
   await _storage.setCustomAvatarEnabled(path != null);
   notifyListeners();
-  if (old != null && old != path && old.contains('/com.afitree.rizqi/')) {
-   try {
-    await File(old).delete();
-   } catch (_) {}
-  }
+  if (old != path) await AppFiles.deleteIfAppOwned(old);
  }
 
  /// Switching back to a mascot drops the uploaded photo.
