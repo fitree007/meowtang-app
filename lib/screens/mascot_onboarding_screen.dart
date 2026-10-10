@@ -122,55 +122,18 @@ class _MascotOnboardingScreenState extends State<MascotOnboardingScreen> {
                 ],
               ),
               const SizedBox(height: 18),
+              // Mascots are unlocked by VIP (sold through Google Play), not one by one.
               TactileButton(
                 onTap: () async {
                   Navigator.pop(ctx);
-                  await widget.controller.purchaseIcon(character.id);
-                  setState(() => _selectedMascotId = character.id);
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        backgroundColor: const Color(0xFF059669),
-                        content: Text('ปลดล็อคไอคอน "${character.name}" สำเร็จ! ใช้งานได้ตลอดชีพ 🎉'),
-                      ),
-                    );
-                  }
-                },
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: MeowTheme.actionBlue.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: MeowTheme.actionBlue.withValues(alpha: 0.4)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.shopping_bag_rounded, color: MeowTheme.actionBlue, size: 20),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'ซื้อเฉพาะไอคอนนี้ ฿${AppConfig.iconPriceThb}',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                        ),
-                      ),
-                      Text(
-                        '฿${AppConfig.iconPriceThb}',
-                        style: const TextStyle(color: MeowTheme.actionBlue, fontWeight: FontWeight.bold, fontSize: 15),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              TactileButton(
-                onTap: () {
-                  Navigator.pop(ctx);
-                  MeowPaywallModal.show(
+                  final ok = await MeowPaywallModal.show(
                     context,
                     controller: widget.controller,
                     reason: 'สมัคร VIP เพื่อปลดล็อคทุกไอคอนและทุกธีมฟรี 👑',
                   );
+                  if (ok == true && mounted && widget.controller.isMascotUnlocked(character.id)) {
+                    setState(() => _selectedMascotId = character.id);
+                  }
                 },
                 child: Container(
                   width: double.infinity,

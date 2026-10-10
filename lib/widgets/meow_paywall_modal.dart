@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../state/expense_controller.dart';
 import '../config/app_config.dart';
 import '../services/ad_service.dart';
+import '../services/billing_service.dart';
 import 'tactile_button.dart';
 import 'meow_mascot_widget.dart';
 
@@ -435,7 +436,7 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
                           child: _buildCompactTierCard(
                             index: 0,
                             title: isEn ? 'Monthly' : 'รายเดือน',
-                            price: '฿${AppConfig.monthlySubPriceThb}',
+                            price: _price(BillingService.monthlyId, AppConfig.monthlySubPriceThb),
                             period: isEn ? '/month' : '/เดือน',
                             badge: null,
                             badgeColor: null,
@@ -450,7 +451,7 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
                           child: _buildCompactTierCard(
                             index: 1,
                             title: isEn ? 'Yearly' : 'รายปี',
-                            price: '฿${AppConfig.yearlySubPriceThb}',
+                            price: _price(BillingService.yearlyId, AppConfig.yearlySubPriceThb),
                             period: isEn ? '/yr (~33฿/mo)' : '/ปี (~33฿/ด.)',
                             badge: isEn ? 'SAVE 32% ⭐' : 'ประหยัด 32% ⭐',
                             badgeColor: const Color(0xFF059669),
@@ -512,7 +513,16 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
                       ),
                     ),
 
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
+                    // Google Play requires subscription terms next to the buy button.
+                    Text(
+                      isEn
+                          ? 'Renews automatically until cancelled. Cancel anytime in Google Play › Subscriptions.'
+                          : 'ต่ออายุอัตโนมัติจนกว่าจะยกเลิก ยกเลิกได้ทุกเมื่อที่ Google Play › การสมัครใช้บริการ',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: subColor, fontSize: 10.5, height: 1.35),
+                    ),
+                    const SizedBox(height: 2),
 
                     // 6. Restore Purchases & Dismiss
                     Row(
@@ -557,12 +567,30 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
     );
   }
 
+  /// Google's price for the product (it is set in Play Console), or the
+  /// app's own price until the product details have loaded.
+  String _price(String productId, int fallbackThb) =>
+      BillingService.instance.products[productId]?.price ?? '฿$fallbackThb';
+
   String _getCtaText(bool isEn) {
     if (_selectedTierIndex == 0) {
-      return isEn ? 'Subscribe Monthly ฿${AppConfig.monthlySubPriceThb}/mo' : 'สมัคร VIP รายเดือน ฿${AppConfig.monthlySubPriceThb}/เดือน';
+      final p = _price(BillingService.monthlyId, AppConfig.monthlySubPriceThb);
+      return isEn ? 'Subscribe Monthly $p/mo' : 'สมัคร VIP รายเดือน $p/เดือน';
     } else {
-      return isEn ? 'Subscribe Yearly ฿${AppConfig.yearlySubPriceThb}/yr (Best ⭐)' : 'สมัคร VIP รายปี ฿${AppConfig.yearlySubPriceThb}/ปี (แนะนำ ⭐)';
+      final p = _price(BillingService.yearlyId, AppConfig.yearlySubPriceThb);
+      return isEn ? 'Subscribe Yearly $p/yr (Best ⭐)' : 'สมัคร VIP รายปี $p/ปี (แนะนำ ⭐)';
     }
+  }
+
+  void _toast(String text, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        content: Text(text),
+      ),
+    );
   }
 
   Widget _buildBenefitRow({
@@ -739,18 +767,42 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
     HapticFeedback.mediumImpact();
     setState(() => _isProcessing = true);
 
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    // Simulated In-App Purchase execution (Pre-wired for Play Store Billing)
-    final tier = _selectedTierIndex == 0 ? 'monthly' : 'yearly';
-    final expiry = _selectedTierIndex == 0
-        ? DateTime.now().add(const Duration(days: 30))
-        : DateTime.now().add(const Duration(days: 365));
-
-    await widget.controller.setPremiumStatus(true, tier: tier, expiry: expiry);
+    // Google Play shows its own payment sheet; VIP is granted by BillingService
+    // only once Google reports the purchase.
+    final productId = _selectedTierIndex == 0 ? BillingService.monthlyId : BillingService.yearlyId;
+    final result = await BillingService.instance.buy(productId);
 
     if (!mounted) return;
     setState(() => _isProcessing = false);
+    final isEn = widget.controller.isEnglish;
+    switch (result) {
+      case BuyResult.success:
+        break;
+      case BuyResult.cancelled:
+        return;
+      case BuyResult.pending:
+        _toast(
+          isEn
+              ? 'Payment is pending. VIP turns on as soon as Google confirms it.'
+              : 'รอการชำระเงิน VIP จะเปิดให้อัตโนมัติเมื่อ Google ยืนยันการจ่ายเงิน',
+          const Color(0xFF0284C7),
+        );
+        return;
+      case BuyResult.unavailable:
+        _toast(
+          isEn
+              ? 'Google Play purchases are not available right now. Please try again later.'
+              : 'ยังซื้อผ่าน Google Play ไม่ได้ในตอนนี้ ลองใหม่อีกครั้งภายหลัง',
+          const Color(0xFFB45309),
+        );
+        return;
+      case BuyResult.failed:
+        _toast(
+          isEn ? 'The purchase did not go through. You were not charged.' : 'การสมัครไม่สำเร็จ ยังไม่มีการตัดเงิน',
+          const Color(0xFFB91C1C),
+        );
+        return;
+    }
     Navigator.pop(context, true);
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -802,18 +854,27 @@ class _MeowPaywallModalState extends State<MeowPaywallModal> {
   Future<void> _handleRestore() async {
     HapticFeedback.selectionClick();
     setState(() => _isProcessing = true);
-    await Future.delayed(const Duration(milliseconds: 600));
+    // Asks Google for the subscriptions on this Google account (new phone, reinstall).
+    final active = await BillingService.instance.syncEntitlement();
 
     if (!mounted) return;
     setState(() => _isProcessing = false);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor: const Color(0xFF0284C7),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        content: const Text('ตรวจสอบสิทธิ์การซื้อเรียบร้อยแล้ว'),
-      ),
-    );
+    final isEn = widget.controller.isEnglish;
+    if (active == true) {
+      Navigator.pop(context, true);
+      _toast(isEn ? 'VIP restored 🎉' : 'กู้คืนสิทธิ์ VIP เรียบร้อยแล้ว 🎉', const Color(0xFF059669));
+    } else if (active == false) {
+      _toast(
+        isEn
+            ? 'No active VIP subscription on this Google account'
+            : 'ไม่พบการสมัคร VIP ที่ยังใช้งานอยู่ในบัญชี Google นี้',
+        const Color(0xFF0284C7),
+      );
+    } else {
+      _toast(
+        isEn ? 'Could not reach Google Play. Please try again.' : 'เชื่อมต่อ Google Play ไม่ได้ ลองใหม่อีกครั้ง',
+        const Color(0xFFB45309),
+      );
+    }
   }
 }

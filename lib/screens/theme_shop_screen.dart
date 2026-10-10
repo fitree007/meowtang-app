@@ -4,7 +4,6 @@ import '../state/expense_controller.dart';
 import '../theme/app_theme_model.dart';
 import '../widgets/meow_fx.dart';
 import '../widgets/meow_paywall_modal.dart';
-import '../config/app_config.dart';
 
 class ThemeShopScreen extends StatefulWidget {
   final ExpenseController controller;
@@ -39,13 +38,18 @@ class _ThemeShopScreenState extends State<ThemeShopScreen> {
       ..showSnackBar(SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating));
   }
 
+  /// Themes are unlocked by VIP (sold through Google Play), not one by one.
   Future<void> _buy(AppThemeModel theme) async {
     HapticFeedback.mediumImpact();
-    await _c.purchaseTheme(theme.id);
+    final ok = await MeowPaywallModal.show(
+      context,
+      controller: _c,
+      reason: _isEn ? 'Get VIP to unlock every theme' : 'สมัคร VIP เพื่อปลดล็อคทุกธีมและดึงสลิปไม่จำกัด',
+    );
+    if (ok != true || !_c.isThemeUnlocked(theme.id)) return;
     if (_c.testDriveThemeId == theme.id) _c.cancelThemeTestDrive();
-    _snack(_isEn
-        ? 'Bought ${_name(theme)} — yours for life, and it is now in use'
-        : 'ซื้อ ${_name(theme)} แล้ว — ใช้ได้ตลอดชีพ และเปลี่ยนเป็นธีมนี้ให้แล้ว');
+    await _c.setTheme(theme.id);
+    _snack(_isEn ? '${_name(theme)} is now in use' : 'เปลี่ยนเป็นธีม ${_name(theme)} ให้แล้ว');
   }
 
   void _openVip() {
@@ -80,8 +84,8 @@ class _ThemeShopScreenState extends State<ThemeShopScreen> {
               const SizedBox(height: 8),
               Text(
                 isEn
-                    ? 'You are back on ${_name(_savedTheme)} • Like ${_name(theme)}? Buy it once for ฿${AppConfig.themePriceThb} and keep it for life'
-                    : 'ตอนนี้กลับเป็น ${_name(_savedTheme)} แล้ว • ชอบ ${_name(theme)} ไหม? ซื้อครั้งเดียว ฿${AppConfig.themePriceThb} ใช้ได้ตลอดชีพ',
+                    ? 'You are back on ${_name(_savedTheme)} • Like ${_name(theme)}? VIP unlocks every theme'
+                    : 'ตอนนี้กลับเป็น ${_name(_savedTheme)} แล้ว • ชอบ ${_name(theme)} ไหม? สมัคร VIP ใช้ได้ทุกธีม',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 13.5, height: 1.5, color: p.sub),
               ),
@@ -102,7 +106,7 @@ class _ThemeShopScreenState extends State<ThemeShopScreen> {
                       pal: p,
                       height: 48,
                       radius: 14,
-                      label: isEn ? 'Buy ฿${AppConfig.themePriceThb}' : 'ซื้อ ฿${AppConfig.themePriceThb}',
+                      label: isEn ? 'Unlock with VIP' : 'ปลดล็อคด้วย VIP',
                       onTap: () {
                         Navigator.pop(ctx);
                         _buy(theme);
@@ -208,32 +212,12 @@ class _ThemeShopScreenState extends State<ThemeShopScreen> {
               _PrimaryButton(
                 pal: p,
                 height: 56,
-                label: isEn ? 'Buy this theme ฿${AppConfig.themePriceThb}' : 'ซื้อธีมนี้ ฿${AppConfig.themePriceThb}',
-                sub: isEn ? 'Pay once, use for life' : 'จ่ายครั้งเดียว ใช้ได้ตลอดชีพ',
+                label: isEn ? 'Unlock with VIP' : 'ปลดล็อคด้วย VIP',
+                sub: isEn ? 'Every theme + unlimited slips' : 'ใช้ได้ทุกธีม + ดึงสลิปไม่จำกัด',
                 onTap: () {
                   Navigator.pop(ctx);
                   _buy(theme);
                 },
-              ),
-              const SizedBox(height: 4),
-              SizedBox(
-                height: 48,
-                child: TextButton(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    _openVip();
-                  },
-                  style: TextButton.styleFrom(foregroundColor: p.link),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(isEn ? 'Or unlock every theme with' : 'หรือปลดล็อคทุกธีมด้วย',
-                          style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600)),
-                      const SizedBox(width: 8),
-                      _VipBadge(color: p.link),
-                    ],
-                  ),
-                ),
               ),
             ],
           ),
@@ -410,7 +394,7 @@ class _ThemeShopScreenState extends State<ThemeShopScreen> {
                       _SmallButton(
                         pal: p,
                         primary: true,
-                        label: isEn ? 'Buy ฿${AppConfig.themePriceThb}' : 'ซื้อ ฿${AppConfig.themePriceThb}',
+                        label: isEn ? 'Unlock with VIP' : 'ปลดล็อคด้วย VIP',
                         onTap: () => _buy(shown),
                       ),
                       _SmallButton(
@@ -449,7 +433,7 @@ class _ThemeShopScreenState extends State<ThemeShopScreen> {
               ? (isEn ? 'In use' : 'ใช้งานอยู่', p.link, FontWeight.w600, Icons.check_rounded)
               : owned
                   ? (isEn ? 'Unlocked' : 'ปลดล็อคแล้ว', p.sub, FontWeight.w400, null)
-                  : ('฿${AppConfig.themePriceThb}', p.text, FontWeight.w600, Icons.lock_outline_rounded);
+                  : ('VIP', p.text, FontWeight.w600, Icons.lock_outline_rounded);
 
       cards.add(FxFadeUp(
         key: ValueKey('${_tab}_${theme.id}'),

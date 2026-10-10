@@ -1,0 +1,8 @@
+# Copy this file to android/key.properties and fill in your own values.
+# key.properties and the .jks file are gitignored: never commit or share them.
+# Back up the .jks file and the passwords in a safe place; without them the
+# app can no longer be updated on Google Play.
+storeFile=E:/MeowTang-keys/meowtang-upload.jks
+storePassword=YOUR_KEYSTORE_PASSWORD
+keyAlias=upload
+keyPassword=YOUR_KEY_PASSWORD

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../state/expense_controller.dart';
-import '../config/app_config.dart';
+import 'meow_paywall_modal.dart';
 import 'tactile_button.dart';
 
 class ThemeTestDriveBanner extends StatelessWidget {
@@ -74,7 +74,7 @@ class ThemeTestDriveBanner extends StatelessWidget {
                   ],
                 ),
                 Text(
-                  'เหลือเวลา $remaining วินาที • ซื้อ ฿${AppConfig.themePriceThb} ใช้ตลอดชีพ',
+                  'เหลือเวลา $remaining วินาที • สมัคร VIP ใช้ได้ทุกธีม',
                   style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 10,
@@ -85,24 +85,29 @@ class ThemeTestDriveBanner extends StatelessWidget {
           ),
           const SizedBox(width: 8),
 
-          // Buy 29฿ Button
+          // Unlock with VIP (themes are not sold one by one)
           TactileButton(
             onTap: () async {
               HapticFeedback.heavyImpact();
               final themeId = controller.testDriveThemeId;
-              if (themeId != null) {
-                await controller.purchaseTheme(themeId);
-                controller.cancelThemeTestDrive();
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      backgroundColor: const Color(0xFF059669),
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      content: Text('ปลดล็อคธีม "${activeTheme.name}" ถาวรสำเร็จแล้ว! 🎉'),
-                    ),
-                  );
-                }
+              if (themeId == null) return;
+              final ok = await MeowPaywallModal.show(
+                context,
+                controller: controller,
+                reason: 'สมัคร VIP เพื่อปลดล็อคทุกธีมและดึงสลิปไม่จำกัด',
+              );
+              if (ok != true || !controller.isThemeUnlocked(themeId)) return;
+              controller.cancelThemeTestDrive();
+              await controller.setTheme(themeId);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    backgroundColor: const Color(0xFF059669),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    content: Text('เปลี่ยนเป็นธีม "${activeTheme.name}" ให้แล้ว 🎉'),
+                  ),
+                );
               }
             },
             child: Container(
@@ -114,7 +119,7 @@ class ThemeTestDriveBanner extends StatelessWidget {
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
-                'ซื้อ ฿${AppConfig.themePriceThb}',
+                'ปลดล็อค VIP',
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
